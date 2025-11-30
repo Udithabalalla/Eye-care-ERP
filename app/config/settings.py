@@ -1,0 +1,43 @@
+from pydantic_settings import BaseSettings
+from typing import Optional, List
+import json
+
+class Settings(BaseSettings):
+    # Application
+    APP_NAME: str = "Eye Care Institute Management System"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+    
+    # Server
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    RELOAD: bool = False
+    
+    # MongoDB
+    MONGODB_URL: str
+    MONGODB_DB_NAME: str = "eye_care_institute"
+    
+    # Security
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # CORS
+    CORS_ORIGINS: str = '["http://localhost:3000","http://localhost:5173"]'
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return json.loads(self.CORS_ORIGINS)
+    
+    # Email (optional)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: Optional[int] = None
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+settings = Settings()
