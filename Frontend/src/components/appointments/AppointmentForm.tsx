@@ -8,6 +8,8 @@ import { Appointment, AppointmentFormData } from '@/types/appointment.types'
 import { AppointmentType, AppointmentStatus } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
+import { usersApi } from '@/api/users.api'
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
@@ -37,27 +39,34 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
     queryFn: () => patientsApi.getAll({ page: 1, page_size: 100 }),
   })
 
+  const { data: doctors } = useQuery({
+    queryKey: ['doctors-list'],
+    queryFn: () => usersApi.getAll({ page: 1, page_size: 100, role: 'doctor' }),
+  })
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: appointment
       ? {
-          patient_id: appointment.patient_id,
-          doctor_id: appointment.doctor_id,
-          appointment_date: appointment.appointment_date.split('T')[0],
-          appointment_time: appointment.appointment_time.split('T')[1].substring(0, 5),
-          duration_minutes: appointment.duration_minutes,
-          type: appointment.type,
-          reason: appointment.reason,
-          notes: appointment.notes || '',
-        }
+        patient_id: appointment.patient_id,
+        doctor_id: appointment.doctor_id,
+        appointment_date: appointment.appointment_date.split('T')[0],
+        appointment_time: appointment.appointment_time.split('T')[1].substring(0, 5),
+        duration_minutes: appointment.duration_minutes,
+        type: appointment.type,
+        reason: appointment.reason,
+        notes: appointment.notes || '',
+      }
       : {
-          duration_minutes: 30,
-          type: AppointmentType.CONSULTATION,
-        },
+        duration_minutes: 30,
+        type: AppointmentType.CONSULTATION,
+      },
   })
 
   const createMutation = useMutation({
@@ -97,37 +106,38 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Patient Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Patient *
-          </label>
-          <select {...register('patient_id')} className="input">
-            <option value="">Select patient</option>
-            {patients?.data.map((patient) => (
-              <option key={patient.patient_id} value={patient.patient_id}>
-                {patient.name} - {patient.patient_id}
-              </option>
-            ))}
-          </select>
-          {errors.patient_id && (
-            <p className="text-sm text-red-600 mt-1">{errors.patient_id.message}</p>
-          )}
-        </div>
+        <SearchableLOV
+          label="Patient"
+          required
+          value={watch('patient_id')}
+          onChange={(value) => setValue('patient_id', value)}
+          options={
+            patients?.data.map((patient): LOVOption => ({
+              value: patient.patient_id,
+              label: patient.name,
+              subtitle: patient.patient_id,
+            })) || []
+          }
+          placeholder="Select patient"
+          error={errors.patient_id?.message}
+        />
 
         {/* Doctor Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Doctor *
-          </label>
-          <select {...register('doctor_id')} className="input">
-            <option value="">Select doctor</option>
-            <option value="USR000002">Dr. Sarah Johnson</option>
-            <option value="USR000004">Dr. Michael Chen</option>
-          </select>
-          {errors.doctor_id && (
-            <p className="text-sm text-red-600 mt-1">{errors.doctor_id.message}</p>
-          )}
-        </div>
+        <SearchableLOV
+          label="Doctor"
+          required
+          value={watch('doctor_id')}
+          onChange={(value) => setValue('doctor_id', value)}
+          options={
+            doctors?.data.map((doctor): LOVOption => ({
+              value: doctor.user_id,
+              label: doctor.full_name,
+              subtitle: doctor.role,
+            })) || []
+          }
+          placeholder="Select doctor"
+          error={errors.doctor_id?.message}
+        />
 
         {/* Date */}
         <div>
@@ -212,8 +222,8 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
           {isSubmitting
             ? 'Saving...'
             : appointment
-            ? 'Update Appointment'
-            : 'Schedule Appointment'}
+              ? 'Update Appointment'
+              : 'Schedule Appointment'}
         </button>
       </div>
     </form>

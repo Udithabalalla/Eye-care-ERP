@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import { PaymentMethod } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 
 const invoiceItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
@@ -65,20 +66,20 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     resolver: zodResolver(invoiceSchema),
     defaultValues: invoice
       ? {
-          patient_id: invoice.patient_id,
-          invoice_date: invoice.invoice_date.split('T')[0],
-          due_date: invoice.due_date.split('T')[0],
-          items: invoice.items,
-          payment_method: invoice.payment_method,
-          notes: invoice.notes || '',
-        }
+        patient_id: invoice.patient_id,
+        invoice_date: invoice.invoice_date.split('T')[0],
+        due_date: invoice.due_date.split('T')[0],
+        items: invoice.items,
+        payment_method: invoice.payment_method,
+        notes: invoice.notes || '',
+      }
       : {
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0],
-          items: [],
-        },
+        invoice_date: new Date().toISOString().split('T')[0],
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0],
+        items: [],
+      },
   })
 
   const { fields, append, remove } = useFieldArray({
@@ -114,7 +115,8 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       setValue(`items.${index}.product_name`, product.name)
       setValue(`items.${index}.sku`, product.sku)
       setValue(`items.${index}.unit_price`, product.selling_price)
-      calculateItemTotal(index)
+      // Trigger recalculation
+      setTimeout(() => calculateItemTotal(index), 0)
     }
   }
 
@@ -128,6 +130,24 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       setValue(`items.${index}.total`, parseFloat(total.toFixed(2)))
     }
   }
+
+  // Watch for changes in items and recalculate totals
+  useEffect(() => {
+    items.forEach((item, index) => {
+      if (item.quantity && item.unit_price) {
+        const subtotal = item.quantity * item.unit_price
+        const discountAmount = item.discount || 0
+        const taxAmount = ((subtotal - discountAmount) * (item.tax || 0)) / 100
+        const total = subtotal - discountAmount + taxAmount
+        const calculatedTotal = parseFloat(total.toFixed(2))
+
+        // Only update if the calculated total is different from current total
+        if (item.total !== calculatedTotal) {
+          setValue(`items.${index}.total`, calculatedTotal)
+        }
+      }
+    })
+  }, [items.map(i => `${i.quantity}-${i.unit_price}-${i.discount}-${i.tax}`).join(',')])
 
   const createMutation = useMutation({
     mutationFn: (data: InvoiceFormData) => invoicesApi.create(data),
@@ -166,22 +186,21 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Invoice Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Patient *
-          </label>
-          <select {...register('patient_id')} className="input">
-            <option value="">Select patient</option>
-            {patients?.data.map((patient) => (
-              <option key={patient.patient_id} value={patient.patient_id}>
-                {patient.name} - {patient.patient_id}
-              </option>
-            ))}
-          </select>
-          {errors.patient_id && (
-            <p className="text-sm text-red-600 mt-1">{errors.patient_id.message}</p>
-          )}
-        </div>
+        <SearchableLOV
+          label="Patient"
+          required
+          value={watch('patient_id')}
+          onChange={(value) => setValue('patient_id', value)}
+          options={
+            patients?.data.map((patient): LOVOption => ({
+              value: patient.patient_id,
+              label: patient.name,
+              subtitle: patient.patient_id,
+            })) || []
+          }
+          placeholder="Select patient"
+          error={errors.patient_id?.message}
+        />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -243,7 +262,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <input
                     type="number"
                     {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                    onChange={() => calculateItemTotal(index)}
                     className="input text-sm"
                     min="1"
                   />
@@ -257,7 +275,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                     type="number"
                     step="0.01"
                     {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                    onChange={() => calculateItemTotal(index)}
                     className="input text-sm"
                   />
                 </div>
@@ -270,7 +287,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                     type="number"
                     step="0.01"
                     {...register(`items.${index}.discount`, { valueAsNumber: true })}
-                    onChange={() => calculateItemTotal(index)}
                     className="input text-sm"
                   />
                 </div>

@@ -87,3 +87,41 @@ async def delete_product(
     product_service = ProductService(db)
     await product_service.delete_product(product_id)
     return ResponseModel(message="Product deleted successfully")
+
+@router.get("/{product_id}/qr")
+async def get_product_qr(
+    product_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Get product QR code"""
+    from fastapi.responses import Response
+    from app.services.qr_service import QRService
+    
+    product_service = ProductService(db)
+    product = await product_service.get_product(product_id)
+    
+    # Generate QR for the SKU
+    qr_bytes = QRService.generate_qr_code(product.sku)
+    return Response(content=qr_bytes, media_type="image/png")
+
+@router.get("/{product_id}/label")
+async def get_product_label(
+    product_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Get printable product label"""
+    from fastapi.responses import Response
+    from app.services.qr_service import QRService
+    
+    product_service = ProductService(db)
+    product = await product_service.get_product(product_id)
+    
+    # Generate Label
+    label_bytes = QRService.generate_product_label(
+        product_name=product.name,
+        sku=product.sku,
+        price=product.selling_price
+    )
+    return Response(content=label_bytes, media_type="image/png")

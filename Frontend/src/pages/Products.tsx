@@ -83,11 +83,10 @@ const Products = () => {
       render: (product: Product) => (
         <div className="flex items-center space-x-2">
           <span
-            className={`font-semibold ${
-              product.current_stock <= product.min_stock_level
+            className={`font-semibold ${product.current_stock <= product.min_stock_level
                 ? 'text-red-600'
                 : 'text-green-600'
-            }`}
+              }`}
           >
             {product.current_stock}
           </span>
@@ -115,15 +114,28 @@ const Products = () => {
       key: 'actions',
       header: 'Actions',
       render: (product: Product) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleStockAdjustment(product)
-          }}
-          className="text-primary-600 hover:text-primary-700 font-medium text-sm"
-        >
-          Adjust Stock
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleStockAdjustment(product)
+            }}
+            className="text-primary-600 hover:text-primary-700 font-medium text-sm"
+          >
+            Adjust Stock
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              // Open label in new tab
+              window.open(`http://localhost:8000/api/v1/products/${product.product_id}/label`, '_blank')
+            }}
+            className="text-gray-600 hover:text-gray-900 font-medium text-sm flex items-center"
+            title="Print Label"
+          >
+            <span className="mr-1">🖨️</span> Label
+          </button>
+        </div>
       ),
     },
   ]
