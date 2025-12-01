@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from datetime import datetime, date
+from datetime import datetime
 from app.models.common import TimestampModel
 from app.utils.constants import ProductCategory
 
@@ -42,8 +42,8 @@ class ProductModel(TimestampModel):
     # Product Details
     specifications: Dict[str, Any] = Field(default_factory=dict)
     images: List[str] = Field(default_factory=list)
-    expiry_date: Optional[date] = None
-    manufacturing_date: Optional[date] = None
+    expiry_date: Optional[datetime] = None  # Changed from date
+    manufacturing_date: Optional[datetime] = None  # Changed from date
     batch_number: Optional[str] = None
     warranty_months: Optional[int] = None
     

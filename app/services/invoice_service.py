@@ -9,7 +9,7 @@ from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, P
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id
+from app.utils.helpers import generate_id, date_to_datetime
 
 class InvoiceService:
     """Invoice business logic service"""
@@ -81,6 +81,10 @@ class InvoiceService:
         total_amount = subtotal
         balance_due = total_amount
         
+        # Convert dates to datetime
+        invoice_date_dt = date_to_datetime(invoice_data.invoice_date)
+        due_date_dt = date_to_datetime(invoice_data.due_date)
+        
         # Create invoice model
         invoice_model = InvoiceModel(
             invoice_id=invoice_id,
@@ -94,7 +98,9 @@ class InvoiceService:
             total_amount=total_amount,
             balance_due=balance_due,
             created_by=current_user_id,
-            **invoice_data.dict()
+            invoice_date=invoice_date_dt,
+            due_date=due_date_dt,
+            **invoice_data.dict(exclude={'invoice_date', 'due_date'})
         )
         
         # Save to database
@@ -113,6 +119,10 @@ class InvoiceService:
             raise NotFoundException(f"Invoice with ID {invoice_id} not found")
         
         update_dict = invoice_data.dict(exclude_unset=True)
+        
+        # Convert date fields to datetime
+        if 'due_date' in update_dict and update_dict['due_date']:
+            update_dict['due_date'] = date_to_datetime(update_dict['due_date'])
         
         if update_dict:
             await self.invoice_repo.update_invoice(invoice_id, update_dict)
@@ -138,6 +148,9 @@ class InvoiceService:
         
         payment_status = "paid" if new_balance == 0 else "partial"
         
+        # Convert payment_date to datetime
+        payment_date_dt = date_to_datetime(payment.payment_date)
+        
         await self.invoice_repo.update_invoice(
             invoice_id,
             {
@@ -145,7 +158,7 @@ class InvoiceService:
                 "balance_due": new_balance,
                 "payment_status": payment_status,
                 "payment_method": payment.payment_method,
-                "payment_date": payment.payment_date,
+                "payment_date": payment_date_dt,
                 "transaction_id": payment.transaction_id
             }
         )

@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
-from datetime import date
+from datetime import date, datetime, timezone
 from app.repositories.base import BaseRepository
 from app.models.appointment import AppointmentModel
 
@@ -28,6 +28,8 @@ class AppointmentRepository(BaseRepository):
         status: Optional[str] = None
     ) -> Tuple[List[AppointmentModel], int]:
         """List appointments with filters"""
+        from app.utils.helpers import date_to_datetime
+        
         filter_query = {}
         
         if patient_id:
@@ -37,9 +39,14 @@ class AppointmentRepository(BaseRepository):
         if status:
             filter_query["status"] = status
         if start_date and end_date:
-            filter_query["appointment_date"] = {"$gte": start_date, "$lte": end_date}
+            filter_query["appointment_date"] = {
+                "$gte": date_to_datetime(start_date),
+                "$lte": date_to_datetime(end_date)
+            }
         elif start_date:
-            filter_query["appointment_date"] = {"$gte": start_date}
+            filter_query["appointment_date"] = {"$gte": date_to_datetime(start_date)}
+        elif end_date:
+            filter_query["appointment_date"] = {"$lte": date_to_datetime(end_date)}
         
         appointments_dict = await self.get_many(
             filter=filter_query,
@@ -61,21 +68,29 @@ class AppointmentRepository(BaseRepository):
     
     async def update_appointment(self, appointment_id: str, update_data: dict) -> bool:
         """Update appointment"""
-        from datetime import datetime
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"appointment_id": appointment_id}, update_data)
     
     async def get_next_appointment_number(self) -> int:
         """Get next appointment number for ID generation"""
-        last_appt = await self.get_many(
-            filter={},
-            skip=0,
-            limit=1,
-            sort=[("created_at", -1)]
-        )
+        # Find the appointment with the highest number
+        pipeline = [
+            {
+                "$project": {
+                    "appointment_id": 1,
+                    "number": {
+                        "$toInt": {
+                            "$substr": ["$appointment_id", 3, -1]  # Extract number after "APT"
+                        }
+                    }
+                }
+            },
+            {"$sort": {"number": -1}},
+            {"$limit": 1}
+        ]
         
-        if last_appt:
-            last_id = last_appt[0].get("appointment_id", "APT000000")
-            number = int(last_id.replace("APT", ""))
-            return number + 1
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        
+        if result:
+            return result[0]["number"] + 1
         return 1

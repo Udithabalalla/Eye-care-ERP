@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
+from datetime import datetime, timezone
 from app.repositories.base import BaseRepository
 from app.models.patient import PatientModel
 
@@ -60,21 +61,29 @@ class PatientRepository(BaseRepository):
     
     async def update_patient(self, patient_id: str, update_data: dict) -> bool:
         """Update patient"""
-        from datetime import datetime
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"patient_id": patient_id}, update_data)
     
     async def get_next_patient_number(self) -> int:
         """Get next patient number for ID generation"""
-        last_patient = await self.get_many(
-            filter={},
-            skip=0,
-            limit=1,
-            sort=[("created_at", -1)]
-        )
+        # Find the patient with the highest number
+        pipeline = [
+            {
+                "$project": {
+                    "patient_id": 1,
+                    "number": {
+                        "$toInt": {
+                            "$substr": ["$patient_id", 3, -1]  # Extract number after "PAT"
+                        }
+                    }
+                }
+            },
+            {"$sort": {"number": -1}},
+            {"$limit": 1}
+        ]
         
-        if last_patient:
-            last_id = last_patient[0].get("patient_id", "PAT000000")
-            number = int(last_id.replace("PAT", ""))
-            return number + 1
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        
+        if result:
+            return result[0]["number"] + 1
         return 1

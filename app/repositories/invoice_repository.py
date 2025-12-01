@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
-from datetime import date
+from datetime import datetime, date, timezone
 from app.repositories.base import BaseRepository
 from app.models.invoice import InvoiceModel
 
@@ -34,6 +34,8 @@ class InvoiceRepository(BaseRepository):
         end_date: Optional[date] = None
     ) -> Tuple[List[InvoiceModel], int]:
         """List invoices with filters"""
+        from app.utils.helpers import date_to_datetime
+        
         filter_query = {}
         
         if patient_id:
@@ -41,7 +43,14 @@ class InvoiceRepository(BaseRepository):
         if payment_status:
             filter_query["payment_status"] = payment_status
         if start_date and end_date:
-            filter_query["invoice_date"] = {"$gte": start_date, "$lte": end_date}
+            filter_query["invoice_date"] = {
+                "$gte": date_to_datetime(start_date),
+                "$lte": date_to_datetime(end_date)
+            }
+        elif start_date:
+            filter_query["invoice_date"] = {"$gte": date_to_datetime(start_date)}
+        elif end_date:
+            filter_query["invoice_date"] = {"$lte": date_to_datetime(end_date)}
         
         invoices_dict = await self.get_many(
             filter=filter_query,
@@ -63,25 +72,38 @@ class InvoiceRepository(BaseRepository):
     
     async def update_invoice(self, invoice_id: str, update_data: dict) -> bool:
         """Update invoice"""
-        from datetime import datetime
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"invoice_id": invoice_id}, update_data)
     
     async def get_next_invoice_number(self, year: int) -> str:
         """Generate next invoice number"""
         prefix = f"INV-{year}-"
-        filter_query = {"invoice_number": {"$regex": f"^{prefix}"}}
         
-        last_invoice = await self.get_many(
-            filter=filter_query,
-            skip=0,
-            limit=1,
-            sort=[("created_at", -1)]
-        )
+        # Find invoices for this year
+        pipeline = [
+            {
+                "$match": {
+                    "invoice_number": {"$regex": f"^{prefix}"}
+                }
+            },
+            {
+                "$project": {
+                    "invoice_number": 1,
+                    "number": {
+                        "$toInt": {
+                            "$substr": ["$invoice_number", len(prefix), -1]
+                        }
+                    }
+                }
+            },
+            {"$sort": {"number": -1}},
+            {"$limit": 1}
+        ]
         
-        if last_invoice:
-            last_number = last_invoice[0]["invoice_number"]
-            number = int(last_number.split("-")[-1])
-            return f"{prefix}{str(number + 1).zfill(6)}"
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        
+        if result:
+            next_number = result[0]["number"] + 1
+            return f"{prefix}{str(next_number).zfill(6)}"
         
         return f"{prefix}000001"

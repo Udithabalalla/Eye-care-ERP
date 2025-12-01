@@ -10,7 +10,8 @@ from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, Appoin
 from app.schemas.responses import PaginatedResponse
 from app.models.appointment import AppointmentModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id
+from app.utils.helpers import generate_id, date_to_datetime
+from datetime import datetime, time, timezone
 
 class AppointmentService:
     """Appointment business logic service"""
@@ -83,13 +84,22 @@ class AppointmentService:
         next_number = await self.appointment_repo.get_next_appointment_number()
         appointment_id = generate_id("APT", next_number)
         
+        # Convert date and time to datetime
+        appointment_date_dt = date_to_datetime(appointment_data.appointment_date)
+        appointment_time_dt = datetime.combine(
+            appointment_data.appointment_date,
+            appointment_data.appointment_time
+        ).replace(tzinfo=timezone.utc)
+        
         # Create appointment model
         appointment_model = AppointmentModel(
             appointment_id=appointment_id,
             patient_name=patient.name,
             doctor_name=doctor.name,
+            appointment_date=appointment_date_dt,
+            appointment_time=appointment_time_dt,
             created_by=current_user_id,
-            **appointment_data.dict()
+            **appointment_data.dict(exclude={'appointment_date', 'appointment_time'})
         )
         
         # Save to database
@@ -108,6 +118,20 @@ class AppointmentService:
             raise NotFoundException(f"Appointment with ID {appointment_id} not found")
         
         update_dict = appointment_data.dict(exclude_unset=True)
+        
+        # Convert date and time fields to datetime
+        if 'appointment_date' in update_dict and update_dict['appointment_date']:
+            update_dict['appointment_date'] = date_to_datetime(update_dict['appointment_date'])
+        
+        if 'appointment_time' in update_dict and update_dict['appointment_time']:
+            # Get the date from existing or updated appointment
+            appt_date = update_dict.get('appointment_date', existing.appointment_date)
+            if isinstance(appt_date, datetime):
+                appt_date = appt_date.date()
+            update_dict['appointment_time'] = datetime.combine(
+                appt_date,
+                update_dict['appointment_time']
+            ).replace(tzinfo=timezone.utc)
         
         if update_dict:
             await self.appointment_repo.update_appointment(appointment_id, update_dict)

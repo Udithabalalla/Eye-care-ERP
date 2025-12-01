@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.11",
+    "axios": "^1.13.2",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.555.0",
+    "react-hook-form": "^7.67.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.9.6",
+    "recharts": "^3.5.1",
+    "zod": "^4.1.13",
+    "zustand": "^5.0.9"
+  },
+ 

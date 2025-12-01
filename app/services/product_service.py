@@ -7,7 +7,7 @@ from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, S
 from app.schemas.responses import PaginatedResponse
 from app.models.product import ProductModel
 from app.core.exceptions import NotFoundException, BadRequestException, ConflictException
-from app.utils.helpers import generate_id
+from app.utils.helpers import generate_id, date_to_datetime
 
 class ProductService:
     """Product business logic service"""
@@ -65,10 +65,15 @@ class ProductService:
         next_number = await self.product_repo.get_next_product_number()
         product_id = generate_id("PRD", next_number)
         
+        # Convert expiry_date to datetime if provided
+        product_dict = product_data.dict()
+        if product_dict.get('expiry_date'):
+            product_dict['expiry_date'] = date_to_datetime(product_dict['expiry_date'])
+        
         # Create product model
         product_model = ProductModel(
             product_id=product_id,
-            **product_data.dict()
+            **product_dict
         )
         
         # Save to database

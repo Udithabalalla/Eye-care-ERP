@@ -90,7 +90,7 @@ async def seed_patients(db):
     now = now_utc()
     patients = [
         {
-            "patient_id": "PAT000001",
+            "patient_id": "PAT000001",  # Added patient_id
             "name": "John Doe",
             "date_of_birth": date_to_datetime(date(1990, 1, 15)),
             "age": 34,
@@ -127,7 +127,7 @@ async def seed_patients(db):
             "updated_at": now
         },
         {
-            "patient_id": "PAT000002",
+            "patient_id": "PAT000002",  # Added patient_id
             "name": "Alice Smith",
             "date_of_birth": date_to_datetime(date(1985, 5, 20)),
             "age": 39,
@@ -158,7 +158,7 @@ async def seed_patients(db):
             "updated_at": now
         },
         {
-            "patient_id": "PAT000003",
+            "patient_id": "PAT000003",  # Added patient_id
             "name": "Robert Johnson",
             "date_of_birth": date_to_datetime(date(1975, 8, 10)),
             "age": 49,
@@ -530,7 +530,7 @@ async def seed_invoices(db):
                     "product_id": "PRD000001",
                     "product_name": "Contact Lens Solution 360ml",
                     "sku": "CLS-360",
-                    "quantity": 2,
+                    "quantity": 2,  # Valid: greater than 0
                     "unit_price": 12.99,
                     "discount": 0,
                     "tax": 1.30,
@@ -540,7 +540,7 @@ async def seed_invoices(db):
                     "product_id": "PRD000004",
                     "product_name": "Lubricating Eye Drops",
                     "sku": "LED-REF-10",
-                    "quantity": 1,
+                    "quantity": 1,  # Valid: greater than 0
                     "unit_price": 9.99,
                     "discount": 0,
                     "tax": 0.50,
@@ -577,7 +577,7 @@ async def seed_invoices(db):
                     "product_id": "PRD000002",
                     "product_name": "Premium Progressive Lenses",
                     "sku": "PPL-001",
-                    "quantity": 1,
+                    "quantity": 1,  # Valid: greater than 0
                     "unit_price": 199.99,
                     "discount": 19.99,
                     "tax": 14.40,
@@ -587,7 +587,7 @@ async def seed_invoices(db):
                     "product_id": "PRD000003",
                     "product_name": "Designer Frame - Ray-Ban",
                     "sku": "RB-WAY-001",
-                    "quantity": 1,
+                    "quantity": 1,  # Valid: greater than 0
                     "unit_price": 149.99,
                     "discount": 0,
                     "tax": 12.00,
@@ -622,7 +622,7 @@ async def seed_invoices(db):
                     "product_id": "PRD000004",
                     "product_name": "Lubricating Eye Drops",
                     "sku": "LED-REF-10",
-                    "quantity": 3,
+                    "quantity": 3,  # Valid: greater than 0
                     "unit_price": 9.99,
                     "discount": 0,
                     "tax": 1.50,

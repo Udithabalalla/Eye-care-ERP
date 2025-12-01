@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 from app.models.common import TimestampModel
 from app.utils.constants import PaymentStatus, PaymentMethod
 
@@ -9,7 +9,7 @@ class InvoiceItem(BaseModel):
     product_id: str
     product_name: str
     sku: str
-    quantity: int = Field(..., gt=0)
+    quantity: int = Field(..., gt=0)  # Changed from ge=1 to gt=0 for clarity
     unit_price: float = Field(..., ge=0)
     discount: float = Field(default=0, ge=0)
     tax: float = Field(default=0, ge=0)
@@ -32,8 +32,8 @@ class InvoiceModel(TimestampModel):
     patient_phone: str
     patient_email: Optional[EmailStr] = None
     
-    invoice_date: date
-    due_date: date
+    invoice_date: datetime  # Changed from date
+    due_date: datetime  # Changed from date
     
     # Items
     items: List[InvoiceItem]
@@ -49,7 +49,7 @@ class InvoiceModel(TimestampModel):
     # Payment
     payment_status: PaymentStatus = Field(default=PaymentStatus.PENDING)
     payment_method: Optional[PaymentMethod] = None
-    payment_date: Optional[date] = None
+    payment_date: Optional[datetime] = None  # Changed from date
     transaction_id: Optional[str] = None
     
     # References
@@ -70,8 +70,8 @@ class InvoiceModel(TimestampModel):
                 "patient_id": "PAT000001",
                 "patient_name": "John Doe",
                 "patient_phone": "+1234567890",
-                "invoice_date": "2024-01-15",
-                "due_date": "2024-02-15",
+                "invoice_date": "2024-01-15T00:00:00Z",
+                "due_date": "2024-02-15T00:00:00Z",
                 "subtotal": 100.00,
                 "total_amount": 108.00,
                 "payment_status": "paid"

@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
+from datetime import datetime, timezone
 from app.repositories.base import BaseRepository
 from app.models.user import UserModel
 
@@ -31,8 +32,7 @@ class UserRepository(BaseRepository):
     
     async def update_last_login(self, user_id: str):
         """Update user's last login timestamp"""
-        from datetime import datetime
         await self.update(
             {"user_id": user_id},
-            {"last_login": datetime.utcnow()}
+            {"last_login": datetime.now(timezone.utc)}
         )

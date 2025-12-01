@@ -1,14 +1,15 @@
-from datetime import datetime, date
+from datetime import datetime, date, time, timezone
 from typing import Optional
 
 def generate_id(prefix: str, number: int, length: int = 6) -> str:
     """Generate ID with prefix (e.g., PAT000001)"""
     return f"{prefix}{str(number).zfill(length)}"
 
-def calculate_age(birth_date: date) -> int:
-    """Calculate age from birth date"""
+def calculate_age(birth_date: datetime) -> int:
+    """Calculate age from birth date (accepts datetime)"""
     today = date.today()
-    age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    birth_date_only = birth_date.date() if isinstance(birth_date, datetime) else birth_date
+    age = today.year - birth_date_only.year - ((today.month, today.day) < (birth_date_only.month, birth_date_only.day))
     return age
 
 def format_phone(phone: str) -> str:
@@ -28,3 +29,11 @@ def serialize_date(d: Optional[date]) -> Optional[str]:
     if d:
         return d.isoformat()
     return None
+
+def date_to_datetime(d: date) -> datetime:
+    """Convert date to datetime at midnight UTC"""
+    return datetime.combine(d, time.min).replace(tzinfo=timezone.utc)
+
+def now_utc() -> datetime:
+    """Get current UTC datetime"""
+    return datetime.now(timezone.utc)

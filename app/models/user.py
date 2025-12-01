@@ -16,16 +16,3 @@ class UserModel(TimestampModel):
     is_active: bool = True
     avatar_url: Optional[str] = None
     last_login: Optional[datetime] = None
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "user_id": "USR000001",
-                "email": "doctor@example.com",
-                "name": "Dr. John Smith",
-                "role": "doctor",
-                "department": "Ophthalmology",
-                "phone": "+1234567890",
-                "is_active": True
-            }
-        }

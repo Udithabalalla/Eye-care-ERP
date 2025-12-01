@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime, date, time
+from datetime import datetime
 from app.models.common import TimestampModel
 from app.utils.constants import AppointmentStatus, AppointmentType
 
@@ -11,8 +11,8 @@ class AppointmentModel(TimestampModel):
     patient_name: str = Field(..., description="Patient name (denormalized)")
     doctor_id: str = Field(..., description="Reference to doctor")
     doctor_name: str = Field(..., description="Doctor name (denormalized)")
-    appointment_date: date = Field(..., description="Appointment date")
-    appointment_time: time = Field(..., description="Appointment time")
+    appointment_date: datetime = Field(..., description="Appointment date")  # Changed from date
+    appointment_time: datetime = Field(..., description="Appointment time")  # Changed from time
     duration_minutes: int = Field(default=30, description="Duration in minutes")
     type: AppointmentType = Field(..., description="Appointment type")
     status: AppointmentStatus = Field(default=AppointmentStatus.SCHEDULED)
@@ -31,8 +31,8 @@ class AppointmentModel(TimestampModel):
                 "patient_name": "John Doe",
                 "doctor_id": "USR000002",
                 "doctor_name": "Dr. Sarah Johnson",
-                "appointment_date": "2024-02-01",
-                "appointment_time": "10:00:00",
+                "appointment_date": "2024-02-01T00:00:00Z",
+                "appointment_time": "2024-02-01T10:00:00Z",
                 "type": "consultation",
                 "status": "scheduled",
                 "reason": "Regular eye checkup"

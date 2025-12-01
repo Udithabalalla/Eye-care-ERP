@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 from app.models.common import TimestampModel, Address
 from app.utils.constants import Gender
 
@@ -27,7 +27,7 @@ class PatientModel(TimestampModel):
     """Patient database model"""
     patient_id: str = Field(..., description="Unique patient number")
     name: str = Field(..., description="Patient full name")
-    date_of_birth: date = Field(..., description="Date of birth")
+    date_of_birth: datetime = Field(..., description="Date of birth")  # Changed from date to datetime
     age: int = Field(..., description="Current age")
     gender: Gender = Field(..., description="Gender")
     phone: str = Field(..., description="Contact phone")
@@ -47,7 +47,7 @@ class PatientModel(TimestampModel):
             "example": {
                 "patient_id": "PAT000001",
                 "name": "John Doe",
-                "date_of_birth": "1990-01-15",
+                "date_of_birth": "1990-01-15T00:00:00Z",
                 "age": 34,
                 "gender": "male",
                 "phone": "+1234567890",

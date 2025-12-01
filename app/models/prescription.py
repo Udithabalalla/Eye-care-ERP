@@ -50,8 +50,8 @@ class PrescriptionModel(TimestampModel):
     doctor_id: str
     doctor_name: str
     appointment_id: Optional[str] = None
-    prescription_date: date
-    valid_until: date
+    prescription_date: datetime  # Changed from date
+    valid_until: datetime  # Changed from date
     eye_prescription: Optional[EyePrescription] = None
     medications: List[Medication] = Field(default_factory=list)
     contact_lenses: Optional[ContactLenses] = None
@@ -66,8 +66,8 @@ class PrescriptionModel(TimestampModel):
                 "patient_name": "John Doe",
                 "doctor_id": "USR000002",
                 "doctor_name": "Dr. Sarah Johnson",
-                "prescription_date": "2024-01-15",
-                "valid_until": "2025-01-15",
+                "prescription_date": "2024-01-15T00:00:00Z",
+                "valid_until": "2025-01-15T00:00:00Z",
                 "diagnosis": "Myopia"
             }
         }

@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Dict, Any
 from bson import ObjectId
+from datetime import datetime, timezone
 
 class BaseRepository:
     """Base repository with common CRUD operations"""
@@ -9,8 +10,14 @@ class BaseRepository:
         self.db = db
         self.collection = db[collection_name]
     
+    @staticmethod
+    def now_utc() -> datetime:
+        """Get current UTC datetime"""
+        return datetime.now(timezone.utc)
+    
     async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new document"""
+        data["created_at"] = self.now_utc()
         result = await self.collection.insert_one(data)
         data["_id"] = str(result.inserted_id)
         return data
@@ -55,6 +62,7 @@ class BaseRepository:
     
     async def update(self, filter: Dict[str, Any], update: Dict[str, Any]) -> bool:
         """Update document(s)"""
+        update["updated_at"] = self.now_utc()
         result = await self.collection.update_one(filter, {"$set": update})
         return result.modified_count > 0
     

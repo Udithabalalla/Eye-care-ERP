@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime  # Keep date for input, datetime for response
 from app.utils.constants import Gender
 from app.models.patient import EmergencyContact, MedicalHistory, Insurance
 from app.models.common import Address
@@ -8,7 +8,7 @@ from app.models.common import Address
 class PatientCreate(BaseModel):
     """Schema for creating a patient"""
     name: str = Field(..., min_length=2)
-    date_of_birth: date
+    date_of_birth: date  # Accept date from user
     gender: Gender
     phone: str = Field(..., min_length=10)
     email: Optional[EmailStr] = None
@@ -34,7 +34,7 @@ class PatientResponse(BaseModel):
     """Schema for patient response"""
     patient_id: str
     name: str
-    date_of_birth: date
+    date_of_birth: datetime  # Return as datetime
     age: int
     gender: Gender
     phone: str

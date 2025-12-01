@@ -24,7 +24,7 @@ class ProductCreate(BaseModel):
     reorder_quantity: int = Field(default=50, ge=0)
     supplier: Optional[Supplier] = None
     specifications: Dict[str, Any] = Field(default_factory=dict)
-    expiry_date: Optional[date] = None
+    expiry_date: Optional[date] = None  # Accept date from user
     is_prescription_required: bool = False
 
 class ProductUpdate(BaseModel):
@@ -58,6 +58,7 @@ class ProductResponse(BaseModel):
     current_stock: int
     min_stock_level: int
     supplier: Optional[Supplier]
+    expiry_date: Optional[datetime]  # Return as datetime
     is_active: bool
     is_prescription_required: bool
     created_at: datetime

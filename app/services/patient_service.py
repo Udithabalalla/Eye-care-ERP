@@ -8,7 +8,7 @@ from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.patient import PatientModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id, calculate_age
+from app.utils.helpers import generate_id, calculate_age, date_to_datetime
 
 class PatientService:
     """Patient business logic service"""
@@ -63,14 +63,18 @@ class PatientService:
         next_number = await self.patient_repo.get_next_patient_number()
         patient_id = generate_id("PAT", next_number)
         
+        # Convert date to datetime
+        dob_datetime = date_to_datetime(patient_data.date_of_birth)
+        
         # Calculate age
-        age = calculate_age(patient_data.date_of_birth)
+        age = calculate_age(dob_datetime)
         
         # Create patient model
         patient_model = PatientModel(
             patient_id=patient_id,
+            date_of_birth=dob_datetime,  # Use datetime
             age=age,
-            **patient_data.dict()
+            **patient_data.dict(exclude={'date_of_birth'})
         )
         
         # Save to database

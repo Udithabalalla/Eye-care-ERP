@@ -37,8 +37,8 @@ class InvoiceResponse(BaseModel):
     patient_name: str
     patient_phone: str
     patient_email: Optional[EmailStr]
-    invoice_date: date
-    due_date: date
+    invoice_date: datetime
+    due_date: datetime
     items: List[InvoiceItem]
     subtotal: float
     total_discount: float
@@ -48,6 +48,6 @@ class InvoiceResponse(BaseModel):
     balance_due: float
     payment_status: PaymentStatus
     payment_method: Optional[PaymentMethod]
-    payment_date: Optional[date]
+    payment_date: Optional[datetime]
     created_by: str
     created_at: datetime

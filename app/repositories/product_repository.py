@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
+from datetime import datetime, timezone
 from app.repositories.base import BaseRepository
 from app.models.product import ProductModel
 
@@ -68,29 +69,36 @@ class ProductRepository(BaseRepository):
     
     async def update_product(self, product_id: str, update_data: dict) -> bool:
         """Update product"""
-        from datetime import datetime
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"product_id": product_id}, update_data)
     
     async def update_stock(self, product_id: str, new_stock: int) -> bool:
         """Update product stock"""
-        from datetime import datetime
         return await self.update(
             {"product_id": product_id},
-            {"current_stock": new_stock, "updated_at": datetime.utcnow()}
+            {"current_stock": new_stock, "updated_at": datetime.now(timezone.utc)}
         )
     
     async def get_next_product_number(self) -> int:
         """Get next product number for ID generation"""
-        last_product = await self.get_many(
-            filter={},
-            skip=0,
-            limit=1,
-            sort=[("created_at", -1)]
-        )
+        # Find the product with the highest number
+        pipeline = [
+            {
+                "$project": {
+                    "product_id": 1,
+                    "number": {
+                        "$toInt": {
+                            "$substr": ["$product_id", 3, -1]  # Extract number after "PRD"
+                        }
+                    }
+                }
+            },
+            {"$sort": {"number": -1}},
+            {"$limit": 1}
+        ]
         
-        if last_product:
-            last_id = last_product[0].get("product_id", "PRD000000")
-            number = int(last_id.replace("PRD", ""))
-            return number + 1
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        
+        if result:
+            return result[0]["number"] + 1
         return 1

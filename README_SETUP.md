@@ -381,7 +381,7 @@ curl -X POST http://localhost:8000/api/v1/invoices \
         "sku": "CLS-360",
         "quantity": 2,
         "unit_price": 12.99,
-        "discount": 0,
+        "discount": 0.00,
         "tax": 1.30,
         "total": 27.28
       }
@@ -389,6 +389,8 @@ curl -X POST http://localhost:8000/api/v1/invoices \
     "payment_method": "cash"
   }'
 ```
+
+**Note:** Ensure `quantity` is always greater than 0, not 0.
 
 #### 2. List All Invoices
 ```bash
@@ -718,7 +720,6 @@ print(response.json())
 ---
 
 ## Project Structure
-
 ````markdown
 # Eye Care ERP - Setup Guide
 
@@ -1103,7 +1104,7 @@ curl -X POST http://localhost:8000/api/v1/invoices \
         "sku": "CLS-360",
         "quantity": 2,
         "unit_price": 12.99,
-        "discount": 0,
+        "discount": 0.00,
         "tax": 1.30,
         "total": 27.28
       }
@@ -1111,6 +1112,8 @@ curl -X POST http://localhost:8000/api/v1/invoices \
     "payment_method": "cash"
   }'
 ```
+
+**Note:** Ensure `quantity` is always greater than 0, not 0.
 
 #### 2. List All Invoices
 ```bash

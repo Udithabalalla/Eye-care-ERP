@@ -31,8 +31,8 @@ class AppointmentResponse(BaseModel):
     patient_name: str
     doctor_id: str
     doctor_name: str
-    appointment_date: date
-    appointment_time: time
+    appointment_date: datetime
+    appointment_time: datetime
     duration_minutes: int
     type: AppointmentType
     status: AppointmentStatus

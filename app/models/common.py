@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 class PyObjectId(str):
@@ -15,10 +15,14 @@ class PyObjectId(str):
             raise ValueError("Invalid ObjectId")
         return str(v)
 
+def now_utc():
+    """Get current UTC datetime"""
+    return datetime.now(timezone.utc)
+
 class TimestampModel(BaseModel):
     """Base model with timestamps"""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 class Address(BaseModel):
     """Address model"""
