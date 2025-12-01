@@ -5,6 +5,7 @@ import { Plus, Search } from 'lucide-react'
 import Table from '@/components/common/Table'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
+import PatientModal from '@/components/patients/PatientModal'
 import { formatDate, formatPhone } from '@/utils/formatters'
 import { Patient } from '@/types/patient.types'
 
@@ -12,11 +13,28 @@ const Patients = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['patients', page, pageSize, search],
     queryFn: () => patientsApi.getAll({ page, page_size: pageSize, search }),
   })
+
+  const handleEdit = (patient: Patient) => {
+    setSelectedPatient(patient)
+    setIsModalOpen(true)
+  }
+
+  const handleAdd = () => {
+    setSelectedPatient(null)
+    setIsModalOpen(true)
+  }
+
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+    setSelectedPatient(null)
+  }
 
   const columns = [
     {
@@ -44,12 +62,14 @@ const Patients = () => {
     {
       key: 'age',
       header: 'Age/Gender',
-      render: (patient: Patient) => `${patient.age} / ${patient.gender}`,
+      render: (patient: Patient) => (
+        <span className="capitalize">{patient.age} / {patient.gender}</span>
+      ),
     },
     {
       key: 'last_visit',
       header: 'Last Visit',
-      render: (patient: Patient) => 
+      render: (patient: Patient) =>
         patient.last_visit ? formatDate(patient.last_visit) : 'Never',
     },
     {
@@ -76,7 +96,7 @@ const Patients = () => {
           <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
           <p className="text-gray-600 mt-1">Manage patient records and information</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-5 h-5 mr-2" />
           Add Patient
         </button>
@@ -95,20 +115,21 @@ const Patients = () => {
               className="input pl-10"
             />
           </div>
-          <button className="btn-secondary">Filters</button>
         </div>
       </div>
 
       {/* Table */}
       <div className="card p-0">
         {isLoading ? (
-          <Loading />
+          <div className="p-12">
+            <Loading />
+          </div>
         ) : (
           <>
             <Table
               data={data?.data || []}
               columns={columns}
-              onRowClick={(patient) => console.log('View patient:', patient)}
+              onRowClick={handleEdit}
             />
             {data && (
               <Pagination
@@ -123,6 +144,14 @@ const Patients = () => {
           </>
         )}
       </div>
+
+      {/* Modal */}
+      <PatientModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        patient={selectedPatient}
+        onSuccess={() => refetch()}
+      />
     </div>
   )
 }
