@@ -1,3 +1,34 @@
+# Eye Care Institute Management System
+
+Complete ERP system for Eye Care Institutes with Python FastAPI backend and React TypeScript frontend.
+
+## 🚀 Quick Start
+
+### Backend Setup
+
+```bash
+cd backend
+..\venv\Scripts\activate  # Or: python -m venv venv & venv\Scripts\activate
+pip install -r requirements.txt
+python scripts\seed_data.py
+python -m app.main
+```
+
+Backend: http://localhost:8000  
+API Docs: http://localhost:8000/api/docs
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend: http://localhost:3000
+
+## 📦 Project Structure
+````markdown
 # Complete Eye Care Institute Management System - Python Backend with MongoDB
 
 ## Project Overview

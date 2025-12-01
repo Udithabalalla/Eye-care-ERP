@@ -1,0 +1,43 @@
+import { BarChart3, Download } from 'lucide-react'
+
+const Reports = () => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
+          <p className="text-gray-600 mt-1">Generate and export reports</p>
+        </div>
+        <button className="btn-primary">
+          <Download className="w-5 h-5 mr-2" />
+          Export Report
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card">
+          <BarChart3 className="w-8 h-8 text-primary-600 mb-3" />
+          <h3 className="font-semibold text-gray-900 mb-2">Sales Report</h3>
+          <p className="text-sm text-gray-600 mb-4">View sales performance and revenue</p>
+          <button className="btn-secondary w-full">Generate</button>
+        </div>
+
+        <div className="card">
+          <BarChart3 className="w-8 h-8 text-green-600 mb-3" />
+          <h3 className="font-semibold text-gray-900 mb-2">Inventory Report</h3>
+          <p className="text-sm text-gray-600 mb-4">Check stock levels and products</p>
+          <button className="btn-secondary w-full">Generate</button>
+        </div>
+
+        <div className="card">
+          <BarChart3 className="w-8 h-8 text-blue-600 mb-3" />
+          <h3 className="font-semibold text-gray-900 mb-2">Patient Report</h3>
+          <p className="text-sm text-gray-600 mb-4">View patient statistics</p>
+          <button className="btn-secondary w-full">Generate</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Reports
