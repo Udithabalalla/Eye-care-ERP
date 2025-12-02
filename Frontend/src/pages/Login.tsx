@@ -35,7 +35,7 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">EC</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Eye Care ERP</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Vision Optical</h1>
           <p className="text-gray-600 mt-2">Institute Management System</p>
         </div>
 

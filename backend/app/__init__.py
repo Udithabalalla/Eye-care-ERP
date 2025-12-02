@@ -1,2 +1,2 @@
-"""Eye Care Institute Management System - Backend API"""
+"""Vision Optical - Backend API"""
 __version__ = "1.0.0"

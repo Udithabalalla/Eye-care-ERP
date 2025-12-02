@@ -73,7 +73,7 @@ const SearchableLOV = ({
     return (
         <div className="relative" ref={dropdownRef}>
             {label && (
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="label">
                     {label}
                     {required && <span className="text-red-600 ml-1">*</span>}
                 </label>
@@ -85,34 +85,34 @@ const SearchableLOV = ({
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
                 className={`
-          w-full px-4 py-2 text-left bg-white border rounded-lg
-          flex items-center justify-between
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-primary-500 cursor-pointer'}
-          ${error ? 'border-red-500' : 'border-gray-300'}
-          ${isOpen ? 'ring-2 ring-primary-500 border-primary-500' : ''}
+          w-full px-4 py-2.5 text-left bg-bg-secondary border rounded-lg
+          flex items-center justify-between transition-all
+          ${disabled ? 'bg-bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-border-hover cursor-pointer'}
+          ${error ? 'border-red-500' : 'border-border'}
+          ${isOpen ? 'ring-2 ring-blue-500/20 border-blue-500' : ''}
         `}
             >
                 <div className="flex-1 truncate">
                     {selectedOption ? (
                         <div>
-                            <div className="text-gray-900">{selectedOption.label}</div>
+                            <div className="text-text-primary font-medium">{selectedOption.label}</div>
                             {selectedOption.subtitle && (
-                                <div className="text-sm text-gray-500">{selectedOption.subtitle}</div>
+                                <div className="text-sm text-text-tertiary">{selectedOption.subtitle}</div>
                             )}
                         </div>
                     ) : (
-                        <span className="text-gray-400">{placeholder}</span>
+                        <span className="text-text-tertiary">{placeholder}</span>
                     )}
                 </div>
                 <div className="flex items-center space-x-2">
                     {value && !disabled && (
                         <X
-                            className="w-4 h-4 text-gray-400 hover:text-gray-600"
+                            className="w-4 h-4 text-text-tertiary hover:text-text-secondary"
                             onClick={handleClear}
                         />
                     )}
                     <ChevronDown
-                        className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''
+                        className={`w-5 h-5 text-text-tertiary transition-transform ${isOpen ? 'transform rotate-180' : ''
                             }`}
                     />
                 </div>
@@ -120,17 +120,17 @@ const SearchableLOV = ({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                <div className="absolute z-50 w-full mt-2 bg-bg-secondary border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
                     {/* Search Input */}
-                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                    <div className="p-3 border-b border-border sticky top-0 bg-bg-secondary">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-tertiary" />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full pl-10 pr-4 py-2 border border-border bg-bg-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-text-primary placeholder-text-tertiary"
                                 autoFocus
                             />
                         </div>
@@ -145,18 +145,18 @@ const SearchableLOV = ({
                                     type="button"
                                     onClick={() => handleSelect(option.value)}
                                     className={`
-                    w-full px-4 py-3 text-left hover:bg-primary-50 transition-colors
-                    ${value === option.value ? 'bg-primary-100' : ''}
+                    w-full px-4 py-3 text-left hover:bg-bg-tertiary transition-colors
+                    ${value === option.value ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}
                   `}
                                 >
-                                    <div className="font-medium text-gray-900">{option.label}</div>
+                                    <div className="font-medium text-text-primary">{option.label}</div>
                                     {option.subtitle && (
-                                        <div className="text-sm text-gray-500">{option.subtitle}</div>
+                                        <div className="text-sm text-text-tertiary">{option.subtitle}</div>
                                     )}
                                 </button>
                             ))
                         ) : (
-                            <div className="px-4 py-8 text-center text-gray-500">
+                            <div className="px-4 py-8 text-center text-text-tertiary">
                                 No results found
                             </div>
                         )}

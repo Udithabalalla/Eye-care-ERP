@@ -36,4 +36,16 @@ export const productsApi = {
   delete: async (id: string): Promise<void> => {
     await axiosInstance.delete(`/products/${id}`)
   },
+
+  lookupBySKU: async (sku: string): Promise<Product> => {
+    const response = await axiosInstance.get<ApiResponse<Product>>(`/products/scan/${sku}`)
+    return response.data.data
+  },
+
+  getLabel: async (id: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/products/${id}/label`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
 }

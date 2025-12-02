@@ -30,7 +30,7 @@ const navigationItems: NavItem[] = [
 
 const Sidebar = () => {
   return (
-    <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto">
+    <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-bg-secondary border-r border-border overflow-y-auto">
       <nav className="p-4 space-y-1">
         {navigationItems.map((item) => (
           <NavLink
@@ -39,10 +39,10 @@ const Sidebar = () => {
             end={item.path === '/'}
             className={({ isActive }) =>
               cn(
-                'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
+                'flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group',
                 isActive
-                  ? 'bg-primary-50 text-primary-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-text-primary font-semibold shadow-sm border border-blue-500/20'
+                  : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
               )
             }
           >
@@ -50,13 +50,15 @@ const Sidebar = () => {
               <>
                 <item.icon
                   className={cn(
-                    'w-5 h-5',
-                    isActive ? 'text-primary-700' : 'text-gray-500'
+                    'w-5 h-5 transition-all duration-200',
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-text-tertiary group-hover:text-text-secondary'
                   )}
                 />
-                <span>{item.name}</span>
+                <span className="flex-1">{item.name}</span>
                 {item.badge && (
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                     {item.badge}
                   </span>
                 )}
@@ -72,10 +74,10 @@ const Sidebar = () => {
           to="/settings"
           className={({ isActive }) =>
             cn(
-              'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
               isActive
-                ? 'bg-primary-50 text-primary-700 font-medium'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-text-primary font-semibold shadow-sm border border-blue-500/20'
+                : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
             )
           }
         >

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 
@@ -6,8 +7,10 @@ from app.config.database import get_database
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, StockAdjustment
 from app.schemas.responses import ResponseModel, PaginatedResponse
 from app.services.product_service import ProductService
+from app.repositories.product_repository import ProductRepository
 from app.api.deps import get_current_user
 from app.models.user import UserModel
+from app.core.exceptions import NotFoundException
 
 router = APIRouter()
 
@@ -95,7 +98,6 @@ async def get_product_qr(
     current_user: UserModel = Depends(get_current_user)
 ):
     """Get product QR code"""
-    from fastapi.responses import Response
     from app.services.qr_service import QRService
     
     product_service = ProductService(db)
@@ -112,7 +114,6 @@ async def get_product_label(
     current_user: UserModel = Depends(get_current_user)
 ):
     """Get printable product label"""
-    from fastapi.responses import Response
     from app.services.qr_service import QRService
     
     product_service = ProductService(db)
@@ -125,3 +126,18 @@ async def get_product_label(
         price=product.selling_price
     )
     return Response(content=label_bytes, media_type="image/png")
+
+@router.get("/scan/{sku}")
+async def lookup_product_by_sku(
+    sku: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Lookup product by SKU from QR code scan"""
+    product_repo = ProductRepository(db)
+    product = await product_repo.get_by_sku(sku)
+    
+    if not product:
+        raise NotFoundException(f"Product with SKU {sku} not found")
+    
+    return ResponseModel(data=product)

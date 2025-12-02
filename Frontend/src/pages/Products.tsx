@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
-import { Plus, Search, AlertTriangle, Package } from 'lucide-react'
+import { Plus, Search, AlertTriangle, Package, QrCode } from 'lucide-react'
 import Table from '@/components/common/Table'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
@@ -18,6 +18,8 @@ const Products = () => {
   const [lowStockFilter, setLowStockFilter] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [isFromQRScan, setIsFromQRScan] = useState(false)
+  const [barcodeInput, setBarcodeInput] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   const { data, isLoading, refetch } = useQuery({
@@ -44,7 +46,28 @@ const Products = () => {
 
   const handleStockAdjustment = (product: Product) => {
     setSelectedProduct(product)
+    setIsFromQRScan(false)
     setIsStockModalOpen(true)
+  }
+
+  const handleQRScan = async (sku: string) => {
+    try {
+      const product = await productsApi.lookupBySKU(sku)
+      setSelectedProduct(product)
+      setIsFromQRScan(true)
+      setIsStockModalOpen(true)
+      setBarcodeInput('') // Clear input after successful scan
+    } catch (error) {
+      console.error('Product not found:', error)
+      alert('Product not found. Please add it manually.')
+      setBarcodeInput('') // Clear input even on error
+    }
+  }
+
+  const handleBarcodeInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && barcodeInput.trim()) {
+      handleQRScan(barcodeInput.trim())
+    }
   }
 
   const columns = [
@@ -84,8 +107,8 @@ const Products = () => {
         <div className="flex items-center space-x-2">
           <span
             className={`font-semibold ${product.current_stock <= product.min_stock_level
-                ? 'text-red-600'
-                : 'text-green-600'
+              ? 'text-red-600'
+              : 'text-green-600'
               }`}
           >
             {product.current_stock}
@@ -125,10 +148,20 @@ const Products = () => {
             Adjust Stock
           </button>
           <button
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation()
-              // Open label in new tab
-              window.open(`http://localhost:8000/api/v1/products/${product.product_id}/label`, '_blank')
+              try {
+                // Use axiosInstance to get automatic token injection and error handling
+                const response = await productsApi.getLabel(product.product_id)
+
+                const url = URL.createObjectURL(response)
+                window.open(url, '_blank')
+                // Clean up the URL after a delay
+                setTimeout(() => URL.revokeObjectURL(url), 100)
+              } catch (error) {
+                console.error('Error fetching label:', error)
+                // Error is handled by axios interceptor (toast)
+              }
             }}
             className="text-gray-600 hover:text-gray-900 font-medium text-sm flex items-center"
             title="Print Label"
@@ -148,10 +181,24 @@ const Products = () => {
           <h1 className="text-3xl font-bold text-gray-900">Products & Inventory</h1>
           <p className="text-gray-600 mt-1">Manage products and stock levels</p>
         </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-5 h-5 mr-2" />
-          Add Product
-        </button>
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <QrCode className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              onKeyPress={handleBarcodeInputKeyPress}
+              placeholder="Scan barcode here..."
+              className="input pl-10 w-64"
+              autoFocus
+            />
+          </div>
+          <button onClick={handleAdd} className="btn-primary">
+            <Plus className="w-5 h-5 mr-2" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -276,9 +323,14 @@ const Products = () => {
           onClose={() => {
             setIsStockModalOpen(false)
             setSelectedProduct(null)
+            setIsFromQRScan(false)
           }}
           product={selectedProduct}
           onSuccess={() => refetch()}
+          defaultValues={isFromQRScan ? {
+            quantity: 1,
+            reason: 'Purchase - New stock received'
+          } : undefined}
         />
       )}
     </div>

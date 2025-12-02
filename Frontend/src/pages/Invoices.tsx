@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
 import { Plus, Search, Eye } from 'lucide-react'
@@ -128,8 +128,8 @@ const Invoices = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
-          <p className="text-gray-600 mt-1">Manage invoices and billing</p>
+          <h1 className="text-3xl font-bold text-text-primary">Invoices</h1>
+          <p className="text-text-secondary mt-1">Manage invoices and billing</p>
         </div>
         <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-5 h-5 mr-2" />
@@ -141,7 +141,7 @@ const Invoices = () => {
       <div className="card">
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-tertiary" />
             <input
               type="text"
               placeholder="Search by invoice number or patient..."

@@ -4,7 +4,7 @@ import json
 
 class Settings(BaseSettings):
     # Application
-    APP_NAME: str = "Eye Care Institute Management System"
+    APP_NAME: str = "Vision Optical"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     

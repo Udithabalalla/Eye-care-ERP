@@ -49,8 +49,8 @@ const Patients = () => {
       header: 'Name',
       render: (patient: Patient) => (
         <div>
-          <p className="font-medium text-gray-900">{patient.name}</p>
-          <p className="text-sm text-gray-500">{patient.email}</p>
+          <p className="font-medium text-text-primary">{patient.name}</p>
+          <p className="text-sm text-text-tertiary">{patient.email}</p>
         </div>
       ),
     },
@@ -93,8 +93,8 @@ const Patients = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
-          <p className="text-gray-600 mt-1">Manage patient records and information</p>
+          <h1 className="text-3xl font-bold text-text-primary">Patients</h1>
+          <p className="text-text-secondary mt-1">Manage patient records and information</p>
         </div>
         <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-5 h-5 mr-2" />
@@ -106,7 +106,7 @@ const Patients = () => {
       <div className="card">
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-tertiary" />
             <input
               type="text"
               placeholder="Search by name, phone, email..."

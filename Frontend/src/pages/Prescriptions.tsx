@@ -73,8 +73,8 @@ const Prescriptions = () => {
       header: 'Prescription ID',
       render: (prescription: Prescription) => (
         <div>
-          <p className="font-medium text-gray-900">{prescription.prescription_id}</p>
-          <p className="text-sm text-gray-500">{formatDate(prescription.prescription_date)}</p>
+          <p className="font-medium text-text-primary">{prescription.prescription_id}</p>
+          <p className="text-sm text-text-tertiary">{formatDate(prescription.prescription_date)}</p>
         </div>
       ),
     },
@@ -83,8 +83,8 @@ const Prescriptions = () => {
       header: 'Patient',
       render: (prescription: Prescription) => (
         <div>
-          <p className="font-medium text-gray-900">{prescription.patient_name}</p>
-          <p className="text-sm text-gray-500">{prescription.patient_id}</p>
+          <p className="font-medium text-text-primary">{prescription.patient_name}</p>
+          <p className="text-sm text-text-tertiary">{prescription.patient_id}</p>
         </div>
       ),
     },
@@ -93,7 +93,7 @@ const Prescriptions = () => {
       header: 'Doctor',
       render: (prescription: Prescription) => (
         <div>
-          <p className="text-gray-900">{prescription.doctor_name}</p>
+          <p className="text-text-primary">{prescription.doctor_name}</p>
         </div>
       ),
     },
@@ -101,7 +101,7 @@ const Prescriptions = () => {
       key: 'diagnosis',
       header: 'Diagnosis',
       render: (prescription: Prescription) => (
-        <span className="text-gray-900">{prescription.diagnosis}</span>
+        <span className="text-text-primary">{prescription.diagnosis}</span>
       ),
     },
     {
@@ -133,7 +133,7 @@ const Prescriptions = () => {
         const validDate = new Date(prescription.valid_until)
         const isExpired = validDate < new Date()
         return (
-          <span className={isExpired ? 'text-red-600 font-medium' : 'text-gray-900'}>
+          <span className={isExpired ? 'text-red-600 font-medium' : 'text-text-primary'}>
             {formatDate(prescription.valid_until)}
           </span>
         )
@@ -163,8 +163,8 @@ const Prescriptions = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Prescriptions</h1>
-          <p className="text-gray-600 mt-1">Manage patient prescriptions</p>
+          <h1 className="text-3xl font-bold text-text-primary">Prescriptions</h1>
+          <p className="text-text-secondary mt-1">Manage patient prescriptions</p>
         </div>
         <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-5 h-5 mr-2" />
@@ -176,7 +176,7 @@ const Prescriptions = () => {
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-tertiary" />
             <input
               type="text"
               placeholder="Search prescriptions..."
@@ -211,8 +211,8 @@ const Prescriptions = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Prescriptions</p>
-              <p className="text-2xl font-bold text-gray-900">{data?.total || 0}</p>
+              <p className="text-sm text-text-secondary">Total Prescriptions</p>
+              <p className="text-2xl font-bold text-text-primary">{data?.total || 0}</p>
             </div>
             <FileText className="w-8 h-8 text-blue-600" />
           </div>
@@ -220,7 +220,7 @@ const Prescriptions = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Eye Prescriptions</p>
+              <p className="text-sm text-text-secondary">Eye Prescriptions</p>
               <p className="text-2xl font-bold text-purple-600">
                 {data?.data.filter((p) => p.eye_prescription).length || 0}
               </p>
@@ -231,7 +231,7 @@ const Prescriptions = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">With Medications</p>
+              <p className="text-sm text-text-secondary">With Medications</p>
               <p className="text-2xl font-bold text-green-600">
                 {data?.data.filter((p) => p.medications && p.medications.length > 0).length || 0}
               </p>
@@ -242,7 +242,7 @@ const Prescriptions = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Expired</p>
+              <p className="text-sm text-text-secondary">Expired</p>
               <p className="text-2xl font-bold text-red-600">
                 {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
               </p>

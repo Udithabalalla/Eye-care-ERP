@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { appointmentsApi } from '@/api/appointments.api'
 import { Plus, Calendar as CalendarIcon } from 'lucide-react'
@@ -45,8 +45,8 @@ const Appointments = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-gray-600 mt-1">Manage and schedule appointments</p>
+          <h1 className="text-3xl font-bold text-text-primary">Appointments</h1>
+          <p className="text-text-secondary mt-1">Manage and schedule appointments</p>
         </div>
         <button onClick={handleAdd} className="btn-primary">
           <Plus className="w-5 h-5 mr-2" />
@@ -80,7 +80,7 @@ const Appointments = () => {
           {groupedAppointments &&
             Object.entries(groupedAppointments).map(([date, appointments]) => (
               <div key={date}>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
                   <CalendarIcon className="w-5 h-5 mr-2" />
                   {new Date(date).toLocaleDateString('en-US', {
                     weekday: 'long',
@@ -103,8 +103,8 @@ const Appointments = () => {
 
           {(!groupedAppointments || Object.keys(groupedAppointments).length === 0) && (
             <div className="card text-center py-12">
-              <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No appointments found</p>
+              <CalendarIcon className="w-12 h-12 text-text-tertiary mx-auto mb-4" />
+              <p className="text-text-secondary">No appointments found</p>
               <button onClick={handleAdd} className="btn-primary mt-4">
                 Schedule First Appointment
               </button>

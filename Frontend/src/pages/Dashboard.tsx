@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+﻿import { useQuery } from '@tanstack/react-query'
 import { dashboardApi } from '@/api/dashboard.api'
 import Loading from '@/components/common/Loading'
 import {
@@ -76,8 +76,8 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
+        <h1 className="text-3xl font-bold text-text-primary">Dashboard</h1>
+        <p className="text-text-secondary mt-1">Welcome back! Here's what's happening today.</p>
       </div>
 
       {/* Stats Grid */}
@@ -88,8 +88,8 @@ const Dashboard = () => {
             <div key={index} className="card hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                  <p className="text-sm font-medium text-text-secondary">{stat.title}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{stat.value}</p>
                 </div>
                 <div className={`${stat.bgColor} p-3 rounded-lg`}>
                   <Icon className={`w-6 h-6 ${stat.textColor}`} />
@@ -104,7 +104,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Quick Actions</h3>
           <div className="space-y-2">
             <button className="w-full btn-primary justify-start">
               <Calendar className="w-5 h-5 mr-2" />
@@ -123,7 +123,7 @@ const Dashboard = () => {
 
         {/* Notifications */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Notifications</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Notifications</h3>
           <div className="space-y-3">
             {stats?.low_stock_items > 0 && (
               <div className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg">

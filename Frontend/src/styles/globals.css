@@ -3,72 +3,246 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-gray-200;
+  :root {
+    --color-bg-primary: 249 250 251;
+    --color-bg-secondary: 255 255 255;
+    --color-bg-tertiary: 243 244 246;
+
+    --color-text-primary: 17 24 39;
+    --color-text-secondary: 75 85 99;
+    --color-text-tertiary: 156 163 175;
+
+    --color-border: 229 231 235;
+    --color-border-hover: 209 213 219;
+
+    --color-primary: 59 130 246;
+    --color-accent: 168 85 247;
+
+    --color-success: 34 197 94;
+    --color-warning: 234 179 8;
+    --color-danger: 239 68 68;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
+
+  .dark {
+    --color-bg-primary: 15 23 42;
+    --color-bg-secondary: 30 41 59;
+    --color-bg-tertiary: 51 65 85;
+
+    --color-text-primary: 241 245 249;
+    --color-text-secondary: 226 232 240;
+    --color-text-tertiary: 148 163 184;
+
+    --color-border: 51 65 85;
+    --color-border-hover: 71 85 105;
+
+    --color-primary: 96 165 250;
+    --color-accent: 192 132 252;
+
+    --color-success: 74 222 128;
+    --color-warning: 250 204 21;
+    --color-danger: 248 113 113;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  }
+
+  * {
+    border-color: rgb(var(--color-border));
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    background-color: rgb(var(--color-bg-primary));
+    color: rgb(var(--color-text-primary));
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   }
 }
 
 @layer components {
+  .bg-bg-primary {
+    background-color: rgb(var(--color-bg-primary));
+  }
+
+  .bg-bg-secondary {
+    background-color: rgb(var(--color-bg-secondary));
+  }
+
+  .bg-bg-tertiary {
+    background-color: rgb(var(--color-bg-tertiary));
+  }
+
+  .text-text-primary {
+    color: rgb(var(--color-text-primary));
+  }
+
+  .text-text-secondary {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  .text-text-tertiary {
+    color: rgb(var(--color-text-tertiary));
+  }
+
+  .border-border {
+    border-color: rgb(var(--color-border));
+  }
+
+  .hover\:border-border-hover:hover {
+    border-color: rgb(var(--color-border-hover));
+  }
+
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow-md;
   }
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    @apply btn text-white;
+    background: linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-accent)) 100%);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px -10px rgb(var(--color-primary) / 0.5);
   }
 
   .btn-secondary {
-    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+    @apply btn;
+    background-color: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  .btn-secondary:hover {
+    filter: brightness(0.95);
   }
 
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply btn text-white;
+    background-color: rgb(var(--color-danger));
+  }
+
+  .btn-danger:hover {
+    filter: brightness(1.1);
   }
 
   .input {
-    @apply block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm placeholder-gray-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed;
+    @apply block w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed transition-all;
+    background-color: rgb(var(--color-bg-secondary));
+    border: 1px solid rgb(var(--color-border));
+    color: rgb(var(--color-text-primary));
+  }
+
+  .input::placeholder {
+    color: rgb(var(--color-text-tertiary));
+  }
+
+  .input:focus {
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+  }
+
+  .input:disabled {
+    background-color: rgb(var(--color-bg-tertiary));
+  }
+
+  .label {
+    @apply block text-sm font-medium mb-2;
+    color: rgb(var(--color-text-secondary));
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply rounded-xl p-6 transition-all duration-200;
+    background-color: rgb(var(--color-bg-secondary));
+    border: 1px solid rgb(var(--color-border));
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgb(var(--color-border-hover));
   }
 
   .table {
-    @apply min-w-full divide-y divide-gray-200;
+    @apply min-w-full;
   }
 
   .table thead {
-    @apply bg-gray-50;
+    background-color: rgb(var(--color-bg-tertiary));
   }
 
   .table th {
-    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    @apply px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider;
+    color: rgb(var(--color-text-secondary));
   }
 
   .table td {
-    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+    color: rgb(var(--color-text-primary));
+  }
+
+  .table tbody tr {
+    @apply transition-colors cursor-pointer;
+    border-top: 1px solid rgb(var(--color-border));
+  }
+
+  .table tbody tr:hover {
+    background-color: rgb(var(--color-bg-tertiary) / 0.5);
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
   }
 
   .badge-success {
-    @apply badge bg-green-100 text-green-800;
+    @apply badge;
+    background-color: #dcfce7;
+    color: #166534;
+  }
+
+  .dark .badge-success {
+    background-color: rgb(34 197 94 / 0.2);
+    color: rgb(74 222 128);
   }
 
   .badge-warning {
-    @apply badge bg-yellow-100 text-yellow-800;
+    @apply badge;
+    background-color: #fef9c3;
+    color: #854d0e;
+  }
+
+  .dark .badge-warning {
+    background-color: rgb(234 179 8 / 0.2);
+    color: rgb(250 204 21);
   }
 
   .badge-danger {
-    @apply badge bg-red-100 text-red-800;
+    @apply badge;
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  .dark .badge-danger {
+    background-color: rgb(239 68 68 / 0.2);
+    color: rgb(248 113 113);
   }
 
   .badge-info {
-    @apply badge bg-blue-100 text-blue-800;
+    @apply badge;
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .dark .badge-info {
+    background-color: rgb(59 130 246 / 0.2);
+    color: rgb(96 165 250);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-accent)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }

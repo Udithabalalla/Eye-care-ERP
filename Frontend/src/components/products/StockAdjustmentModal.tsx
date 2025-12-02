@@ -21,6 +21,10 @@ interface StockAdjustmentModalProps {
   onClose: () => void
   product: Product
   onSuccess: () => void
+  defaultValues?: {
+    quantity?: number
+    reason?: string
+  }
 }
 
 const StockAdjustmentModal = ({
@@ -28,6 +32,7 @@ const StockAdjustmentModal = ({
   onClose,
   product,
   onSuccess,
+  defaultValues,
 }: StockAdjustmentModalProps) => {
   const queryClient = useQueryClient()
 
@@ -39,7 +44,8 @@ const StockAdjustmentModal = ({
   } = useForm<StockFormValues>({
     resolver: zodResolver(stockSchema),
     defaultValues: {
-      quantity: 0,
+      quantity: defaultValues?.quantity ?? 0,
+      reason: defaultValues?.reason ?? '',
     },
   })
 
@@ -139,25 +145,23 @@ const StockAdjustmentModal = ({
 
         {/* Preview */}
         <div
-          className={`p-4 rounded-lg border-2 ${
-            newStock < 0
+          className={`p-4 rounded-lg border-2 ${newStock < 0
               ? 'bg-red-50 border-red-200'
               : newStock <= product.min_stock_level
-              ? 'bg-yellow-50 border-yellow-200'
-              : 'bg-green-50 border-green-200'
-          }`}
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-green-50 border-green-200'
+            }`}
         >
           <p className="text-sm font-medium mb-2">After Adjustment:</p>
           <div className="flex justify-between items-center">
             <span className="text-sm">New Stock Level:</span>
             <span
-              className={`text-2xl font-bold ${
-                newStock < 0
+              className={`text-2xl font-bold ${newStock < 0
                   ? 'text-red-600'
                   : newStock <= product.min_stock_level
-                  ? 'text-yellow-600'
-                  : 'text-green-600'
-              }`}
+                    ? 'text-yellow-600'
+                    : 'text-green-600'
+                }`}
             >
               {newStock}
             </span>
