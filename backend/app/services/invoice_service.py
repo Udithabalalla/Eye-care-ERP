@@ -25,7 +25,8 @@ class InvoiceService:
         patient_id: Optional[str] = None,
         payment_status: Optional[str] = None,
         start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        end_date: Optional[date] = None,
+        search: Optional[str] = None
     ) -> PaginatedResponse[InvoiceResponse]:
         """List invoices with filters"""
         skip = (page - 1) * page_size
@@ -36,7 +37,8 @@ class InvoiceService:
             patient_id=patient_id,
             payment_status=payment_status,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            search=search
         )
         
         total_pages = math.ceil(total / page_size)

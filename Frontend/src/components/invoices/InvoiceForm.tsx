@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -6,12 +6,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
 import { patientsApi } from '@/api/patients.api'
 import { productsApi } from '@/api/products.api'
-import { Invoice, InvoiceFormData, InvoiceItem } from '@/types/invoice.types'
+import { prescriptionsApi } from '@/api/prescriptions.api'
+import { Invoice, InvoiceFormData } from '@/types/invoice.types'
 import { PaymentMethod } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
+import { safeDate } from '@/utils/formatters'
 
 const invoiceItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
@@ -30,6 +32,7 @@ const invoiceSchema = z.object({
   due_date: z.string(),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
   payment_method: z.nativeEnum(PaymentMethod).optional(),
+  prescription_id: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -43,7 +46,7 @@ interface InvoiceFormProps {
 
 const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
   const queryClient = useQueryClient()
-  const { user } = useAuthStore()
+  const { } = useAuthStore()
 
   const { data: patients } = useQuery({
     queryKey: ['patients-list'],
@@ -67,10 +70,11 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     defaultValues: invoice
       ? {
         patient_id: invoice.patient_id,
-        invoice_date: invoice.invoice_date.split('T')[0],
-        due_date: invoice.due_date.split('T')[0],
+        invoice_date: safeDate(invoice.invoice_date),
+        due_date: safeDate(invoice.due_date),
         items: invoice.items,
         payment_method: invoice.payment_method,
+        prescription_id: invoice.prescription_id === 'string' ? undefined : invoice.prescription_id,
         notes: invoice.notes || '',
       }
       : {
@@ -81,6 +85,23 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         items: [],
       },
   })
+
+  const patientId = watch('patient_id')
+
+  const { data: latestPrescription } = useQuery({
+    queryKey: ['latest-prescription', patientId],
+    queryFn: () => prescriptionsApi.getAll({ patient_id: patientId, page: 1, page_size: 1 }),
+    enabled: !!patientId,
+  })
+
+  useEffect(() => {
+    if (latestPrescription?.data?.[0] && !invoice) {
+      const pid = latestPrescription.data[0].prescription_id
+      if (pid && pid !== 'string') {
+        setValue('prescription_id', pid)
+      }
+    }
+  }, [latestPrescription, setValue, invoice])
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -192,7 +213,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           value={watch('patient_id')}
           onChange={(value) => setValue('patient_id', value)}
           options={
-            patients?.data.map((patient): LOVOption => ({
+            patients?.data?.map((patient: any): LOVOption => ({
               value: patient.patient_id,
               label: patient.name,
               subtitle: patient.patient_id,
@@ -201,6 +222,22 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           placeholder="Select patient"
           error={errors.patient_id?.message}
         />
+
+        {/* Linked Prescription Display */}
+        {latestPrescription?.data?.[0] && (
+          <div className="col-span-1 md:col-span-3 bg-blue-50 p-3 rounded-md flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-blue-700 font-medium">Linked Prescription:</span>
+              <span className="text-sm text-blue-600">
+                {new Date(latestPrescription.data[0].prescription_date).toLocaleDateString()} -
+                {latestPrescription.data[0].diagnosis}
+              </span>
+            </div>
+            <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
+              Auto-linked
+            </span>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -247,7 +284,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                     className="input text-sm"
                   >
                     <option value="">Select product</option>
-                    {products?.data.map((product) => (
+                    {products?.data?.map((product: any) => (
                       <option key={product.product_id} value={product.product_id}>
                         {product.name}
                       </option>

@@ -25,6 +25,7 @@ const navigationItems: NavItem[] = [
   { name: 'Prescriptions', path: '/prescriptions', icon: FileText },
   { name: 'Products', path: '/products', icon: Package },
   { name: 'Invoices', path: '/invoices', icon: Receipt },
+  { name: 'Doctors', path: '/doctors', icon: Users },
   { name: 'Reports', path: '/reports', icon: BarChart3 },
 ]
 

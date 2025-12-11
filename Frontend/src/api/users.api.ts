@@ -1,13 +1,14 @@
 import { axiosInstance } from './axios'
-import { PaginatedResponse } from '@/types/common.types'
 
 export interface User {
     user_id: string
-    username: string
     email: string
-    full_name: string
+    name: string
     role: string
     is_active: boolean
+    department?: string
+    phone?: string
+    avatar_url?: string
 }
 
 export const usersApi = {
@@ -15,8 +16,8 @@ export const usersApi = {
         page?: number
         page_size?: number
         role?: string
-    }): Promise<PaginatedResponse<User>> => {
-        const response = await axiosInstance.get<PaginatedResponse<User>>('/users', { params })
+    }): Promise<User[]> => {
+        const response = await axiosInstance.get<User[]>('/users', { params })
         return response.data
     },
 }

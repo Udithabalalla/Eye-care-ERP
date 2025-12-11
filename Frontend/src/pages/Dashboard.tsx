@@ -125,7 +125,7 @@ const Dashboard = () => {
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Notifications</h3>
           <div className="space-y-3">
-            {stats?.low_stock_items > 0 && (
+            {(stats?.low_stock_items || 0) > 0 && (
               <div className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg">
                 <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                 <div>
@@ -133,12 +133,12 @@ const Dashboard = () => {
                     Low Stock Alert
                   </p>
                   <p className="text-xs text-red-700 mt-1">
-                    {stats.low_stock_items} products need reordering
+                    {stats?.low_stock_items} products need reordering
                   </p>
                 </div>
               </div>
             )}
-            {stats?.today_appointments > 0 && (
+            {(stats?.today_appointments || 0) > 0 && (
               <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
                 <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
@@ -146,7 +146,7 @@ const Dashboard = () => {
                     Today's Schedule
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    You have {stats.today_appointments} appointments today
+                    You have {stats?.today_appointments} appointments today
                   </p>
                 </div>
               </div>

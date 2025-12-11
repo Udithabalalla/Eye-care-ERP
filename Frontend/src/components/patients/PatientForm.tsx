@@ -6,6 +6,7 @@ import { patientsApi } from '@/api/patients.api'
 import { Patient, PatientFormData } from '@/types/patient.types'
 import { Gender } from '@/types/common.types'
 import toast from 'react-hot-toast'
+import { safeDate } from '@/utils/formatters'
 
 const patientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -47,15 +48,15 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     resolver: zodResolver(patientSchema),
     defaultValues: patient
       ? {
-          name: patient.name,
-          date_of_birth: patient.date_of_birth.split('T')[0],
-          gender: patient.gender,
-          phone: patient.phone,
-          email: patient.email || '',
-          address: patient.address,
-          emergency_contact: patient.emergency_contact,
-          notes: patient.notes || '',
-        }
+        name: patient.name,
+        date_of_birth: safeDate(patient.date_of_birth),
+        gender: patient.gender,
+        phone: patient.phone,
+        email: patient.email || '',
+        address: patient.address,
+        emergency_contact: patient.emergency_contact,
+        notes: patient.notes || '',
+      }
       : undefined,
   })
 

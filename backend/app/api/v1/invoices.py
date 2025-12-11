@@ -20,13 +20,14 @@ async def list_invoices(
     payment_status: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    search: Optional[str] = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user)
 ):
     """List all invoices with filters"""
     invoice_service = InvoiceService(db)
     return await invoice_service.list_invoices(
-        page, page_size, patient_id, payment_status, start_date, end_date
+        page, page_size, patient_id, payment_status, start_date, end_date, search
     )
 
 @router.get("/{invoice_id}", response_model=ResponseModel[InvoiceResponse])

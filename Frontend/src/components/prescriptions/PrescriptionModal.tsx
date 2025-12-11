@@ -7,23 +7,28 @@ interface PrescriptionModalProps {
     onClose: () => void
     prescription?: Prescription | null
     onSuccess: () => void
+    readOnly?: boolean
+    onSwitchToEdit?: (prescription: Prescription) => void
 }
 
-const PrescriptionModal = ({ isOpen, onClose, prescription, onSuccess }: PrescriptionModalProps) => {
+const PrescriptionModal = ({ isOpen, onClose, prescription, onSuccess, readOnly = false, onSwitchToEdit }: PrescriptionModalProps) => {
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={prescription ? 'Edit Prescription' : 'New Prescription'}
+            title={readOnly ? 'View Prescription' : (prescription ? 'Edit Prescription' : 'New Prescription')}
             size="xl"
         >
             <PrescriptionForm
+                key={prescription?.prescription_id || 'new'}
                 prescription={prescription}
                 onSuccess={() => {
                     onSuccess()
                     onClose()
                 }}
                 onCancel={onClose}
+                readOnly={readOnly}
+                onSwitchToEdit={onSwitchToEdit}
             />
         </Modal>
     )

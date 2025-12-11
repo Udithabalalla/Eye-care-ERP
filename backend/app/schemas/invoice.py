@@ -19,6 +19,7 @@ class InvoiceUpdate(BaseModel):
     """Schema for updating an invoice"""
     due_date: Optional[date] = None
     payment_status: Optional[PaymentStatus] = None
+    prescription_id: Optional[str] = None
     notes: Optional[str] = None
 
 class PaymentRecord(BaseModel):
@@ -49,5 +50,6 @@ class InvoiceResponse(BaseModel):
     payment_status: PaymentStatus
     payment_method: Optional[PaymentMethod]
     payment_date: Optional[datetime]
+    prescription_id: Optional[str]
     created_by: str
     created_at: datetime

@@ -9,6 +9,7 @@ export const ROUTES = {
   PRESCRIPTIONS: '/prescriptions',
   PRODUCTS: '/products',
   INVOICES: '/invoices',
+  DOCTORS: '/doctors',
   REPORTS: '/reports',
 }
 

@@ -26,7 +26,7 @@ async def main():
     for p in products:
         print(f"- {p.name} (SKU: {p.sku}, ID: {p.product_id})")
         
-    await db.client.close()
+    db.client.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

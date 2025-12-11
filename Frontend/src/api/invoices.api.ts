@@ -10,6 +10,7 @@ export const invoicesApi = {
     payment_status?: string
     start_date?: string
     end_date?: string
+    search?: string
   }): Promise<PaginatedResponse<Invoice>> => {
     const response = await axiosInstance.get<PaginatedResponse<Invoice>>('/invoices', { params })
     return response.data

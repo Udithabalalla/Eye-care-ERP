@@ -31,9 +31,11 @@ export interface Invoice {
   payment_method?: PaymentMethod
   payment_date?: string
   transaction_id?: string
+  prescription_id?: string
   created_by: string
   created_at: string
   updated_at: string
+  notes?: string
 }
 
 export interface InvoiceFormData {
@@ -42,5 +44,6 @@ export interface InvoiceFormData {
   due_date: string
   items: InvoiceItem[]
   payment_method?: PaymentMethod
+  prescription_id?: string
   notes?: string
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+
 import Modal from '@/components/common/Modal'
 import PatientForm from './PatientForm'
 import { Patient } from '@/types/patient.types'

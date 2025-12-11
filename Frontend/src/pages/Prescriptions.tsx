@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
-import { Plus, Search, FileText, Calendar, User, Eye } from 'lucide-react'
+import { Plus, Search, FileText, Calendar, Eye } from 'lucide-react'
 import Table from '@/components/common/Table'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
@@ -284,6 +284,7 @@ const Prescriptions = () => {
         }}
         prescription={selectedPrescription}
         onSuccess={() => refetch()}
+        onSwitchToEdit={handleEdit}
       />
     </div>
   )

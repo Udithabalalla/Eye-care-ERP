@@ -42,3 +42,14 @@ export const getInitials = (name: string): string => {
     .toUpperCase()
     .substring(0, 2)
 }
+
+export const safeDate = (date: string | undefined | null, fallback: string = new Date().toISOString().split('T')[0]): string => {
+  if (!date) return fallback
+  try {
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return fallback
+    return d.toISOString().split('T')[0]
+  } catch (error) {
+    return fallback
+  }
+}

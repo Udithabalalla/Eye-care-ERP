@@ -1,7 +1,7 @@
 import { ProductCategory } from './common.types'
 
 export interface Supplier {
-  name: string
+  name?: string
   contact?: string
   email?: string
 }

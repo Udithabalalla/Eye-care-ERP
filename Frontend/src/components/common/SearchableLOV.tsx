@@ -80,10 +80,8 @@ const SearchableLOV = ({
             )}
 
             {/* Trigger Button */}
-            <button
-                type="button"
+            <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                disabled={disabled}
                 className={`
           w-full px-4 py-2.5 text-left bg-bg-secondary border rounded-lg
           flex items-center justify-between transition-all
@@ -116,7 +114,7 @@ const SearchableLOV = ({
                             }`}
                     />
                 </div>
-            </button>
+            </div>
 
             {/* Dropdown */}
             {isOpen && (

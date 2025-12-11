@@ -11,6 +11,7 @@ import Appointments from './pages/Appointments'
 import Prescriptions from './pages/Prescriptions'
 import Products from './pages/Products'
 import Invoices from './pages/Invoices'
+import Doctors from './pages/Doctors'
 import Reports from './pages/Reports'
 
 function App() {
@@ -22,7 +23,7 @@ function App() {
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
       />
-      
+
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
@@ -31,6 +32,7 @@ function App() {
           <Route path="/prescriptions" element={<Prescriptions />} />
           <Route path="/products" element={<Products />} />
           <Route path="/invoices" element={<Invoices />} />
+          <Route path="/doctors" element={<Doctors />} />
           <Route path="/reports" element={<Reports />} />
         </Route>
       </Route>

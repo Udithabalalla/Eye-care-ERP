@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import toast from 'react-hot-toast'
 

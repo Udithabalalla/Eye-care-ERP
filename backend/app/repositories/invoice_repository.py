@@ -31,12 +31,19 @@ class InvoiceRepository(BaseRepository):
         patient_id: Optional[str] = None,
         payment_status: Optional[str] = None,
         start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        end_date: Optional[date] = None,
+        search: Optional[str] = None
     ) -> Tuple[List[InvoiceModel], int]:
         """List invoices with filters"""
         from app.utils.helpers import date_to_datetime
         
         filter_query = {}
+        
+        if search:
+            filter_query["$or"] = [
+                {"invoice_number": {"$regex": search, "$options": "i"}},
+                {"patient_name": {"$regex": search, "$options": "i"}}
+            ]
         
         if patient_id:
             filter_query["patient_id"] = patient_id

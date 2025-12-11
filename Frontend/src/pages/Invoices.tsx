@@ -1,17 +1,19 @@
 ﻿import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
-import { Plus, Search, Eye } from 'lucide-react'
+import { Plus, Search, Eye, FileText } from 'lucide-react'
 import Table from '@/components/common/Table'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
 import PaymentModal from '@/components/invoices/PaymentModal'
+import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import Modal from '@/components/common/Modal'
 import InvoiceDetail from '@/components/invoices/InvoiceDetail'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import { getStatusColor, downloadFile } from '@/utils/helpers'
 import { Invoice } from '@/types/invoice.types'
+import { prescriptionsApi } from '@/api/prescriptions.api'
 import toast from 'react-hot-toast'
 
 const Invoices = () => {
@@ -25,9 +27,9 @@ const Invoices = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['invoices', page, pageSize, statusFilter],
+    queryKey: ['invoices', page, pageSize, statusFilter, search],
     queryFn: () =>
-      invoicesApi.getAll({ page, page_size: pageSize, payment_status: statusFilter }),
+      invoicesApi.getAll({ page, page_size: pageSize, payment_status: statusFilter, search }),
   })
 
   const handleView = (invoice: Invoice) => {
@@ -35,10 +37,7 @@ const Invoices = () => {
     setIsDetailOpen(true)
   }
 
-  const handleEdit = (invoice: Invoice) => {
-    setSelectedInvoice(invoice)
-    setIsModalOpen(true)
-  }
+
 
   const handleAdd = () => {
     setSelectedInvoice(null)
@@ -57,6 +56,19 @@ const Invoices = () => {
       toast.success('PDF downloaded successfully')
     } catch (error) {
       toast.error('Failed to download PDF')
+    }
+  }
+
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
+
+  const handleViewPrescription = async (prescriptionId: string) => {
+    try {
+      const prescription = await prescriptionsApi.getById(prescriptionId)
+      setSelectedPrescription(prescription)
+      setIsPrescriptionModalOpen(true)
+    } catch (error) {
+      toast.error('Failed to load prescription details')
     }
   }
 
@@ -110,15 +122,30 @@ const Invoices = () => {
       key: 'actions',
       header: 'Actions',
       render: (invoice: Invoice) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleView(invoice)
-          }}
-          className="text-primary-600 hover:text-primary-700"
-        >
-          <Eye className="w-5 h-5" />
-        </button>
+        <div className="flex items-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleView(invoice)
+            }}
+            className="text-primary-600 hover:text-primary-700"
+            title="View Invoice"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+          {invoice.prescription_id && invoice.prescription_id !== 'string' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleViewPrescription(invoice.prescription_id!)
+              }}
+              className="text-blue-600 hover:text-blue-700 ml-2"
+              title="View Prescription"
+            >
+              <FileText className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       ),
     },
   ]
@@ -235,6 +262,18 @@ const Invoices = () => {
           />
         )}
       </Modal>
+
+      {/* Prescription Modal */}
+      <PrescriptionModal
+        isOpen={isPrescriptionModalOpen}
+        onClose={() => {
+          setIsPrescriptionModalOpen(false)
+          setSelectedPrescription(null)
+        }}
+        prescription={selectedPrescription}
+        onSuccess={() => { }}
+        readOnly={true}
+      />
     </div>
   )
 }

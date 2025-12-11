@@ -5,11 +5,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { appointmentsApi } from '@/api/appointments.api'
 import { patientsApi } from '@/api/patients.api'
 import { Appointment, AppointmentFormData } from '@/types/appointment.types'
-import { AppointmentType, AppointmentStatus } from '@/types/common.types'
+import { AppointmentType } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { usersApi } from '@/api/users.api'
+import { safeDate } from '@/utils/formatters'
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
@@ -32,7 +33,7 @@ interface AppointmentFormProps {
 
 const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormProps) => {
   const queryClient = useQueryClient()
-  const { user } = useAuthStore()
+  const { } = useAuthStore()
 
   const { data: patients } = useQuery({
     queryKey: ['patients-list'],
@@ -56,8 +57,10 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
       ? {
         patient_id: appointment.patient_id,
         doctor_id: appointment.doctor_id,
-        appointment_date: appointment.appointment_date.split('T')[0],
-        appointment_time: appointment.appointment_time.split('T')[1].substring(0, 5),
+        appointment_date: safeDate(appointment.appointment_date),
+        appointment_time: appointment.appointment_time.includes('T')
+          ? appointment.appointment_time.split('T')[1].substring(0, 5)
+          : appointment.appointment_time.substring(0, 5),
         duration_minutes: appointment.duration_minutes,
         type: appointment.type,
         reason: appointment.reason,
@@ -112,7 +115,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
           value={watch('patient_id')}
           onChange={(value) => setValue('patient_id', value)}
           options={
-            patients?.data.map((patient): LOVOption => ({
+            patients?.data?.map((patient): LOVOption => ({
               value: patient.patient_id,
               label: patient.name,
               subtitle: patient.patient_id,
@@ -129,9 +132,9 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
           value={watch('doctor_id')}
           onChange={(value) => setValue('doctor_id', value)}
           options={
-            doctors?.data.map((doctor): LOVOption => ({
+            doctors?.map((doctor): LOVOption => ({
               value: doctor.user_id,
-              label: doctor.full_name,
+              label: doctor.name,
               subtitle: doctor.role,
             })) || []
           }

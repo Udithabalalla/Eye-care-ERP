@@ -1,0 +1,9 @@
+src/api/doctors.api.ts(3,1): error TS6133: 'ApiResponse' is declared but its value is never read.
+src/components/appointments/AppointmentForm.tsx(8,27): error TS6133: 'AppointmentStatus' is declared but its value is never read.
+src/components/appointments/AppointmentForm.tsx(35,9): error TS6133: 'user' is declared but its value is never read.
+src/components/invoices/InvoiceForm.tsx(1,10): error TS6133: 'useState' is declared but its value is never read.
+src/components/invoices/InvoiceForm.tsx(9,36): error TS6133: 'InvoiceItem' is declared but its value is never read.
+src/components/invoices/InvoiceForm.tsx(46,9): error TS6133: 'user' is declared but its value is never read.
+src/components/patients/PatientModal.tsx(1,1): error TS6133: 'useState' is declared but its value is never read.
+src/pages/Invoices.tsx(38,9): error TS6133: 'handleEdit' is declared but its value is never read.
+src/pages/Prescriptions.tsx(4,44): error TS6133: 'User' is declared but its value is never read.
