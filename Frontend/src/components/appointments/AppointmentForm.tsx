@@ -9,7 +9,7 @@ import { AppointmentType } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
-import { usersApi } from '@/api/users.api'
+import { doctorsApi } from '@/api/doctors.api'
 import { safeDate } from '@/utils/formatters'
 
 const appointmentSchema = z.object({
@@ -42,7 +42,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
   const { data: doctors } = useQuery({
     queryKey: ['doctors-list'],
-    queryFn: () => usersApi.getAll({ page: 1, page_size: 100, role: 'doctor' }),
+    queryFn: () => doctorsApi.getAll({ active_only: true }),
   })
 
   const {
@@ -133,9 +133,9 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
           onChange={(value) => setValue('doctor_id', value)}
           options={
             doctors?.map((doctor): LOVOption => ({
-              value: doctor.user_id,
+              value: doctor.doctor_id,
               label: doctor.name,
-              subtitle: doctor.role,
+              subtitle: doctor.specialization,
             })) || []
           }
           placeholder="Select doctor"

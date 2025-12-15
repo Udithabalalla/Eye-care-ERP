@@ -165,30 +165,36 @@
   }
 
   .table {
-    @apply min-w-full;
+    @apply min-w-full border-collapse;
   }
 
   .table thead {
-    background-color: rgb(var(--color-bg-tertiary));
+    @apply bg-gray-50 sticky top-0 z-10;
   }
 
   .table th {
-    @apply px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider;
+    @apply px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider border-b border-gray-200;
     color: rgb(var(--color-text-secondary));
+    background-color: rgb(var(--color-bg-tertiary));
   }
 
   .table td {
-    @apply px-6 py-4 whitespace-nowrap text-sm;
+    @apply px-6 py-4 whitespace-nowrap text-sm border-b border-gray-100;
     color: rgb(var(--color-text-primary));
   }
 
   .table tbody tr {
-    @apply transition-colors cursor-pointer;
-    border-top: 1px solid rgb(var(--color-border));
+    @apply transition-all duration-200 cursor-pointer;
   }
 
   .table tbody tr:hover {
-    background-color: rgb(var(--color-bg-tertiary) / 0.5);
+    background-color: rgb(var(--color-primary) / 0.05);
+    transform: scale-[1.002];
+  }
+
+  /* Zebra striping */
+  .table tbody tr:nth-child(even) {
+    background-color: rgb(var(--color-bg-tertiary) / 0.3);
   }
 
   .badge {

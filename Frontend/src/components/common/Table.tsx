@@ -40,35 +40,37 @@ function Table<T extends Record<string, any>>({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="table">
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th key={column.key} className={column.className}>
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {data.map((item, index) => (
-            <tr
-              key={index}
-              onClick={() => onRowClick?.(item)}
-              className={cn(
-                onRowClick && 'cursor-pointer hover:bg-gray-50 transition-colors'
-              )}
-            >
+    <div className="overflow-hidden rounded-xl border border-border bg-bg-secondary shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="table">
+          <thead>
+            <tr>
               {columns.map((column) => (
-                <td key={column.key} className={column.className}>
-                  {column.render ? column.render(item) : item[column.key]}
-                </td>
+                <th key={column.key} className={column.className}>
+                  {column.header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {data.map((item, index) => (
+              <tr
+                key={index}
+                onClick={() => onRowClick?.(item)}
+                className={cn(
+                  onRowClick && 'cursor-pointer'
+                )}
+              >
+                {columns.map((column) => (
+                  <td key={column.key} className={column.className}>
+                    {column.render ? column.render(item) : item[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

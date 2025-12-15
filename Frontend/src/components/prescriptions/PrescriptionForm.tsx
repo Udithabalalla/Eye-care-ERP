@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Prescription, PrescriptionFormData, Medication } from '@/types/prescription.types'
 import { toast } from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { patientsApi } from '@/api/patients.api'
-import { usersApi } from '@/api/users.api'
-import { useQuery } from '@tanstack/react-query'
+import { doctorsApi } from '@/api/doctors.api'
 import { safeDate } from '@/utils/formatters'
 
 interface PrescriptionFormProps {
@@ -26,7 +25,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 
     const { data: doctors } = useQuery({
         queryKey: ['doctors-list'],
-        queryFn: () => usersApi.getAll({ page: 1, page_size: 100, role: 'doctor' }),
+        queryFn: () => doctorsApi.getAll({ active_only: true }),
     })
 
     console.log('PrescriptionForm mounting with:', prescription)
@@ -167,8 +166,6 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
         setShowEyePrescription(true)
     }
 
-
-
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {existingPrescription && !prescription && (
@@ -224,9 +221,9 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                         onChange={(value: string) => setFormData({ ...formData, doctor_id: value })}
                         options={
                             doctors?.map((doctor: any): LOVOption => ({
-                                value: doctor.user_id,
+                                value: doctor.doctor_id,
                                 label: doctor.name,
-                                subtitle: doctor.role,
+                                subtitle: doctor.specialization,
                             })) || []
                         }
                         placeholder="Select doctor"

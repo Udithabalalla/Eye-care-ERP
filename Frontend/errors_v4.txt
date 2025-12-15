@@ -1,2 +1,0 @@
-src/api/doctors.api.ts(3,1): error TS6133: 'ApiResponse' is declared but its value is never read.
-src/components/appointments/AppointmentForm.tsx(8,27): error TS6133: 'AppointmentStatus' is declared but its value is never read.
