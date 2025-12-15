@@ -4,7 +4,7 @@ import math
 
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.patient_repository import PatientRepository
-from app.repositories.user_repository import UserRepository
+from app.repositories.doctor_repository import DoctorRepository
 from app.schemas.prescription import PrescriptionCreate, PrescriptionUpdate, PrescriptionResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.prescription import PrescriptionModel
@@ -17,7 +17,7 @@ class PrescriptionService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.prescription_repo = PrescriptionRepository(db)
         self.patient_repo = PatientRepository(db)
-        self.user_repo = UserRepository(db)
+        self.doctor_repo = DoctorRepository()
     
     async def list_prescriptions(
         self,
@@ -67,7 +67,7 @@ class PrescriptionService:
             raise NotFoundException(f"Patient with ID {prescription_data.patient_id} not found")
         
         # Validate doctor exists
-        doctor = await self.user_repo.get_by_user_id(prescription_data.doctor_id)
+        doctor = await self.doctor_repo.get_by_id(prescription_data.doctor_id)
         if not doctor:
             raise NotFoundException(f"Doctor with ID {prescription_data.doctor_id} not found")
         

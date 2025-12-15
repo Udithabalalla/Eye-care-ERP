@@ -28,6 +28,8 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
         queryFn: () => doctorsApi.getAll({ active_only: true }),
     })
 
+    console.log('Doctors LOV data:', doctors)
+
     console.log('PrescriptionForm mounting with:', prescription)
 
     const [formData, setFormData] = useState<PrescriptionFormData>(() => {

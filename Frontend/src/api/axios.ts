@@ -47,7 +47,8 @@ axiosInstance.interceptors.response.use(
           toast.error('You do not have permission to perform this action.')
           break
         case 404:
-          toast.error('Resource not found.')
+          const errorMessage = data.detail || data.message || 'Resource not found.'
+          toast.error(errorMessage)
           break
         case 422:
           const errors = data.detail

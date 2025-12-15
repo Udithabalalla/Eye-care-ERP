@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +14,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { safeDate } from '@/utils/formatters'
+import PrescriptionSelectionModal from './PrescriptionSelectionModal'
 
 const invoiceItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
@@ -87,21 +88,36 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
   })
 
   const patientId = watch('patient_id')
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
 
-  const { data: latestPrescription } = useQuery({
-    queryKey: ['latest-prescription', patientId],
-    queryFn: () => prescriptionsApi.getAll({ patient_id: patientId, page: 1, page_size: 1 }),
+  const { data: prescriptionsData } = useQuery({
+    queryKey: ['patient-prescriptions', patientId],
+    queryFn: () => prescriptionsApi.getAll({ patient_id: patientId, page: 1, page_size: 100 }),
     enabled: !!patientId,
   })
 
+  // Handle auto-selection or modal trigger
   useEffect(() => {
-    if (latestPrescription?.data?.[0] && !invoice) {
-      const pid = latestPrescription.data[0].prescription_id
-      if (pid && pid !== 'string') {
-        setValue('prescription_id', pid)
+    if (prescriptionsData?.data && !invoice && !selectedPrescription) {
+      if (prescriptionsData.data.length === 1) {
+        // Auto-select if only one
+        const p = prescriptionsData.data[0]
+        setSelectedPrescription(p)
+        setValue('prescription_id', p.prescription_id)
+      } else if (prescriptionsData.data.length > 1) {
+        // Show modal if multiple
+        setShowPrescriptionModal(true)
       }
     }
-  }, [latestPrescription, setValue, invoice])
+  }, [prescriptionsData, setValue, invoice, selectedPrescription])
+
+  // Handle manual selection from modal
+  const handlePrescriptionSelect = (prescription: any) => {
+    setSelectedPrescription(prescription)
+    setValue('prescription_id', prescription.prescription_id)
+    setShowPrescriptionModal(false)
+  }
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -224,18 +240,27 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         />
 
         {/* Linked Prescription Display */}
-        {latestPrescription?.data?.[0] && (
+        {selectedPrescription && (
           <div className="col-span-1 md:col-span-3 bg-blue-50 p-3 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-blue-700 font-medium">Linked Prescription:</span>
               <span className="text-sm text-blue-600">
-                {new Date(latestPrescription.data[0].prescription_date).toLocaleDateString()} -
-                {latestPrescription.data[0].diagnosis}
+                {new Date(selectedPrescription.prescription_date).toLocaleDateString()} -
+                {selectedPrescription.diagnosis}
               </span>
             </div>
-            <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
-              Auto-linked
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
+                {prescriptionsData?.data?.length === 1 ? 'Auto-linked' : 'Selected'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPrescriptionModal(true)}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Change
+              </button>
+            </div>
           </div>
         )}
 
@@ -412,6 +437,14 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           {isSubmitting ? 'Saving...' : invoice ? 'Update Invoice' : 'Create Invoice'}
         </button>
       </div>
+
+      <PrescriptionSelectionModal
+        isOpen={showPrescriptionModal}
+        onClose={() => setShowPrescriptionModal(false)}
+        prescriptions={prescriptionsData?.data || []}
+        onSelect={handlePrescriptionSelect}
+        selectedId={selectedPrescription?.prescription_id}
+      />
     </form>
   )
 }
