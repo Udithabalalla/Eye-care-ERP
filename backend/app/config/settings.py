@@ -28,7 +28,16 @@ class Settings(BaseSettings):
     
     @property
     def cors_origins_list(self) -> List[str]:
-        return json.loads(self.CORS_ORIGINS)
+        if isinstance(self.CORS_ORIGINS, str):
+            # Check if it appears to be a JSON list
+            if self.CORS_ORIGINS.startswith("["):
+                try:
+                    return json.loads(self.CORS_ORIGINS)
+                except json.JSONDecodeError:
+                    pass
+            # Fallback to comma-separated list
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return self.CORS_ORIGINS
     
     # Email (optional)
     SMTP_HOST: Optional[str] = None

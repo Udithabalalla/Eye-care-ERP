@@ -11,7 +11,10 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatters'
 
+import { useNavigate } from 'react-router-dom'
+
 const Dashboard = () => {
+  const navigate = useNavigate()
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => dashboardApi.getStats(),
@@ -106,15 +109,24 @@ const Dashboard = () => {
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Quick Actions</h3>
           <div className="space-y-2">
-            <button className="w-full btn-primary justify-start">
+            <button
+              onClick={() => navigate('/appointments')}
+              className="w-full btn-primary justify-start"
+            >
               <Calendar className="w-5 h-5 mr-2" />
               Schedule Appointment
             </button>
-            <button className="w-full btn-secondary justify-start">
+            <button
+              onClick={() => navigate('/patients')}
+              className="w-full btn-secondary justify-start"
+            >
               <Users className="w-5 h-5 mr-2" />
               Add New Patient
             </button>
-            <button className="w-full btn-secondary justify-start">
+            <button
+              onClick={() => navigate('/products')}
+              className="w-full btn-secondary justify-start"
+            >
               <Package className="w-5 h-5 mr-2" />
               Add Product
             </button>
