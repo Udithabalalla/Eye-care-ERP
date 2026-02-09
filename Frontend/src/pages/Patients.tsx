@@ -96,7 +96,7 @@ const Patients = () => {
           <h1 className="text-3xl font-bold text-text-primary">Patients</h1>
           <p className="text-text-secondary mt-1">Manage patient records and information</p>
         </div>
-        <button onClick={handleAdd} className="btn-primary">
+        <button onClick={handleAdd} className="btn-primary font-bold text-white">
           <Plus className="w-5 h-5 mr-2" />
           Add Patient
         </button>
@@ -112,7 +112,7 @@ const Patients = () => {
               placeholder="Search by name, phone, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
+              className="input pl-10 bg-white dark:bg-gray-800"
             />
           </div>
         </div>

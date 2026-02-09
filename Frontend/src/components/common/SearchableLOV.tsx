@@ -83,9 +83,9 @@ const SearchableLOV = ({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
-          w-full px-4 py-2.5 text-left bg-bg-secondary border rounded-lg
+          w-full px-4 py-2.5 text-left bg-white dark:bg-gray-800 border rounded-lg
           flex items-center justify-between transition-all
-          ${disabled ? 'bg-bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-border-hover cursor-pointer'}
+          ${disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-60' : 'hover:border-border-hover cursor-pointer'}
           ${error ? 'border-red-500' : 'border-border'}
           ${isOpen ? 'ring-2 ring-blue-500/20 border-blue-500' : ''}
         `}
@@ -118,9 +118,9 @@ const SearchableLOV = ({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-bg-secondary border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
+                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
                     {/* Search Input */}
-                    <div className="p-3 border-b border-border sticky top-0 bg-bg-secondary">
+                    <div className="p-3 border-b border-border sticky top-0 bg-white dark:bg-gray-800">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-tertiary" />
                             <input
@@ -128,7 +128,7 @@ const SearchableLOV = ({
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 border border-border bg-bg-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-text-primary placeholder-text-tertiary"
+                                className="w-full pl-10 pr-4 py-2 border border-border bg-gray-50 dark:bg-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-text-primary placeholder-text-tertiary"
                                 autoFocus
                             />
                         </div>
