@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
-import { Plus, Search, FileText, Calendar, Eye } from 'lucide-react'
-import Table from '@/components/common/Table'
-import Pagination from '@/components/common/Pagination'
+import { Plus, SearchLg, File06, Calendar, Eye, Download01 } from '@untitledui/icons'
+import { Table, TableCard, PaginationPageDefault, Button, Input, BadgeWithDot, Select, SelectItem, Tooltip } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { Prescription } from '@/types/prescription.types'
 import { formatDate } from '@/utils/formatters'
+import { Key } from 'react-aria-components'
 
 const Prescriptions = () => {
   const [page, setPage] = useState(1)
@@ -67,213 +67,213 @@ const Prescriptions = () => {
     )
   })
 
-  const columns = [
-    {
-      key: 'prescription_id',
-      header: 'Prescription ID',
-      render: (prescription: Prescription) => (
-        <div>
-          <p className="font-medium text-text-primary">{prescription.prescription_id}</p>
-          <p className="text-sm text-text-tertiary">{formatDate(prescription.prescription_date)}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'patient',
-      header: 'Patient',
-      render: (prescription: Prescription) => (
-        <div>
-          <p className="font-medium text-text-primary">{prescription.patient_name}</p>
-          <p className="text-sm text-text-tertiary">{prescription.patient_id}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'doctor',
-      header: 'Doctor',
-      render: (prescription: Prescription) => (
-        <div>
-          <p className="text-text-primary">{prescription.doctor_name}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'diagnosis',
-      header: 'Diagnosis',
-      render: (prescription: Prescription) => (
-        <span className="text-text-primary">{prescription.diagnosis}</span>
-      ),
-    },
-    {
-      key: 'type',
-      header: 'Type',
-      render: (prescription: Prescription) => (
-        <div className="flex flex-wrap gap-1">
-          {prescription.eye_prescription && (
-            <span className="badge-info text-xs">
-              <Eye className="w-3 h-3 inline mr-1" />
-              {prescription.eye_prescription.prescription_type}
-            </span>
-          )}
-          {prescription.medications && prescription.medications.length > 0 && (
-            <span className="badge-success text-xs">
-              {prescription.medications.length} Med{prescription.medications.length > 1 ? 's' : ''}
-            </span>
-          )}
-          {prescription.contact_lenses && (
-            <span className="badge-warning text-xs">Contact Lenses</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'valid_until',
-      header: 'Valid Until',
-      render: (prescription: Prescription) => {
-        const validDate = new Date(prescription.valid_until)
-        const isExpired = validDate < new Date()
-        return (
-          <span className={isExpired ? 'text-red-600 font-medium' : 'text-text-primary'}>
-            {formatDate(prescription.valid_until)}
-          </span>
-        )
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (prescription: Prescription) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleDownloadPDF(prescription.prescription_id)
-          }}
-          className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center"
-          title="Download PDF"
-        >
-          <FileText className="w-4 h-4 mr-1" />
-          PDF
-        </button>
-      ),
-    },
-  ]
+  const handlePageSizeChange = (key: Key | null) => {
+    if (key) {
+      setPageSize(Number(key))
+      setPage(1)
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary">Prescriptions</h1>
-          <p className="text-text-secondary mt-1">Manage patient prescriptions</p>
-        </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-5 h-5 mr-2" />
-          New Prescription
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-tertiary" />
-            <input
-              type="text"
-              placeholder="Search prescriptions..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Filter by Patient ID"
-              value={patientFilter}
-              onChange={(e) => setPatientFilter(e.target.value)}
-              className="input"
-            />
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Filter by Doctor ID"
-              value={doctorFilter}
-              onChange={(e) => setDoctorFilter(e.target.value)}
-              className="input"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="card">
+        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">Total Prescriptions</p>
-              <p className="text-2xl font-bold text-text-primary">{data?.total || 0}</p>
+              <p className="text-sm text-tertiary">Total Prescriptions</p>
+              <p className="text-2xl font-bold text-primary">{data?.total || 0}</p>
             </div>
-            <FileText className="w-8 h-8 text-blue-600" />
+            <File06 className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="card">
+        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">Eye Prescriptions</p>
-              <p className="text-2xl font-bold text-purple-600">
+              <p className="text-sm text-tertiary">Eye Prescriptions</p>
+              <p className="text-2xl font-bold text-brand-600">
                 {data?.data.filter((p) => p.eye_prescription).length || 0}
               </p>
             </div>
-            <Eye className="w-8 h-8 text-purple-600" />
+            <Eye className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="card">
+        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">With Medications</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-sm text-tertiary">With Medications</p>
+              <p className="text-2xl font-bold text-success-600">
                 {data?.data.filter((p) => p.medications && p.medications.length > 0).length || 0}
               </p>
             </div>
-            <div className="text-3xl">💊</div>
+            <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-lg">💊</div>
           </div>
         </div>
-        <div className="card">
+        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-secondary">Expired</p>
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-sm text-tertiary">Expired</p>
+              <p className="text-2xl font-bold text-error-600">
                 {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
               </p>
             </div>
-            <Calendar className="w-8 h-8 text-red-600" />
+            <Calendar className="w-8 h-8 text-error-600" />
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card p-0">
+      {/* Table Card with Untitled UI Structure */}
+      <TableCard.Root>
+        <TableCard.Header
+          title="Prescriptions"
+          badge={data?.total || 0}
+          description="Manage patient prescriptions"
+          contentTrailing={
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <Input
+                placeholder="Search prescriptions..."
+                value={search}
+                onChange={setSearch}
+                iconLeading={SearchLg}
+                aria-label="Search prescriptions"
+                className="w-full sm:w-48"
+              />
+              <Input
+                placeholder="Filter by Patient ID"
+                value={patientFilter}
+                onChange={setPatientFilter}
+                aria-label="Filter by patient"
+                className="w-full sm:w-36"
+              />
+              <Input
+                placeholder="Filter by Doctor ID"
+                value={doctorFilter}
+                onChange={setDoctorFilter}
+                aria-label="Filter by doctor"
+                className="w-full sm:w-36"
+              />
+              <Select
+                selectedKey={String(pageSize)}
+                onSelectionChange={handlePageSizeChange}
+                placeholder="Rows"
+                aria-label="Rows per page"
+                className="w-full sm:w-28"
+              >
+                <SelectItem id="10">10 rows</SelectItem>
+                <SelectItem id="25">25 rows</SelectItem>
+                <SelectItem id="50">50 rows</SelectItem>
+              </Select>
+              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
+                New Prescription
+              </Button>
+            </div>
+          }
+        />
+
         {isLoading ? (
           <div className="p-12">
             <Loading />
           </div>
         ) : (
           <>
-            <Table data={filteredData || []} columns={columns} onRowClick={handleEdit} />
+            <Table aria-label="Prescriptions table" selectionMode="multiple" selectionBehavior="toggle">
+              <Table.Header>
+                <Table.Head label="Prescription ID" isRowHeader />
+                <Table.Head label="Patient" />
+                <Table.Head label="Doctor" />
+                <Table.Head label="Diagnosis" />
+                <Table.Head label="Type" />
+                <Table.Head label="Valid Until" />
+                <Table.Head />
+              </Table.Header>
+              <Table.Body items={filteredData || []}>
+                {(prescription) => (
+                  <Table.Row id={prescription.prescription_id}>
+                    <Table.Cell>
+                      <div>
+                        <p className="font-medium text-primary">{prescription.prescription_id}</p>
+                        <p className="text-sm text-tertiary">{formatDate(prescription.prescription_date)}</p>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div>
+                        <p className="font-medium text-primary">{prescription.patient_name}</p>
+                        <p className="text-sm text-tertiary">{prescription.patient_id}</p>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="text-primary">{prescription.doctor_name}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="text-primary">{prescription.diagnosis}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex flex-wrap gap-1">
+                        {prescription.eye_prescription && (
+                          <BadgeWithDot size="sm" color="brand">
+                            {prescription.eye_prescription.prescription_type}
+                          </BadgeWithDot>
+                        )}
+                        {prescription.medications && prescription.medications.length > 0 && (
+                          <BadgeWithDot size="sm" color="success">
+                            {prescription.medications.length} Med{prescription.medications.length > 1 ? 's' : ''}
+                          </BadgeWithDot>
+                        )}
+                        {prescription.contact_lenses && (
+                          <BadgeWithDot size="sm" color="warning">
+                            Contact Lenses
+                          </BadgeWithDot>
+                        )}
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {(() => {
+                        const validDate = new Date(prescription.valid_until)
+                        const isExpired = validDate < new Date()
+                        return (
+                          <span className={isExpired ? 'text-error-600 font-medium' : 'text-primary'}>
+                            {formatDate(prescription.valid_until)}
+                          </span>
+                        )
+                      })()}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip title="View prescription">
+                          <Button
+                            color="link-gray"
+                            onClick={() => handleEdit(prescription)}
+                            iconLeading={Eye}
+                            aria-label="View"
+                            size="sm"
+                          />
+                        </Tooltip>
+                        <Tooltip title="Download PDF">
+                          <Button
+                            color="link-gray"
+                            onClick={() => handleDownloadPDF(prescription.prescription_id)}
+                            iconLeading={Download01}
+                            aria-label="Download PDF"
+                            size="sm"
+                          />
+                        </Tooltip>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table>
             {data && (
-              <Pagination
-                currentPage={page}
-                totalPages={data.total_pages}
+              <PaginationPageDefault
+                page={page}
+                total={data.total_pages}
                 onPageChange={setPage}
-                pageSize={pageSize}
-                onPageSizeChange={setPageSize}
-                totalItems={data.total}
+                className="border-t border-secondary px-6 py-4"
               />
             )}
           </>
         )}
-      </div>
+      </TableCard.Root>
 
       {/* Prescription Modal */}
       <PrescriptionModal

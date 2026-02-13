@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { X } from 'lucide-react'
+import { XClose } from '@untitledui/icons'
 import { cn } from '@/utils/helpers'
 
 interface ModalProps {
@@ -51,19 +51,19 @@ const Modal = ({
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cn(
-            'relative w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl transition-all',
+            'relative w-full bg-primary rounded-2xl shadow-xl transition-all',
             sizeClasses[size]
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-xl font-bold text-text-primary">{title}</h3>
+          <div className="flex items-center justify-between p-6 border-b border-secondary">
+            <h3 className="text-xl font-bold text-primary">{title}</h3>
             <button
               onClick={onClose}
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-tertiary hover:text-primary hover:bg-secondary rounded-lg transition-colors"
             >
-              <X className="w-5 h-5" />
+              <XClose className="w-5 h-5" />
             </button>
           </div>
 
@@ -72,7 +72,7 @@ const Modal = ({
 
           {/* Footer */}
           {footer && (
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-secondary bg-secondary rounded-b-2xl">
               {footer}
             </div>
           )}

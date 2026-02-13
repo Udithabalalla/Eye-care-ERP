@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit2, Trash2, Phone, Mail, Clock, DollarSign } from 'lucide-react'
+import { Plus, SearchLg, Edit02, Trash02, Phone01, Mail01, Clock, CurrencyDollar } from '@untitledui/icons'
 import { toast } from 'react-hot-toast'
 import { doctorsApi } from '@/api/doctors.api'
 import { Doctor, DoctorFormData } from '@/types/doctor.types'
@@ -88,8 +88,8 @@ const Doctors = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-text-primary">Doctors</h1>
-                    <p className="text-text-secondary">Manage medical staff and specialists</p>
+                    <h1 className="text-2xl font-bold text-primary">Doctors</h1>
+                    <p className="text-secondary">Manage medical staff and specialists</p>
                 </div>
                 <Button onClick={() => { setSelectedDoctor(null); setIsModalOpen(true); }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -97,14 +97,14 @@ const Doctors = () => {
                 </Button>
             </div>
 
-            <div className="flex items-center space-x-4 bg-bg-secondary p-4 rounded-xl border border-border">
-                <Search className="w-5 h-5 text-text-tertiary" />
+            <div className="flex items-center space-x-4 bg-secondary p-4 rounded-xl border border-secondary">
+                <SearchLg className="w-5 h-5 text-tertiary" />
                 <input
                     type="text"
                     placeholder="Search doctors by name or specialization..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 text-text-primary placeholder-text-tertiary w-full"
+                    className="bg-transparent border-none focus:ring-0 text-primary placeholder-tertiary w-full"
                 />
             </div>
 
@@ -113,18 +113,18 @@ const Doctors = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredDoctors?.map((doctor) => (
-                        <div key={doctor.doctor_id} className="bg-bg-secondary p-6 rounded-xl border border-border hover:border-blue-500/50 transition-colors">
+                        <div key={doctor.doctor_id} className="bg-secondary p-6 rounded-xl border border-secondary hover:border-brand-500/50 transition-colors">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="font-semibold text-lg text-text-primary">{doctor.name}</h3>
-                                    <p className="text-blue-500 text-sm">{doctor.specialization}</p>
+                                    <h3 className="font-semibold text-lg text-primary">{doctor.name}</h3>
+                                    <p className="text-brand-500 text-sm">{doctor.specialization}</p>
                                 </div>
                                 <div className="flex space-x-2">
                                     <button
                                         onClick={() => { setSelectedDoctor(doctor); setIsModalOpen(true); }}
-                                        className="p-2 hover:bg-bg-tertiary rounded-lg text-text-secondary hover:text-blue-500 transition-colors"
+                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-brand-500 transition-colors"
                                     >
-                                        <Edit2 className="w-4 h-4" />
+                                        <Edit02 className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => {
@@ -132,38 +132,38 @@ const Doctors = () => {
                                                 deleteMutation.mutate(doctor.doctor_id)
                                             }
                                         }}
-                                        className="p-2 hover:bg-bg-tertiary rounded-lg text-text-secondary hover:text-red-500 transition-colors"
+                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-error-500 transition-colors"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash02 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="space-y-3 text-sm text-text-secondary">
+                            <div className="space-y-3 text-sm text-secondary">
                                 <div className="flex items-center">
                                     <span className="font-medium w-24">Qualification:</span>
                                     <span>{doctor.qualification}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Phone className="w-4 h-4 mr-2 text-text-tertiary" />
+                                    <Phone01 className="w-4 h-4 mr-2 text-tertiary" />
                                     <span>{doctor.contact_number}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Mail className="w-4 h-4 mr-2 text-text-tertiary" />
+                                    <Mail01 className="w-4 h-4 mr-2 text-tertiary" />
                                     <span>{doctor.email}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <DollarSign className="w-4 h-4 mr-2 text-text-tertiary" />
+                                    <CurrencyDollar className="w-4 h-4 mr-2 text-tertiary" />
                                     <span>${doctor.consultation_fee} / visit</span>
                                 </div>
-                                <div className="pt-3 border-t border-border mt-3">
+                                <div className="pt-3 border-t border-secondary mt-3">
                                     <div className="flex items-center mb-2">
-                                        <Clock className="w-4 h-4 mr-2 text-text-tertiary" />
+                                        <Clock className="w-4 h-4 mr-2 text-tertiary" />
                                         <span>{doctor.available_time_start} - {doctor.available_time_end}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
                                         {doctor.available_days.map(day => (
-                                            <span key={day} className="text-xs bg-bg-tertiary px-2 py-1 rounded-md">
+                                            <span key={day} className="text-xs bg-tertiary px-2 py-1 rounded-md">
                                                 {day.slice(0, 3)}
                                             </span>
                                         ))}
@@ -191,13 +191,13 @@ const Doctors = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="w-full">
-                            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                            <label className="block text-sm font-medium text-secondary mb-1.5">
                                 Specialization
                             </label>
                             <select
                                 name="specialization"
                                 defaultValue={selectedDoctor?.specialization || "Ophthalmologist"}
-                                className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                className="w-full px-3 py-2 bg-primary border border-secondary rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                                 required
                             >
                                 <option value="Ophthalmologist">Ophthalmologist</option>
@@ -267,7 +267,7 @@ const Doctors = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-text-secondary">Available Days</label>
+                            <label className="text-sm font-medium text-secondary">Available Days</label>
                             <div className="flex flex-wrap gap-4">
                                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
                                     <label key={day} className="flex items-center space-x-2 cursor-pointer">
@@ -275,7 +275,7 @@ const Doctors = () => {
                                             type="checkbox"
                                             name={`day_${day}`}
                                             defaultChecked={selectedDoctor?.available_days.includes(day)}
-                                            className="rounded border-border text-blue-600 focus:ring-blue-500"
+                                            className="rounded border-border text-brand-600 focus:ring-brand-500"
                                         />
                                         <span className="text-sm">{day.slice(0, 3)}</span>
                                     </label>

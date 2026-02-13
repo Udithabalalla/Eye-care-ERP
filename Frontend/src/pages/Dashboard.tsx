@@ -2,15 +2,15 @@
 import { dashboardApi } from '@/api/dashboard.api'
 import Loading from '@/components/common/Loading'
 import {
-  Users,
+  Users01,
   Calendar,
-  DollarSign,
+  CurrencyDollar,
   AlertTriangle,
-  TrendingUp,
+  TrendUp01,
   Package,
   Plus,
-  Activity
-} from 'lucide-react'
+  Activity,
+} from '@untitledui/icons'
 import { formatCurrency } from '@/utils/formatters'
 import { useNavigate } from 'react-router-dom'
 
@@ -30,29 +30,29 @@ const Dashboard = () => {
       title: "Today's Appointments",
       value: stats?.today_appointments || 0,
       icon: Calendar,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+      color: 'text-brand-500',
+      bgColor: 'bg-brand-50 dark:bg-brand-900/20',
     },
     {
       title: 'Low Stock Items',
       value: stats?.low_stock_items || 0,
       icon: Package,
-      color: 'text-red-500',
-      bgColor: 'bg-red-50 dark:bg-red-900/20',
+      color: 'text-error-500',
+      bgColor: 'bg-error-50 dark:bg-error-900/20',
     },
     {
       title: 'Total Patients',
       value: stats?.total_patients || 0,
-      icon: Users,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+      icon: Users01,
+      color: 'text-brand-600',
+      bgColor: 'bg-brand-50 dark:bg-brand-900/20',
     },
     {
       title: 'Pending Payments',
       value: formatCurrency(stats?.pending_payments || 0),
       icon: AlertTriangle,
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+      color: 'text-warning-500',
+      bgColor: 'bg-warning-50 dark:bg-warning-900/20',
     },
   ]
 
@@ -61,19 +61,19 @@ const Dashboard = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Dashboard</h1>
-          <p className="text-text-secondary mt-1">Overview of your practice performance.</p>
+          <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+          <p className="text-secondary mt-1">Overview of your practice performance.</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => navigate('/appointments')}
-            className="px-4 py-2 bg-white dark:bg-gray-800 border border-border rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            className="px-4 py-2 bg-primary border border-secondary rounded-xl text-sm font-semibold text-primary hover:bg-secondary transition-colors shadow-sm"
           >
             View Schedule
           </button>
           <button
             onClick={() => navigate('/patients')}
-            className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary-hover transition-colors shadow-lg shadow-primary/30 flex items-center gap-2"
+            className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors shadow-lg shadow-brand/30 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             New Patient
@@ -94,13 +94,13 @@ const Dashboard = () => {
                 <div className="flex items-baseline gap-4">
                   <span className="text-5xl font-bold tracking-tight">{formatCurrency(stats?.revenue_month || 0)}</span>
                   <div className="flex items-center text-teal-300 bg-white/10 px-2 py-1 rounded-lg text-sm font-medium backdrop-blur-sm">
-                    <TrendingUp className="w-3 h-3 mr-1" />
+                    <TrendUp01 className="w-3 h-3 mr-1" />
                     <span>+12.5%</span>
                   </div>
                 </div>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm">
-                <DollarSign className="w-8 h-8 text-teal-200" />
+                <CurrencyDollar className="w-8 h-8 text-teal-200" />
               </div>
             </div>
 
@@ -119,29 +119,29 @@ const Dashboard = () => {
 
         {/* Right Column - Quick Stats */}
         <div className="space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-sm border border-border hover:shadow-md transition-all group">
+          <div className="bg-primary rounded-[2rem] p-6 shadow-sm border border-secondary hover:shadow-md transition-all group">
             <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                <Users className="w-6 h-6" />
+              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-2xl text-brand-600 dark:text-brand-400 group-hover:scale-110 transition-transform">
+                <Users01 className="w-6 h-6" />
               </div>
-              <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-text-secondary">Total</span>
+              <span className="text-xs font-semibold px-2 py-1 bg-secondary rounded-lg text-secondary">Total</span>
             </div>
             <div>
-              <p className="text-text-secondary text-sm font-medium">Active Patients</p>
-              <p className="text-3xl font-bold text-text-primary mt-1">{stats?.total_patients || 0}</p>
+              <p className="text-secondary text-sm font-medium">Active Patients</p>
+              <p className="text-3xl font-bold text-primary mt-1">{stats?.total_patients || 0}</p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-sm border border-border hover:shadow-md transition-all group">
+          <div className="bg-primary rounded-[2rem] p-6 shadow-sm border border-secondary hover:shadow-md transition-all group">
             <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-2xl text-brand-600 dark:text-brand-400 group-hover:scale-110 transition-transform">
                 <Calendar className="w-6 h-6" />
               </div>
-              <span className="text-xs font-semibold px-2 py-1 bg-green-100 text-green-700 rounded-lg">Today</span>
+              <span className="text-xs font-semibold px-2 py-1 bg-success-100 text-success-700 dark:bg-success-900/20 dark:text-success-400 rounded-lg">Today</span>
             </div>
             <div>
-              <p className="text-text-secondary text-sm font-medium">Appointments</p>
-              <p className="text-3xl font-bold text-text-primary mt-1">{stats?.today_appointments || 0}</p>
+              <p className="text-secondary text-sm font-medium">Appointments</p>
+              <p className="text-3xl font-bold text-primary mt-1">{stats?.today_appointments || 0}</p>
             </div>
           </div>
         </div>
@@ -149,18 +149,18 @@ const Dashboard = () => {
 
       {/* Detailed Stats Grid */}
       <div>
-        <h3 className="text-xl font-bold text-text-primary mb-6">Overview</h3>
+        <h3 className="text-xl font-bold text-primary mb-6">Overview</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {secondaryStats.map((stat, index) => {
             const Icon = stat.icon
             return (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-border shadow-sm flex items-center space-x-4 hover:border-primary/50 transition-colors cursor-default">
+              <div key={index} className="bg-primary rounded-3xl p-6 border border-secondary shadow-sm flex items-center space-x-4 hover:border-brand/50 transition-colors cursor-default">
                 <div className={`p-4 rounded-2xl ${stat.bgColor} ${stat.color}`}>
                   <Icon className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-text-secondary">{stat.title}</p>
-                  <p className="text-xl font-bold text-text-primary mt-1">{stat.value}</p>
+                  <p className="text-sm font-medium text-secondary">{stat.title}</p>
+                  <p className="text-xl font-bold text-primary mt-1">{stat.value}</p>
                 </div>
               </div>
             )

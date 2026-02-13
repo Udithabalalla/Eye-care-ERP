@@ -97,30 +97,30 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Basic Information */}
       <div>
-        <h3 className="text-lg font-bold text-text-primary mb-4">Basic Information</h3>
+        <h3 className="text-lg font-bold text-primary mb-4">Basic Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Full Name *
             </label>
             <input {...register('name')} className="input" />
             {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
+              <p className="text-sm text-error-600 mt-1">{errors.name.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Date of Birth *
             </label>
             <input type="date" {...register('date_of_birth')} className="input" />
             {errors.date_of_birth && (
-              <p className="text-sm text-red-600 mt-1">{errors.date_of_birth.message}</p>
+              <p className="text-sm text-error-600 mt-1">{errors.date_of_birth.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Gender *
             </label>
             <select {...register('gender')} className="input">
@@ -130,27 +130,27 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
               <option value="other">Other</option>
             </select>
             {errors.gender && (
-              <p className="text-sm text-red-600 mt-1">{errors.gender.message}</p>
+              <p className="text-sm text-error-600 mt-1">{errors.gender.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Phone *
             </label>
             <input {...register('phone')} className="input" placeholder="+1234567890" />
             {errors.phone && (
-              <p className="text-sm text-red-600 mt-1">{errors.phone.message}</p>
+              <p className="text-sm text-error-600 mt-1">{errors.phone.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Email
             </label>
             <input type="email" {...register('email')} className="input" />
             {errors.email && (
-              <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
+              <p className="text-sm text-error-600 mt-1">{errors.email.message}</p>
             )}
           </div>
         </div>
@@ -158,25 +158,25 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
 
       {/* Address */}
       <div>
-        <h3 className="text-lg font-bold text-text-primary mb-4">Address</h3>
+        <h3 className="text-lg font-bold text-primary mb-4">Address</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-text-secondary mb-2">Street</label>
+            <label className="block text-sm font-medium text-secondary mb-2">Street</label>
             <input {...register('address.street')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">City</label>
+            <label className="block text-sm font-medium text-secondary mb-2">City</label>
             <input {...register('address.city')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">State</label>
+            <label className="block text-sm font-medium text-secondary mb-2">State</label>
             <input {...register('address.state')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">ZIP Code</label>
+            <label className="block text-sm font-medium text-secondary mb-2">ZIP Code</label>
             <input {...register('address.zip_code')} className="input" />
           </div>
         </div>
@@ -184,22 +184,22 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
 
       {/* Emergency Contact */}
       <div>
-        <h3 className="text-lg font-bold text-text-primary mb-4">Emergency Contact</h3>
+        <h3 className="text-lg font-bold text-primary mb-4">Emergency Contact</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">Name</label>
+            <label className="block text-sm font-medium text-secondary mb-2">Name</label>
             <input {...register('emergency_contact.name')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Relationship
             </label>
             <input {...register('emergency_contact.relationship')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">Phone</label>
+            <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
             <input {...register('emergency_contact.phone')} className="input" />
           </div>
         </div>
@@ -207,7 +207,7 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
         <textarea {...register('notes')} rows={3} className="input" />
       </div>
 

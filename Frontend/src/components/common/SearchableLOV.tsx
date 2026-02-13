@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, X, ChevronDown } from 'lucide-react'
+import { SearchLg, XClose, ChevronDown } from '@untitledui/icons'
 
 export interface LOVOption {
     value: string
@@ -75,7 +75,7 @@ const SearchableLOV = ({
             {label && (
                 <label className="label">
                     {label}
-                    {required && <span className="text-red-600 ml-1">*</span>}
+                    {required && <span className="text-error-600 ml-1">*</span>}
                 </label>
             )}
 
@@ -83,34 +83,34 @@ const SearchableLOV = ({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
-          w-full px-4 py-2.5 text-left bg-white dark:bg-gray-800 border rounded-lg
+          w-full px-4 py-2.5 text-left bg-primary border rounded-lg
           flex items-center justify-between transition-all
-          ${disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-60' : 'hover:border-border-hover cursor-pointer'}
-          ${error ? 'border-red-500' : 'border-border'}
-          ${isOpen ? 'ring-2 ring-blue-500/20 border-blue-500' : ''}
+          ${disabled ? 'bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-secondary cursor-pointer'}
+          ${error ? 'border-error-500' : 'border-secondary'}
+          ${isOpen ? 'ring-2 ring-brand-500/20 border-brand-500' : ''}
         `}
             >
                 <div className="flex-1 truncate">
                     {selectedOption ? (
                         <div>
-                            <div className="text-text-primary font-medium">{selectedOption.label}</div>
+                            <div className="text-primary font-medium">{selectedOption.label}</div>
                             {selectedOption.subtitle && (
-                                <div className="text-sm text-text-tertiary">{selectedOption.subtitle}</div>
+                                <div className="text-sm text-tertiary">{selectedOption.subtitle}</div>
                             )}
                         </div>
                     ) : (
-                        <span className="text-text-tertiary">{placeholder}</span>
+                        <span className="text-tertiary">{placeholder}</span>
                     )}
                 </div>
                 <div className="flex items-center space-x-2">
                     {value && !disabled && (
-                        <X
-                            className="w-4 h-4 text-text-tertiary hover:text-text-secondary"
+                        <XClose
+                            className="w-4 h-4 text-tertiary hover:text-secondary"
                             onClick={handleClear}
                         />
                     )}
                     <ChevronDown
-                        className={`w-5 h-5 text-text-tertiary transition-transform ${isOpen ? 'transform rotate-180' : ''
+                        className={`w-5 h-5 text-tertiary transition-transform ${isOpen ? 'transform rotate-180' : ''
                             }`}
                     />
                 </div>
@@ -118,17 +118,17 @@ const SearchableLOV = ({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
+                <div className="absolute z-50 w-full mt-2 bg-primary border border-secondary rounded-xl shadow-lg max-h-80 overflow-hidden">
                     {/* Search Input */}
-                    <div className="p-3 border-b border-border sticky top-0 bg-white dark:bg-gray-800">
+                    <div className="p-3 border-b border-secondary sticky top-0 bg-primary">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+                            <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-tertiary" />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 border border-border bg-gray-50 dark:bg-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-text-primary placeholder-text-tertiary"
+                                className="w-full pl-10 pr-4 py-2 border border-secondary bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-primary placeholder-tertiary"
                                 autoFocus
                             />
                         </div>
@@ -143,18 +143,18 @@ const SearchableLOV = ({
                                     type="button"
                                     onClick={() => handleSelect(option.value)}
                                     className={`
-                    w-full px-4 py-3 text-left hover:bg-bg-tertiary transition-colors
-                    ${value === option.value ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}
+                    w-full px-4 py-3 text-left hover:bg-tertiary transition-colors
+                    ${value === option.value ? 'bg-brand-500/10 border-l-2 border-brand-500' : ''}
                   `}
                                 >
-                                    <div className="font-medium text-text-primary">{option.label}</div>
+                                    <div className="font-medium text-primary">{option.label}</div>
                                     {option.subtitle && (
-                                        <div className="text-sm text-text-tertiary">{option.subtitle}</div>
+                                        <div className="text-sm text-tertiary">{option.subtitle}</div>
                                     )}
                                 </button>
                             ))
                         ) : (
-                            <div className="px-4 py-8 text-center text-text-tertiary">
+                            <div className="px-4 py-8 text-center text-tertiary">
                                 No results found
                             </div>
                         )}
@@ -163,7 +163,7 @@ const SearchableLOV = ({
             )}
 
             {/* Error Message */}
-            {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+            {error && <p className="text-sm text-error-600 mt-1">{error}</p>}
         </div>
     )
 }

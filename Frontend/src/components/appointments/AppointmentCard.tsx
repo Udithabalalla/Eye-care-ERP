@@ -1,4 +1,4 @@
-import { Calendar, Clock, User } from 'lucide-react'
+import { Calendar, Clock, User01 } from '@untitledui/icons'
 import { Appointment } from '@/types/appointment.types'
 import { formatDate } from '@/utils/formatters'
 import { getStatusColor } from '@/utils/helpers'
@@ -27,15 +27,15 @@ const AppointmentCard = ({ appointment, onClick }: AppointmentCardProps) => {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-2">
-            <h3 className="font-semibold text-gray-900">{appointment.patient_name}</h3>
+            <h3 className="font-semibold text-primary">{appointment.patient_name}</h3>
             <span className={`badge ${getStatusColor(appointment.status)}`}>
               {appointment.status}
             </span>
           </div>
 
-          <div className="space-y-1 text-sm text-gray-600">
+          <div className="space-y-1 text-sm text-secondary">
             <div className="flex items-center space-x-2">
-              <User className="w-4 h-4" />
+              <User01 className="w-4 h-4" />
               <span>{appointment.doctor_name}</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -50,11 +50,11 @@ const AppointmentCard = ({ appointment, onClick }: AppointmentCardProps) => {
             </div>
           </div>
 
-          <p className="text-sm text-gray-700 mt-2">{appointment.reason}</p>
+          <p className="text-sm text-secondary mt-2">{appointment.reason}</p>
         </div>
 
         <div className="text-right">
-          <span className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded capitalize">
+          <span className="inline-block px-2 py-1 text-xs font-medium bg-tertiary text-secondary rounded capitalize">
             {appointment.type}
           </span>
         </div>

@@ -1,9 +1,8 @@
 ﻿import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
-import { Plus, Search, Eye, FileText } from 'lucide-react'
-import Table from '@/components/common/Table'
-import Pagination from '@/components/common/Pagination'
+import { Plus, SearchLg, Eye, File06, CurrencyDollar, Download01 } from '@untitledui/icons'
+import { Table, TableCard, PaginationPageDefault, Button, Input, BadgeWithDot, Select, SelectItem, Tooltip } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
 import PaymentModal from '@/components/invoices/PaymentModal'
@@ -11,10 +10,11 @@ import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import Modal from '@/components/common/Modal'
 import InvoiceDetail from '@/components/invoices/InvoiceDetail'
 import { formatDate, formatCurrency } from '@/utils/formatters'
-import { getStatusColor, downloadFile } from '@/utils/helpers'
+import { downloadFile } from '@/utils/helpers'
 import { Invoice } from '@/types/invoice.types'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import toast from 'react-hot-toast'
+import { Key } from 'react-aria-components'
 
 const Invoices = () => {
   const [page, setPage] = useState(1)
@@ -72,147 +72,172 @@ const Invoices = () => {
     }
   }
 
-  const columns = [
-    {
-      key: 'invoice_number',
-      header: 'Invoice #',
-      render: (invoice: Invoice) => (
-        <span className="font-medium text-primary-600">{invoice.invoice_number}</span>
-      ),
-    },
-    {
-      key: 'patient_name',
-      header: 'Patient',
-      render: (invoice: Invoice) => invoice.patient_name,
-    },
-    {
-      key: 'invoice_date',
-      header: 'Date',
-      render: (invoice: Invoice) => formatDate(invoice.invoice_date),
-    },
-    {
-      key: 'total_amount',
-      header: 'Amount',
-      render: (invoice: Invoice) => formatCurrency(invoice.total_amount),
-    },
-    {
-      key: 'paid_amount',
-      header: 'Paid',
-      render: (invoice: Invoice) => (
-        <span className="text-green-600">{formatCurrency(invoice.paid_amount)}</span>
-      ),
-    },
-    {
-      key: 'balance_due',
-      header: 'Balance',
-      render: (invoice: Invoice) => (
-        <span className="text-red-600">{formatCurrency(invoice.balance_due)}</span>
-      ),
-    },
-    {
-      key: 'payment_status',
-      header: 'Status',
-      render: (invoice: Invoice) => (
-        <span className={`badge ${getStatusColor(invoice.payment_status)}`}>
-          {invoice.payment_status}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (invoice: Invoice) => (
-        <div className="flex items-center">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleView(invoice)
-            }}
-            className="text-primary-600 hover:text-primary-700"
-            title="View Invoice"
-          >
-            <Eye className="w-5 h-5" />
-          </button>
-          {invoice.prescription_id && invoice.prescription_id !== 'string' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleViewPrescription(invoice.prescription_id!)
-              }}
-              className="text-blue-600 hover:text-blue-700 ml-2"
-              title="View Prescription"
-            >
-              <FileText className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ]
+  const handlePageSizeChange = (key: Key | null) => {
+    if (key) {
+      setPageSize(Number(key))
+      setPage(1)
+    }
+  }
+
+  const getStatusBadgeColor = (status: string): 'success' | 'warning' | 'error' | 'gray' => {
+    switch (status) {
+      case 'paid': return 'success'
+      case 'partial': return 'warning'
+      case 'pending': return 'gray'
+      case 'overdue': return 'error'
+      default: return 'gray'
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary">Invoices</h1>
-          <p className="text-text-secondary mt-1">Manage invoices and billing</p>
-        </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-5 h-5 mr-2" />
-          Create Invoice
-        </button>
-      </div>
+      {/* Table Card with Untitled UI Structure */}
+      <TableCard.Root>
+        <TableCard.Header
+          title="Invoices"
+          badge={data?.total || 0}
+          description="Manage invoices and billing"
+          contentTrailing={
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <Input
+                placeholder="Search invoices..."
+                value={search}
+                onChange={setSearch}
+                iconLeading={SearchLg}
+                aria-label="Search invoices"
+                className="w-full sm:w-56"
+              />
+              <Select
+                selectedKey={statusFilter || 'all'}
+                onSelectionChange={(key) => setStatusFilter(key === 'all' ? '' : String(key))}
+                placeholder="Status"
+                aria-label="Filter by status"
+                className="w-full sm:w-36"
+              >
+                <SelectItem id="all">All Status</SelectItem>
+                <SelectItem id="paid">Paid</SelectItem>
+                <SelectItem id="partial">Partial</SelectItem>
+                <SelectItem id="pending">Pending</SelectItem>
+                <SelectItem id="overdue">Overdue</SelectItem>
+              </Select>
+              <Select
+                selectedKey={String(pageSize)}
+                onSelectionChange={handlePageSizeChange}
+                placeholder="Rows"
+                aria-label="Rows per page"
+                className="w-full sm:w-28"
+              >
+                <SelectItem id="10">10 rows</SelectItem>
+                <SelectItem id="25">25 rows</SelectItem>
+                <SelectItem id="50">50 rows</SelectItem>
+              </Select>
+              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
+                Create Invoice
+              </Button>
+            </div>
+          }
+        />
 
-      {/* Filters */}
-      <div className="card">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-tertiary" />
-            <input
-              type="text"
-              placeholder="Search by invoice number or patient..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input w-48"
-          >
-            <option value="">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="pending">Pending</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="card p-0">
         {isLoading ? (
           <div className="p-12">
             <Loading />
           </div>
         ) : (
           <>
-            <Table data={data?.data || []} columns={columns} onRowClick={handleView} />
+            <Table aria-label="Invoices table" selectionMode="multiple" selectionBehavior="toggle">
+              <Table.Header>
+                <Table.Head label="Invoice #" isRowHeader />
+                <Table.Head label="Patient" />
+                <Table.Head label="Date" />
+                <Table.Head label="Amount" />
+                <Table.Head label="Paid" />
+                <Table.Head label="Balance" />
+                <Table.Head label="Status" />
+                <Table.Head />
+              </Table.Header>
+              <Table.Body items={data?.data || []}>
+                {(invoice) => (
+                  <Table.Row id={invoice.invoice_id}>
+                    <Table.Cell>
+                      <span className="font-medium text-brand-600">{invoice.invoice_number}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="text-primary">{invoice.patient_name}</span>
+                    </Table.Cell>
+                    <Table.Cell>{formatDate(invoice.invoice_date)}</Table.Cell>
+                    <Table.Cell>
+                      <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="text-success-600">{formatCurrency(invoice.paid_amount)}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="text-error-600">{formatCurrency(invoice.balance_due)}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <BadgeWithDot size="md" color={getStatusBadgeColor(invoice.payment_status)}>
+                        {invoice.payment_status}
+                      </BadgeWithDot>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip title="View invoice">
+                          <Button
+                            color="link-gray"
+                            onClick={() => handleView(invoice)}
+                            iconLeading={Eye}
+                            aria-label="View"
+                            size="sm"
+                          />
+                        </Tooltip>
+                        {invoice.prescription_id && invoice.prescription_id !== 'string' && (
+                          <Tooltip title="View prescription">
+                            <Button
+                              color="link-gray"
+                              onClick={() => handleViewPrescription(invoice.prescription_id!)}
+                              iconLeading={File06}
+                              aria-label="View Prescription"
+                              size="sm"
+                            />
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Download PDF">
+                          <Button
+                            color="link-gray"
+                            onClick={() => handleDownloadPDF(invoice.invoice_id)}
+                            iconLeading={Download01}
+                            aria-label="Download PDF"
+                            size="sm"
+                          />
+                        </Tooltip>
+                        {invoice.balance_due > 0 && (
+                          <Tooltip title="Record payment">
+                            <Button
+                              color="link-gray"
+                              onClick={() => handlePayment(invoice)}
+                              iconLeading={CurrencyDollar}
+                              aria-label="Payment"
+                              size="sm"
+                            />
+                          </Tooltip>
+                        )}
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table>
             {data && (
-              <Pagination
-                currentPage={page}
-                totalPages={data.total_pages}
+              <PaginationPageDefault
+                page={page}
+                total={data.total_pages}
                 onPageChange={setPage}
-                pageSize={pageSize}
-                onPageSizeChange={setPageSize}
-                totalItems={data.total}
+                className="border-t border-secondary px-6 py-4"
               />
             )}
           </>
         )}
-      </div>
+      </TableCard.Root>
 
       {/* Create/Edit Modal */}
       <InvoiceModal

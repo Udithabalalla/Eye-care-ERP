@@ -1,11 +1,13 @@
 ﻿import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { appointmentsApi } from '@/api/appointments.api'
-import { Plus, Calendar as CalendarIcon } from 'lucide-react'
+import { Plus, Calendar } from '@untitledui/icons'
+import { Button, Select, SelectItem, TableCard } from '@/components/ui'
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import Loading from '@/components/common/Loading'
 import { Appointment } from '@/types/appointment.types'
+import { Key } from 'react-aria-components'
 
 const Appointments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -32,6 +34,10 @@ const Appointments = () => {
     setSelectedAppointment(null)
   }
 
+  const handleStatusFilterChange = (key: Key | null) => {
+    setStatusFilter(key === 'all' ? '' : String(key || ''))
+  }
+
   // Group appointments by date
   const groupedAppointments = data?.data.reduce((acc, apt) => {
     const date = apt.appointment_date.split('T')[0]
@@ -42,76 +48,78 @@ const Appointments = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary">Appointments</h1>
-          <p className="text-text-secondary mt-1">Manage and schedule appointments</p>
-        </div>
-        <button onClick={handleAdd} className="btn-primary">
-          <Plus className="w-5 h-5 mr-2" />
-          New Appointment
-        </button>
-      </div>
+      {/* Card Header with Untitled UI Structure */}
+      <TableCard.Root>
+        <TableCard.Header
+          title="Appointments"
+          badge={data?.data.length || 0}
+          description="Manage and schedule appointments"
+          contentTrailing={
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <Select
+                selectedKey={statusFilter || 'all'}
+                onSelectionChange={handleStatusFilterChange}
+                placeholder="Status"
+                aria-label="Filter by status"
+                className="w-full sm:w-40"
+              >
+                <SelectItem id="all">All Statuses</SelectItem>
+                <SelectItem id="scheduled">Scheduled</SelectItem>
+                <SelectItem id="confirmed">Confirmed</SelectItem>
+                <SelectItem id="in-progress">In Progress</SelectItem>
+                <SelectItem id="completed">Completed</SelectItem>
+                <SelectItem id="cancelled">Cancelled</SelectItem>
+              </Select>
+              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
+                New Appointment
+              </Button>
+            </div>
+          }
+        />
 
-      {/* Filters */}
-      <div className="card">
-        <div className="flex items-center space-x-4">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input"
-          >
-            <option value="">All Statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-      </div>
+        {/* Appointments List */}
+        <div className="p-6">
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <div className="space-y-6">
+              {groupedAppointments &&
+                Object.entries(groupedAppointments).map(([date, appointments]) => (
+                  <div key={date}>
+                    <h2 className="text-lg font-semibold text-primary mb-3 flex items-center">
+                      <Calendar className="w-5 h-5 mr-2" />
+                      {new Date(date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {appointments.map((apt) => (
+                        <AppointmentCard
+                          key={apt.appointment_id}
+                          appointment={apt}
+                          onClick={() => handleEdit(apt)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
 
-      {/* Appointments List */}
-      {isLoading ? (
-        <Loading />
-      ) : (
-        <div className="space-y-6">
-          {groupedAppointments &&
-            Object.entries(groupedAppointments).map(([date, appointments]) => (
-              <div key={date}>
-                <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
-                  <CalendarIcon className="w-5 h-5 mr-2" />
-                  {new Date(date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {appointments.map((apt) => (
-                    <AppointmentCard
-                      key={apt.appointment_id}
-                      appointment={apt}
-                      onClick={() => handleEdit(apt)}
-                    />
-                  ))}
+              {(!groupedAppointments || Object.keys(groupedAppointments).length === 0) && (
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 text-tertiary mx-auto mb-4" />
+                  <p className="text-tertiary mb-4">No appointments found</p>
+                  <Button onClick={handleAdd} iconLeading={Plus}>
+                    Schedule First Appointment
+                  </Button>
                 </div>
-              </div>
-            ))}
-
-          {(!groupedAppointments || Object.keys(groupedAppointments).length === 0) && (
-            <div className="card text-center py-12">
-              <CalendarIcon className="w-12 h-12 text-text-tertiary mx-auto mb-4" />
-              <p className="text-text-secondary">No appointments found</p>
-              <button onClick={handleAdd} className="btn-primary mt-4">
-                Schedule First Appointment
-              </button>
+              )}
             </div>
           )}
         </div>
-      )}
+      </TableCard.Root>
 
       {/* Modal */}
       <AppointmentModal

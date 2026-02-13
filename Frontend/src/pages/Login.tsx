@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { Eye, EyeOff, Lock01, Mail01 } from '@untitledui/icons'
 import toast from 'react-hot-toast'
 
 const Login = () => {
@@ -35,22 +35,22 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">EC</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Vision Optical</h1>
-          <p className="text-gray-600 mt-2">Institute Management System</p>
+          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
+          <p className="text-tertiary mt-2">Institute Management System</p>
         </div>
 
         {/* Login Card */}
         <div className="card">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign In</h2>
+          <h2 className="text-2xl font-bold text-primary mb-6">Sign In</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
                 <input
                   id="email"
                   type="email"
@@ -67,11 +67,11 @@ const Login = () => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-secondary mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -86,7 +86,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-fg-quaternary hover:text-fg-secondary"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -115,9 +115,9 @@ const Login = () => {
         </div>
 
         {/* Demo Credentials */}
-        <div className="mt-6 card bg-blue-50 border-blue-200">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">Demo Credentials</h3>
-          <div className="text-xs text-blue-700 space-y-1">
+        <div className="mt-6 card bg-brand-50 dark:bg-brand-950 border-brand-200 dark:border-brand-800">
+          <h3 className="text-sm font-semibold text-brand-900 dark:text-brand-100 mb-2">Demo Credentials</h3>
+          <div className="text-xs text-brand-700 dark:text-brand-300 space-y-1">
             <p><strong>Admin:</strong> admin@eyecare.com / admin123</p>
             <p><strong>Doctor:</strong> doctor@eyecare.com / doctor123</p>
             <p><strong>Receptionist:</strong> receptionist@eyecare.com / reception123</p>

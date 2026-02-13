@@ -10,7 +10,7 @@ import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice, InvoiceFormData } from '@/types/invoice.types'
 import { PaymentMethod } from '@/types/common.types'
 import toast from 'react-hot-toast'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash02 } from '@untitledui/icons'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { safeDate } from '@/utils/formatters'
@@ -241,22 +241,22 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
         {/* Linked Prescription Display */}
         {selectedPrescription && (
-          <div className="col-span-1 md:col-span-3 bg-blue-50 p-3 rounded-md flex items-center justify-between">
+          <div className="col-span-1 md:col-span-3 bg-brand-50 dark:bg-brand-950 p-3 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-blue-700 font-medium">Linked Prescription:</span>
-              <span className="text-sm text-blue-600">
+              <span className="text-sm text-brand-700 dark:text-brand-300 font-medium">Linked Prescription:</span>
+              <span className="text-sm text-brand-600 dark:text-brand-400">
                 {new Date(selectedPrescription.prescription_date).toLocaleDateString()} -
                 {selectedPrescription.diagnosis}
               </span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
+              <span className="text-xs text-brand-500 bg-brand-100 dark:bg-brand-900 px-2 py-1 rounded">
                 {prescriptionsData?.data?.length === 1 ? 'Auto-linked' : 'Selected'}
               </span>
               <button
                 type="button"
                 onClick={() => setShowPrescriptionModal(true)}
-                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                className="text-xs text-brand-600 hover:text-brand-800 dark:text-brand-400 dark:hover:text-brand-200 underline"
               >
                 Change
               </button>
@@ -265,22 +265,22 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Invoice Date *
           </label>
           <input type="date" {...register('invoice_date')} className="input" />
           {errors.invoice_date && (
-            <p className="text-sm text-red-600 mt-1">{errors.invoice_date.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.invoice_date.message}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Due Date *
           </label>
           <input type="date" {...register('due_date')} className="input" />
           {errors.due_date && (
-            <p className="text-sm text-red-600 mt-1">{errors.due_date.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.due_date.message}</p>
           )}
         </div>
       </div>
@@ -288,7 +288,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       {/* Line Items */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Items</h3>
+          <h3 className="text-lg font-semibold text-primary">Items</h3>
           <button type="button" onClick={addItem} className="btn-secondary">
             <Plus className="w-4 h-4 mr-2" />
             Add Item
@@ -297,10 +297,10 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
         <div className="space-y-3">
           {fields.map((field, index) => (
-            <div key={field.id} className="p-4 border border-gray-200 rounded-lg">
+            <div key={field.id} className="p-4 border border-secondary rounded-lg">
               <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-secondary mb-1">
                     Product
                   </label>
                   <select
@@ -318,7 +318,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-secondary mb-1">
                     Quantity
                   </label>
                   <input
@@ -330,7 +330,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-secondary mb-1">
                     Unit Price
                   </label>
                   <input
@@ -342,7 +342,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-secondary mb-1">
                     Discount
                   </label>
                   <input
@@ -354,13 +354,13 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-secondary mb-1">
                     Total
                   </label>
                   <input
                     type="number"
                     {...register(`items.${index}.total`)}
-                    className="input text-sm bg-gray-50"
+                    className="input text-sm bg-secondary"
                     readOnly
                   />
                 </div>
@@ -371,7 +371,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                     onClick={() => remove(index)}
                     className="btn-danger p-2"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash02 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -380,23 +380,23 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         </div>
 
         {errors.items && (
-          <p className="text-sm text-red-600 mt-2">{errors.items.message}</p>
+          <p className="text-sm text-error-600 mt-2">{errors.items.message}</p>
         )}
       </div>
 
       {/* Totals */}
-      <div className="bg-gray-50 p-4 rounded-lg">
+      <div className="bg-secondary p-4 rounded-lg">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Subtotal:</span>
+            <span className="text-secondary">Subtotal:</span>
             <span className="font-medium">${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Discount:</span>
-            <span className="font-medium text-red-600">-${totalDiscount.toFixed(2)}</span>
+            <span className="text-secondary">Total Discount:</span>
+            <span className="font-medium text-error-600">-${totalDiscount.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Tax:</span>
+            <span className="text-secondary">Total Tax:</span>
             <span className="font-medium">${totalTax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold border-t pt-2">
@@ -409,7 +409,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       {/* Payment Method & Notes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Payment Method
           </label>
           <select {...register('payment_method')} className="input">
@@ -423,7 +423,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+          <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
           <input {...register('notes')} className="input" />
         </div>
       </div>

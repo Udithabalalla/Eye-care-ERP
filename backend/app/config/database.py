@@ -9,8 +9,22 @@ class Database:
 db = Database()
 
 async def connect_to_mongo():
-    """Connect to MongoDB"""
-    db.client = AsyncIOMotorClient(settings.MONGODB_URL)
+    """Connect to MongoDB with optimized connection pooling"""
+    db.client = AsyncIOMotorClient(
+        settings.MONGODB_URL,
+        # Connection pool settings for better performance
+        maxPoolSize=50,          # Maximum connections in pool
+        minPoolSize=10,          # Minimum connections to maintain
+        maxIdleTimeMS=30000,     # Close idle connections after 30s
+        waitQueueTimeoutMS=5000, # Max wait time for connection
+        connectTimeoutMS=10000,  # Connection timeout
+        serverSelectionTimeoutMS=10000,  # Server selection timeout
+        # Compression for reduced network overhead (zlib is built-in)
+        compressors=['zlib'],
+        # Read/Write settings
+        retryWrites=True,
+        retryReads=True,
+    )
     db.db = db.client[settings.MONGODB_DB_NAME]
     print(f"✅ Connected to MongoDB: {settings.MONGODB_DB_NAME}")
     
@@ -24,29 +38,88 @@ async def close_mongo_connection():
         print("❌ Closed MongoDB connection")
 
 async def create_indexes():
-    """Create database indexes for performance"""
-    # Users
-    await db.db.users.create_index("email", unique=True)
-    await db.db.users.create_index("user_id", unique=True)
+    """Create database indexes for performance optimization"""
+    from pymongo.errors import DuplicateKeyError, OperationFailure
     
-    # Patients
-    await db.db.patients.create_index("patient_id", unique=True)
-    await db.db.patients.create_index("phone")
-    await db.db.patients.create_index("email")
+    async def safe_create_index(collection, keys, **kwargs):
+        """Create index with error handling for existing indexes or duplicates"""
+        try:
+            await collection.create_index(keys, **kwargs)
+        except (DuplicateKeyError, OperationFailure) as e:
+            # Index already exists or duplicate key - skip silently
+            index_name = kwargs.get('name', str(keys))
+            print(f"⚠️  Index {index_name} skipped: {str(e)[:50]}...")
     
-    # Appointments
-    await db.db.appointments.create_index([("appointment_date", 1), ("patient_id", 1)])
-    await db.db.appointments.create_index("status")
+    # Users - authentication and lookup
+    await safe_create_index(db.db.users, "email", unique=True)
+    await safe_create_index(db.db.users, "user_id", unique=True)
+    await safe_create_index(db.db.users, "is_active")
     
-    # Products
-    await db.db.products.create_index("barcode")
-    await db.db.products.create_index("category")
-    await db.db.products.create_index([("current_stock", 1), ("min_stock_level", 1)])
+    # Patients - search and filtering
+    await safe_create_index(db.db.patients, "patient_id", unique=True)
+    await safe_create_index(db.db.patients, "phone")
+    await safe_create_index(db.db.patients, "email")
+    await safe_create_index(db.db.patients, "is_active")
+    # Text index for patient search
+    await safe_create_index(db.db.patients, [
+        ("name", "text"), 
+        ("phone", "text"),
+        ("email", "text")
+    ], name="patient_search_index")
+    # Compound index for listing with pagination
+    await safe_create_index(db.db.patients, [("is_active", 1), ("created_at", -1)])
     
-    # Invoices
-    await db.db.invoices.create_index("invoice_number", unique=True)
-    await db.db.invoices.create_index([("invoice_date", -1)])
-    await db.db.invoices.create_index("payment_status")
+    # Appointments - scheduling queries
+    await safe_create_index(db.db.appointments, [("appointment_date", 1), ("patient_id", 1)])
+    await safe_create_index(db.db.appointments, "status")
+    await safe_create_index(db.db.appointments, "doctor_id")
+    # Compound index for dashboard queries
+    await safe_create_index(db.db.appointments, [
+        ("appointment_date", 1), 
+        ("status", 1)
+    ], name="appointment_schedule_index")
+    await safe_create_index(db.db.appointments, [("doctor_id", 1), ("appointment_date", 1)])
+    
+    # Products - inventory management
+    await safe_create_index(db.db.products, "barcode")
+    await safe_create_index(db.db.products, "sku", unique=True, sparse=True)
+    await safe_create_index(db.db.products, "category")
+    await safe_create_index(db.db.products, "is_active")
+    # Compound index for low stock alerts
+    await safe_create_index(db.db.products, [
+        ("is_active", 1),
+        ("current_stock", 1), 
+        ("min_stock_level", 1)
+    ], name="stock_alert_index")
+    # Expiry date index for alerts
+    await safe_create_index(db.db.products, [("expiry_date", 1), ("is_active", 1)])
+    
+    # Invoices - financial queries (non-unique to handle existing data)
+    await safe_create_index(db.db.invoices, "invoice_number")
+    await safe_create_index(db.db.invoices, "invoice_id")
+    await safe_create_index(db.db.invoices, [("invoice_date", -1)])
+    await safe_create_index(db.db.invoices, "payment_status")
+    await safe_create_index(db.db.invoices, "patient_id")
+    # Compound index for revenue queries
+    await safe_create_index(db.db.invoices, [
+        ("invoice_date", -1), 
+        ("payment_status", 1)
+    ], name="invoice_revenue_index")
+    # Text index for invoice search
+    await safe_create_index(db.db.invoices, [
+        ("invoice_number", "text"),
+        ("patient_name", "text")
+    ], name="invoice_search_index")
+    
+    # Prescriptions - patient history
+    await safe_create_index(db.db.prescriptions, "prescription_id", unique=True)
+    await safe_create_index(db.db.prescriptions, "patient_id")
+    await safe_create_index(db.db.prescriptions, [("patient_id", 1), ("created_at", -1)])
+    
+    # Doctors - lookup
+    await safe_create_index(db.db.doctors, "doctor_id", unique=True)
+    await safe_create_index(db.db.doctors, "is_active")
+    await safe_create_index(db.db.doctors, "specialization")
     
     print("✅ Database indexes created")
 

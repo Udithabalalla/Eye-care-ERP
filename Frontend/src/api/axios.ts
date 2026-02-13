@@ -4,6 +4,14 @@ import toast from 'react-hot-toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 
+// Request deduplication map
+const pendingRequests = new Map<string, AbortController>()
+
+// Generate unique request key
+const getRequestKey = (config: InternalAxiosRequestConfig): string => {
+  return `${config.method}-${config.url}-${JSON.stringify(config.params || {})}`
+}
+
 export const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -19,6 +27,22 @@ axiosInstance.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // Deduplicate GET requests - cancel previous pending request with same key
+    if (config.method?.toLowerCase() === 'get') {
+      const requestKey = getRequestKey(config)
+      
+      // Cancel existing request if any
+      if (pendingRequests.has(requestKey)) {
+        pendingRequests.get(requestKey)?.abort()
+      }
+      
+      // Create new abort controller
+      const controller = new AbortController()
+      config.signal = controller.signal
+      pendingRequests.set(requestKey, controller)
+    }
+    
     return config
   },
   (error: AxiosError) => {
@@ -29,9 +53,23 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Remove from pending requests
+    const requestKey = getRequestKey(response.config)
+    pendingRequests.delete(requestKey)
     return response
   },
   (error: AxiosError) => {
+    // Remove from pending requests
+    if (error.config) {
+      const requestKey = getRequestKey(error.config)
+      pendingRequests.delete(requestKey)
+    }
+    
+    // Ignore cancelled requests
+    if (axios.isCancel(error)) {
+      return Promise.reject(error)
+    }
+    
     if (error.response) {
       const status = error.response.status
       const data: any = error.response.data

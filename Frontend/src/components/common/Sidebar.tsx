@@ -1,14 +1,15 @@
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard,
-  Users,
+  HomeLine,
+  Users01,
   Calendar,
-  FileText,
+  File06,
   Package,
   Receipt,
-  BarChart3,
-  LogOut,
-} from 'lucide-react'
+  BarChart07,
+  LogOut01,
+  UserCheck01,
+} from '@untitledui/icons'
 import { cn } from '@/utils/helpers'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -21,14 +22,14 @@ interface NavItem {
 }
 
 const navigationItems: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Patients', path: '/patients', icon: Users },
+  { name: 'Dashboard', path: '/', icon: HomeLine },
+  { name: 'Patients', path: '/patients', icon: Users01 },
   { name: 'Appointments', path: '/appointments', icon: Calendar },
-  { name: 'Prescriptions', path: '/prescriptions', icon: FileText },
+  { name: 'Prescriptions', path: '/prescriptions', icon: File06 },
   { name: 'Products', path: '/products', icon: Package },
   { name: 'Invoices', path: '/invoices', icon: Receipt },
-  { name: 'Doctors', path: '/doctors', icon: Users },
-  { name: 'Reports', path: '/reports', icon: BarChart3 },
+  { name: 'Doctors', path: '/doctors', icon: UserCheck01 },
+  { name: 'Reports', path: '/reports', icon: BarChart07 },
 ]
 
 const Sidebar = () => {
@@ -39,15 +40,15 @@ const Sidebar = () => {
       {/* Brand */}
       <div className="p-6 pb-2">
         <div className="flex items-center space-x-3 mb-8">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary shadow-lg shadow-primary/30">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-600 shadow-lg shadow-brand-600/30">
             <span className="text-white font-bold text-lg">EC</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-text-primary tracking-tight">Sequence</h1>
-            <p className="text-xs text-text-tertiary">Eye Care ERP</p>
+            <h1 className="text-xl font-bold text-primary tracking-tight">Sequence</h1>
+            <p className="text-xs text-tertiary">Eye Care ERP</p>
           </div>
         </div>
-        <p className="px-4 text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Menu</p>
+        <p className="px-4 text-xs font-semibold text-tertiary uppercase tracking-wider mb-2">Menu</p>
       </div>
 
       {/* Navigation */}
@@ -61,8 +62,8 @@ const Sidebar = () => {
               cn(
                 'flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 group',
                 isActive
-                  ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-gray-50 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white'
+                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/25'
+                  : 'text-secondary hover:bg-secondary hover:text-primary'
               )
             }
           >
@@ -74,7 +75,7 @@ const Sidebar = () => {
                       'w-5 h-5 transition-all duration-200',
                       isActive
                         ? 'text-white'
-                        : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                        : 'text-tertiary group-hover:text-secondary'
                     )}
                   />
                   <span className="font-medium">{item.name}</span>
@@ -92,22 +93,22 @@ const Sidebar = () => {
 
       {/* User / Logout */}
       <div className="p-4 mt-auto">
-        <div className="bg-bg-tertiary rounded-2xl p-4 flex items-center justify-between group cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <div className="bg-bg-tertiary rounded-2xl p-4 flex items-center justify-between group cursor-pointer hover:bg-tertiary transition-colors">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary font-bold shadow-sm">
-              {user?.name ? getInitials(user.name) : <Users className="w-5 h-5" />}
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-brand-600 font-bold shadow-sm">
+              {user?.name ? getInitials(user.name) : <Users01 className="w-5 h-5" />}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-text-primary truncate max-w-[100px]">{user?.name || 'User'}</p>
-              <p className="text-xs text-text-tertiary truncate">{user?.role || 'Admin'}</p>
+              <p className="text-sm font-bold text-primary truncate max-w-[100px]">{user?.name || 'User'}</p>
+              <p className="text-xs text-tertiary truncate">{user?.role || 'Admin'}</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="text-text-tertiary hover:text-red-500 transition-colors"
+            className="text-tertiary hover:text-error-500 transition-colors"
             title="Logout"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut01 className="w-5 h-5" />
           </button>
         </div>
       </div>

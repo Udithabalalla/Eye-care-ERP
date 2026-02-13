@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Prescription, PrescriptionFormData, Medication } from '@/types/prescription.types'
 import { toast } from 'react-hot-toast'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash02 } from '@untitledui/icons'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { patientsApi } from '@/api/patients.api'
 import { doctorsApi } from '@/api/doctors.api'
@@ -171,11 +171,11 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {existingPrescription && !prescription && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                <div className="bg-brand-50 dark:bg-brand-950 border-l-4 border-brand-500 p-4 mb-4">
                     <div className="flex justify-between items-center">
                         <div>
-                            <p className="font-medium text-blue-700">Existing Prescription Found</p>
-                            <p className="text-sm text-blue-600">
+                            <p className="font-medium text-brand-700 dark:text-brand-300">Existing Prescription Found</p>
+                            <p className="text-sm text-brand-600 dark:text-brand-400">
                                 This patient already has a prescription from {new Date(existingPrescription.prescription_date).toLocaleDateString()}.
                             </p>
                         </div>
@@ -183,14 +183,14 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                             <button
                                 type="button"
                                 onClick={() => onSwitchToEdit?.(existingPrescription)}
-                                className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                                className="px-3 py-1.5 bg-brand-600 text-white text-sm font-medium rounded hover:bg-brand-700 transition-colors"
                             >
                                 Edit Existing
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setExistingPrescription(null)}
-                                className="px-3 py-1.5 bg-white text-blue-600 text-sm font-medium rounded border border-blue-200 hover:bg-blue-50 transition-colors"
+                                className="px-3 py-1.5 bg-primary text-brand-600 text-sm font-medium rounded border border-brand-200 hover:bg-brand-50 dark:hover:bg-brand-900 transition-colors"
                             >
                                 Create New
                             </button>
@@ -282,7 +282,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     </div>
 
                     {showEyePrescription && formData.eye_prescription && (
-                        <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <div className="space-y-4 bg-secondary p-4 rounded-lg">
                             <div>
                                 <label className="label">Prescription Type</label>
                                 <select
@@ -547,14 +547,14 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     {formData.medications && formData.medications.length > 0 && (
                         <div className="space-y-3">
                             {formData.medications.map((med: Medication, index: number) => (
-                                <div key={index} className="bg-gray-50 p-4 rounded-lg relative">
+                                <div key={index} className="bg-secondary p-4 rounded-lg relative">
                                     {!readOnly && (
                                         <button
                                             type="button"
                                             onClick={() => removeMedication(index)}
-                                            className="absolute top-2 right-2 text-red-600 hover:text-red-800"
+                                            className="absolute top-2 right-2 text-error-600 hover:text-error-800"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash02 className="w-4 h-4" />
                                         </button>
                                     )}
                                     <div className="grid grid-cols-3 gap-3">

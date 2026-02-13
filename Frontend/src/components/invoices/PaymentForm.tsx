@@ -7,7 +7,7 @@ import { Invoice } from '@/types/invoice.types'
 import { PaymentMethod } from '@/types/common.types'
 import { formatCurrency } from '@/utils/formatters'
 import toast from 'react-hot-toast'
-import { DollarSign } from 'lucide-react'
+import { CurrencyDollar } from '@untitledui/icons'
 
 const paymentSchema = z.object({
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
@@ -68,38 +68,38 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Invoice Summary */}
-      <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+      <div className="bg-secondary p-4 rounded-lg space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-600">Invoice Number:</span>
+          <span className="text-secondary">Invoice Number:</span>
           <span className="font-medium">{invoice.invoice_number}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Patient:</span>
+          <span className="text-secondary">Patient:</span>
           <span className="font-medium">{invoice.patient_name}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Total Amount:</span>
+          <span className="text-secondary">Total Amount:</span>
           <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Already Paid:</span>
-          <span className="font-medium text-green-600">
+          <span className="text-secondary">Already Paid:</span>
+          <span className="font-medium text-success-600">
             {formatCurrency(invoice.paid_amount)}
           </span>
         </div>
         <div className="flex justify-between text-lg font-bold border-t pt-2">
           <span>Balance Due:</span>
-          <span className="text-red-600">{formatCurrency(invoice.balance_due)}</span>
+          <span className="text-error-600">{formatCurrency(invoice.balance_due)}</span>
         </div>
       </div>
 
       {/* Payment Amount */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Payment Amount *
         </label>
         <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <CurrencyDollar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary" />
           <input
             type="number"
             step="0.01"
@@ -109,10 +109,10 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
           />
         </div>
         {errors.amount && (
-          <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
+          <p className="text-sm text-error-600 mt-1">{errors.amount.message}</p>
         )}
         {amount > invoice.balance_due && (
-          <p className="text-sm text-red-600 mt-1">
+          <p className="text-sm text-error-600 mt-1">
             Amount cannot exceed balance due
           </p>
         )}
@@ -120,7 +120,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Payment Method */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Payment Method *
         </label>
         <select {...register('payment_method')} className="input">
@@ -131,24 +131,24 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
           <option value="insurance">Insurance</option>
         </select>
         {errors.payment_method && (
-          <p className="text-sm text-red-600 mt-1">{errors.payment_method.message}</p>
+          <p className="text-sm text-error-600 mt-1">{errors.payment_method.message}</p>
         )}
       </div>
 
       {/* Payment Date */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Payment Date *
         </label>
         <input type="date" {...register('payment_date')} className="input" />
         {errors.payment_date && (
-          <p className="text-sm text-red-600 mt-1">{errors.payment_date.message}</p>
+          <p className="text-sm text-error-600 mt-1">{errors.payment_date.message}</p>
         )}
       </div>
 
       {/* Transaction ID */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Transaction ID / Reference Number
         </label>
         <input {...register('transaction_id')} className="input" placeholder="Optional" />
@@ -156,14 +156,14 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
         <textarea {...register('notes')} rows={2} className="input" placeholder="Optional" />
       </div>
 
       {/* Payment Status Preview */}
-      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-900 font-medium mb-2">After this payment:</p>
-        <div className="space-y-1 text-sm text-blue-800">
+      <div className="bg-brand-50 dark:bg-brand-950 p-4 rounded-lg border border-brand-200 dark:border-brand-800">
+        <p className="text-sm text-brand-900 dark:text-brand-100 font-medium mb-2">After this payment:</p>
+        <div className="space-y-1 text-sm text-brand-800 dark:text-brand-200">
           <div className="flex justify-between">
             <span>Total Paid:</span>
             <span className="font-semibold">

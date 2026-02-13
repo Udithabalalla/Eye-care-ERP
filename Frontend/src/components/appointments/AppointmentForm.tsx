@@ -144,29 +144,29 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Date *
           </label>
           <input type="date" {...register('appointment_date')} className="input" />
           {errors.appointment_date && (
-            <p className="text-sm text-red-600 mt-1">{errors.appointment_date.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.appointment_date.message}</p>
           )}
         </div>
 
         {/* Time */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Time *
           </label>
           <input type="time" {...register('appointment_time')} className="input" />
           {errors.appointment_time && (
-            <p className="text-sm text-red-600 mt-1">{errors.appointment_time.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.appointment_time.message}</p>
           )}
         </div>
 
         {/* Duration */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Duration (minutes) *
           </label>
           <select {...register('duration_minutes', { valueAsNumber: true })} className="input">
@@ -176,13 +176,13 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
             <option value={60}>1 hour</option>
           </select>
           {errors.duration_minutes && (
-            <p className="text-sm text-red-600 mt-1">{errors.duration_minutes.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.duration_minutes.message}</p>
           )}
         </div>
 
         {/* Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Appointment Type *
           </label>
           <select {...register('type')} className="input">
@@ -192,25 +192,25 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
             <option value="screening">Screening</option>
           </select>
           {errors.type && (
-            <p className="text-sm text-red-600 mt-1">{errors.type.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.type.message}</p>
           )}
         </div>
       </div>
 
       {/* Reason */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Reason for Visit *
         </label>
         <textarea {...register('reason')} rows={2} className="input" />
         {errors.reason && (
-          <p className="text-sm text-red-600 mt-1">{errors.reason.message}</p>
+          <p className="text-sm text-error-600 mt-1">{errors.reason.message}</p>
         )}
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-secondary mb-2">
           Additional Notes
         </label>
         <textarea {...register('notes')} rows={2} className="input" />

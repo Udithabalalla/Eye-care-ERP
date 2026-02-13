@@ -12,7 +12,15 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,      // 5 minutes - data considered fresh
+      gcTime: 30 * 60 * 1000,        // 30 minutes - cache garbage collection
+      refetchOnReconnect: true,       // Refetch on network reconnection
+      refetchOnMount: false,          // Don't refetch if data is fresh
+      networkMode: 'offlineFirst',    // Return cached data while offline
+    },
+    mutations: {
+      retry: 1,
+      networkMode: 'online',
     },
   },
 })

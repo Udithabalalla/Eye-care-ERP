@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react'
+import { Loading01 } from '@untitledui/icons'
 
 interface LoadingProps {
   size?: 'sm' | 'md' | 'lg'
@@ -15,14 +15,14 @@ const Loading = ({ size = 'md', text, fullScreen = false }: LoadingProps) => {
 
   const content = (
     <div className="flex flex-col items-center justify-center space-y-3">
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary-600`} />
-      {text && <p className="text-sm text-gray-600">{text}</p>}
+      <Loading01 className={`${sizeClasses[size]} animate-spin text-primary-600`} />
+      {text && <p className="text-sm text-secondary">{text}</p>}
     </div>
   )
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-primary bg-opacity-90 dark:bg-opacity-95 flex items-center justify-center z-50">
         {content}
       </div>
     )

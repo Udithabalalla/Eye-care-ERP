@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from '@untitledui/icons'
 import { cn } from '@/utils/helpers'
 
 interface PaginationProps {
@@ -56,10 +56,10 @@ const Pagination = ({
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+    <div className="flex items-center justify-between px-4 py-3 bg-primary border-t border-secondary">
       {/* Items per page */}
       <div className="flex items-center space-x-2">
-        <span className="text-sm text-gray-700">Show</span>
+        <span className="text-sm text-secondary">Show</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -71,7 +71,7 @@ const Pagination = ({
             </option>
           ))}
         </select>
-        <span className="text-sm text-gray-700">
+        <span className="text-sm text-secondary">
           Showing {startItem} to {endItem} of {totalItems} results
         </span>
       </div>
@@ -81,7 +81,7 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-secondary"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -95,7 +95,7 @@ const Pagination = ({
               'px-3 py-1 rounded-lg text-sm',
               page === currentPage
                 ? 'bg-primary-600 text-white'
-                : 'hover:bg-gray-100 text-gray-700',
+                : 'hover:bg-tertiary text-secondary',
               page === '...' && 'cursor-default'
             )}
           >
@@ -106,7 +106,7 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-secondary"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

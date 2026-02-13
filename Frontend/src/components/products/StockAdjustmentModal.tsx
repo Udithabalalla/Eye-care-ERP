@@ -6,7 +6,7 @@ import { productsApi } from '@/api/products.api'
 import { Product } from '@/types/product.types'
 import Modal from '@/components/common/Modal'
 import toast from 'react-hot-toast'
-import { Package } from 'lucide-react'
+import { Package } from '@untitledui/icons'
 
 const stockSchema = z.object({
   quantity: z.number().int(),
@@ -78,23 +78,23 @@ const StockAdjustmentModal = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Adjust Stock" size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Product Info */}
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-secondary p-4 rounded-lg">
           <div className="flex items-center space-x-3 mb-3">
             <Package className="w-8 h-8 text-primary-600" />
             <div>
-              <h3 className="font-semibold text-gray-900">{product.name}</h3>
-              <p className="text-sm text-gray-600">SKU: {product.sku}</p>
+              <h3 className="font-semibold text-primary">{product.name}</h3>
+              <p className="text-sm text-secondary">SKU: {product.sku}</p>
             </div>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Current Stock:</span>
+            <span className="text-secondary">Current Stock:</span>
             <span className="font-bold text-lg">{product.current_stock}</span>
           </div>
         </div>
 
         {/* Quantity Adjustment */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Quantity Change *
           </label>
           <input
@@ -104,16 +104,16 @@ const StockAdjustmentModal = ({
             placeholder="Use negative for reduction (e.g., -5)"
           />
           {errors.quantity && (
-            <p className="text-sm text-red-600 mt-1">{errors.quantity.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.quantity.message}</p>
           )}
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-tertiary mt-1">
             Positive to add, negative to remove
           </p>
         </div>
 
         {/* Reason */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Reason *
           </label>
           <select {...register('reason')} className="input">
@@ -131,13 +131,13 @@ const StockAdjustmentModal = ({
             <option value="Other - See notes">Other - See notes</option>
           </select>
           {errors.reason && (
-            <p className="text-sm text-red-600 mt-1">{errors.reason.message}</p>
+            <p className="text-sm text-error-600 mt-1">{errors.reason.message}</p>
           )}
         </div>
 
         {/* Notes */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-secondary mb-2">
             Additional Notes
           </label>
           <textarea {...register('notes')} rows={2} className="input" />
@@ -146,10 +146,10 @@ const StockAdjustmentModal = ({
         {/* Preview */}
         <div
           className={`p-4 rounded-lg border-2 ${newStock < 0
-              ? 'bg-red-50 border-red-200'
+              ? 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-error-800'
               : newStock <= product.min_stock_level
-                ? 'bg-yellow-50 border-yellow-200'
-                : 'bg-green-50 border-green-200'
+                ? 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-warning-800'
+                : 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-success-800'
             }`}
         >
           <p className="text-sm font-medium mb-2">After Adjustment:</p>
@@ -157,20 +157,20 @@ const StockAdjustmentModal = ({
             <span className="text-sm">New Stock Level:</span>
             <span
               className={`text-2xl font-bold ${newStock < 0
-                  ? 'text-red-600'
+                  ? 'text-error-600'
                   : newStock <= product.min_stock_level
-                    ? 'text-yellow-600'
-                    : 'text-green-600'
+                    ? 'text-warning-600'
+                    : 'text-success-600'
                 }`}
             >
               {newStock}
             </span>
           </div>
           {newStock < 0 && (
-            <p className="text-xs text-red-600 mt-2">⚠️ Stock cannot be negative!</p>
+            <p className="text-xs text-error-600 mt-2">⚠️ Stock cannot be negative!</p>
           )}
           {newStock >= 0 && newStock <= product.min_stock_level && (
-            <p className="text-xs text-yellow-600 mt-2">
+            <p className="text-xs text-warning-600 mt-2">
               ⚠️ Below minimum stock level ({product.min_stock_level})
             </p>
           )}

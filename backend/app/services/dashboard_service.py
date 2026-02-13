@@ -6,9 +6,15 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.product_repository import ProductRepository
 from app.utils.helpers import date_to_datetime
+from app.core.cache import cache, CacheTTL
 
 class DashboardService:
-    """Dashboard statistics and analytics service"""
+    """Dashboard statistics and analytics service with caching"""
+    
+    # Cache keys
+    CACHE_KEY_STATS = "dashboard:stats"
+    CACHE_KEY_INVENTORY = "dashboard:inventory"
+    CACHE_KEY_TOP_PRODUCTS = "dashboard:top_products"
     
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
@@ -18,7 +24,12 @@ class DashboardService:
         self.product_repo = ProductRepository(db)
     
     async def get_dashboard_stats(self) -> Dict[str, Any]:
-        """Get comprehensive dashboard statistics"""
+        """Get comprehensive dashboard statistics with caching"""
+        # Try cache first
+        cached_stats = await cache.get(self.CACHE_KEY_STATS)
+        if cached_stats is not None:
+            return cached_stats
+        
         today = date.today()
         
         # Get counts
@@ -76,7 +87,7 @@ class DashboardService:
         
         revenue_month = month_revenue[0]["total"] if month_revenue else 0
         
-        return {
+        result = {
             "total_patients": total_patients,
             "total_appointments": total_appointments,
             "today_appointments": today_appointments,
@@ -86,6 +97,11 @@ class DashboardService:
             "revenue_month": round(revenue_month, 2),
             "generated_at": datetime.now(timezone.utc).isoformat()
         }
+        
+        # Cache for 60 seconds (dashboard stats change frequently)
+        await cache.set(self.CACHE_KEY_STATS, result, CacheTTL.SHORT)
+        
+        return result
     
     async def get_revenue_data(
         self,

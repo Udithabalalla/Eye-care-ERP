@@ -1,7 +1,7 @@
 import { Invoice } from '@/types/invoice.types'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import { getStatusColor } from '@/utils/helpers'
-import { Download, DollarSign } from 'lucide-react'
+import { Download01, CurrencyDollar } from '@untitledui/icons'
 
 interface InvoiceDetailProps {
   invoice: Invoice
@@ -15,8 +15,8 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{invoice.invoice_number}</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-primary">{invoice.invoice_number}</h2>
+          <p className="text-secondary mt-1">
             Date: {formatDate(invoice.invoice_date)}
           </p>
         </div>
@@ -25,12 +25,12 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
             {invoice.payment_status}
           </span>
           <button onClick={onDownloadPDF} className="btn-secondary">
-            <Download className="w-4 h-4 mr-2" />
+            <Download01 className="w-4 h-4 mr-2" />
             PDF
           </button>
           {invoice.balance_due > 0 && (
             <button onClick={onPayment} className="btn-primary">
-              <DollarSign className="w-4 h-4 mr-2" />
+              <CurrencyDollar className="w-4 h-4 mr-2" />
               Record Payment
             </button>
           )}
@@ -42,16 +42,16 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
         <h3 className="text-lg font-semibold mb-3">Patient Information</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-600">Name:</span>
+            <span className="text-secondary">Name:</span>
             <span className="ml-2 font-medium">{invoice.patient_name}</span>
           </div>
           <div>
-            <span className="text-gray-600">Phone:</span>
+            <span className="text-secondary">Phone:</span>
             <span className="ml-2 font-medium">{invoice.patient_phone}</span>
           </div>
           {invoice.patient_email && (
             <div>
-              <span className="text-gray-600">Email:</span>
+              <span className="text-secondary">Email:</span>
               <span className="ml-2 font-medium">{invoice.patient_email}</span>
             </div>
           )}
@@ -92,20 +92,20 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
       </div>
 
       {/* Totals */}
-      <div className="card bg-gray-50">
+      <div className="card bg-secondary">
         <div className="max-w-md ml-auto space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal:</span>
+            <span className="text-secondary">Subtotal:</span>
             <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Total Discount:</span>
-            <span className="font-medium text-red-600">
+            <span className="text-secondary">Total Discount:</span>
+            <span className="font-medium text-error-600">
               -{formatCurrency(invoice.total_discount)}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Total Tax:</span>
+            <span className="text-secondary">Total Tax:</span>
             <span className="font-medium">{formatCurrency(invoice.total_tax)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold border-t pt-2">
@@ -113,14 +113,14 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
             <span className="text-primary-600">{formatCurrency(invoice.total_amount)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Paid Amount:</span>
-            <span className="font-medium text-green-600">
+            <span className="text-secondary">Paid Amount:</span>
+            <span className="font-medium text-success-600">
               {formatCurrency(invoice.paid_amount)}
             </span>
           </div>
           <div className="flex justify-between text-lg font-bold">
             <span>Balance Due:</span>
-            <span className="text-red-600">{formatCurrency(invoice.balance_due)}</span>
+            <span className="text-error-600">{formatCurrency(invoice.balance_due)}</span>
           </div>
         </div>
       </div>
@@ -131,18 +131,18 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
           <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-gray-600">Method:</span>
+              <span className="text-secondary">Method:</span>
               <span className="ml-2 font-medium capitalize">{invoice.payment_method}</span>
             </div>
             {invoice.payment_date && (
               <div>
-                <span className="text-gray-600">Payment Date:</span>
+                <span className="text-secondary">Payment Date:</span>
                 <span className="ml-2 font-medium">{formatDate(invoice.payment_date)}</span>
               </div>
             )}
             {invoice.transaction_id && (
               <div>
-                <span className="text-gray-600">Transaction ID:</span>
+                <span className="text-secondary">Transaction ID:</span>
                 <span className="ml-2 font-medium">{invoice.transaction_id}</span>
               </div>
             )}

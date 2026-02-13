@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { X, Camera } from 'lucide-react'
+import { XClose, Camera01 } from '@untitledui/icons'
 
 interface QRScannerProps {
     onScan: (data: string) => void
@@ -79,29 +79,29 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-            <div className="bg-bg-secondary rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div className="bg-secondary rounded-xl shadow-2xl max-w-md w-full mx-4">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center justify-between p-4 border-b border-secondary">
                     <div className="flex items-center space-x-2">
-                        <Camera className="w-5 h-5 text-text-primary" />
-                        <h2 className="text-lg font-semibold text-text-primary">Scan QR Code</h2>
+                        <Camera01 className="w-5 h-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-primary">Scan QR Code</h2>
                     </div>
                     <button
                         onClick={() => {
                             stopScanning()
                             onClose()
                         }}
-                        className="text-text-tertiary hover:text-text-primary transition-colors"
+                        className="text-tertiary hover:text-primary transition-colors"
                     >
-                        <X className="w-5 h-5" />
+                        <XClose className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Scanner Area */}
                 <div className="p-6">
                     {error ? (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
-                            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+                        <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-4 text-center">
+                            <p className="text-error-600 dark:text-error-400 text-sm">{error}</p>
                             <button
                                 onClick={() => window.location.reload()}
                                 className="mt-3 btn-secondary text-sm"
@@ -113,10 +113,10 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
                         <>
                             <div
                                 id={qrCodeRegionId}
-                                className="rounded-lg overflow-hidden border-2 border-border"
+                                className="rounded-lg overflow-hidden border-2 border-secondary"
                                 style={{ width: '100%' }}
                             />
-                            <p className="text-center text-text-secondary text-sm mt-4">
+                            <p className="text-center text-secondary text-sm mt-4">
                                 Position the QR code within the frame
                             </p>
                         </>
@@ -124,7 +124,7 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-border">
+                <div className="p-4 border-t border-secondary">
                     <button
                         onClick={() => {
                             stopScanning()
