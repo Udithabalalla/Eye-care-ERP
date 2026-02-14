@@ -6,6 +6,7 @@ import math
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.doctor_repository import DoctorRepository
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, AppointmentResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.appointment import AppointmentModel
@@ -20,6 +21,7 @@ class AppointmentService:
         self.appointment_repo = AppointmentRepository(db)
         self.patient_repo = PatientRepository(db)
         self.user_repo = UserRepository(db)
+        self.doctor_repo = DoctorRepository()
     
     async def list_appointments(
         self,
@@ -75,10 +77,16 @@ class AppointmentService:
         if not patient:
             raise NotFoundException(f"Patient with ID {appointment_data.patient_id} not found")
         
-        # Validate doctor exists
-        doctor = await self.user_repo.get_by_user_id(appointment_data.doctor_id)
+        # Validate doctor exists - check doctors collection first, then users
+        doctor = await self.doctor_repo.get_by_id(appointment_data.doctor_id)
+        doctor_name = doctor.name if doctor else None
+        
         if not doctor:
-            raise NotFoundException(f"Doctor with ID {appointment_data.doctor_id} not found")
+            # Fallback to users collection for backward compatibility
+            user_doctor = await self.user_repo.get_by_user_id(appointment_data.doctor_id)
+            if not user_doctor:
+                raise NotFoundException(f"Doctor with ID {appointment_data.doctor_id} not found")
+            doctor_name = user_doctor.name
         
         # Generate appointment ID
         next_number = await self.appointment_repo.get_next_appointment_number()
@@ -95,7 +103,7 @@ class AppointmentService:
         appointment_model = AppointmentModel(
             appointment_id=appointment_id,
             patient_name=patient.name,
-            doctor_name=doctor.name,
+            doctor_name=doctor_name,
             appointment_date=appointment_date_dt,
             appointment_time=appointment_time_dt,
             created_by=current_user_id,

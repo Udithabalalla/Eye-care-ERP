@@ -26,7 +26,11 @@ const Doctors = () => {
             toast.success('Doctor added successfully')
             setIsModalOpen(false)
         },
-        onError: () => toast.error('Failed to add doctor'),
+        onError: (error: any) => {
+            const msg = error?.response?.data?.detail || error?.message || 'Failed to add doctor'
+            toast.error(typeof msg === 'string' ? msg : 'Failed to add doctor')
+            console.error('Add doctor error:', error?.response?.data || error)
+        },
     })
 
     const updateMutation = useMutation({
@@ -38,7 +42,11 @@ const Doctors = () => {
             setIsModalOpen(false)
             setSelectedDoctor(null)
         },
-        onError: () => toast.error('Failed to update doctor'),
+        onError: (error: any) => {
+            const msg = error?.response?.data?.detail || error?.message || 'Failed to update doctor'
+            toast.error(typeof msg === 'string' ? msg : 'Failed to update doctor')
+            console.error('Update doctor error:', error?.response?.data || error)
+        },
     })
 
     const deleteMutation = useMutation({
@@ -47,7 +55,11 @@ const Doctors = () => {
             queryClient.invalidateQueries({ queryKey: ['doctors'] })
             toast.success('Doctor deleted successfully')
         },
-        onError: () => toast.error('Failed to delete doctor'),
+        onError: (error: any) => {
+            const msg = error?.response?.data?.detail || error?.message || 'Failed to delete doctor'
+            toast.error(typeof msg === 'string' ? msg : 'Failed to delete doctor')
+            console.error('Delete doctor error:', error?.response?.data || error)
+        },
     })
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -58,15 +70,20 @@ const Doctors = () => {
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         const selectedDays = days.filter(day => formData.get(`day_${day}`) === 'on')
 
+        // Get raw values
+        const emailVal = (formData.get('email') as string)?.trim()
+        const qualificationVal = (formData.get('qualification') as string)?.trim()
+        const contactVal = (formData.get('contact_number') as string)?.trim()
+
         const data: DoctorFormData = {
             name: formData.get('name') as string,
             specialization: formData.get('specialization') as string,
-            qualification: formData.get('qualification') as string,
-            experience_years: Number(formData.get('experience_years')),
-            contact_number: formData.get('contact_number') as string,
-            email: formData.get('email') as string,
-            consultation_fee: Number(formData.get('consultation_fee')),
-            available_days: selectedDays,
+            qualification: qualificationVal || undefined,
+            experience_years: Number(formData.get('experience_years')) || 0,
+            contact_number: contactVal || undefined,
+            email: emailVal || undefined,
+            consultation_fee: Number(formData.get('consultation_fee')) || 0,
+            available_days: selectedDays.length > 0 ? selectedDays : ['Monday'],
             available_time_start: formData.get('available_time_start') as string,
             available_time_end: formData.get('available_time_end') as string,
             is_active: true,

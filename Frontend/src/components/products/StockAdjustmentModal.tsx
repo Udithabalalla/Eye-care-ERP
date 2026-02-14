@@ -61,8 +61,10 @@ const StockAdjustmentModal = ({
       onSuccess()
       onClose()
     },
-    onError: () => {
-      toast.error('Failed to adjust stock')
+    onError: (error: any) => {
+      const msg = error?.response?.data?.detail || error?.message || 'Failed to adjust stock'
+      toast.error(typeof msg === 'string' ? msg : 'Failed to adjust stock')
+      console.error('Stock adjustment error:', error?.response?.data || error)
     },
   })
 
@@ -146,10 +148,10 @@ const StockAdjustmentModal = ({
         {/* Preview */}
         <div
           className={`p-4 rounded-lg border-2 ${newStock < 0
-              ? 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-error-800'
-              : newStock <= product.min_stock_level
-                ? 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-warning-800'
-                : 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-success-800'
+            ? 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-error-800'
+            : newStock <= product.min_stock_level
+              ? 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-warning-800'
+              : 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-success-800'
             }`}
         >
           <p className="text-sm font-medium mb-2">After Adjustment:</p>
@@ -157,10 +159,10 @@ const StockAdjustmentModal = ({
             <span className="text-sm">New Stock Level:</span>
             <span
               className={`text-2xl font-bold ${newStock < 0
-                  ? 'text-error-600'
-                  : newStock <= product.min_stock_level
-                    ? 'text-warning-600'
-                    : 'text-success-600'
+                ? 'text-error-600'
+                : newStock <= product.min_stock_level
+                  ? 'text-warning-600'
+                  : 'text-success-600'
                 }`}
             >
               {newStock}

@@ -86,10 +86,42 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
   })
 
   const onSubmit = (data: PatientFormValues) => {
+    // Clean up empty optional fields before sending to API
+    const cleanedData: any = { ...data }
+
+    // Remove empty email (empty string fails EmailStr validation)
+    if (!cleanedData.email) {
+      delete cleanedData.email
+    }
+
+    // Remove address if all fields are empty
+    if (cleanedData.address) {
+      const { country, ...addrFields } = cleanedData.address
+      const hasValue = Object.values(addrFields).some((v) => v && String(v).trim())
+      if (!hasValue) {
+        delete cleanedData.address
+      }
+    }
+
+    // Remove emergency_contact if all fields are empty
+    if (cleanedData.emergency_contact) {
+      const hasValue = Object.values(cleanedData.emergency_contact).some(
+        (v) => v && String(v).trim()
+      )
+      if (!hasValue) {
+        delete cleanedData.emergency_contact
+      }
+    }
+
+    // Remove empty notes
+    if (!cleanedData.notes?.trim()) {
+      delete cleanedData.notes
+    }
+
     if (patient) {
-      updateMutation.mutate(data)
+      updateMutation.mutate(cleanedData)
     } else {
-      createMutation.mutate(data as PatientFormData)
+      createMutation.mutate(cleanedData as PatientFormData)
     }
   }
 

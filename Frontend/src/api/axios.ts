@@ -76,10 +76,16 @@ axiosInstance.interceptors.response.use(
 
       switch (status) {
         case 401:
+          // Clear all auth data including zustand persist storage
           localStorage.removeItem('token')
           localStorage.removeItem('user')
-          window.location.href = '/login'
-          toast.error('Session expired. Please login again.')
+          localStorage.removeItem('auth-storage')  // Clear zustand persist storage
+          
+          // Only redirect if not already on login page to prevent loops
+          if (!window.location.pathname.includes('/login')) {
+            toast.error('Session expired. Please login again.')
+            window.location.href = '/login'
+          }
           break
         case 403:
           toast.error('You do not have permission to perform this action.')
