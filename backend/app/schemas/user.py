@@ -37,6 +37,15 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class SignupRequest(BaseModel):
+    """Schema for signup/register request"""
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    name: str = Field(..., min_length=2)
+    role: UserRole = UserRole.STAFF
+    department: Optional[str] = None
+    phone: Optional[str] = None
+
 class LoginResponse(BaseModel):
     """Schema for login response"""
     access_token: str

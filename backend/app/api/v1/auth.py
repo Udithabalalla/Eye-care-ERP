@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config.database import get_database
-from app.schemas.user import LoginRequest, LoginResponse, UserResponse
+from app.schemas.user import LoginRequest, LoginResponse, SignupRequest, UserResponse
 from app.schemas.responses import ResponseModel
 from app.services.auth_service import AuthService
 from app.api.deps import get_current_user
@@ -18,6 +18,15 @@ async def login(
     """User login"""
     auth_service = AuthService(db)
     return await auth_service.login(login_data.email, login_data.password)
+
+@router.post("/register", response_model=LoginResponse)
+async def register(
+    signup_data: SignupRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Register a new user"""
+    auth_service = AuthService(db)
+    return await auth_service.register(signup_data)
 
 @router.post("/logout")
 async def logout(current_user: UserModel = Depends(get_current_user)):

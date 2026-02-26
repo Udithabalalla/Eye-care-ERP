@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authApi } from '@/api/auth.api'
-import { AuthState, LoginRequest } from '@/types/auth.types'
+import { AuthState, LoginRequest, SignupRequest } from '@/types/auth.types'
 import toast from 'react-hot-toast'
 
 export const useAuthStore = create<AuthState>()(
@@ -32,6 +32,29 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: any) {
           set({ isLoading: false })
           toast.error(error.response?.data?.message || 'Login failed')
+          throw error
+        }
+      },
+
+      signup: async (data: SignupRequest) => {
+        set({ isLoading: true })
+        try {
+          const response = await authApi.signup(data)
+
+          localStorage.setItem('token', response.access_token)
+          localStorage.setItem('user', JSON.stringify(response.user))
+
+          set({
+            user: response.user,
+            token: response.access_token,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+
+          toast.success(`Welcome, ${response.user.name}!`)
+        } catch (error: any) {
+          set({ isLoading: false })
+          toast.error(error.response?.data?.message || 'Registration failed')
           throw error
         }
       },

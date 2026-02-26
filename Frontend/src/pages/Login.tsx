@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Eye, EyeOff, Lock01, Mail01 } from '@untitledui/icons'
 import toast from 'react-hot-toast'
@@ -112,6 +112,14 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          {/* Link to Sign Up */}
+          <p className="mt-6 text-center text-sm text-tertiary">
+            Don&apos;t have an account?{' '}
+            <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-500">
+              Sign up
+            </Link>
+          </p>
         </div>
 
         {/* Demo Credentials */}

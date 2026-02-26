@@ -18,6 +18,15 @@ export interface LoginRequest {
   password: string
 }
 
+export interface SignupRequest {
+  email: string
+  password: string
+  name: string
+  role?: string
+  department?: string
+  phone?: string
+}
+
 export interface LoginResponse {
   access_token: string
   token_type: string
@@ -30,6 +39,7 @@ export interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   login: (credentials: LoginRequest) => Promise<void>
+  signup: (data: SignupRequest) => Promise<void>
   logout: () => void
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
