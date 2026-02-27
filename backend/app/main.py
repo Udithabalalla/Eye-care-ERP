@@ -7,6 +7,8 @@ from app.config.settings import settings
 from app.config.database import connect_to_mongo, close_mongo_connection
 from app.api.v1.router import api_router
 from app.core.middleware import CacheControlMiddleware, SecurityHeadersMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,9 +36,17 @@ app.add_middleware(CacheControlMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # CORS
+
+ENV = os.getenv("ENV", "production")
+
+if ENV == "production":
+    origins = ["https://eye-care-erp.vercel.app"]
+else:
+    origins = ["*"]
+    
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
