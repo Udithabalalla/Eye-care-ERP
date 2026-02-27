@@ -48,7 +48,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-))
+)
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
