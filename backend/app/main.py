@@ -37,12 +37,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # CORS
 
-ENV = os.getenv("ENV", "production")
-
-if ENV == "production":
-    origins = ["https://eye-care-erp.vercel.app"]
-else:
-    origins = ["*"]
+origins = [
+    "https://eye-care-erp.vercel.app",
+]
     
 app.add_middleware(
     CORSMiddleware,
