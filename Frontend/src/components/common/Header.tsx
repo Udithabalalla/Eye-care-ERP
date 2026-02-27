@@ -1,15 +1,27 @@
-import { Bell01, SearchLg, Moon01, Sun } from '@untitledui/icons'
+import { Bell01, SearchLg, Moon01, Sun, Menu01 } from '@untitledui/icons'
 import { useTheme } from '@/contexts/ThemeContext'
 
-const Header = () => {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <header className="fixed top-0 right-0 left-64 z-40 bg-primary/80 backdrop-blur-md h-20 transition-all duration-300">
-      <div className="flex items-center justify-between h-full px-8">
-        {/* Search Bar */}
-        <div className="flex-1 max-w-xl">
-          <div className="relative group">
+    <header className="fixed top-0 right-0 left-0 md:left-64 z-40 bg-primary/80 backdrop-blur-md h-20 transition-all duration-300 border-b border-secondary md:border-none">
+      <div className="flex items-center justify-between h-full px-4 md:px-8">
+        {/* Left Section - Mobile Menu & Search */}
+        <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-0">
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 text-secondary hover:text-brand-600 rounded-xl transition-all"
+            aria-label="Open menu"
+          >
+            <Menu01 className="w-6 h-6" />
+          </button>
+
+          <div className="relative group w-full hidden sm:block">
             <SearchLg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary group-focus-within:text-brand-600 transition-colors" />
             <input
               type="text"
