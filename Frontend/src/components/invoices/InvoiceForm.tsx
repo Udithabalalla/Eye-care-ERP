@@ -13,7 +13,7 @@ import toast from 'react-hot-toast'
 import { Plus, Trash02 } from '@untitledui/icons'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
-import { safeDate } from '@/utils/formatters'
+import { formatCurrency, safeDate } from '@/utils/formatters'
 import PrescriptionSelectionModal from './PrescriptionSelectionModal'
 import QRScanner from '@/components/common/QRScanner'
 
@@ -429,19 +429,19 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-secondary">Subtotal:</span>
-            <span className="font-medium">${subtotal.toFixed(2)}</span>
+            <span className="font-medium">{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-secondary">Total Discount:</span>
-            <span className="font-medium text-error-600">-${totalDiscount.toFixed(2)}</span>
+            <span className="font-medium text-error-600">-{formatCurrency(totalDiscount)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-secondary">Total Tax:</span>
-            <span className="font-medium">${totalTax.toFixed(2)}</span>
+            <span className="font-medium">{formatCurrency(totalTax)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold border-t pt-2">
             <span>Total Amount:</span>
-            <span className="text-primary-600">${totalAmount.toFixed(2)}</span>
+            <span className="text-primary-600">{formatCurrency(totalAmount)}</span>
           </div>
         </div>
       </div>

@@ -29,7 +29,7 @@ class QRService:
         product_name: str, 
         sku: str, 
         price: float, 
-        currency: str = "$"
+        currency: str = "LKR"
     ) -> bytes:
         """Generate a printable label with Product Name, Price, and Barcode"""
         
@@ -75,7 +75,7 @@ class QRService:
         draw.text(((label_width - title_w) / 2, 10), display_name, font=font_title, fill="black")
         
         # Price
-        price_text = f"{currency}{price:.2f}"
+        price_text = f"{currency} {price:.2f}"
         price_bbox = draw.textbbox((0, 0), price_text, font=font_price)
         price_w = price_bbox[2] - price_bbox[0]
         draw.text(((label_width - price_w) / 2, 45), price_text, font=font_price, fill="black")

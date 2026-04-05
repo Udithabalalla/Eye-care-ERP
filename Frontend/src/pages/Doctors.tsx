@@ -1,3 +1,4 @@
+import { formatDate, formatCurrency } from '@/utils/formatters'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, SearchLg, Edit02, Trash02, Phone01, Mail01, Clock, CurrencyDollar } from '@untitledui/icons'
@@ -174,7 +175,7 @@ const Doctors = () => {
                                 </div>
                                 <div className="flex items-center">
                                     <CurrencyDollar className="w-4 h-4 mr-2 text-tertiary" />
-                                    <span>${doctor.consultation_fee} / visit</span>
+                                    <span>{formatCurrency(doctor.consultation_fee)} / visit</span>
                                 </div>
                                 <div className="pt-3 border-t border-secondary mt-3">
                                     <div className="flex items-center mb-2">

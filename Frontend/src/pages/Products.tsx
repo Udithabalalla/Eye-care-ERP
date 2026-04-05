@@ -111,7 +111,7 @@ const Products = () => {
                 )}
               </p>
             </div>
-            <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-lg">$</div>
+                      <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-xs font-semibold">LKR</div>
           </div>
         </div>
       </div>
