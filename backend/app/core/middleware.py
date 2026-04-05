@@ -18,7 +18,6 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
     
     # Endpoints that can be cached by the client
     CACHEABLE_ENDPOINTS = {
-        "/api/v1/doctors": 300,          # 5 minutes
         "/api/v1/products": 120,         # 2 minutes  
         "/api/v1/dashboard/stats": 30,   # 30 seconds
     }

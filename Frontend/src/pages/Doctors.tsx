@@ -23,6 +23,7 @@ const Doctors = () => {
         mutationFn: doctorsApi.create,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['doctors'] })
+            queryClient.invalidateQueries({ queryKey: ['doctors-list'] })
             toast.success('Doctor added successfully')
             setIsModalOpen(false)
         },
@@ -38,6 +39,7 @@ const Doctors = () => {
             doctorsApi.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['doctors'] })
+            queryClient.invalidateQueries({ queryKey: ['doctors-list'] })
             toast.success('Doctor updated successfully')
             setIsModalOpen(false)
             setSelectedDoctor(null)
@@ -53,6 +55,7 @@ const Doctors = () => {
         mutationFn: doctorsApi.delete,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['doctors'] })
+            queryClient.invalidateQueries({ queryKey: ['doctors-list'] })
             toast.success('Doctor deleted successfully')
         },
         onError: (error: any) => {
