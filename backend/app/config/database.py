@@ -120,31 +120,6 @@ async def create_indexes():
     await safe_create_index(db.db.doctors, "doctor_id", unique=True)
     await safe_create_index(db.db.doctors, "is_active")
     await safe_create_index(db.db.doctors, "specialization")
-
-    # Suppliers and procurement
-    await safe_create_index(db.db.suppliers, "id", unique=True)
-    await safe_create_index(db.db.suppliers, "supplier_name")
-    await safe_create_index(db.db.suppliers, "company_name")
-    await safe_create_index(db.db.suppliers, "phone")
-    await safe_create_index(db.db.suppliers, "email")
-
-    await safe_create_index(db.db.purchase_orders, "id", unique=True)
-    await safe_create_index(db.db.purchase_orders, "supplier_id")
-    await safe_create_index(db.db.purchase_orders, "status")
-    await safe_create_index(db.db.purchase_orders, [("supplier_id", 1), ("status", 1)], name="po_supplier_status_index")
-
-    await safe_create_index(db.db.supplier_invoices, "id", unique=True)
-    await safe_create_index(db.db.supplier_invoices, "supplier_id")
-    await safe_create_index(db.db.supplier_invoices, "purchase_order_id")
-    await safe_create_index(db.db.supplier_invoices, "invoice_number", unique=True)
-    await safe_create_index(db.db.supplier_invoices, "status")
-
-    await safe_create_index(db.db.supplier_payments, "id", unique=True)
-    await safe_create_index(db.db.supplier_payments, "invoice_id")
-    await safe_create_index(db.db.supplier_payments, ["invoice_id", "payment_date"], name="supplier_payment_history_index")
-
-    await safe_create_index(db.db.stock_receipts, "id", unique=True)
-    await safe_create_index(db.db.stock_receipts, "purchase_order_id")
     
     print("✅ Database indexes created")
 
