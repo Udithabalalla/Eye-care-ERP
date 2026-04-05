@@ -69,17 +69,17 @@ class InvoiceService:
         current_user_id: str
     ) -> InvoiceResponse:
         """Create a new invoice"""
-                # Validate product availability before attempting stock deduction.
-                for item in invoice_data.items:
-                    product = await self.product_repo.get_by_product_id(item.product_id)
-                    if not product:
-                        raise NotFoundException(f"Product with ID {item.product_id} not found")
-                    if not product.is_active:
-                        raise BadRequestException(f"Product {item.product_name} is inactive")
-                    if product.current_stock < item.quantity:
-                        raise BadRequestException(
-                            f"Insufficient stock for {product.name}. Available: {product.current_stock}, requested: {item.quantity}"
-                        )
+        # Validate product availability before attempting stock deduction.
+        for item in invoice_data.items:
+            product = await self.product_repo.get_by_product_id(item.product_id)
+            if not product:
+                raise NotFoundException(f"Product with ID {item.product_id} not found")
+            if not product.is_active:
+                raise BadRequestException(f"Product {item.product_name} is inactive")
+            if product.current_stock < item.quantity:
+                raise BadRequestException(
+                    f"Insufficient stock for {product.name}. Available: {product.current_stock}, requested: {item.quantity}"
+                )
 
         # Validate patient exists
         patient = await self.patient_repo.get_by_patient_id(invoice_data.patient_id)
