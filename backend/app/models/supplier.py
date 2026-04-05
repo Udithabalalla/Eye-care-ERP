@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
+from app.models.common import TimestampModel
 
 
-class SupplierModel(BaseModel):
+class SupplierModel(TimestampModel):
     id: str = Field(..., description="Unique supplier identifier")
     supplier_name: str = Field(..., description="Supplier display name")
     company_name: Optional[str] = None
