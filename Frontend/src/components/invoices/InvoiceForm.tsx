@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { safeDate } from '@/utils/formatters'
 import PrescriptionSelectionModal from './PrescriptionSelectionModal'
+import QRScanner from '@/components/common/QRScanner'
 
 const invoiceItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
@@ -89,6 +90,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
   const patientId = watch('patient_id')
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
 
   const { data: prescriptionsData } = useQuery({
@@ -143,6 +145,35 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       tax: 0,
       total: 0,
     })
+  }
+
+  const addScannedProductToInvoice = async (scannedCode: string) => {
+    try {
+      const product = await productsApi.lookupByCode(scannedCode)
+
+      const existingIndex = items.findIndex((item) => item.product_id === product.product_id)
+      if (existingIndex >= 0) {
+        const nextQty = (items[existingIndex].quantity || 0) + 1
+        setValue(`items.${existingIndex}.quantity`, nextQty)
+        setTimeout(() => calculateItemTotal(existingIndex), 0)
+      } else {
+        append({
+          product_id: product.product_id,
+          product_name: product.name,
+          sku: product.sku,
+          quantity: 1,
+          unit_price: product.selling_price,
+          discount: 0,
+          tax: 0,
+          total: product.selling_price,
+        })
+      }
+
+      toast.success(`${product.name} added to invoice`)
+      setShowBarcodeScanner(false)
+    } catch (error) {
+      toast.error('Scanned product not found')
+    }
   }
 
   const handleProductChange = (index: number, productId: string) => {
@@ -289,10 +320,19 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-primary">Items</h3>
-          <button type="button" onClick={addItem} className="btn-secondary">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBarcodeScanner(true)}
+              className="btn-secondary"
+            >
+              Scan Barcode
+            </button>
+            <button type="button" onClick={addItem} className="btn-secondary">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -444,6 +484,12 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         prescriptions={prescriptionsData?.data || []}
         onSelect={handlePrescriptionSelect}
         selectedId={selectedPrescription?.prescription_id}
+      />
+
+      <QRScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={addScannedProductToInvoice}
       />
     </form>
   )

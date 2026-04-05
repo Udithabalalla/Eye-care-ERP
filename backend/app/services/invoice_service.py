@@ -5,6 +5,7 @@ import math
 
 from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.patient_repository import PatientRepository
+from app.repositories.product_repository import ProductRepository
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaymentRecord
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
@@ -17,6 +18,7 @@ class InvoiceService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.invoice_repo = InvoiceRepository(db)
         self.patient_repo = PatientRepository(db)
+        self.product_repo = ProductRepository(db)
     
     async def list_invoices(
         self,
@@ -67,6 +69,18 @@ class InvoiceService:
         current_user_id: str
     ) -> InvoiceResponse:
         """Create a new invoice"""
+                # Validate product availability before attempting stock deduction.
+                for item in invoice_data.items:
+                    product = await self.product_repo.get_by_product_id(item.product_id)
+                    if not product:
+                        raise NotFoundException(f"Product with ID {item.product_id} not found")
+                    if not product.is_active:
+                        raise BadRequestException(f"Product {item.product_name} is inactive")
+                    if product.current_stock < item.quantity:
+                        raise BadRequestException(
+                            f"Insufficient stock for {product.name}. Available: {product.current_stock}, requested: {item.quantity}"
+                        )
+
         # Validate patient exists
         patient = await self.patient_repo.get_by_patient_id(invoice_data.patient_id)
         if not patient:
@@ -105,8 +119,24 @@ class InvoiceService:
             **invoice_data.dict(exclude={'invoice_date', 'due_date'})
         )
         
-        # Save to database
-        created_invoice = await self.invoice_repo.create_invoice(invoice_model)
+        # Deduct stock atomically for all items before invoice save.
+        deducted_items = []
+        try:
+            for item in invoice_data.items:
+                ok = await self.product_repo.decrement_stock_atomic(item.product_id, item.quantity)
+                if not ok:
+                    raise BadRequestException(
+                        f"Failed to deduct stock for product {item.product_id}. Stock may have changed, please retry."
+                    )
+                deducted_items.append((item.product_id, item.quantity))
+
+            # Save invoice only after stock deduction succeeds.
+            created_invoice = await self.invoice_repo.create_invoice(invoice_model)
+        except Exception:
+            # Best-effort rollback for already deducted items.
+            for product_id, quantity in deducted_items:
+                await self.product_repo.increment_stock_atomic(product_id, quantity)
+            raise
         
         return InvoiceResponse(**created_invoice.dict())
     

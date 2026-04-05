@@ -37,8 +37,8 @@ export const productsApi = {
     await axiosInstance.delete(`/products/${id}`)
   },
 
-  lookupBySKU: async (sku: string): Promise<Product> => {
-    const response = await axiosInstance.get<ApiResponse<Product>>(`/products/scan/${sku}`)
+  lookupByCode: async (code: string): Promise<Product> => {
+    const response = await axiosInstance.get<ApiResponse<Product>>(`/products/scan/by-code/${encodeURIComponent(code)}`)
     return response.data.data
   },
 

@@ -14,6 +14,23 @@ from app.core.exceptions import NotFoundException
 
 router = APIRouter()
 
+
+@router.get("/scan/by-code/{code}")
+async def lookup_product_by_code(
+    code: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Lookup product by barcode, SKU, or product ID from scanner input."""
+    product_repo = ProductRepository(db)
+    normalized_code = ProductService.normalize_scan_code(code)
+    product = await product_repo.get_by_scan_code(normalized_code)
+
+    if not product:
+        raise NotFoundException(f"Product with code {normalized_code} not found")
+
+    return ResponseModel(data=product)
+
 @router.get("", response_model=PaginatedResponse[ProductResponse])
 async def list_products(
     page: int = Query(1, ge=1),
@@ -103,9 +120,10 @@ async def get_product_qr(
     product_service = ProductService(db)
     product = await product_service.get_product(product_id)
     
-    # Generate QR for the SKU
-    qr_bytes = QRService.generate_qr_code(product.sku)
-    return Response(content=qr_bytes, media_type="image/png")
+    # Generate barcode image for the product barcode when available, otherwise SKU.
+    barcode_value = product.barcode or product.sku
+    barcode_bytes = QRService.generate_barcode(barcode_value)
+    return Response(content=barcode_bytes, media_type="image/png")
 
 @router.get("/{product_id}/label")
 async def get_product_label(
@@ -122,22 +140,8 @@ async def get_product_label(
     # Generate Label
     label_bytes = QRService.generate_product_label(
         product_name=product.name,
-        sku=product.sku,
+        sku=(product.barcode or product.sku),
         price=product.selling_price
     )
     return Response(content=label_bytes, media_type="image/png")
 
-@router.get("/scan/{sku}")
-async def lookup_product_by_sku(
-    sku: str,
-    db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
-):
-    """Lookup product by SKU from QR code scan"""
-    product_repo = ProductRepository(db)
-    product = await product_repo.get_by_sku(sku)
-    
-    if not product:
-        raise NotFoundException(f"Product with SKU {sku} not found")
-    
-    return ResponseModel(data=product)

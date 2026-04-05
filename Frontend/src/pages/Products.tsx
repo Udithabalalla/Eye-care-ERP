@@ -6,9 +6,11 @@ import { Table, TableCard, PaginationPageDefault, Button, Input, BadgeWithDot, S
 import Loading from '@/components/common/Loading'
 import ProductModal from '@/components/products/ProductModal'
 import StockAdjustmentModal from '@/components/products/StockAdjustmentModal'
+import QRScanner from '@/components/common/QRScanner'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
 import { Key } from 'react-aria-components'
+import toast from 'react-hot-toast'
 
 const Products = () => {
   const [page, setPage] = useState(1)
@@ -18,6 +20,7 @@ const Products = () => {
   const [lowStockFilter] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [isFromQRScan, setIsFromQRScan] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -50,12 +53,12 @@ const Products = () => {
     setIsStockModalOpen(true)
   }
 
-  const handleQRScan = async (sku: string) => {
+  const handleQRScan = async (scannedCode: string) => {
     try {
-      const product = await productsApi.lookupBySKU(sku)
-      setSelectedProduct(product)
-      setIsFromQRScan(true)
-      setIsStockModalOpen(true)
+      const product = await productsApi.lookupByCode(scannedCode)
+      setSearch(product.sku || product.name)
+      setPage(1)
+      toast.success(`Found product: ${product.name}`)
       setBarcodeInput('') // Clear input after successful scan
     } catch (error) {
       console.error('Product not found:', error)
@@ -136,6 +139,9 @@ const Products = () => {
                   }}
                 />
               </div>
+              <Button onClick={() => setIsScannerOpen(true)} iconLeading={QrCode01} size="sm">
+                Scan Barcode
+              </Button>
               <Input
                 placeholder="Search products..."
                 value={search}
@@ -310,6 +316,12 @@ const Products = () => {
           } : undefined}
         />
       )}
+
+      <QRScanner
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleQRScan}
+      />
     </div>
   )
 }

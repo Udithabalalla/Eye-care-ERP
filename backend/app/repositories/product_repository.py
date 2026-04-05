@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
 from datetime import datetime, timezone
+from pymongo import ReturnDocument
 from app.repositories.base import BaseRepository
 from app.models.product import ProductModel
 
@@ -23,6 +24,29 @@ class ProductRepository(BaseRepository):
         if product_dict:
             return ProductModel(**product_dict)
         return None
+
+    async def get_by_barcode(self, barcode: str) -> Optional[ProductModel]:
+        """Get product by barcode"""
+        product_dict = await self.get_one({"barcode": barcode})
+        if product_dict:
+            return ProductModel(**product_dict)
+        return None
+
+    async def get_by_scan_code(self, code: str) -> Optional[ProductModel]:
+        """Lookup product by barcode first, then SKU, then product ID."""
+        code = code.strip()
+        if not code:
+            return None
+
+        product = await self.get_by_barcode(code)
+        if product:
+            return product
+
+        product = await self.get_by_sku(code)
+        if product:
+            return product
+
+        return await self.get_by_product_id(code)
     
     async def list_products(
         self,
@@ -78,6 +102,43 @@ class ProductRepository(BaseRepository):
             {"product_id": product_id},
             {"current_stock": new_stock, "updated_at": datetime.now(timezone.utc)}
         )
+
+    async def decrement_stock_atomic(self, product_id: str, quantity: int) -> bool:
+        """Atomically decrease stock only if enough stock exists."""
+        if quantity <= 0:
+            return False
+
+        updated_doc = await self.collection.find_one_and_update(
+            {
+                "product_id": product_id,
+                "is_active": True,
+                "current_stock": {"$gte": quantity}
+            },
+            {
+                "$inc": {"current_stock": -quantity},
+                "$set": {"updated_at": datetime.now(timezone.utc)}
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return updated_doc is not None
+
+    async def increment_stock_atomic(self, product_id: str, quantity: int) -> bool:
+        """Atomically increase stock (used for rollback/reversal)."""
+        if quantity <= 0:
+            return False
+
+        updated_doc = await self.collection.find_one_and_update(
+            {
+                "product_id": product_id,
+                "is_active": True,
+            },
+            {
+                "$inc": {"current_stock": quantity},
+                "$set": {"updated_at": datetime.now(timezone.utc)}
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return updated_doc is not None
     
     async def get_next_product_number(self) -> int:
         """Get next product number for ID generation"""

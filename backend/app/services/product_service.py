@@ -14,6 +14,25 @@ class ProductService:
     
     def __init__(self, db: AsyncIOMotorDatabase):
         self.product_repo = ProductRepository(db)
+
+    @staticmethod
+    def _generate_default_barcode(product_id: str, sku: str) -> str:
+        """Generate a stable barcode string when user does not provide one."""
+        return f"{product_id}-{sku}".upper()
+
+    @staticmethod
+    def normalize_scan_code(scanned_code: str) -> str:
+        """Normalize scanner payload into a lookup code."""
+        code = scanned_code.strip()
+        if not code:
+            return code
+
+        # Support prefixed payloads like "SKU:CLS-360" or "BARCODE:..."
+        for prefix in ("SKU:", "BARCODE:", "PRODUCT_ID:"):
+            if code.upper().startswith(prefix):
+                return code[len(prefix):].strip()
+
+        return code
     
     async def list_products(
         self,
@@ -69,6 +88,10 @@ class ProductService:
         product_dict = product_data.dict()
         if product_dict.get('expiry_date'):
             product_dict['expiry_date'] = date_to_datetime(product_dict['expiry_date'])
+
+        # Auto-generate barcode when missing so each product is scannable.
+        if not product_dict.get('barcode'):
+            product_dict['barcode'] = self._generate_default_barcode(product_id, product_dict['sku'])
         
         # Create product model
         product_model = ProductModel(
