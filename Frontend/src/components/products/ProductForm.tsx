@@ -151,9 +151,19 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
             )}
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-secondary mb-2">Barcode</label>
-            <input {...register('barcode')} className="input" />
+            {product?.barcode ? (
+              <input
+                value={product.barcode}
+                className="input bg-secondary/60"
+                readOnly
+              />
+            ) : (
+              <div className="rounded-lg border border-dashed border-secondary bg-secondary/30 px-4 py-3 text-sm text-tertiary">
+                Barcode will be generated automatically when the product is saved.
+              </div>
+            )}
           </div>
         </div>
       </div>
