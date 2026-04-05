@@ -6,6 +6,7 @@ import {
   Calendar,
   File06,
   Package,
+  Truck01,
   Receipt,
   BarChart07,
   LogOut01,
@@ -46,6 +47,11 @@ const navigationSections: NavSection[] = [
   {
     title: 'Inventory & Sales',
     items: [
+      { name: 'Suppliers', path: '/suppliers', icon: Users01 },
+      { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck01 },
+      { name: 'Stock Receipts', path: '/stock-receipts', icon: Package },
+      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: File06 },
+      { name: 'Supplier Payments', path: '/supplier-payments', icon: Receipt },
       { name: 'Products', path: '/products', icon: Package },
       { name: 'Invoices', path: '/invoices', icon: Receipt },
     ],
