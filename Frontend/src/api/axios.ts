@@ -3,6 +3,7 @@ import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'ax
 import toast from 'react-hot-toast'
 
 const HOSTED_API_BASE_URL = 'https://eye-care-erp-production.up.railway.app/api/v1'
+const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
 
 const resolveApiBaseUrl = (): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
@@ -124,6 +125,22 @@ axiosInstance.interceptors.response.use(
           toast.error(data.message || 'An error occurred')
       }
     } else if (error.request) {
+      const hasToken = Boolean(localStorage.getItem('token'))
+      const alreadyRecovered = localStorage.getItem(AUTH_RECOVERY_KEY) === '1'
+
+      // In hosted environments, stale/invalid persisted auth state can lead to repeated failed requests.
+      // Attempt one automatic recovery by clearing auth and forcing a clean login.
+      if (hasToken && !alreadyRecovered && !window.location.pathname.includes('/login')) {
+        localStorage.setItem(AUTH_RECOVERY_KEY, '1')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('auth-storage')
+        toast.error('Connection session reset. Please login again.')
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
+      localStorage.removeItem(AUTH_RECOVERY_KEY)
       toast.error('No response from server. Please check your connection.')
     } else {
       toast.error('An error occurred. Please try again.')
