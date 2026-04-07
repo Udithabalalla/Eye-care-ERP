@@ -37,7 +37,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # CORS
 ENV = os.getenv("ENVIRONMENT", "production").lower()
 
-default_prod_origins = [
+default_allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
     "https://eye-care-erp.vercel.app",
     "https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app",
 ]
@@ -45,7 +47,8 @@ default_prod_origins = [
 if ENV in {"development", "dev", "local"}:
     origins = ["*"]
 else:
-    origins = settings.cors_origins_list or default_prod_origins
+    configured_origins = settings.cors_origins_list
+    origins = list(dict.fromkeys(configured_origins + default_allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,
