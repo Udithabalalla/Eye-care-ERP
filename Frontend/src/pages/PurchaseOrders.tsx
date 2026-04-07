@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, SearchLg } from '@untitledui/icons'
 import toast from 'react-hot-toast'
-import { TableCard, Table, Input } from '@/components/ui'
+import { TableCard, Table, Input, BadgeWithDot } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
@@ -14,6 +14,25 @@ const PurchaseOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
   const [search, setSearch] = useState('')
   const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }) })
+
+  const getStatusColor = (status: PurchaseOrder['status']) => {
+    switch (status) {
+      case 'Approved':
+        return 'success'
+      case 'Draft':
+        return 'gray'
+      case 'Sent':
+        return 'brand'
+      case 'Received':
+        return 'warning'
+      case 'Closed':
+        return 'error'
+      default:
+        return 'gray'
+    }
+  }
+
+  const getPresenceColor = (present: boolean) => (present ? 'success' : 'gray')
 
   const approveOrder = async (order: PurchaseOrder) => {
     try {
@@ -57,6 +76,7 @@ const PurchaseOrders = () => {
               <Table.Head label="Order ID" isRowHeader />
               <Table.Head label="Supplier" />
               <Table.Head label="Status" />
+              <Table.Head label="Summary" />
               <Table.Head label="Total" />
               <Table.Head label="Actions" />
             </Table.Header>
@@ -65,7 +85,27 @@ const PurchaseOrders = () => {
                 <Table.Row key={order.id}>
                   <Table.Cell>{order.id}</Table.Cell>
                   <Table.Cell>{order.supplier_id}</Table.Cell>
-                  <Table.Cell>{order.status}</Table.Cell>
+                  <Table.Cell>
+                    <BadgeWithDot size="sm" color={getStatusColor(order.status)}>
+                      {order.status}
+                    </BadgeWithDot>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex flex-wrap gap-1">
+                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.is_locked))}>
+                        {order.is_locked ? 'Locked' : 'Open'}
+                      </BadgeWithDot>
+                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.buyer_information?.company_name))}>
+                        Buyer
+                      </BadgeWithDot>
+                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.shipping_information?.delivery_address || order.shipping_information?.ship_to_location))}>
+                        Ship
+                      </BadgeWithDot>
+                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.authorization?.approved_by))}>
+                        Auth
+                      </BadgeWithDot>
+                    </div>
+                  </Table.Cell>
                   <Table.Cell>{order.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
                     <div className="flex gap-2">
