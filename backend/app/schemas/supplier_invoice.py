@@ -15,7 +15,7 @@ class SupplierInvoiceCreate(BaseModel):
 
 class SupplierInvoiceUpdate(BaseModel):
     status: Optional[str] = None
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
 
 
 class SupplierInvoiceResponse(BaseModel):
