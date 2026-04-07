@@ -40,7 +40,7 @@ const SupplierPayments = () => {
                   <Table.Cell>{payment.payment_method}</Table.Cell>
                   <Table.Cell>{payment.amount_paid.toFixed(2)}</Table.Cell>
                   <Table.Cell>
-                    <CommonButton variant="outline" size="sm" onClick={() => setSelectedPayment(payment)}>View</CommonButton>
+                    <CommonButton variant="outline" size="sm" onClick={() => { setSelectedPayment(payment); setIsFormOpen(true) }}>View</CommonButton>
                   </Table.Cell>
                 </Table.Row>
               ))}

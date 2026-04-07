@@ -53,8 +53,14 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
   })
 
   const save = () => {
-    if (invoice) updateMutation.mutate(form)
-    else createMutation.mutate(form)
+    if (!form.supplier_id) { toast.error('Please select a supplier'); return }
+    if (!form.invoice_number) { toast.error('Invoice number is required'); return }
+    const payload = {
+      ...form,
+      due_date: form.due_date || undefined,
+    }
+    if (invoice) updateMutation.mutate(payload)
+    else createMutation.mutate(payload)
   }
 
   return (
@@ -80,7 +86,7 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
         </div>
         <Input label="Invoice Number" value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} />
         <Input label="Invoice Date" type="datetime-local" value={form.invoice_date.slice(0, 16)} onChange={(e) => setForm({ ...form, invoice_date: new Date(e.target.value).toISOString() })} />
-        <Input label="Due Date" type="date" value={form.due_date || ''} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+        <Input label="Due Date" type="datetime-local" value={form.due_date ? form.due_date.slice(0, 16) : ''} onChange={(e) => setForm({ ...form, due_date: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
         <Input label="Total Amount" type="number" step="0.01" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: Number(e.target.value) })} />
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">Status</label>

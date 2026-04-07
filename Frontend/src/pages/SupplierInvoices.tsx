@@ -40,7 +40,7 @@ const SupplierInvoices = () => {
                   <Table.Cell>{invoice.status}</Table.Cell>
                   <Table.Cell>{invoice.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
-                    <CommonButton variant="outline" size="sm" onClick={() => setSelectedInvoice(invoice)}>Edit</CommonButton>
+                    <CommonButton variant="outline" size="sm" onClick={() => { setSelectedInvoice(invoice); setIsFormOpen(true) }}>Edit</CommonButton>
                   </Table.Cell>
                 </Table.Row>
               ))}

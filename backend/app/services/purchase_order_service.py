@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 import math
-from datetime import datetime
+from datetime import datetime, date, timezone
 
 from app.repositories.purchase_order_repository import PurchaseOrderRepository
 from app.repositories.supplier_repository import SupplierRepository
@@ -11,6 +11,15 @@ from app.schemas.responses import PaginatedResponse
 from app.models.purchase_order import PurchaseOrderModel, PurchaseOrderItemModel
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.utils.helpers import generate_id
+
+
+def _date_to_datetime(d: Optional[date]) -> Optional[datetime]:
+    """Convert a date to a UTC midnight datetime so BSON can store it."""
+    if d is None:
+        return None
+    if isinstance(d, datetime):
+        return d
+    return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
 
 
 class PurchaseOrderService:
@@ -64,8 +73,13 @@ class PurchaseOrderService:
             created_by=created_by,
             items=item_models,
         )
-        created = await self.repo.create(order_model.dict())
-        return self._to_response(PurchaseOrderModel(**created))
+        doc = order_model.dict()
+        # Convert date -> datetime so BSON/Motor can store them
+        doc["expected_delivery_date"] = _date_to_datetime(doc.get("expected_delivery_date"))
+        await self.repo.create(doc)
+        # Fetch freshly from DB to get server-set timestamps
+        created_order = await self.repo.get_by_order_id(order_id)
+        return self._to_response(created_order)
 
     async def get_purchase_order(self, order_id: str) -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)

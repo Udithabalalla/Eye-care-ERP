@@ -1,10 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 from app.models.common import TimestampModel
 
 
 class PurchaseOrderItemModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     purchase_order_id: str
     product_id: str
@@ -13,10 +14,11 @@ class PurchaseOrderItemModel(BaseModel):
 
 
 class PurchaseOrderModel(TimestampModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     supplier_id: str
     order_date: datetime
-    expected_delivery_date: Optional[date] = None
+    expected_delivery_date: Optional[datetime] = None
     status: str = Field(default="Draft")
     total_amount: float = Field(default=0, ge=0)
     created_by: str

@@ -38,7 +38,10 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       toast.success('Purchase order created successfully')
       onSuccess()
     },
-    onError: () => toast.error('Failed to create purchase order'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.detail || 'Failed to create purchase order'
+      toast.error(msg)
+    },
   })
 
   const updateStatus = useMutation({
@@ -48,13 +51,22 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       toast.success('Purchase order updated successfully')
       onSuccess()
     },
+    onError: () => toast.error('Failed to update purchase order'),
   })
 
   const totalAmount = form.items.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0)
 
   const save = () => {
+    if (!form.supplier_id) { toast.error('Please select a supplier'); return }
+    const hasInvalidItem = form.items.some(i => !i.product_id || i.quantity <= 0 || i.unit_cost < 0)
+    if (hasInvalidItem) { toast.error('Please fill all item fields properly'); return }
+    // Send null for empty delivery date (not empty string which causes 422)
+    const payload: PurchaseOrderFormData = {
+      ...form,
+      expected_delivery_date: form.expected_delivery_date || undefined,
+    }
     if (order) updateStatus.mutate('Sent')
-    else createMutation.mutate(form)
+    else createMutation.mutate(payload)
   }
 
   return (
@@ -66,7 +78,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       footer={(
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={save}>Save</Button>
+          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending}>Save</Button>
         </div>
       )}
     >

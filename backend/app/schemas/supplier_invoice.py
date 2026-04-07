@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime
 
 
 class SupplierInvoiceCreate(BaseModel):
@@ -9,7 +9,7 @@ class SupplierInvoiceCreate(BaseModel):
     invoice_number: str = Field(..., min_length=1)
     invoice_date: datetime
     total_amount: float = Field(..., ge=0)
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
     status: str = "Unpaid"
 
 
@@ -25,7 +25,7 @@ class SupplierInvoiceResponse(BaseModel):
     invoice_number: str
     invoice_date: datetime
     total_amount: float
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
     status: str
     created_at: datetime
     updated_at: datetime

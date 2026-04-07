@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 import math
+from datetime import datetime, date, timezone
 
 from app.repositories.supplier_invoice_repository import SupplierInvoiceRepository
 from app.repositories.supplier_repository import SupplierRepository
@@ -9,6 +10,17 @@ from app.schemas.responses import PaginatedResponse
 from app.models.supplier_invoice import SupplierInvoiceModel
 from app.core.exceptions import NotFoundException
 from app.utils.helpers import generate_id
+
+
+def _date_to_datetime(d) -> Optional[datetime]:
+    """Convert a date to UTC midnight datetime for BSON compatibility."""
+    if d is None:
+        return None
+    if isinstance(d, datetime):
+        return d
+    if isinstance(d, date):
+        return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+    return d
 
 
 class SupplierInvoiceService:
@@ -35,14 +47,20 @@ class SupplierInvoiceService:
         next_number = await self.repo.count({}) + 1
         invoice_id = generate_id("SINV", next_number)
         invoice = SupplierInvoiceModel(id=invoice_id, **data.dict())
-        created = await self.repo.create(invoice.dict())
-        return SupplierInvoiceResponse(**created)
+        doc = invoice.dict()
+        # Convert date -> datetime for BSON compatibility
+        doc["due_date"] = _date_to_datetime(doc.get("due_date"))
+        await self.repo.create(doc)
+        created = await self.repo.get_by_invoice_id(invoice_id)
+        return SupplierInvoiceResponse(**created.dict())
 
     async def update_supplier_invoice(self, invoice_id: str, data: SupplierInvoiceUpdate) -> SupplierInvoiceResponse:
         existing = await self.repo.get_by_invoice_id(invoice_id)
         if not existing:
             raise NotFoundException(f"Supplier invoice {invoice_id} not found")
         update_dict = data.dict(exclude_unset=True)
+        if "due_date" in update_dict:
+            update_dict["due_date"] = _date_to_datetime(update_dict["due_date"])
         if update_dict:
             await self.repo.update({"id": invoice_id}, update_dict)
         updated = await self.repo.get_by_invoice_id(invoice_id)

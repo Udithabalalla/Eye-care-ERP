@@ -34,11 +34,21 @@ const SupplierPaymentForm = ({ payment, onSuccess, onCancel }: SupplierPaymentFo
     mutationFn: (data: SupplierPaymentFormData) => suppliersApi.createSupplierPayment(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-payments'] })
+      queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] })
       toast.success('Supplier payment recorded successfully')
       onSuccess()
     },
-    onError: () => toast.error('Failed to record supplier payment'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.detail || 'Failed to record supplier payment'
+      toast.error(msg)
+    },
   })
+
+  const handleSave = () => {
+    if (!form.invoice_id) { toast.error('Please select an invoice'); return }
+    if (form.amount_paid <= 0) { toast.error('Amount paid must be greater than 0'); return }
+    mutation.mutate(form)
+  }
 
   return (
     <Modal
@@ -49,7 +59,7 @@ const SupplierPaymentForm = ({ payment, onSuccess, onCancel }: SupplierPaymentFo
       footer={(
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={() => mutation.mutate(form)}>Save</Button>
+          <Button onClick={handleSave} isLoading={mutation.isPending}>Save</Button>
         </div>
       )}
     >

@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import Optional
 from app.models.common import TimestampModel
 
 
 class SupplierModel(TimestampModel):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(..., description="Unique supplier identifier")
     supplier_name: str = Field(..., description="Supplier display name")
     company_name: Optional[str] = None

@@ -1,10 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 from app.models.common import TimestampModel
 
 
 class SupplierPaymentModel(TimestampModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     invoice_id: str
     payment_date: datetime

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 
 
 class PurchaseOrderItemCreate(BaseModel):
@@ -12,7 +12,7 @@ class PurchaseOrderItemCreate(BaseModel):
 class PurchaseOrderCreate(BaseModel):
     supplier_id: str
     order_date: datetime
-    expected_delivery_date: Optional[date] = None
+    expected_delivery_date: Optional[datetime] = None
     items: List[PurchaseOrderItemCreate] = Field(..., min_length=1)
 
 
@@ -28,7 +28,7 @@ class PurchaseOrderResponse(BaseModel):
     id: str
     supplier_id: str
     order_date: datetime
-    expected_delivery_date: Optional[date] = None
+    expected_delivery_date: Optional[datetime] = None
     status: str
     total_amount: float
     created_by: str
