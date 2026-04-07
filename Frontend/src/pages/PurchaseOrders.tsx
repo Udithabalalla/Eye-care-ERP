@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, SearchLg } from '@untitledui/icons'
 import toast from 'react-hot-toast'
-import { TableCard, Table, Input, BadgeWithDot } from '@/components/ui'
+import { TableCard, Table, Input, BadgeWithDot, Tooltip, TooltipTrigger } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
@@ -33,6 +33,25 @@ const PurchaseOrders = () => {
   }
 
   const getPresenceColor = (present: boolean) => (present ? 'success' : 'gray')
+
+  const getCompletion = (order: PurchaseOrder) => {
+    const sections = [
+      Boolean(order.buyer_information?.company_name),
+      Boolean(order.supplier_information?.supplier_name || order.supplier_information?.company_name),
+      Boolean(order.shipping_information?.delivery_address || order.shipping_information?.ship_to_location),
+      order.items.length > 0,
+      Boolean(order.order_summary?.total_amount || order.total_amount),
+      Boolean(order.payment_terms?.payment_terms || order.payment_terms?.payment_method || order.payment_terms?.currency),
+      Boolean(order.notes?.supplier_notes || order.notes?.internal_notes),
+      Boolean(order.authorization?.approved_by),
+      Boolean(order.footer?.company_policy_note || order.footer?.contact_information),
+    ]
+
+    const completed = sections.filter(Boolean).length
+    const total = sections.length
+    const percentage = Math.round((completed / total) * 100)
+    return { completed, total, percentage }
+  }
 
   const approveOrder = async (order: PurchaseOrder) => {
     try {
@@ -105,6 +124,29 @@ const PurchaseOrders = () => {
                         Auth
                       </BadgeWithDot>
                     </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {(() => {
+                      const completion = getCompletion(order)
+                      return (
+                        <Tooltip
+                          title={`${completion.percentage}% complete`}
+                          description={`${completion.completed}/${completion.total} sections filled`}
+                          placement="top"
+                        >
+                          <TooltipTrigger className="group block w-full min-w-40">
+                            <div className="rounded-full bg-surface-2 p-1 ring-1 ring-border transition-colors group-hover:ring-brand-200">
+                              <div className="relative h-2 overflow-hidden rounded-full bg-border">
+                                <div
+                                  className="h-full rounded-full bg-brand-600 transition-all duration-300"
+                                  style={{ width: `${completion.percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                        </Tooltip>
+                      )
+                    })()}
                   </Table.Cell>
                   <Table.Cell>{order.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
