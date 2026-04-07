@@ -195,7 +195,7 @@ class PurchaseOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if status not in {"Approved", "Sent"}:
+        if status not in {"Approved", "Sent", "Closed"}:
             raise BadRequestException("Invalid purchase order status")
         if status == "Approved":
             if order.status != "Draft":
@@ -226,6 +226,17 @@ class PurchaseOrderService:
                     "is_locked": True,
                 },
             )
+        elif status == "Closed":
+            if order.status != "Received":
+                raise BadRequestException("Only Received purchase orders can be closed")
+
+            await self.repo.update(
+                {"id": order_id},
+                {
+                    "status": "Closed",
+                    "is_locked": True,
+                },
+            )
 
         updated = await self.repo.get_by_order_id(order_id)
         return self._to_response(updated)
@@ -234,8 +245,8 @@ class PurchaseOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if order.status == "Received":
-            raise BadRequestException("Purchase order already received")
+        if order.status != "Sent":
+            raise BadRequestException("Only Sent purchase orders can be received")
 
         item_map = {item.product_id: item for item in order.items}
         for receipt_item in receipt.items:

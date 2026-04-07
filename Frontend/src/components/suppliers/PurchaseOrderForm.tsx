@@ -150,6 +150,8 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       ? 'Approve'
       : order.status === 'Approved'
         ? 'Send'
+        : order.status === 'Received'
+          ? 'Close'
         : order.status
     : 'Save'
 
@@ -236,6 +238,8 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         updateStatus.mutate('Approved')
       } else if (order.status === 'Approved') {
         updateStatus.mutate('Sent')
+      } else if (order.status === 'Received') {
+        updateStatus.mutate('Closed')
       } else {
         toast.error('Approved purchase orders are locked')
         return
@@ -253,7 +257,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       footer={(
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending} disabled={Boolean(order && order.status !== 'Draft' && order.status !== 'Approved')}> 
+          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending} disabled={Boolean(order && order.status !== 'Draft' && order.status !== 'Approved' && order.status !== 'Received')}> 
             {nextAction}
           </Button>
         </div>
@@ -344,6 +348,8 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         <p className="text-sm text-secondary">Items Total: {totalAmount.toFixed(2)}</p>
         {order?.status === 'Approved' && <p className="text-sm font-medium text-success-600">This purchase order is approved and locked for edits. It can now be sent.</p>}
         {order?.status === 'Sent' && <p className="text-sm font-medium text-brand-600">This purchase order has been sent.</p>}
+        {order?.status === 'Received' && <p className="text-sm font-medium text-warning-600">Stock has been received. You can now close this purchase order.</p>}
+        {order?.status === 'Closed' && <p className="text-sm font-medium text-error-600">This purchase order is closed.</p>}
       </div>
 
       <div className="mt-6 space-y-3">

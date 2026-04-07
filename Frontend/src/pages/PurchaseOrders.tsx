@@ -53,13 +53,23 @@ const PurchaseOrders = () => {
     return { completed, total, percentage }
   }
 
-  const changeStatus = async (order: PurchaseOrder, status: 'Approved' | 'Sent') => {
+  const changeStatus = async (order: PurchaseOrder, status: 'Approved' | 'Sent' | 'Closed') => {
     try {
       await suppliersApi.updatePurchaseOrderStatus(order.id, status)
-      toast.success(status === 'Approved' ? 'Purchase order approved' : 'Purchase order sent')
+      const successMessage = status === 'Approved'
+        ? 'Purchase order approved'
+        : status === 'Sent'
+          ? 'Purchase order sent'
+          : 'Purchase order closed'
+      toast.success(successMessage)
       refetch()
     } catch {
-      toast.error(status === 'Approved' ? 'Failed to approve purchase order' : 'Failed to send purchase order')
+      const errorMessage = status === 'Approved'
+        ? 'Failed to approve purchase order'
+        : status === 'Sent'
+          ? 'Failed to send purchase order'
+          : 'Failed to close purchase order'
+      toast.error(errorMessage)
     }
   }
 
@@ -157,6 +167,8 @@ const PurchaseOrders = () => {
                         <CommonButton size="sm" onClick={() => changeStatus(order, 'Approved')}>Approve</CommonButton>
                       ) : order.status === 'Approved' ? (
                         <CommonButton size="sm" onClick={() => changeStatus(order, 'Sent')}>Send</CommonButton>
+                      ) : order.status === 'Received' ? (
+                        <CommonButton size="sm" onClick={() => changeStatus(order, 'Closed')}>Close</CommonButton>
                       ) : (
                         <CommonButton size="sm" disabled>{order.status}</CommonButton>
                       )}
