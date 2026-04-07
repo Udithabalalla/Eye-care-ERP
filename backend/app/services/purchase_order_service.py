@@ -258,6 +258,15 @@ class PurchaseOrderService:
         return pdf_bytes, filename
 
     def _to_response(self, order: PurchaseOrderModel) -> PurchaseOrderResponse:
+        def dump_value(value):
+            if value is None:
+                return None
+            if hasattr(value, "model_dump"):
+                return value.model_dump(mode="json")
+            if hasattr(value, "dict"):
+                return value.dict()
+            return value
+
         return PurchaseOrderResponse(
             id=order.id,
             supplier_id=order.supplier_id,
@@ -268,14 +277,14 @@ class PurchaseOrderService:
             created_by=order.created_by,
             is_locked=order.is_locked,
             items=[PurchaseOrderItemResponse(**item.dict()) for item in order.items],
-            buyer_information=order.buyer_information,
-            supplier_information=order.supplier_information,
-            shipping_information=order.shipping_information,
-            order_summary=order.order_summary,
-            payment_terms=order.payment_terms,
-            notes=order.notes,
-            authorization=order.authorization,
-            footer=order.footer,
+            buyer_information=dump_value(order.buyer_information),
+            supplier_information=dump_value(order.supplier_information),
+            shipping_information=dump_value(order.shipping_information),
+            order_summary=dump_value(order.order_summary),
+            payment_terms=dump_value(order.payment_terms),
+            notes=dump_value(order.notes),
+            authorization=dump_value(order.authorization),
+            footer=dump_value(order.footer),
             created_at=order.created_at,
             updated_at=order.updated_at,
         )
