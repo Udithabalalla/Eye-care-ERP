@@ -2,7 +2,22 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import toast from 'react-hot-toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+const HOSTED_API_BASE_URL = 'https://eye-care-erp-production.up.railway.app/api/v1'
+
+const resolveApiBaseUrl = (): string => {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (configuredBaseUrl) return configuredBaseUrl
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+    if (!isLocalHost) return HOSTED_API_BASE_URL
+  }
+
+  return 'http://localhost:8000/api/v1'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 // Request deduplication map
 const pendingRequests = new Map<string, AbortController>()
