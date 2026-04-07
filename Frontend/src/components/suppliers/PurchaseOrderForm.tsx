@@ -7,6 +7,7 @@ import Button from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
 import { productsApi } from '@/api/products.api'
 import { PurchaseOrder, PurchaseOrderFormData } from '@/types/supplier.types'
+import { getSavedBuyerInformation } from '@/utils/poSettings'
 
 interface PurchaseOrderFormProps {
   order?: PurchaseOrder | null
@@ -18,7 +19,12 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
   const { data: products } = useQuery({ queryKey: ['products', 'all'], queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }) })
-  const [form, setForm] = useState<PurchaseOrderFormData>({ supplier_id: '', order_date: new Date().toISOString(), items: [{ product_id: '', quantity: 1, unit_cost: 0 }] })
+  const [form, setForm] = useState<PurchaseOrderFormData>({
+    supplier_id: '',
+    order_date: new Date().toISOString(),
+    items: [{ product_id: '', quantity: 1, unit_cost: 0 }],
+    buyer_information: getSavedBuyerInformation(),
+  })
 
   useEffect(() => {
     if (order) {
@@ -27,6 +33,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         order_date: order.order_date,
         expected_delivery_date: order.expected_delivery_date,
         items: order.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity, unit_cost: item.unit_cost })),
+        buyer_information: getSavedBuyerInformation(),
       })
     }
   }, [order])

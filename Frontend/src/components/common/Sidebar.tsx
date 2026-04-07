@@ -12,6 +12,7 @@ import {
   LogOut01,
   UserCheck01,
   ChevronSelectorVertical,
+  Settings01,
 } from '@untitledui/icons'
 import { cn } from '@/utils/helpers'
 import { useAuth } from '@/hooks/useAuth'
@@ -60,6 +61,12 @@ const navigationSections: NavSection[] = [
     title: 'Analytics',
     items: [
       { name: 'Reports', path: '/reports', icon: BarChart07 },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { name: 'PO Header Settings', path: '/settings', icon: Settings01 },
     ],
   },
 ]

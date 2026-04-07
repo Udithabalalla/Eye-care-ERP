@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import io
 
 from app.config.database import get_database
 from app.api.deps import get_current_user
@@ -121,6 +123,20 @@ async def receive_purchase_order(
 ):
     order = await PurchaseOrderService(db).receive_stock(order_id, receipt, current_user.user_id)
     return ResponseModel(message="Stock received successfully", data=order)
+
+
+@router.get("/purchase-orders/{order_id}/pdf")
+async def download_purchase_order_pdf(
+    order_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    content, filename = await PurchaseOrderService(db).generate_purchase_order_pdf(order_id)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/supplier-invoices", response_model=PaginatedResponse[SupplierInvoiceResponse])

@@ -64,6 +64,13 @@ export const suppliersApi = {
     return response.data.data
   },
 
+  downloadPurchaseOrderPdf: async (id: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/purchase-orders/${id}/pdf`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
   getSupplierInvoices: async (params: { page?: number; page_size?: number; supplier_id?: string; status?: string }): Promise<PaginatedResponse<SupplierInvoice>> => {
     const response = await axiosInstance.get<PaginatedResponse<SupplierInvoice>>('/supplier-invoices', { params })
     return response.data

@@ -21,6 +21,7 @@ const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'))
 const StockReceipts = lazy(() => import('./pages/StockReceipts'))
 const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
+const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
 
 // Suspense fallback component
 const PageLoader = () => <Loading fullScreen text="Loading..." />
@@ -55,6 +56,7 @@ function App() {
             <Route path="/stock-receipts" element={<StockReceipts />} />
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />
             <Route path="/supplier-payments" element={<SupplierPayments />} />
+            <Route path="/settings" element={<ClinicSettings />} />
           </Route>
         </Route>
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, SearchLg } from '@untitledui/icons'
+import toast from 'react-hot-toast'
 import { TableCard, Table, Input } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import CommonButton from '@/components/common/Button'
@@ -13,6 +14,23 @@ const PurchaseOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
   const [search, setSearch] = useState('')
   const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }) })
+
+  const downloadPdf = async (order: PurchaseOrder) => {
+    try {
+      const blob = await suppliersApi.downloadPurchaseOrderPdf(order.id)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${order.id}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Purchase order PDF downloaded')
+    } catch {
+      toast.error('Failed to download purchase order PDF')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -40,7 +58,10 @@ const PurchaseOrders = () => {
                   <Table.Cell>{order.status}</Table.Cell>
                   <Table.Cell>{order.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
-                    <CommonButton variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setIsOpen(true) }}>Edit</CommonButton>
+                    <div className="flex gap-2">
+                      <CommonButton variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setIsOpen(true) }}>Edit</CommonButton>
+                      <CommonButton variant="secondary" size="sm" onClick={() => downloadPdf(order)}>Download PDF</CommonButton>
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               ))}

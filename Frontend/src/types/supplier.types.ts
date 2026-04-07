@@ -44,6 +44,15 @@ export interface PurchaseOrder {
   updated_at: string
 }
 
+export interface BuyerInformation {
+  company_name?: string
+  company_logo?: string
+  company_address?: string
+  phone?: string
+  email?: string
+  tax_number?: string
+}
+
 export interface PurchaseOrderFormItem {
   product_id: string
   quantity: number
@@ -55,6 +64,7 @@ export interface PurchaseOrderFormData {
   order_date: string
   expected_delivery_date?: string
   items: PurchaseOrderFormItem[]
+  buyer_information?: BuyerInformation
 }
 
 export interface ReceiveStockItem {
