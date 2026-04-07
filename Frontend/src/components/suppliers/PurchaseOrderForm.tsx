@@ -145,6 +145,75 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   const summaryTax = Math.max(0, (summarySubtotal - discount) * taxRate)
   const summaryTotal = Math.max(0, summarySubtotal - discount + summaryTax + shippingCost)
 
+  const readonlySections = order ? [
+    {
+      title: 'Buyer Information',
+      rows: [
+        ['Company Name', order.buyer_information?.company_name || '-'],
+        ['Logo', order.buyer_information?.company_logo || '-'],
+        ['Address', order.buyer_information?.company_address || '-'],
+        ['Phone', order.buyer_information?.phone || '-'],
+        ['Email', order.buyer_information?.email || '-'],
+        ['Tax Number', order.buyer_information?.tax_number || '-'],
+      ],
+    },
+    {
+      title: 'Supplier Information',
+      rows: [
+        ['Supplier ID', order.supplier_information?.supplier_id || order.supplier_id || '-'],
+        ['Supplier Name', order.supplier_information?.supplier_name || '-'],
+        ['Company Name', order.supplier_information?.company_name || '-'],
+        ['Contact Person', order.supplier_information?.contact_person || '-'],
+        ['Phone', order.supplier_information?.phone || '-'],
+        ['Email', order.supplier_information?.email || '-'],
+        ['Address', order.supplier_information?.address || '-'],
+      ],
+    },
+    {
+      title: 'Shipping Information',
+      rows: [
+        ['Ship To Location', order.shipping_information?.ship_to_location || '-'],
+        ['Delivery Address', order.shipping_information?.delivery_address || '-'],
+        ['Receiving Department', order.shipping_information?.receiving_department || '-'],
+        ['Delivery Instructions', order.shipping_information?.delivery_instructions || '-'],
+      ],
+    },
+    {
+      title: 'Order Summary',
+      rows: [
+        ['Subtotal', String(order.order_summary?.subtotal ?? totalAmount)],
+        ['Line Discount Total', String(order.order_summary?.line_discount_total ?? 0)],
+        ['Tax Rate', String(order.order_summary?.tax_rate ?? 0)],
+        ['Tax Amount', String(order.order_summary?.tax_amount ?? 0)],
+        ['Shipping Cost', String(order.order_summary?.shipping_cost ?? 0)],
+        ['Discount', String(order.order_summary?.discount ?? 0)],
+        ['Total Amount', String(order.order_summary?.total_amount ?? order.total_amount)],
+      ],
+    },
+    {
+      title: 'Payment Terms',
+      rows: [
+        ['Payment Terms', order.payment_terms?.payment_terms || '-'],
+        ['Payment Method', order.payment_terms?.payment_method || '-'],
+        ['Currency', order.payment_terms?.currency || '-'],
+      ],
+    },
+    {
+      title: 'Notes',
+      rows: [
+        ['Supplier Notes', order.notes?.supplier_notes || '-'],
+        ['Internal Notes', order.notes?.internal_notes || '-'],
+      ],
+    },
+    {
+      title: 'Footer',
+      rows: [
+        ['Company Policy Note', order.footer?.company_policy_note || '-'],
+        ['Contact Information', order.footer?.contact_information || '-'],
+      ],
+    },
+  ] : []
+
   const save = () => {
     if (!form.supplier_id) { toast.error('Please select a supplier'); return }
     const hasInvalidItem = form.items.some(i => !i.product_id || i.quantity <= 0 || i.unit_cost < 0)
@@ -179,6 +248,44 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         </div>
       )}
     >
+      {order && (
+        <div className="mb-6 space-y-4 rounded-lg border border-border bg-surface/50 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-secondary">
+            <div><span className="font-medium text-primary">Order ID:</span> {order.id}</div>
+            <div><span className="font-medium text-primary">Status:</span> {order.status}</div>
+            <div><span className="font-medium text-primary">Created By:</span> {order.created_by}</div>
+            <div><span className="font-medium text-primary">Locked:</span> {order.is_locked ? 'Yes' : 'No'}</div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {readonlySections.map((section) => (
+              <div key={section.title} className="rounded-md border border-border bg-white p-4 shadow-sm">
+                <h4 className="mb-3 font-semibold text-primary">{section.title}</h4>
+                <div className="space-y-2 text-sm">
+                  {section.rows.map(([label, value]) => (
+                    <div key={label} className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
+                      <span className="font-medium text-secondary">{label}</span>
+                      <span className="text-primary sm:text-right">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {order.authorization && (
+            <div className="rounded-md border border-border bg-white p-4 shadow-sm">
+              <h4 className="mb-3 font-semibold text-primary">Authorization</h4>
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                <div><span className="font-medium text-secondary">Approved By:</span> {order.authorization.approved_by || '-'}</div>
+                <div><span className="font-medium text-secondary">Approval Date:</span> {order.authorization.approval_date || '-'}</div>
+                <div><span className="font-medium text-secondary">Signature File:</span> {order.authorization.signature || '-'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">Supplier</label>
