@@ -110,41 +110,42 @@ const PurchaseOrders = () => {
                     </BadgeWithDot>
                   </Table.Cell>
                   <Table.Cell>
-                    <div className="flex flex-wrap gap-1">
-                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.is_locked))}>
-                        {order.is_locked ? 'Locked' : 'Open'}
-                      </BadgeWithDot>
-                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.buyer_information?.company_name))}>
-                        Buyer
-                      </BadgeWithDot>
-                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.shipping_information?.delivery_address || order.shipping_information?.ship_to_location))}>
-                        Ship
-                      </BadgeWithDot>
-                      <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.authorization?.approved_by))}>
-                        Auth
-                      </BadgeWithDot>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>
                     {(() => {
                       const completion = getCompletion(order)
                       return (
-                        <Tooltip
-                          title={`${completion.percentage}% complete`}
-                          description={`${completion.completed}/${completion.total} sections filled`}
-                          placement="top"
-                        >
-                          <TooltipTrigger className="group block w-full min-w-40">
-                            <div className="rounded-full bg-surface-2 p-1 ring-1 ring-border transition-colors group-hover:ring-brand-200">
-                              <div className="relative h-2 overflow-hidden rounded-full bg-border">
-                                <div
-                                  className="h-full rounded-full bg-brand-600 transition-all duration-300"
-                                  style={{ width: `${completion.percentage}%` }}
-                                />
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-1">
+                            <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.is_locked))}>
+                              {order.is_locked ? 'Locked' : 'Open'}
+                            </BadgeWithDot>
+                            <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.buyer_information?.company_name))}>
+                              Buyer
+                            </BadgeWithDot>
+                            <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.shipping_information?.delivery_address || order.shipping_information?.ship_to_location))}>
+                              Ship
+                            </BadgeWithDot>
+                            <BadgeWithDot size="sm" color={getPresenceColor(Boolean(order.authorization?.approved_by))}>
+                              Auth
+                            </BadgeWithDot>
+                          </div>
+
+                          <Tooltip
+                            title={`${completion.percentage}% complete`}
+                            description={`${completion.completed}/${completion.total} sections filled`}
+                            placement="top"
+                          >
+                            <TooltipTrigger className="group block w-full min-w-40">
+                              <div className="rounded-full bg-surface-2 p-1 ring-1 ring-border transition-colors group-hover:ring-brand-200">
+                                <div className="relative h-2 overflow-hidden rounded-full bg-border">
+                                  <div
+                                    className="h-full rounded-full bg-brand-600 transition-all duration-300"
+                                    style={{ width: `${completion.percentage}%` }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </TooltipTrigger>
-                        </Tooltip>
+                            </TooltipTrigger>
+                          </Tooltip>
+                        </div>
                       )
                     })()}
                   </Table.Cell>
