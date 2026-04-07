@@ -15,6 +15,16 @@ const PurchaseOrders = () => {
   const [search, setSearch] = useState('')
   const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }) })
 
+  const approveOrder = async (order: PurchaseOrder) => {
+    try {
+      await suppliersApi.updatePurchaseOrderStatus(order.id, 'Approved')
+      toast.success('Purchase order approved')
+      refetch()
+    } catch {
+      toast.error('Failed to approve purchase order')
+    }
+  }
+
   const downloadPdf = async (order: PurchaseOrder) => {
     try {
       const blob = await suppliersApi.downloadPurchaseOrderPdf(order.id)
@@ -59,7 +69,12 @@ const PurchaseOrders = () => {
                   <Table.Cell>{order.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
                     <div className="flex gap-2">
-                      <CommonButton variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setIsOpen(true) }}>Edit</CommonButton>
+                      <CommonButton variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setIsOpen(true) }}>View</CommonButton>
+                      {order.status === 'Draft' ? (
+                        <CommonButton size="sm" onClick={() => approveOrder(order)}>Approve</CommonButton>
+                      ) : (
+                        <CommonButton size="sm" disabled>Approved</CommonButton>
+                      )}
                       <CommonButton variant="secondary" size="sm" onClick={() => downloadPdf(order)}>Download PDF</CommonButton>
                     </div>
                   </Table.Cell>

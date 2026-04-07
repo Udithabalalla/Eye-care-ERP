@@ -36,9 +36,11 @@ export interface PurchaseOrder {
   supplier_id: string
   order_date: string
   expected_delivery_date?: string
-  status: 'Draft' | 'Sent' | 'Received'
+  status: 'Draft' | 'Approved' | 'Sent' | 'Received' | 'Closed'
   total_amount: number
   created_by: string
+  is_locked?: boolean
+  buyer_information?: BuyerInformation
   items: PurchaseOrderItem[]
   created_at: string
   updated_at: string

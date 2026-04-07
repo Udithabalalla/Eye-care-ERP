@@ -92,6 +92,7 @@ class PurchaseOrderModel(TimestampModel):
     status: str = Field(default="Draft")
     total_amount: float = Field(default=0, ge=0)
     created_by: str
+    is_locked: bool = False
     items: List[PurchaseOrderItemModel] = Field(default_factory=list)
     buyer_information: Optional[BuyerInformationModel] = None
     supplier_information: Optional[SupplierInformationModel] = None

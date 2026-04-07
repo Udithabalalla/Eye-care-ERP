@@ -1,42 +1,59 @@
 import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
-import { clearBuyerInformation, getSavedBuyerInformation, saveBuyerInformation } from '@/utils/poSettings'
-import type { BuyerInformation } from '@/types/supplier.types'
+import { companyProfileApi } from '@/api/company-profile.api'
+import type { CompanyProfileFormData } from '@/types/company-profile.types'
 
 const ClinicSettings = () => {
-  const [form, setForm] = useState<BuyerInformation>({
-    company_name: '',
-    company_logo: 'Logo.png',
-    company_address: '',
-    phone: '',
-    email: '',
-    tax_number: '',
+  const queryClient = useQueryClient()
+  const [form, setForm] = useState<CompanyProfileFormData>({})
+
+  const { data } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyProfileApi.get(),
   })
 
   useEffect(() => {
-    setForm(getSavedBuyerInformation())
-  }, [])
+    if (data) {
+      setForm({
+        company_name: data.company_name,
+        company_logo: data.company_logo || 'Logo.png',
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        tax_number: data.tax_number,
+      })
+    }
+  }, [data])
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: CompanyProfileFormData) => companyProfileApi.update(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-profile'] })
+      toast.success('Company profile saved')
+    },
+    onError: () => toast.error('Failed to save company profile'),
+  })
 
   const handleSave = () => {
-    saveBuyerInformation(form)
-    toast.success('Clinic header settings saved')
-  }
-
-  const handleReset = () => {
-    clearBuyerInformation()
-    const defaults = getSavedBuyerInformation()
-    setForm(defaults)
-    toast.success('Clinic header settings reset')
+    saveMutation.mutate({
+      company_name: form.company_name,
+      company_logo: form.company_logo || 'Logo.png',
+      address: form.address,
+      phone: form.phone,
+      email: form.email,
+      tax_number: form.tax_number,
+    })
   }
 
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold text-primary">PO Header Settings</h1>
+        <h1 className="text-2xl font-semibold text-primary">Company Profile</h1>
         <p className="text-sm text-secondary mt-1">
-          Configure the buyer identity used in purchase order PDFs.
+          Configure the company header used in purchase order PDFs.
         </p>
       </div>
 
@@ -55,9 +72,9 @@ const ClinicSettings = () => {
             placeholder="Logo.png"
           />
           <Input
-            label="Company Address"
-            value={form.company_address || ''}
-            onChange={(e) => setForm({ ...form, company_address: e.target.value })}
+            label="Address"
+            value={form.address || ''}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
             placeholder="No. 120, Galle Road, Colombo 03"
           />
           <Input
@@ -83,7 +100,14 @@ const ClinicSettings = () => {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Button onClick={handleSave}>Save Settings</Button>
-          <Button variant="outline" onClick={handleReset}>Reset</Button>
+          <Button variant="outline" onClick={() => setForm(data ? {
+            company_name: data.company_name,
+            company_logo: data.company_logo || 'Logo.png',
+            address: data.address,
+            phone: data.phone,
+            email: data.email,
+            tax_number: data.tax_number,
+          } : {})}>Reset</Button>
         </div>
       </div>
 
@@ -91,7 +115,7 @@ const ClinicSettings = () => {
         <h2 className="text-base font-semibold text-primary">Preview</h2>
         <div className="mt-4 grid gap-2 text-sm text-secondary">
           <p><span className="font-medium text-primary">Company:</span> {form.company_name || '-'}</p>
-          <p><span className="font-medium text-primary">Address:</span> {form.company_address || '-'}</p>
+          <p><span className="font-medium text-primary">Address:</span> {form.address || '-'}</p>
           <p><span className="font-medium text-primary">Phone:</span> {form.phone || '-'}</p>
           <p><span className="font-medium text-primary">Email:</span> {form.email || '-'}</p>
           <p><span className="font-medium text-primary">Tax Number:</span> {form.tax_number || '-'}</p>

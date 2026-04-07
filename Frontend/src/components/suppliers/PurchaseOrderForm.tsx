@@ -5,9 +5,9 @@ import Modal from '@/components/common/Modal'
 import Input from '@/components/common/Input'
 import Button from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
+import { companyProfileApi } from '@/api/company-profile.api'
 import { productsApi } from '@/api/products.api'
 import { PurchaseOrder, PurchaseOrderFormData } from '@/types/supplier.types'
-import { getSavedBuyerInformation } from '@/utils/poSettings'
 
 interface PurchaseOrderFormProps {
   order?: PurchaseOrder | null
@@ -19,24 +19,35 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
   const { data: products } = useQuery({ queryKey: ['products', 'all'], queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }) })
+  const { data: companyProfile } = useQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get() })
   const [form, setForm] = useState<PurchaseOrderFormData>({
     supplier_id: '',
     order_date: new Date().toISOString(),
     items: [{ product_id: '', quantity: 1, unit_cost: 0 }],
-    buyer_information: getSavedBuyerInformation(),
   })
 
   useEffect(() => {
+    const buyerInformation = order?.buyer_information ? order.buyer_information : (companyProfile ? {
+      company_name: companyProfile.company_name,
+      company_logo: companyProfile.company_logo || 'Logo.png',
+      company_address: companyProfile.address,
+      phone: companyProfile.phone,
+      email: companyProfile.email,
+      tax_number: companyProfile.tax_number,
+    } : undefined)
+
     if (order) {
       setForm({
         supplier_id: order.supplier_id,
         order_date: order.order_date,
         expected_delivery_date: order.expected_delivery_date,
         items: order.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity, unit_cost: item.unit_cost })),
-        buyer_information: getSavedBuyerInformation(),
+        buyer_information: buyerInformation,
       })
+    } else if (buyerInformation) {
+      setForm((current) => ({ ...current, buyer_information: buyerInformation }))
     }
-  }, [order])
+  }, [order, companyProfile])
 
   const createMutation = useMutation({
     mutationFn: (data: PurchaseOrderFormData) => suppliersApi.createPurchaseOrder(data),
@@ -72,7 +83,13 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       ...form,
       expected_delivery_date: form.expected_delivery_date || undefined,
     }
-    if (order) updateStatus.mutate('Sent')
+    if (order) {
+      if (order.status !== 'Draft') {
+        toast.error('Approved purchase orders are locked')
+        return
+      }
+      updateStatus.mutate('Approved')
+    }
     else createMutation.mutate(payload)
   }
 
@@ -85,7 +102,9 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       footer={(
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending}>Save</Button>
+          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending} disabled={Boolean(order?.is_locked)}> 
+            {order ? (order.status === 'Draft' ? 'Approve' : 'Locked') : 'Save'}
+          </Button>
         </div>
       )}
     >
@@ -134,6 +153,9 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         ))}
         <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
         <p className="text-sm text-secondary">Total: {totalAmount.toFixed(2)}</p>
+        {order?.status === 'Approved' && (
+          <p className="text-sm font-medium text-success-600">This purchase order is approved and locked.</p>
+        )}
       </div>
     </Modal>
   )

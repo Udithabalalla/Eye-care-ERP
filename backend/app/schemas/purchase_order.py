@@ -109,6 +109,7 @@ class PurchaseOrderResponse(BaseModel):
     status: str
     total_amount: float
     created_by: str
+    is_locked: bool = False
     items: List[PurchaseOrderItemResponse]
     buyer_information: Optional[BuyerInformation] = None
     supplier_information: Optional[SupplierInformation] = None

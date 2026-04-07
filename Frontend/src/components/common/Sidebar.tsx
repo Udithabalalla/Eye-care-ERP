@@ -66,7 +66,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'System',
     items: [
-      { name: 'PO Header Settings', path: '/settings', icon: Settings01 },
+      { name: 'Company Profile', path: '/settings', icon: Settings01 },
     ],
   },
 ]
