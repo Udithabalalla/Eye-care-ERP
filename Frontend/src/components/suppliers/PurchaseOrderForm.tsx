@@ -24,6 +24,30 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
     supplier_id: '',
     order_date: new Date().toISOString(),
     items: [{ product_id: '', quantity: 1, unit_cost: 0 }],
+    shipping_information: {
+      ship_to_location: '',
+      delivery_address: '',
+      receiving_department: '',
+      delivery_instructions: '',
+    },
+    summary: {
+      tax_rate: 0,
+      shipping_cost: 0,
+      discount: 0,
+    },
+    payment_terms: {
+      payment_terms: '',
+      payment_method: '',
+      currency: 'LKR',
+    },
+    notes: {
+      supplier_notes: '',
+      internal_notes: '',
+    },
+    footer: {
+      company_policy_note: '',
+      contact_information: '',
+    },
   })
 
   useEffect(() => {
@@ -35,6 +59,34 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       email: companyProfile.email,
       tax_number: companyProfile.tax_number,
     } : undefined)
+    const shippingInformation = order?.shipping_information || {
+      ship_to_location: '',
+      delivery_address: '',
+      receiving_department: '',
+      delivery_instructions: '',
+    }
+    const summary = order?.order_summary || {
+      subtotal: 0,
+      line_discount_total: 0,
+      tax_rate: 0,
+      tax_amount: 0,
+      shipping_cost: 0,
+      discount: 0,
+      total_amount: 0,
+    }
+    const paymentTerms = order?.payment_terms || {
+      payment_terms: '',
+      payment_method: '',
+      currency: 'LKR',
+    }
+    const notes = order?.notes || {
+      supplier_notes: '',
+      internal_notes: '',
+    }
+    const footer = order?.footer || {
+      company_policy_note: '',
+      contact_information: '',
+    }
 
     if (order) {
       setForm({
@@ -43,9 +95,22 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         expected_delivery_date: order.expected_delivery_date,
         items: order.items.map((item) => ({ product_id: item.product_id, quantity: item.quantity, unit_cost: item.unit_cost })),
         buyer_information: buyerInformation,
+        shipping_information: shippingInformation,
+        summary,
+        payment_terms: paymentTerms,
+        notes,
+        footer,
       })
     } else if (buyerInformation) {
-      setForm((current) => ({ ...current, buyer_information: buyerInformation }))
+      setForm((current) => ({
+        ...current,
+        buyer_information: buyerInformation,
+        shipping_information: shippingInformation,
+        summary,
+        payment_terms: paymentTerms,
+        notes,
+        footer,
+      }))
     }
   }, [order, companyProfile])
 
@@ -73,6 +138,12 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   })
 
   const totalAmount = form.items.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0)
+  const taxRate = form.summary?.tax_rate || 0
+  const shippingCost = form.summary?.shipping_cost || 0
+  const discount = form.summary?.discount || 0
+  const summarySubtotal = totalAmount
+  const summaryTax = Math.max(0, (summarySubtotal - discount) * taxRate)
+  const summaryTotal = Math.max(0, summarySubtotal - discount + summaryTax + shippingCost)
 
   const save = () => {
     if (!form.supplier_id) { toast.error('Please select a supplier'); return }
@@ -152,11 +223,64 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
           </div>
         ))}
         <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
-        <p className="text-sm text-secondary">Total: {totalAmount.toFixed(2)}</p>
+        <p className="text-sm text-secondary">Items Total: {totalAmount.toFixed(2)}</p>
         {order?.status === 'Approved' && (
           <p className="text-sm font-medium text-success-600">This purchase order is approved and locked.</p>
         )}
       </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="font-semibold text-primary">Shipping Information</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Ship To Location" value={form.shipping_information?.ship_to_location || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), ship_to_location: e.target.value } })} />
+          <Input label="Delivery Address" value={form.shipping_information?.delivery_address || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_address: e.target.value } })} />
+          <Input label="Receiving Department" value={form.shipping_information?.receiving_department || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), receiving_department: e.target.value } })} />
+          <Input label="Delivery Instructions" value={form.shipping_information?.delivery_instructions || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_instructions: e.target.value } })} />
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="font-semibold text-primary">Order Summary</h4>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Input label="Tax Rate" type="number" step="0.0001" value={form.summary?.tax_rate ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), tax_rate: Number(e.target.value) } })} />
+          <Input label="Shipping Cost" type="number" step="0.01" value={form.summary?.shipping_cost ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), shipping_cost: Number(e.target.value) } })} />
+          <Input label="Discount" type="number" step="0.01" value={form.summary?.discount ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), discount: Number(e.target.value) } })} />
+          <Input label="Tax Amount (preview)" type="number" value={summaryTax.toFixed(2)} readOnly />
+        </div>
+        <p className="text-sm text-secondary">Summary Total: {summaryTotal.toFixed(2)}</p>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="font-semibold text-primary">Payment Terms</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input label="Payment Terms" value={form.payment_terms?.payment_terms || ''} onChange={(e) => setForm({ ...form, payment_terms: { ...(form.payment_terms || {}), payment_terms: e.target.value } })} />
+          <Input label="Payment Method" value={form.payment_terms?.payment_method || ''} onChange={(e) => setForm({ ...form, payment_terms: { ...(form.payment_terms || {}), payment_method: e.target.value } })} />
+          <Input label="Currency" value={form.payment_terms?.currency || 'LKR'} onChange={(e) => setForm({ ...form, payment_terms: { ...(form.payment_terms || {}), currency: e.target.value } })} />
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="font-semibold text-primary">Notes</h4>
+        <Input label="Supplier Notes" value={form.notes?.supplier_notes || ''} onChange={(e) => setForm({ ...form, notes: { ...(form.notes || {}), supplier_notes: e.target.value } })} />
+        <Input label="Internal Notes" value={form.notes?.internal_notes || ''} onChange={(e) => setForm({ ...form, notes: { ...(form.notes || {}), internal_notes: e.target.value } })} />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="font-semibold text-primary">Footer</h4>
+        <Input label="Company Policy Note" value={form.footer?.company_policy_note || ''} onChange={(e) => setForm({ ...form, footer: { ...(form.footer || {}), company_policy_note: e.target.value } })} />
+        <Input label="Contact Information" value={form.footer?.contact_information || ''} onChange={(e) => setForm({ ...form, footer: { ...(form.footer || {}), contact_information: e.target.value } })} />
+      </div>
+
+      {order?.authorization && (
+        <div className="mt-6 space-y-3">
+          <h4 className="font-semibold text-primary">Authorization</h4>
+          <div className="rounded border border-border p-4 text-sm text-secondary space-y-1">
+            <div>Approved By: {order.authorization.approved_by || '-'}</div>
+            <div>Approval Date: {order.authorization.approval_date || '-'}</div>
+            <div>Signature File: {order.authorization.signature || '-'}</div>
+          </div>
+        </div>
+      )}
     </Modal>
   )
 }
