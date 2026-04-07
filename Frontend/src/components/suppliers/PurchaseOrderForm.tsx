@@ -93,7 +93,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
           </select>
         </div>
         <Input label="Order Date" type="datetime-local" value={form.order_date.slice(0, 16)} onChange={(e) => setForm({ ...form, order_date: new Date(e.target.value).toISOString() })} />
-        <Input label="Expected Delivery Date" type="date" value={form.expected_delivery_date || ''} onChange={(e) => setForm({ ...form, expected_delivery_date: e.target.value })} />
+        <Input label="Expected Delivery Date" type="datetime-local" value={form.expected_delivery_date ? form.expected_delivery_date.slice(0, 16) : ''} onChange={(e) => setForm({ ...form, expected_delivery_date: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
       </div>
 
       <div className="mt-6 space-y-3">
