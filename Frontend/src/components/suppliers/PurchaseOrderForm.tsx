@@ -145,6 +145,14 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   const summaryTax = Math.max(0, (summarySubtotal - discount) * taxRate)
   const summaryTotal = Math.max(0, summarySubtotal - discount + summaryTax + shippingCost)
 
+  const nextAction = order
+    ? order.status === 'Draft'
+      ? 'Approve'
+      : order.status === 'Approved'
+        ? 'Send'
+        : order.status
+    : 'Save'
+
   const readonlySections = order ? [
     {
       title: 'Buyer Information',
@@ -224,11 +232,14 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       expected_delivery_date: form.expected_delivery_date || undefined,
     }
     if (order) {
-      if (order.status !== 'Draft') {
+      if (order.status === 'Draft') {
+        updateStatus.mutate('Approved')
+      } else if (order.status === 'Approved') {
+        updateStatus.mutate('Sent')
+      } else {
         toast.error('Approved purchase orders are locked')
         return
       }
-      updateStatus.mutate('Approved')
     }
     else createMutation.mutate(payload)
   }
@@ -242,8 +253,8 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       footer={(
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending} disabled={Boolean(order?.is_locked)}> 
-            {order ? (order.status === 'Draft' ? 'Approve' : 'Locked') : 'Save'}
+          <Button onClick={save} isLoading={createMutation.isPending || updateStatus.isPending} disabled={Boolean(order && order.status !== 'Draft' && order.status !== 'Approved')}> 
+            {nextAction}
           </Button>
         </div>
       )}
@@ -331,9 +342,8 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         ))}
         <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
         <p className="text-sm text-secondary">Items Total: {totalAmount.toFixed(2)}</p>
-        {order?.status === 'Approved' && (
-          <p className="text-sm font-medium text-success-600">This purchase order is approved and locked.</p>
-        )}
+        {order?.status === 'Approved' && <p className="text-sm font-medium text-success-600">This purchase order is approved and locked for edits. It can now be sent.</p>}
+        {order?.status === 'Sent' && <p className="text-sm font-medium text-brand-600">This purchase order has been sent.</p>}
       </div>
 
       <div className="mt-6 space-y-3">

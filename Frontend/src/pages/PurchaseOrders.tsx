@@ -53,13 +53,13 @@ const PurchaseOrders = () => {
     return { completed, total, percentage }
   }
 
-  const approveOrder = async (order: PurchaseOrder) => {
+  const changeStatus = async (order: PurchaseOrder, status: 'Approved' | 'Sent') => {
     try {
-      await suppliersApi.updatePurchaseOrderStatus(order.id, 'Approved')
-      toast.success('Purchase order approved')
+      await suppliersApi.updatePurchaseOrderStatus(order.id, status)
+      toast.success(status === 'Approved' ? 'Purchase order approved' : 'Purchase order sent')
       refetch()
     } catch {
-      toast.error('Failed to approve purchase order')
+      toast.error(status === 'Approved' ? 'Failed to approve purchase order' : 'Failed to send purchase order')
     }
   }
 
@@ -153,9 +153,11 @@ const PurchaseOrders = () => {
                     <div className="flex gap-2">
                       <CommonButton variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setIsOpen(true) }}>View</CommonButton>
                       {order.status === 'Draft' ? (
-                        <CommonButton size="sm" onClick={() => approveOrder(order)}>Approve</CommonButton>
+                        <CommonButton size="sm" onClick={() => changeStatus(order, 'Approved')}>Approve</CommonButton>
+                      ) : order.status === 'Approved' ? (
+                        <CommonButton size="sm" onClick={() => changeStatus(order, 'Sent')}>Send</CommonButton>
                       ) : (
-                        <CommonButton size="sm" disabled>Approved</CommonButton>
+                        <CommonButton size="sm" disabled>{order.status}</CommonButton>
                       )}
                       <CommonButton variant="secondary" size="sm" onClick={() => downloadPdf(order)}>Download PDF</CommonButton>
                     </div>

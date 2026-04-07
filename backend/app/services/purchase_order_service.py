@@ -195,25 +195,38 @@ class PurchaseOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if status not in {"Approved", "Sent", "Received", "Closed"}:
+        if status not in {"Approved", "Sent"}:
             raise BadRequestException("Invalid purchase order status")
-        if order.status != "Draft" or status != "Approved":
-            raise BadRequestException("Only Draft purchase orders can be approved in the MVP workflow")
+        if status == "Approved":
+            if order.status != "Draft":
+                raise BadRequestException("Only Draft purchase orders can be approved")
 
-        approval_date = datetime.now(timezone.utc)
-        authorization = order.authorization or AuthorizationModel()
-        authorization.approved_by = "WAS Kumudini"
-        authorization.signature = "sign.png"
-        authorization.approval_date = approval_date
+            approval_date = datetime.now(timezone.utc)
+            authorization = order.authorization or AuthorizationModel()
+            authorization.approved_by = "WAS Kumudini"
+            authorization.signature = "sign.png"
+            authorization.approval_date = approval_date
 
-        await self.repo.update(
-            {"id": order_id},
-            {
-                "status": "Approved",
-                "is_locked": True,
-                "authorization": authorization.dict(),
-            },
-        )
+            await self.repo.update(
+                {"id": order_id},
+                {
+                    "status": "Approved",
+                    "is_locked": True,
+                    "authorization": authorization.dict(),
+                },
+            )
+        elif status == "Sent":
+            if order.status != "Approved":
+                raise BadRequestException("Only Approved purchase orders can be sent")
+
+            await self.repo.update(
+                {"id": order_id},
+                {
+                    "status": "Sent",
+                    "is_locked": True,
+                },
+            )
+
         updated = await self.repo.get_by_order_id(order_id)
         return self._to_response(updated)
 
