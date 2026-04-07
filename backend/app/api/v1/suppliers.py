@@ -106,7 +106,7 @@ async def get_purchase_order(
 @router.patch("/purchase-orders/{order_id}/status", response_model=ResponseModel[PurchaseOrderResponse])
 async def update_purchase_order_status(
     order_id: str,
-    status: str,
+    status: str = Query(..., description="New purchase order status"),
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
