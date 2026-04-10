@@ -18,6 +18,20 @@ export interface LoginRequest {
   password: string
 }
 
+export interface PasswordResetRequest {
+  email: string
+}
+
+export interface PasswordResetConfirmRequest {
+  email: string
+  otp: string
+  new_password: string
+}
+
+export interface PasswordResetResponse {
+  message: string
+}
+
 export interface SignupRequest {
   email: string
   password: string
@@ -40,6 +54,8 @@ export interface AuthState {
   isLoading: boolean
   login: (credentials: LoginRequest) => Promise<void>
   signup: (data: SignupRequest) => Promise<void>
+  requestPasswordReset: (data: PasswordResetRequest) => Promise<PasswordResetResponse>
+  confirmPasswordReset: (data: PasswordResetConfirmRequest) => Promise<PasswordResetResponse>
   logout: () => void
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void

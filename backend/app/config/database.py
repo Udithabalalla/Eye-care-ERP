@@ -54,6 +54,10 @@ async def create_indexes():
     await safe_create_index(db.db.users, "email", unique=True)
     await safe_create_index(db.db.users, "user_id", unique=True)
     await safe_create_index(db.db.users, "is_active")
+
+    # Password reset OTPs
+    await safe_create_index(db.db.password_reset_otps, "email", unique=True)
+    await safe_create_index(db.db.password_reset_otps, "expires_at", expireAfterSeconds=0)
     
     # Patients - search and filtering
     await safe_create_index(db.db.patients, "patient_id", unique=True)

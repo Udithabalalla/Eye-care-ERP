@@ -1,7 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authApi } from '@/api/auth.api'
-import { AuthState, LoginRequest, SignupRequest } from '@/types/auth.types'
+import {
+  AuthState,
+  LoginRequest,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
+  SignupRequest,
+} from '@/types/auth.types'
 import toast from 'react-hot-toast'
 
 export const useAuthStore = create<AuthState>()(
@@ -55,6 +61,34 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: any) {
           set({ isLoading: false })
           toast.error(error.response?.data?.message || 'Registration failed')
+          throw error
+        }
+      },
+
+      requestPasswordReset: async (data: PasswordResetRequest) => {
+        set({ isLoading: true })
+        try {
+          const response = await authApi.requestPasswordReset(data)
+          set({ isLoading: false })
+          toast.success(response.message)
+          return response
+        } catch (error: any) {
+          set({ isLoading: false })
+          toast.error(error.response?.data?.message || 'Unable to send reset OTP')
+          throw error
+        }
+      },
+
+      confirmPasswordReset: async (data: PasswordResetConfirmRequest) => {
+        set({ isLoading: true })
+        try {
+          const response = await authApi.confirmPasswordReset(data)
+          set({ isLoading: false })
+          toast.success(response.message)
+          return response
+        } catch (error: any) {
+          set({ isLoading: false })
+          toast.error(error.response?.data?.message || 'Password reset failed')
           throw error
         }
       },

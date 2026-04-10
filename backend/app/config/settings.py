@@ -41,10 +41,15 @@ class Settings(BaseSettings):
         return self.CORS_ORIGINS
     
     # Email (optional)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: Optional[str] = None
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "vision.opticals.lk@gmail.com"
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: str = "vision.opticals.lk@gmail.com"
+
+    # Password reset
+    PASSWORD_RESET_OTP_EXPIRE_MINUTES: int = 10
+    PASSWORD_RESET_OTP_MAX_ATTEMPTS: int = 5
     
     class Config:
         env_file = ".env"

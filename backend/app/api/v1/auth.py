@@ -3,8 +3,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config.database import get_database
 from app.schemas.user import LoginRequest, LoginResponse, SignupRequest, UserResponse
+from app.schemas.password_reset import PasswordResetConfirmRequest, PasswordResetRequest, PasswordResetResponse
 from app.schemas.responses import ResponseModel
 from app.services.auth_service import AuthService
+from app.services.password_reset_service import PasswordResetService
 from app.api.deps import get_current_user
 from app.models.user import UserModel
 
@@ -37,3 +39,23 @@ async def logout(current_user: UserModel = Depends(get_current_user)):
 async def get_current_user_info(current_user: UserModel = Depends(get_current_user)):
     """Get current user information"""
     return ResponseModel(data=UserResponse(**current_user.dict()))
+
+
+@router.post("/password-reset/request", response_model=PasswordResetResponse)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Send a one-time password to the registered email address"""
+    password_reset_service = PasswordResetService(db)
+    return await password_reset_service.request_reset(payload.email)
+
+
+@router.post("/password-reset/confirm", response_model=PasswordResetResponse)
+async def confirm_password_reset(
+    payload: PasswordResetConfirmRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Validate the OTP and set a new password"""
+    password_reset_service = PasswordResetService(db)
+    return await password_reset_service.confirm_reset(payload.email, payload.otp, payload.new_password)

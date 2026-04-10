@@ -1,6 +1,5 @@
 import uuid
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import datetime
 
 from app.repositories.user_repository import UserRepository
 from app.core.security import verify_password, get_password_hash, create_access_token

@@ -8,6 +8,7 @@ import Loading from './components/common/Loading'
 // Lazy load pages for better initial bundle size
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Patients = lazy(() => import('./pages/Patients'))
 const Appointments = lazy(() => import('./pages/Appointments'))
@@ -39,6 +40,10 @@ function App() {
         <Route
           path="/signup"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />}
+        />
+        <Route
+          path="/forgot-password"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />}
         />
 
         <Route element={<ProtectedRoute />}>

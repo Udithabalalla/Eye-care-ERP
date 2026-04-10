@@ -120,6 +120,12 @@ const Login = () => {
               Sign up
             </Link>
           </p>
+
+          <p className="mt-3 text-center text-sm text-tertiary">
+            <Link to="/forgot-password" className="font-semibold text-brand-600 hover:text-brand-500">
+              Forgot your password?
+            </Link>
+          </p>
         </div>
 
         {/* Demo Credentials */}
