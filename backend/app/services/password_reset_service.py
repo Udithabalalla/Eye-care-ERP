@@ -66,7 +66,7 @@ class PasswordResetService:
             logger.exception("Password reset OTP send failed for user_id=%s email=%s", user.user_id, user.email)
             await self.reset_repo.delete_for_email(email)
             if _is_network_unreachable(exc):
-                raise BadRequestException("Unable to reach email provider from server. Check Railway outbound network or use an email API provider.")
+                raise BadRequestException("Unable to reach Gmail SMTP from server. Check Railway outbound access for smtp.gmail.com on ports 587 and 465.")
             raise BadRequestException("Unable to send reset OTP. Please try again later.")
 
         return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")

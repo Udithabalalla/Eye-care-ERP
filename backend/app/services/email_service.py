@@ -15,9 +15,10 @@ class EmailService:
     def __init__(self):
         self.smtp_host = settings.SMTP_HOST
         self.smtp_port = settings.SMTP_PORT
-        self.smtp_user = settings.SMTP_USER
-        self.smtp_password = settings.SMTP_PASSWORD
-        self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+        self.smtp_user = settings.SMTP_USER.strip() if settings.SMTP_USER else ""
+        # Accept Google App Password whether entered as grouped blocks or compact.
+        self.smtp_password = settings.SMTP_PASSWORD.replace(" ", "") if settings.SMTP_PASSWORD else None
+        self.from_email = (settings.SMTP_FROM_EMAIL or settings.SMTP_USER).strip() if (settings.SMTP_FROM_EMAIL or settings.SMTP_USER) else ""
         self.smtp_timeout = settings.SMTP_TIMEOUT_SECONDS
         self.smtp_ssl_port = settings.SMTP_SSL_PORT
 
@@ -25,6 +26,12 @@ class EmailService:
         self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime
     ) -> None:
         """Send the password reset OTP via Gmail SMTP"""
+        if not self.smtp_user or not self.from_email:
+            raise RuntimeError(
+                "SMTP user configuration is incomplete. "
+                "Set SMTP_USER and SMTP_FROM_EMAIL in environment."
+            )
+
         if not self.smtp_password:
             raise RuntimeError(
                 "SMTP_PASSWORD is not configured. "
