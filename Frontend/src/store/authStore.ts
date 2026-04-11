@@ -74,7 +74,6 @@ export const useAuthStore = create<AuthState>()(
           return response
         } catch (error: any) {
           set({ isLoading: false })
-          toast.error(error.response?.data?.message || 'Unable to send reset OTP')
           throw error
         }
       },
@@ -88,7 +87,6 @@ export const useAuthStore = create<AuthState>()(
           return response
         } catch (error: any) {
           set({ isLoading: false })
-          toast.error(error.response?.data?.message || 'Password reset failed')
           throw error
         }
       },

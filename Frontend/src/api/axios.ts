@@ -127,11 +127,14 @@ axiosInstance.interceptors.response.use(
             })
           }
           break
+        case 400:
+          toast.error(data.detail || data.message || 'Request failed.')
+          break
         case 500:
           toast.error('Server error. Please try again later.')
           break
         default:
-          toast.error(data.message || 'An error occurred')
+          toast.error(data.detail || data.message || 'An error occurred')
       }
     } else if (error.request) {
       const hasToken = Boolean(localStorage.getItem('token'))
