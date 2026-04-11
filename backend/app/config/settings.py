@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "vision.opticals.lk@gmail.com"
     SMTP_TIMEOUT_SECONDS: int = 10
     SMTP_SSL_PORT: int = 465
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: Optional[str] = None
 
     # Password reset
     PASSWORD_RESET_OTP_EXPIRE_MINUTES: int = 10

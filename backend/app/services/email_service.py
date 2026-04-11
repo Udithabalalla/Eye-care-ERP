@@ -3,6 +3,7 @@ import os
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime
+import httpx
 
 from app.config.settings import settings
 
@@ -22,12 +23,11 @@ class EmailService:
         self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
         self.smtp_timeout = settings.SMTP_TIMEOUT_SECONDS
         self.smtp_ssl_port = settings.SMTP_SSL_PORT
+        self.resend_api_key = settings.RESEND_API_KEY or os.getenv("RESEND_API_KEY")
+        self.resend_from_email = settings.RESEND_FROM_EMAIL or self.from_email
 
     async def send_password_reset_otp(self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime) -> None:
         """Send the password reset OTP to the recipient"""
-        if not self.smtp_password:
-            raise RuntimeError("SMTP password is not configured. Set SMTP_PASSWORD in environment.")
-
         subject = "Vision Optical Password Reset OTP"
         expiry_text = expires_at.strftime("%Y-%m-%d %H:%M UTC")
         body = (
@@ -57,10 +57,27 @@ class EmailService:
             subtype="html",
         )
 
-        await asyncio.wait_for(
-            asyncio.to_thread(self._send_message, message),
-            timeout=self.smtp_timeout + 2,
-        )
+        if self.smtp_password:
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(self._send_message, message),
+                    timeout=self.smtp_timeout + 2,
+                )
+                return
+            except Exception:
+                # Fall through to HTTP API fallback when SMTP is blocked/unavailable.
+                pass
+
+        if self.resend_api_key:
+            await self._send_via_resend(
+                recipient_email=recipient_email,
+                subject=subject,
+                text_body=body,
+                html_body=message.get_body(preferencelist=("html",)).get_content(),
+            )
+            return
+
+        raise RuntimeError("No email delivery method configured. Set SMTP_PASSWORD or RESEND_API_KEY.")
 
     def _send_message(self, message: EmailMessage) -> None:
         first_error = None
@@ -85,3 +102,22 @@ class EmailService:
             if first_error:
                 raise second_error from first_error
             raise
+
+    async def _send_via_resend(self, recipient_email: str, subject: str, text_body: str, html_body: str) -> None:
+        payload = {
+            "from": self.resend_from_email,
+            "to": [recipient_email],
+            "subject": subject,
+            "text": text_body,
+            "html": html_body,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.resend_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post("https://api.resend.com/emails", json=payload, headers=headers)
+            if response.status_code >= 400:
+                raise RuntimeError(f"Resend API error {response.status_code}: {response.text[:300]}")
