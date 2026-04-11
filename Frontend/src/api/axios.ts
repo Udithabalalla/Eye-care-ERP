@@ -7,13 +7,22 @@ const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
 
 const resolveApiBaseUrl = (): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-  if (configuredBaseUrl) return configuredBaseUrl
-
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
     const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+
+    if (configuredBaseUrl) {
+      const configuredIsLocalHost = configuredBaseUrl.includes('localhost') || configuredBaseUrl.includes('127.0.0.1')
+      if (!isLocalHost && configuredIsLocalHost) {
+        return HOSTED_API_BASE_URL
+      }
+      return configuredBaseUrl
+    }
+
     if (!isLocalHost) return HOSTED_API_BASE_URL
   }
+
+  if (configuredBaseUrl) return configuredBaseUrl
 
   return 'http://localhost:8000/api/v1'
 }
