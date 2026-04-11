@@ -1,4 +1,5 @@
 import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -11,6 +12,8 @@ from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.password_reset import PasswordResetResponse
 from app.services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
 
 
 class PasswordResetService:
@@ -49,7 +52,8 @@ class PasswordResetService:
         await self.reset_repo.store_otp(otp_record)
         try:
             await self.email_service.send_password_reset_otp(user.email, user.name, otp, expires_at)
-        except Exception:
+        except Exception as exc:
+            logger.exception("Password reset OTP send failed for user_id=%s email=%s", user.user_id, user.email)
             await self.reset_repo.delete_for_email(email)
             raise BadRequestException("Unable to send reset OTP. Please try again later.")
 
