@@ -40,10 +40,12 @@ class Settings(BaseSettings):
         return self.CORS_ORIGINS
     
     # Email (optional)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "vision.opticals.lk@gmail.com"
+    SMTP_PASSWORD: Optional[str] = epxohvmopintklsx
+    SMTP_FROM_EMAIL: str = "vision.opticals.lk@gmail.com"
+    SMTP_TIMEOUT_SECONDS: int = 10
     
     class Config:
         env_file = ".env"
