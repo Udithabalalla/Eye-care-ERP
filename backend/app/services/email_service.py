@@ -15,6 +15,7 @@ class EmailService:
         self.smtp_user = settings.SMTP_USER
         self.smtp_password = settings.SMTP_PASSWORD
         self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+        self.smtp_timeout = settings.SMTP_TIMEOUT_SECONDS
 
     async def send_password_reset_otp(self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime) -> None:
         """Send the password reset OTP to the recipient"""
@@ -50,10 +51,13 @@ class EmailService:
             subtype="html",
         )
 
-        await asyncio.to_thread(self._send_message, message)
+        await asyncio.wait_for(
+            asyncio.to_thread(self._send_message, message),
+            timeout=self.smtp_timeout + 2,
+        )
 
     def _send_message(self, message: EmailMessage) -> None:
-        with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=20) as server:
+        with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.smtp_timeout) as server:
             server.starttls()
             server.login(self.smtp_user, self.smtp_password)
             server.send_message(message)

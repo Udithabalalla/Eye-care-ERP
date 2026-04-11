@@ -22,7 +22,11 @@ export const authApi = {
   },
 
   requestPasswordReset: async (data: PasswordResetRequest): Promise<PasswordResetResponse> => {
-    const response = await axiosInstance.post<PasswordResetResponse>('/auth/password-reset/request', data)
+    const response = await axiosInstance.post<PasswordResetResponse>(
+      '/auth/password-reset/request',
+      data,
+      { timeout: 45000 }
+    )
     return response.data
   },
 

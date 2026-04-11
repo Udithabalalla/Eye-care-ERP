@@ -47,7 +47,11 @@ class PasswordResetService:
             sent_at=now,
         )
         await self.reset_repo.store_otp(otp_record)
-        await self.email_service.send_password_reset_otp(user.email, user.name, otp, expires_at)
+        try:
+            await self.email_service.send_password_reset_otp(user.email, user.name, otp, expires_at)
+        except Exception:
+            await self.reset_repo.delete_for_email(email)
+            raise BadRequestException("Unable to send reset OTP. Please try again later.")
 
         return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")
 
