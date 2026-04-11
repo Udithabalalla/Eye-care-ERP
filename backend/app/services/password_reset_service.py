@@ -16,6 +16,16 @@ from app.services.email_service import EmailService
 logger = logging.getLogger(__name__)
 
 
+def _is_network_unreachable(exc: Exception) -> bool:
+    """Check nested exceptions for OS-level network unreachable errors."""
+    current: Exception | None = exc
+    while current is not None:
+        if isinstance(current, OSError) and getattr(current, "errno", None) == 101:
+            return True
+        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+    return False
+
+
 class PasswordResetService:
     """Password reset workflow service"""
 
@@ -55,6 +65,8 @@ class PasswordResetService:
         except Exception as exc:
             logger.exception("Password reset OTP send failed for user_id=%s email=%s", user.user_id, user.email)
             await self.reset_repo.delete_for_email(email)
+            if _is_network_unreachable(exc):
+                raise BadRequestException("Unable to reach email provider from server. Check Railway outbound network or use an email API provider.")
             raise BadRequestException("Unable to send reset OTP. Please try again later.")
 
         return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")

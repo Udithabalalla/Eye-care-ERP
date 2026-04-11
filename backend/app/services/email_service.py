@@ -21,6 +21,7 @@ class EmailService:
         )
         self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
         self.smtp_timeout = settings.SMTP_TIMEOUT_SECONDS
+        self.smtp_ssl_port = settings.SMTP_SSL_PORT
 
     async def send_password_reset_otp(self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime) -> None:
         """Send the password reset OTP to the recipient"""
@@ -62,7 +63,25 @@ class EmailService:
         )
 
     def _send_message(self, message: EmailMessage) -> None:
-        with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.smtp_timeout) as server:
-            server.starttls()
-            server.login(self.smtp_user, self.smtp_password)
-            server.send_message(message)
+        first_error = None
+
+        try:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.smtp_timeout) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(message)
+                return
+        except Exception as exc:
+            first_error = exc
+
+        try:
+            with smtplib.SMTP_SSL(self.smtp_host, self.smtp_ssl_port, timeout=self.smtp_timeout) as server:
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(message)
+                return
+        except Exception as second_error:
+            if first_error:
+                raise second_error from first_error
+            raise
