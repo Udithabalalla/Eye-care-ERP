@@ -1,4 +1,5 @@
 import asyncio
+import os
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime
@@ -13,14 +14,18 @@ class EmailService:
         self.smtp_host = settings.SMTP_HOST
         self.smtp_port = settings.SMTP_PORT
         self.smtp_user = settings.SMTP_USER
-        self.smtp_password = settings.SMTP_PASSWORD
+        self.smtp_password = (
+            settings.SMTP_PASSWORD
+            or os.getenv("GOOGLE_APP_PASSWORD")
+            or os.getenv("EMAIL_PASSWORD")
+        )
         self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
         self.smtp_timeout = settings.SMTP_TIMEOUT_SECONDS
 
     async def send_password_reset_otp(self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime) -> None:
         """Send the password reset OTP to the recipient"""
         if not self.smtp_password:
-            raise RuntimeError("SMTP password is not configured")
+            raise RuntimeError("SMTP password is not configured. Set SMTP_PASSWORD in environment.")
 
         subject = "Vision Optical Password Reset OTP"
         expiry_text = expires_at.strftime("%Y-%m-%d %H:%M UTC")
