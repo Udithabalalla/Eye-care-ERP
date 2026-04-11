@@ -67,15 +67,20 @@ class EmailService:
             subtype="html",
         )
 
-        try:
-            await asyncio.wait_for(
-                asyncio.to_thread(self._send_message, message),
-                timeout=self.smtp_timeout + 5,
-            )
-            logger.info("Password reset OTP sent to %s via SMTP", recipient_email)
-        except Exception as exc:
-            logger.error("SMTP send failed for %s: %s", recipient_email, exc)
-            raise
+        for attempt in range(1, 3):
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(self._send_message, message),
+                    timeout=self.smtp_timeout + 5,
+                )
+                logger.info("Password reset OTP sent to %s via SMTP", recipient_email)
+                return
+            except Exception as exc:
+                if attempt == 2:
+                    logger.error("SMTP send failed", exc_info=True)
+                    raise
+                logger.warning("SMTP send attempt %d failed for %s, retrying...", attempt, recipient_email)
+                await asyncio.sleep(1)
 
     def _send_message(self, message: EmailMessage) -> None:
         """Try STARTTLS on port 587 first, then fall back to SSL on port 465."""
