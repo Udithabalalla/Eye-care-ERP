@@ -48,7 +48,7 @@ const InvoiceHistoryTable = ({ invoices }: InvoiceHistoryTableProps) => {
               <Table.Cell className="max-w-[220px] truncate">{productNames}</Table.Cell>
               <Table.Cell>{formatDate(invoice.invoice_date, 'dd/MM/yyyy')}</Table.Cell>
               <Table.Cell>
-                <Badge type="badge-color" color={status.color}>
+                <Badge type="color" color={status.color} size="sm">
                   {status.label}
                 </Badge>
               </Table.Cell>
