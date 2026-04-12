@@ -133,7 +133,16 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
   }
 
   return (
-    <ModalOverlay isOpen={isOpen} isDismissable onOpenChange={handleOpenChange}>
+    <ModalOverlay
+      isOpen={isOpen}
+      isDismissable
+      onOpenChange={handleOpenChange}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          handleOpenChange(false)
+        }
+      }}
+    >
       <Modal className="w-full">
         <Dialog aria-label="Patient details" className="mx-auto w-full max-w-[740px] outline-none">
           <div className="max-h-[calc(100dvh-48px)] w-full overflow-y-auto rounded-[18px] bg-white p-5 text-primary shadow-[0_24px_60px_rgba(15,23,42,0.12)] ring-1 ring-black/5 sm:p-6">
