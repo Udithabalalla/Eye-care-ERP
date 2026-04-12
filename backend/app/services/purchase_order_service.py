@@ -195,7 +195,7 @@ class PurchaseOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if status not in {"Approved", "Sent", "Closed"}:
+        if status not in {"Approved", "Ordered"}:
             raise BadRequestException("Invalid purchase order status")
         if status == "Approved":
             if order.status != "Draft":
@@ -215,25 +215,14 @@ class PurchaseOrderService:
                     "authorization": authorization.dict(),
                 },
             )
-        elif status == "Sent":
+        elif status == "Ordered":
             if order.status != "Approved":
-                raise BadRequestException("Only Approved purchase orders can be sent")
+                raise BadRequestException("Only Approved purchase orders can be marked as ordered")
 
             await self.repo.update(
                 {"id": order_id},
                 {
-                    "status": "Sent",
-                    "is_locked": True,
-                },
-            )
-        elif status == "Closed":
-            if order.status != "Received":
-                raise BadRequestException("Only Received purchase orders can be closed")
-
-            await self.repo.update(
-                {"id": order_id},
-                {
-                    "status": "Closed",
+                    "status": "Ordered",
                     "is_locked": True,
                 },
             )
@@ -245,8 +234,8 @@ class PurchaseOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if order.status != "Sent":
-            raise BadRequestException("Only Sent purchase orders can be received")
+        if order.status != "Ordered":
+            raise BadRequestException("Only Ordered purchase orders can be received")
 
         item_map = {item.product_id: item for item in order.items}
         for receipt_item in receipt.items:

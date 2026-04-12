@@ -1,5 +1,5 @@
 import Modal from '@/components/common/Modal'
-import ProductForm from './ProductForm'
+import AddProductAssistant from './AddProductAssistant'
 import { Product } from '@/types/product.types'
 
 interface ProductModalProps {
@@ -15,15 +15,16 @@ const ProductModal = ({ isOpen, onClose, product, onSuccess }: ProductModalProps
       isOpen={isOpen}
       onClose={onClose}
       title={product ? 'Edit Product' : 'Add New Product'}
-      size="lg"
+      size="xl"
     >
-      <ProductForm
+      <AddProductAssistant
+        isOpen={isOpen}
         product={product}
         onSuccess={() => {
           onSuccess()
           onClose()
         }}
-        onCancel={onClose}
+        onClose={onClose}
       />
     </Modal>
   )

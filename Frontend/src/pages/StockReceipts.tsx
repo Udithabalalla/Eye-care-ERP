@@ -6,12 +6,12 @@ import Loading from '@/components/common/Loading'
 import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder } from '@/types/supplier.types'
-import ReceiveStockForm from '@/components/suppliers/ReceiveStockForm'
+import ReceiveGoodsAssistant from '@/components/purchase-orders/ReceiveGoodsAssistant'
 
 const StockReceipts = () => {
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
   const [search, setSearch] = useState('')
-  const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', 'receipts', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100, status: 'Sent' }) })
+  const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', 'receipts', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100, status: 'Ordered' }) })
 
   return (
     <div className="space-y-6">
@@ -33,7 +33,7 @@ const StockReceipts = () => {
               {(data?.data || []).map((order) => (
                 <Table.Row key={order.id}>
                   <Table.Cell>{order.id}</Table.Cell>
-                  <Table.Cell>{order.supplier_id}</Table.Cell>
+                  <Table.Cell>{order.supplier_information?.supplier_name || order.supplier_id}</Table.Cell>
                   <Table.Cell>{order.status}</Table.Cell>
                   <Table.Cell>
                     <CommonButton variant="outline" size="sm" onClick={() => setSelectedOrder(order)}><Package className="w-4 h-4 mr-2" />Receive</CommonButton>
@@ -44,7 +44,7 @@ const StockReceipts = () => {
           </Table>
         )}
       </TableCard.Root>
-      {selectedOrder && <ReceiveStockForm order={selectedOrder} onSuccess={() => { setSelectedOrder(null); refetch() }} onCancel={() => setSelectedOrder(null)} />}
+      {selectedOrder && <ReceiveGoodsAssistant isOpen={Boolean(selectedOrder)} order={selectedOrder} onSuccess={() => { setSelectedOrder(null); refetch() }} onClose={() => setSelectedOrder(null)} />}
     </div>
   )
 }

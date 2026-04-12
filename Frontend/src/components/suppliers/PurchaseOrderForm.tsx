@@ -237,7 +237,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       if (order.status === 'Draft') {
         updateStatus.mutate('Approved')
       } else if (order.status === 'Approved') {
-        updateStatus.mutate('Sent')
+        updateStatus.mutate('Ordered')
       } else if (order.status === 'Received') {
         updateStatus.mutate('Closed')
       } else {
@@ -347,7 +347,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
         <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
         <p className="text-sm text-secondary">Items Total: {totalAmount.toFixed(2)}</p>
         {order?.status === 'Approved' && <p className="text-sm font-medium text-success-600">This purchase order is approved and locked for edits. It can now be sent.</p>}
-        {order?.status === 'Sent' && <p className="text-sm font-medium text-brand-600">This purchase order has been sent.</p>}
+        {order?.status === 'Ordered' && <p className="text-sm font-medium text-brand-600">This purchase order has been ordered.</p>}
         {order?.status === 'Received' && <p className="text-sm font-medium text-warning-600">Stock has been received. You can now close this purchase order.</p>}
         {order?.status === 'Closed' && <p className="text-sm font-medium text-error-600">This purchase order is closed.</p>}
       </div>

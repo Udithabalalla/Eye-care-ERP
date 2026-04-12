@@ -98,7 +98,7 @@ export interface PurchaseOrder {
   supplier_id: string
   order_date: string
   expected_delivery_date?: string
-  status: 'Draft' | 'Approved' | 'Sent' | 'Received' | 'Closed'
+  status: 'Draft' | 'Approved' | 'Ordered' | 'Received' | 'Closed'
   total_amount: number
   created_by: string
   is_locked?: boolean
@@ -126,6 +126,7 @@ export interface BuyerInformation {
 
 export interface PurchaseOrderFormItem {
   product_id: string
+  description?: string
   quantity: number
   unit_cost: number
 }
@@ -142,6 +143,20 @@ export interface PurchaseOrderFormData {
   notes?: Notes
   authorization?: Authorization
   footer?: Footer
+}
+
+export interface PurchaseOrderAssistantItem {
+  product_id: string
+  description: string
+  quantity: number
+  unit_cost: number
+}
+
+export interface ReceiveGoodsLineItem {
+  product_id: string
+  product_name: string
+  ordered_quantity: number
+  received_quantity: number
 }
 
 export interface ReceiveStockItem {

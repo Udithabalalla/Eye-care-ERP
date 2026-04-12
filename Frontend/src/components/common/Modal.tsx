@@ -9,6 +9,7 @@ interface ModalProps {
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   footer?: React.ReactNode
+  className?: string
 }
 
 const Modal = ({
@@ -18,6 +19,7 @@ const Modal = ({
   children,
   size = 'md',
   footer,
+  className,
 }: ModalProps) => {
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +42,7 @@ const Modal = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className={cn('fixed inset-0 z-50 overflow-y-auto', className)}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
