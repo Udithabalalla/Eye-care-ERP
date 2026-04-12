@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { patientsApi } from '@/api/patients.api'
-import { Plus, SearchLg, Edit01, Trash01 } from '@untitledui/icons'
+import { Plus, SearchLg, Eye } from '@untitledui/icons'
 import {
   Table,
   TableCard,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import PatientModal from '@/components/patients/PatientModal'
+import PatientDetailsDialog from '@/components/patients/PatientDetailsDialog'
 import { formatDate, formatPhone } from '@/utils/formatters'
 import { Patient } from '@/types/patient.types'
 import { Key } from 'react-aria-components'
@@ -26,25 +27,35 @@ const Patients = () => {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
+  const [selectedDetailsPatient, setSelectedDetailsPatient] = useState<Patient | null>(null)
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['patients', page, pageSize, search],
     queryFn: () => patientsApi.getAll({ page, page_size: pageSize, search }),
   })
 
-  const handleEdit = (patient: Patient) => {
-    setSelectedPatient(patient)
-    setIsModalOpen(true)
-  }
-
   const handleAdd = () => {
     setSelectedPatient(null)
     setIsModalOpen(true)
   }
 
+  const handleShowDetails = (patient: Patient) => {
+    setSelectedPatientId(patient.patient_id)
+    setSelectedDetailsPatient(patient)
+    setIsDetailsOpen(true)
+  }
+
   const handleModalClose = () => {
     setIsModalOpen(false)
     setSelectedPatient(null)
+  }
+
+  const handleDetailsClose = () => {
+    setIsDetailsOpen(false)
+    setSelectedPatientId(null)
+    setSelectedDetailsPatient(null)
   }
 
   const handlePageSizeChange = (key: Key | null) => {
@@ -106,7 +117,7 @@ const Patients = () => {
                 <Table.Head label="Last Visit" />
                 <Table.Head label="Visits" />
                 <Table.Head label="Status" />
-                <Table.Head />
+                <Table.Head label="Actions" />
               </Table.Header>
               <Table.Body items={data?.data || []}>
                 {(patient) => (
@@ -134,26 +145,18 @@ const Patients = () => {
                       </BadgeWithDot>
                     </Table.Cell>
                     <Table.Cell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Tooltip title="Edit patient">
-                          <Button
-                            color="link-gray"
-                            onClick={() => handleEdit(patient)}
-                            iconLeading={Edit01}
-                            aria-label="Edit"
-                            size="sm"
-                          />
-                        </Tooltip>
-                        <Tooltip title="Delete patient">
-                          <Button
-                            color="link-destructive"
-                            onClick={() => {/* Implement delete */ }}
-                            iconLeading={Trash01}
-                            aria-label="Delete"
-                            size="sm"
-                          />
-                        </Tooltip>
-                      </div>
+                      <Tooltip title="View patient details">
+                        <Button
+                          color="tertiary"
+                          onClick={() => handleShowDetails(patient)}
+                          iconLeading={Eye}
+                          aria-label="Details"
+                          size="sm"
+                          className="border border-secondary bg-white text-brand-secondary hover:bg-secondary/50"
+                        >
+                          Details
+                        </Button>
+                      </Tooltip>
                     </Table.Cell>
                   </Table.Row>
                 )}
@@ -177,6 +180,13 @@ const Patients = () => {
         onClose={handleModalClose}
         patient={selectedPatient}
         onSuccess={() => refetch()}
+      />
+
+      <PatientDetailsDialog
+        isOpen={isDetailsOpen}
+        patientId={selectedPatientId}
+        initialPatient={selectedDetailsPatient}
+        onClose={handleDetailsClose}
       />
     </div>
   )

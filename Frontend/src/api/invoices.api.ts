@@ -16,6 +16,19 @@ export const invoicesApi = {
     return response.data
   },
 
+  getByPatientId: async (patientId: string, params?: {
+    page?: number
+    page_size?: number
+  }): Promise<PaginatedResponse<Invoice>> => {
+    const response = await axiosInstance.get<PaginatedResponse<Invoice>>('/invoices', {
+      params: {
+        patient_id: patientId,
+        ...params,
+      },
+    })
+    return response.data
+  },
+
   getById: async (id: string): Promise<Invoice> => {
     const response = await axiosInstance.get<ApiResponse<Invoice>>(`/invoices/${id}`)
     return response.data.data

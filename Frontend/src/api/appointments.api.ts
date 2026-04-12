@@ -16,6 +16,19 @@ export const appointmentsApi = {
     return response.data
   },
 
+  getByPatientId: async (patientId: string, params?: {
+    page?: number
+    page_size?: number
+  }): Promise<PaginatedResponse<Appointment>> => {
+    const response = await axiosInstance.get<PaginatedResponse<Appointment>>('/appointments', {
+      params: {
+        patient_id: patientId,
+        ...params,
+      },
+    })
+    return response.data
+  },
+
   getById: async (id: string): Promise<Appointment> => {
     const response = await axiosInstance.get<ApiResponse<Appointment>>(`/appointments/${id}`)
     return response.data.data

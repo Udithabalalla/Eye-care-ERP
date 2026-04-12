@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Plus, SearchLg, File06, Calendar, Eye, Download01 } from '@untitledui/icons'
@@ -8,6 +8,8 @@ import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { Prescription } from '@/types/prescription.types'
 import { formatDate } from '@/utils/formatters'
 import { Key } from 'react-aria-components'
+import { useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 
 const Prescriptions = () => {
   const [page, setPage] = useState(1)
@@ -17,6 +19,7 @@ const Prescriptions = () => {
   const [doctorFilter, setDoctorFilter] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['prescriptions', page, pageSize, patientFilter, doctorFilter],
@@ -33,6 +36,33 @@ const Prescriptions = () => {
     setSelectedPrescription(prescription)
     setIsModalOpen(true)
   }
+
+  useEffect(() => {
+    const detailId = searchParams.get('detail')
+    if (!detailId) return
+
+    let isActive = true
+
+    const openDetail = async () => {
+      try {
+        const prescription = await prescriptionsApi.getById(detailId)
+        if (!isActive) return
+
+        setSelectedPrescription(prescription)
+        setIsModalOpen(true)
+      } catch (error) {
+        if (!isActive) return
+        toast.error('Failed to load prescription details')
+        setSearchParams({}, { replace: true })
+      }
+    }
+
+    openDetail()
+
+    return () => {
+      isActive = false
+    }
+  }, [searchParams, setSearchParams])
 
   const handleAdd = () => {
     setSelectedPrescription(null)
@@ -281,6 +311,7 @@ const Prescriptions = () => {
         onClose={() => {
           setIsModalOpen(false)
           setSelectedPrescription(null)
+          setSearchParams({}, { replace: true })
         }}
         prescription={selectedPrescription}
         onSuccess={() => refetch()}

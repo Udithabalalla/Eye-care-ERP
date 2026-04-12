@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
 import { Plus, SearchLg, Eye, File06, CurrencyDollar, Download01 } from '@untitledui/icons'
@@ -15,6 +15,7 @@ import { Invoice } from '@/types/invoice.types'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import toast from 'react-hot-toast'
 import { Key } from 'react-aria-components'
+import { useSearchParams } from 'react-router-dom'
 
 const Invoices = () => {
   const [page, setPage] = useState(1)
@@ -25,6 +26,7 @@ const Invoices = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['invoices', page, pageSize, statusFilter, search],
@@ -36,6 +38,33 @@ const Invoices = () => {
     setSelectedInvoice(invoice)
     setIsDetailOpen(true)
   }
+
+  useEffect(() => {
+    const detailId = searchParams.get('detail')
+    if (!detailId) return
+
+    let isActive = true
+
+    const openDetail = async () => {
+      try {
+        const invoice = await invoicesApi.getById(detailId)
+        if (!isActive) return
+
+        setSelectedInvoice(invoice)
+        setIsDetailOpen(true)
+      } catch (error) {
+        if (!isActive) return
+        toast.error('Failed to load invoice details')
+        setSearchParams({}, { replace: true })
+      }
+    }
+
+    openDetail()
+
+    return () => {
+      isActive = false
+    }
+  }, [searchParams, setSearchParams])
 
 
 
@@ -272,6 +301,7 @@ const Invoices = () => {
         onClose={() => {
           setIsDetailOpen(false)
           setSelectedInvoice(null)
+          setSearchParams({}, { replace: true })
         }}
         title="Invoice Details"
         size="xl"

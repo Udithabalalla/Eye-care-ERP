@@ -13,6 +13,19 @@ export const prescriptionsApi = {
     return response.data
   },
 
+  getByPatientId: async (patientId: string, params?: {
+    page?: number
+    page_size?: number
+  }): Promise<PaginatedResponse<Prescription>> => {
+    const response = await axiosInstance.get<PaginatedResponse<Prescription>>('/prescriptions', {
+      params: {
+        patient_id: patientId,
+        ...params,
+      },
+    })
+    return response.data
+  },
+
   getById: async (id: string): Promise<Prescription> => {
     const response = await axiosInstance.get<ApiResponse<Prescription>>(`/prescriptions/${id}`)
     return response.data.data
