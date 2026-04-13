@@ -24,6 +24,10 @@ const ClinicSettings = () => {
         phone: data.phone,
         email: data.email,
         tax_number: data.tax_number,
+        default_ship_to_location: data.default_ship_to_location,
+        default_delivery_address: data.default_delivery_address,
+        default_receiving_department: data.default_receiving_department,
+        default_delivery_instructions: data.default_delivery_instructions,
       })
     }
   }, [data])
@@ -38,6 +42,19 @@ const ClinicSettings = () => {
   })
 
   const handleSave = () => {
+    if (!form.default_ship_to_location?.trim()) {
+      toast.error('Default ship to location is required')
+      return
+    }
+    if (!form.default_delivery_address?.trim()) {
+      toast.error('Default delivery address is required')
+      return
+    }
+    if (!form.default_receiving_department?.trim()) {
+      toast.error('Default receiving department is required')
+      return
+    }
+
     saveMutation.mutate({
       company_name: form.company_name,
       company_logo: form.company_logo || 'Logo.png',
@@ -45,6 +62,10 @@ const ClinicSettings = () => {
       phone: form.phone,
       email: form.email,
       tax_number: form.tax_number,
+      default_ship_to_location: form.default_ship_to_location?.trim(),
+      default_delivery_address: form.default_delivery_address?.trim(),
+      default_receiving_department: form.default_receiving_department?.trim(),
+      default_delivery_instructions: form.default_delivery_instructions?.trim(),
     })
   }
 
@@ -53,7 +74,7 @@ const ClinicSettings = () => {
       <div>
         <h1 className="text-2xl font-semibold text-primary">Company Profile</h1>
         <p className="text-sm text-secondary mt-1">
-          Configure the company header used in purchase order PDFs.
+          Configure the company header and shipping defaults used across purchase orders.
         </p>
       </div>
 
@@ -96,6 +117,30 @@ const ClinicSettings = () => {
             onChange={(e) => setForm({ ...form, tax_number: e.target.value })}
             placeholder="TIN-10928374"
           />
+          <Input
+            label="* Default Ship To Location"
+            value={form.default_ship_to_location || ''}
+            onChange={(e) => setForm({ ...form, default_ship_to_location: e.target.value })}
+            placeholder="Main Warehouse"
+          />
+          <Input
+            label="* Default Delivery Address"
+            value={form.default_delivery_address || ''}
+            onChange={(e) => setForm({ ...form, default_delivery_address: e.target.value })}
+            placeholder="No. 120, Galle Road, Colombo 03"
+          />
+          <Input
+            label="* Default Receiving Department"
+            value={form.default_receiving_department || ''}
+            onChange={(e) => setForm({ ...form, default_receiving_department: e.target.value })}
+            placeholder="Stores / Procurement"
+          />
+          <Input
+            label="Default Delivery Instructions"
+            value={form.default_delivery_instructions || ''}
+            onChange={(e) => setForm({ ...form, default_delivery_instructions: e.target.value })}
+            placeholder="Deliver between 9:00 AM - 5:00 PM"
+          />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -107,6 +152,10 @@ const ClinicSettings = () => {
             phone: data.phone,
             email: data.email,
             tax_number: data.tax_number,
+            default_ship_to_location: data.default_ship_to_location,
+            default_delivery_address: data.default_delivery_address,
+            default_receiving_department: data.default_receiving_department,
+            default_delivery_instructions: data.default_delivery_instructions,
           } : {})}>Reset</Button>
         </div>
       </div>
@@ -119,6 +168,10 @@ const ClinicSettings = () => {
           <p><span className="font-medium text-primary">Phone:</span> {form.phone || '-'}</p>
           <p><span className="font-medium text-primary">Email:</span> {form.email || '-'}</p>
           <p><span className="font-medium text-primary">Tax Number:</span> {form.tax_number || '-'}</p>
+          <p><span className="font-medium text-primary">Default Ship To:</span> {form.default_ship_to_location || '-'}</p>
+          <p><span className="font-medium text-primary">Default Delivery Address:</span> {form.default_delivery_address || '-'}</p>
+          <p><span className="font-medium text-primary">Default Receiving Department:</span> {form.default_receiving_department || '-'}</p>
+          <p><span className="font-medium text-primary">Default Delivery Instructions:</span> {form.default_delivery_instructions || '-'}</p>
         </div>
       </div>
     </div>

@@ -13,3 +13,7 @@ class CompanyProfileModel(TimestampModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     tax_number: Optional[str] = None
+    default_ship_to_location: Optional[str] = None
+    default_delivery_address: Optional[str] = None
+    default_receiving_department: Optional[str] = None
+    default_delivery_instructions: Optional[str] = None

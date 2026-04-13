@@ -132,9 +132,25 @@ class PurchaseOrderService:
             tax_number=buyer_payload.get("tax_number"),
         )
 
-        shipping_information = None
+        profile_shipping = {
+            "ship_to_location": getattr(company_profile, "default_ship_to_location", None),
+            "delivery_address": getattr(company_profile, "default_delivery_address", None) or getattr(company_profile, "address", None),
+            "receiving_department": getattr(company_profile, "default_receiving_department", None),
+            "delivery_instructions": getattr(company_profile, "default_delivery_instructions", None),
+        }
+
+        shipping_dict = profile_shipping.copy()
         if data.shipping_information:
-            shipping_information = ShippingInformationModel(**data.shipping_information.dict())
+            incoming_shipping = data.shipping_information.dict()
+            for key, value in incoming_shipping.items():
+                if isinstance(value, str):
+                    cleaned = value.strip()
+                    if cleaned:
+                        shipping_dict[key] = cleaned
+                elif value is not None:
+                    shipping_dict[key] = value
+
+        shipping_information = ShippingInformationModel(**shipping_dict)
 
         payment_terms = PaymentTermsModel(currency="LKR")
         if data.payment_terms:

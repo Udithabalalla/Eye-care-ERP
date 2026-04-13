@@ -8,6 +8,7 @@ import Input from '@/components/common/Input'
 import AddProductAssistant from '@/components/products/AddProductAssistant'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
+import { companyProfileApi } from '@/api/company-profile.api'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
 import { PurchaseOrder, PurchaseOrderAssistantItem, PurchaseOrderFormData } from '@/types/supplier.types'
@@ -53,6 +54,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
   const { data: products } = useQuery({ queryKey: ['products', 'all'], queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }) })
+  const { data: companyProfile } = useQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get() })
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft())
   const [productPickerOpen, setProductPickerOpen] = useState(false)
   const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null)
@@ -69,12 +71,15 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
   )
 
   useEffect(() => {
-    if (!selectedSupplier) return
+    if (!isOpen || order || !companyProfile) return
     setDraft((current) => ({
       ...current,
-      shipping_address: selectedSupplier.address || current.shipping_address,
+      shipping_address: current.shipping_address || companyProfile.default_delivery_address || companyProfile.address || '',
+      ship_to_location: current.ship_to_location || companyProfile.default_ship_to_location || '',
+      receiving_department: current.receiving_department || companyProfile.default_receiving_department || '',
+      delivery_instructions: current.delivery_instructions || companyProfile.default_delivery_instructions || '',
     }))
-  }, [selectedSupplier])
+  }, [companyProfile, isOpen, order])
 
   const subtotal = draft.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0), 0)
   const gross = Math.max(0, subtotal + Number(draft.shipping_cost || 0) - Number(draft.discount || 0))

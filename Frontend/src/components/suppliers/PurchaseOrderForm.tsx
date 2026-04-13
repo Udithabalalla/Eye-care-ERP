@@ -60,10 +60,10 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       tax_number: companyProfile.tax_number,
     } : undefined)
     const shippingInformation = order?.shipping_information || {
-      ship_to_location: '',
-      delivery_address: '',
-      receiving_department: '',
-      delivery_instructions: '',
+      ship_to_location: companyProfile?.default_ship_to_location || '',
+      delivery_address: companyProfile?.default_delivery_address || companyProfile?.address || '',
+      receiving_department: companyProfile?.default_receiving_department || '',
+      delivery_instructions: companyProfile?.default_delivery_instructions || '',
     }
     const summary = order?.order_summary || {
       subtotal: 0,
@@ -226,6 +226,9 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 
   const save = () => {
     if (!form.supplier_id) { toast.error('Please select a supplier'); return }
+    if (!form.shipping_information?.ship_to_location?.trim()) { toast.error('Please fill ship to location'); return }
+    if (!form.shipping_information?.delivery_address?.trim()) { toast.error('Please fill delivery address'); return }
+    if (!form.shipping_information?.receiving_department?.trim()) { toast.error('Please fill receiving department'); return }
     const hasInvalidItem = form.items.some(i => !i.product_id || i.quantity <= 0 || i.unit_cost < 0)
     if (hasInvalidItem) { toast.error('Please fill all item fields properly'); return }
     // Send null for empty delivery date (not empty string which causes 422)
@@ -355,9 +358,9 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       <div className="mt-6 space-y-3">
         <h4 className="font-semibold text-primary">Shipping Information</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Ship To Location" value={form.shipping_information?.ship_to_location || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), ship_to_location: e.target.value } })} />
-          <Input label="Delivery Address" value={form.shipping_information?.delivery_address || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_address: e.target.value } })} />
-          <Input label="Receiving Department" value={form.shipping_information?.receiving_department || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), receiving_department: e.target.value } })} />
+          <Input label="* Ship To Location" value={form.shipping_information?.ship_to_location || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), ship_to_location: e.target.value } })} />
+          <Input label="* Delivery Address" value={form.shipping_information?.delivery_address || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_address: e.target.value } })} />
+          <Input label="* Receiving Department" value={form.shipping_information?.receiving_department || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), receiving_department: e.target.value } })} />
           <Input label="Delivery Instructions" value={form.shipping_information?.delivery_instructions || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_instructions: e.target.value } })} />
         </div>
       </div>
