@@ -8,8 +8,16 @@ import io
 from app.repositories.purchase_order_repository import PurchaseOrderRepository
 from app.repositories.supplier_repository import SupplierRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.stock_receipt_repository import StockReceiptRepository
 from app.services.company_profile_service import CompanyProfileService
-from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderResponse, PurchaseOrderItemResponse, ReceiveStockRequest
+from app.schemas.purchase_order import (
+    PurchaseOrderCreate,
+    PurchaseOrderResponse,
+    PurchaseOrderItemResponse,
+    ReceiveStockRequest,
+    ReceiveStockResponseItem,
+    PurchaseOrderReceiptSummary,
+)
 from app.schemas.responses import PaginatedResponse
 from app.models.purchase_order import (
     PurchaseOrderModel,
@@ -23,6 +31,7 @@ from app.models.purchase_order import (
     AuthorizationModel,
     FooterModel,
 )
+from app.models.stock_receipt import StockReceiptModel, StockReceiptItemModel
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.utils.helpers import generate_id
 from app.config.settings import settings
@@ -48,6 +57,7 @@ class PurchaseOrderService:
         self.repo = PurchaseOrderRepository(db)
         self.supplier_repo = SupplierRepository(db)
         self.product_repo = ProductRepository(db)
+        self.stock_receipt_repo = StockReceiptRepository(db)
         self.company_profile_service = CompanyProfileService(db)
 
     async def list_purchase_orders(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None):
@@ -55,7 +65,7 @@ class PurchaseOrderService:
         orders, total = await self.repo.list_purchase_orders(skip=skip, limit=page_size, supplier_id=supplier_id, status=status)
         total_pages = math.ceil(total / page_size)
         return PaginatedResponse(
-            data=[self._to_response(order) for order in orders],
+            data=[await self._to_response(order) for order in orders],
             total=total,
             page=page,
             page_size=page_size,
@@ -199,13 +209,13 @@ class PurchaseOrderService:
         await self.repo.create(doc)
         # Fetch freshly from DB to get server-set timestamps
         created_order = await self.repo.get_by_order_id(order_id)
-        return self._to_response(created_order)
+        return await self._to_response(created_order)
 
     async def get_purchase_order(self, order_id: str) -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        return self._to_response(order)
+        return await self._to_response(order)
 
     async def update_status(self, order_id: str, status: str) -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
@@ -244,7 +254,7 @@ class PurchaseOrderService:
             )
 
         updated = await self.repo.get_by_order_id(order_id)
-        return self._to_response(updated)
+        return await self._to_response(updated)
 
     async def receive_stock(self, order_id: str, receipt: ReceiveStockRequest, received_by: str) -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
@@ -254,20 +264,40 @@ class PurchaseOrderService:
             raise BadRequestException("Only Ordered purchase orders can be received")
 
         item_map = {item.product_id: item for item in order.items}
+        receipt_items: list[StockReceiptItemModel] = []
         for receipt_item in receipt.items:
             order_item = item_map.get(receipt_item.product_id)
             if not order_item:
                 raise BadRequestException(f"Product {receipt_item.product_id} is not part of this purchase order")
             if receipt_item.received_quantity > order_item.quantity:
                 raise BadRequestException(f"Received quantity cannot exceed ordered quantity for {receipt_item.product_id}")
+            receipt_items.append(StockReceiptItemModel(
+                purchase_order_id=order_id,
+                product_id=receipt_item.product_id,
+                ordered_quantity=order_item.quantity,
+                received_quantity=receipt_item.received_quantity,
+            ))
+
+        for receipt_item in receipt_items:
             if receipt_item.received_quantity > 0:
                 ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
                 if not ok:
                     raise BadRequestException(f"Failed to update stock for {receipt_item.product_id}")
 
+        receipt_id = generate_id("SR", (await self.stock_receipt_repo.count({})) + 1)
+        receipt_model = StockReceiptModel(
+            id=receipt_id,
+            purchase_order_id=order_id,
+            supplier_id=order.supplier_id,
+            received_by=received_by,
+            received_at=datetime.now(timezone.utc),
+            items=receipt_items,
+        )
+        await self.stock_receipt_repo.create(receipt_model.dict())
+
         await self.repo.update({"id": order_id}, {"status": "Received"})
         updated = await self.repo.get_by_order_id(order_id)
-        return self._to_response(updated)
+        return await self._to_response(updated)
 
     async def generate_purchase_order_pdf(self, order_id: str) -> tuple[bytes, str]:
         order = await self.repo.get_by_order_id(order_id)
@@ -286,7 +316,7 @@ class PurchaseOrderService:
         filename = f"{order.id}.pdf"
         return pdf_bytes, filename
 
-    def _to_response(self, order: PurchaseOrderModel) -> PurchaseOrderResponse:
+    async def _to_response(self, order: PurchaseOrderModel) -> PurchaseOrderResponse:
         def dump_value(value):
             if value is None:
                 return None
@@ -295,6 +325,23 @@ class PurchaseOrderService:
             if hasattr(value, "dict"):
                 return value.dict()
             return value
+
+        receipt = await self.stock_receipt_repo.get_latest_by_purchase_order_id(order.id)
+        receipt_summary = None
+        if receipt:
+            receipt_summary = PurchaseOrderReceiptSummary(
+                id=receipt.id,
+                received_by=receipt.received_by,
+                received_at=receipt.received_at,
+                items=[
+                    ReceiveStockResponseItem(
+                        product_id=item.product_id,
+                        ordered_quantity=item.ordered_quantity,
+                        received_quantity=item.received_quantity,
+                    )
+                    for item in receipt.items
+                ],
+            )
 
         return PurchaseOrderResponse(
             id=order.id,
@@ -314,6 +361,7 @@ class PurchaseOrderService:
             notes=dump_value(order.notes),
             authorization=dump_value(order.authorization),
             footer=dump_value(order.footer),
+            receipt_summary=dump_value(receipt_summary),
             created_at=order.created_at,
             updated_at=order.updated_at,
         )

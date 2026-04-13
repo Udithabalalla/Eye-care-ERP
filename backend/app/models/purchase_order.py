@@ -102,3 +102,4 @@ class PurchaseOrderModel(TimestampModel):
     notes: Optional[NotesModel] = None
     authorization: Optional[AuthorizationModel] = None
     footer: Optional[FooterModel] = None
+    receipt_summary: Optional[dict] = None

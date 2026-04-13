@@ -8,12 +8,14 @@ import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder } from '@/types/supplier.types'
 import CreatePurchaseOrderAssistant from '@/components/purchase-orders/CreatePurchaseOrderAssistant'
-import ReceiveGoodsAssistant from '@/components/purchase-orders/ReceiveGoodsAssistant'
+import ReceiveGoodsDialog from '@/components/purchase-orders/ReceiveGoodsDialog'
+import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
 import { formatCurrency } from '@/utils/formatters'
 
 const PurchaseOrders = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isReceiveOpen, setIsReceiveOpen] = useState(false)
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
   const [search, setSearch] = useState('')
   const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }) })
@@ -105,6 +107,8 @@ const PurchaseOrders = () => {
                         <CommonButton size="sm" onClick={() => changeStatus(order, 'Ordered')}>Mark Ordered</CommonButton>
                       ) : order.status === 'Ordered' ? (
                         <CommonButton size="sm" onClick={() => { setSelectedOrder(order); setIsReceiveOpen(true) }}>Receive Goods</CommonButton>
+                      ) : order.status === 'Received' ? (
+                        <CommonButton size="sm" onClick={() => { setSelectedOrder(order); setIsInvoiceOpen(true) }}>Create Supplier Invoice</CommonButton>
                       ) : (
                         <CommonButton size="sm" disabled>{order.status}</CommonButton>
                       )}
@@ -118,7 +122,8 @@ const PurchaseOrders = () => {
         )}
       </TableCard.Root>
       {isCreateOpen && <CreatePurchaseOrderAssistant isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={() => { setIsCreateOpen(false); refetch() }} />}
-      {selectedOrder && isReceiveOpen && <ReceiveGoodsAssistant isOpen={isReceiveOpen} order={selectedOrder} onClose={() => setIsReceiveOpen(false)} onSuccess={() => { setIsReceiveOpen(false); setSelectedOrder(null); refetch() }} />}
+      {selectedOrder && isReceiveOpen && <ReceiveGoodsDialog isOpen={isReceiveOpen} order={selectedOrder} onClose={() => setIsReceiveOpen(false)} onSuccess={(updatedOrder) => { setSelectedOrder(updatedOrder); setIsReceiveOpen(false); setIsInvoiceOpen(true); refetch() }} />}
+      {selectedOrder && isInvoiceOpen && <CreateSupplierInvoiceDialog isOpen={isInvoiceOpen} order={selectedOrder} onClose={() => setIsInvoiceOpen(false)} onSuccess={() => { setIsInvoiceOpen(false); setSelectedOrder(null); refetch() }} />}
     </div>
   )
 }

@@ -11,4 +11,5 @@ class SupplierPaymentModel(TimestampModel):
     payment_date: datetime
     payment_method: str
     amount_paid: float = Field(..., gt=0)
+    reference_number: Optional[str] = None
     notes: Optional[str] = None

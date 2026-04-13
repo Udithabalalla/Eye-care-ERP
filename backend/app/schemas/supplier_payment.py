@@ -8,6 +8,15 @@ class SupplierPaymentCreate(BaseModel):
     payment_date: datetime
     payment_method: str
     amount_paid: float = Field(..., gt=0)
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SupplierInvoicePaymentCreate(BaseModel):
+    payment_date: datetime
+    payment_method: str
+    amount_paid: float = Field(..., gt=0)
+    reference_number: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -17,6 +26,7 @@ class SupplierPaymentResponse(BaseModel):
     payment_date: datetime
     payment_method: str
     amount_paid: float
+    reference_number: Optional[str] = None
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime

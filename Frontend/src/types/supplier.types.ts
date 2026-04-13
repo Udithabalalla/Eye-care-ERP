@@ -35,6 +35,19 @@ export interface PurchaseOrderItem {
   total_price?: number
 }
 
+export interface ReceiveStockSummaryItem {
+  product_id: string
+  ordered_quantity: number
+  received_quantity: number
+}
+
+export interface PurchaseOrderReceiptSummary {
+  id: string
+  received_by: string
+  received_at: string
+  items: ReceiveStockSummaryItem[]
+}
+
 export interface BuyerInformation {
   company_name?: string
   company_logo?: string
@@ -110,6 +123,7 @@ export interface PurchaseOrder {
   notes?: Notes
   authorization?: Authorization
   footer?: Footer
+  receipt_summary?: PurchaseOrderReceiptSummary
   items: PurchaseOrderItem[]
   created_at: string
   updated_at: string
@@ -178,8 +192,22 @@ export interface SupplierInvoice {
   total_amount: number
   due_date?: string
   status: 'Unpaid' | 'Partial' | 'Paid'
+  items?: SupplierInvoiceItem[]
+  matching_status?: 'Matched' | 'Flagged'
+  matching_issues?: string[]
   created_at: string
   updated_at: string
+}
+
+export interface SupplierInvoiceItem {
+  product_id: string
+  product_name?: string
+  ordered_quantity: number
+  received_quantity: number
+  invoice_quantity: number
+  unit_price: number
+  line_total: number
+  warnings?: string[]
 }
 
 export interface SupplierInvoiceFormData {
@@ -187,9 +215,10 @@ export interface SupplierInvoiceFormData {
   purchase_order_id?: string
   invoice_number: string
   invoice_date: string
-  total_amount: number
+  total_amount?: number
   due_date?: string
   status?: 'Unpaid' | 'Partial' | 'Paid'
+  items?: SupplierInvoiceItem[]
 }
 
 export interface SupplierPayment {
@@ -198,15 +227,17 @@ export interface SupplierPayment {
   payment_date: string
   payment_method: string
   amount_paid: number
+  reference_number?: string
   notes?: string
   created_at: string
   updated_at: string
 }
 
 export interface SupplierPaymentFormData {
-  invoice_id: string
+  invoice_id?: string
   payment_date: string
   payment_method: string
   amount_paid: number
+  reference_number?: string
   notes?: string
 }

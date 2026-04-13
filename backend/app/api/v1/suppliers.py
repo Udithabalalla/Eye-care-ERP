@@ -10,7 +10,7 @@ from app.schemas.responses import ResponseModel, PaginatedResponse
 from app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse
 from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderResponse, ReceiveStockRequest
 from app.schemas.supplier_invoice import SupplierInvoiceCreate, SupplierInvoiceUpdate, SupplierInvoiceResponse
-from app.schemas.supplier_payment import SupplierPaymentCreate, SupplierPaymentResponse
+from app.schemas.supplier_payment import SupplierPaymentCreate, SupplierInvoicePaymentCreate, SupplierPaymentResponse
 from app.services.supplier_service import SupplierService
 from app.services.purchase_order_service import PurchaseOrderService
 from app.services.supplier_invoice_service import SupplierInvoiceService
@@ -190,4 +190,15 @@ async def create_supplier_payment(
     current_user: UserModel = Depends(get_current_user),
 ):
     payment = await SupplierPaymentService(db).record_payment(payment_data)
+    return ResponseModel(message="Supplier payment recorded successfully", data=payment)
+
+
+@router.post("/supplier-invoices/{invoice_id}/payment", response_model=ResponseModel[SupplierPaymentResponse])
+async def record_supplier_invoice_payment(
+    invoice_id: str,
+    payment_data: SupplierInvoicePaymentCreate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    payment = await SupplierPaymentService(db).record_invoice_payment(invoice_id, payment_data)
     return ResponseModel(message="Supplier payment recorded successfully", data=payment)

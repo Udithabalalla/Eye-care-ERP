@@ -81,6 +81,11 @@ export const suppliersApi = {
     return response.data.data
   },
 
+  recordSupplierInvoicePayment: async (invoiceId: string, data: Omit<SupplierPaymentFormData, 'invoice_id'>): Promise<SupplierPayment> => {
+    const response = await axiosInstance.post<ApiResponse<SupplierPayment>>(`/supplier-invoices/${invoiceId}/payment`, data)
+    return response.data.data
+  },
+
   updateSupplierInvoice: async (id: string, data: Partial<SupplierInvoiceFormData>): Promise<SupplierInvoice> => {
     const response = await axiosInstance.patch<ApiResponse<SupplierInvoice>>(`/supplier-invoices/${id}`, data)
     return response.data.data

@@ -7,11 +7,13 @@ import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
 import { SupplierInvoice } from '@/types/supplier.types'
 import SupplierInvoiceForm from '@/components/suppliers/SupplierInvoiceForm'
+import SupplierPaymentForm from '@/components/suppliers/SupplierPaymentForm'
 
 const SupplierInvoices = () => {
   const [search, setSearch] = useState('')
   const [selectedInvoice, setSelectedInvoice] = useState<SupplierInvoice | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const { data, isLoading, refetch } = useQuery({ queryKey: ['supplier-invoices', search], queryFn: () => suppliersApi.getSupplierInvoices({ page: 1, page_size: 100 }) })
 
   return (
@@ -40,7 +42,12 @@ const SupplierInvoices = () => {
                   <Table.Cell>{invoice.status}</Table.Cell>
                   <Table.Cell>{invoice.total_amount.toFixed(2)}</Table.Cell>
                   <Table.Cell>
-                    <CommonButton variant="outline" size="sm" onClick={() => { setSelectedInvoice(invoice); setIsFormOpen(true) }}>Edit</CommonButton>
+                    <div className="flex gap-2">
+                      <CommonButton variant="outline" size="sm" onClick={() => { setSelectedInvoice(invoice); setIsFormOpen(true) }}>Edit</CommonButton>
+                      {invoice.status !== 'Paid' && (
+                        <CommonButton size="sm" onClick={() => { setSelectedInvoice(invoice); setIsPaymentOpen(true) }}>Record Payment</CommonButton>
+                      )}
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -49,6 +56,7 @@ const SupplierInvoices = () => {
         )}
       </TableCard.Root>
       {isFormOpen && <SupplierInvoiceForm invoice={selectedInvoice} onSuccess={() => { setSelectedInvoice(null); setIsFormOpen(false); refetch() }} onCancel={() => setIsFormOpen(false)} />}
+      {isPaymentOpen && selectedInvoice && <SupplierPaymentForm invoiceId={selectedInvoice.id} onSuccess={() => { setSelectedInvoice(null); setIsPaymentOpen(false); refetch() }} onCancel={() => setIsPaymentOpen(false)} />}
     </div>
   )
 }

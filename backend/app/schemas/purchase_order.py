@@ -119,6 +119,7 @@ class PurchaseOrderResponse(BaseModel):
     notes: Optional[Notes] = None
     authorization: Optional[Authorization] = None
     footer: Optional[Footer] = None
+    receipt_summary: Optional[PurchaseOrderReceiptSummary] = None
     created_at: datetime
     updated_at: datetime
 
@@ -131,3 +132,25 @@ class ReceiveStockItem(BaseModel):
 
 class ReceiveStockRequest(BaseModel):
     items: List[ReceiveStockItem] = Field(..., min_length=1)
+
+
+class ReceiveStockResponseItem(BaseModel):
+    product_id: str
+    ordered_quantity: int
+    received_quantity: int
+
+
+class ReceiveStockResponse(BaseModel):
+    id: str
+    purchase_order_id: str
+    supplier_id: str
+    received_by: str
+    received_at: datetime
+    items: List[ReceiveStockResponseItem]
+
+
+class PurchaseOrderReceiptSummary(BaseModel):
+    id: str
+    received_by: str
+    received_at: datetime
+    items: List[ReceiveStockResponseItem]
