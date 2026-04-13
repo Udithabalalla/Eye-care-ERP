@@ -154,3 +154,7 @@ class PurchaseOrderReceiptSummary(BaseModel):
     received_by: str
     received_at: datetime
     items: List[ReceiveStockResponseItem]
+
+
+# Ensure forward references are resolved before FastAPI builds route response models.
+PurchaseOrderResponse.model_rebuild()
