@@ -119,7 +119,7 @@ class PurchaseOrderResponse(BaseModel):
     notes: Optional[Notes] = None
     authorization: Optional[Authorization] = None
     footer: Optional[Footer] = None
-    receipt_summary: Optional[PurchaseOrderReceiptSummary] = None
+    receipt_summary: Optional["PurchaseOrderReceiptSummary"] = None
     created_at: datetime
     updated_at: datetime
 
