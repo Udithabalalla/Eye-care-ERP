@@ -131,6 +131,16 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
     setDraft((current) => ({ ...current, items: [...current.items, { product_id: '', description: '', quantity: 1, unit_cost: 0 }] }))
   }
 
+  const openAddNewProduct = (itemIndex: number) => {
+    if (!draft.supplier_id) {
+      toast.error('Please select a supplier before adding a new product')
+      return
+    }
+
+    setTargetItemIndex(itemIndex)
+    setProductPickerOpen(true)
+  }
+
   const removeItem = (index: number) => {
     setDraft((current) => {
       const nextItems = current.items.filter((_, itemIndex) => itemIndex !== index)
@@ -140,6 +150,9 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
   const save = () => {
     if (!draft.supplier_id) return toast.error('Please select a supplier')
+    if (!draft.shipping_address.trim()) return toast.error('Please fill delivery address')
+    if (!draft.ship_to_location.trim()) return toast.error('Please fill ship to location')
+    if (!draft.receiving_department.trim()) return toast.error('Please fill receiving department')
     if (draft.items.some((item) => !item.product_id || item.quantity <= 0 || item.unit_cost < 0)) {
       return toast.error('Please fill all item fields properly')
     }
@@ -197,7 +210,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary">Supplier</label>
+                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Supplier</label>
                 <select className="input" value={draft.supplier_id} onChange={(event) => setDraft({ ...draft, supplier_id: event.target.value })}>
                   <option value="">Select an option</option>
                   {suppliers?.data.map((supplier) => (
@@ -206,7 +219,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary">Order Date</label>
+                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Order Date</label>
                 <Input type="datetime-local" value={draft.order_date} onChange={(event) => setDraft({ ...draft, order_date: event.target.value })} />
               </div>
               <div className="md:col-span-2">
@@ -252,7 +265,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                 return (
                   <div key={`${item.product_id || 'item'}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
                     <div className="md:col-span-3">
-                      <label className="mb-2 block text-sm font-medium text-secondary">Product</label>
+                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Product</label>
                       <div className="flex gap-2">
                         <select
                           className="input"
@@ -274,12 +287,11 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => {
-                            setTargetItemIndex(index)
-                            setProductPickerOpen(true)
-                          }}
+                          onClick={() => openAddNewProduct(index)}
+                          className="min-w-fit shrink-0 gap-1 whitespace-nowrap border-brand-200 px-3 text-brand-600 hover:bg-brand-50"
                         >
-                          + Add New Item
+                          <Plus className="h-4 w-4" />
+                          <span className="leading-none">Add New Item</span>
                         </Button>
                       </div>
                     </div>
@@ -288,11 +300,11 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                       <Input value={item.description} onChange={(event) => updateItem(index, { description: event.target.value })} placeholder="Description" />
                     </div>
                     <div className="md:col-span-1">
-                      <label className="mb-2 block text-sm font-medium text-secondary">Qty Ordered</label>
+                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Qty Ordered</label>
                       <Input type="number" min={1} value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value) })} />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-secondary">Unit Cost</label>
+                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Unit Cost</label>
                       <Input type="number" step="0.01" value={item.unit_cost} onChange={(event) => updateItem(index, { unit_cost: Number(event.target.value) })} />
                     </div>
                     <div className="md:col-span-2">
@@ -313,9 +325,18 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
               <h4 className="text-sm font-semibold text-primary">Shipping Information</h4>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input label="Delivery Address" value={draft.shipping_address} onChange={(event) => setDraft({ ...draft, shipping_address: event.target.value })} placeholder="Delivery Address" />
-              <Input label="Ship To Location" value={draft.ship_to_location} onChange={(event) => setDraft({ ...draft, ship_to_location: event.target.value })} placeholder="Ship To Location" />
-              <Input label="Receiving Department" value={draft.receiving_department} onChange={(event) => setDraft({ ...draft, receiving_department: event.target.value })} placeholder="Receiving Department" />
+              <div>
+                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Delivery Address</label>
+                <Input value={draft.shipping_address} onChange={(event) => setDraft({ ...draft, shipping_address: event.target.value })} placeholder="Delivery Address" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Ship To Location</label>
+                <Input value={draft.ship_to_location} onChange={(event) => setDraft({ ...draft, ship_to_location: event.target.value })} placeholder="Ship To Location" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Receiving Department</label>
+                <Input value={draft.receiving_department} onChange={(event) => setDraft({ ...draft, receiving_department: event.target.value })} placeholder="Receiving Department" />
+              </div>
               <Input label="Delivery Instructions (optional)" value={draft.delivery_instructions} onChange={(event) => setDraft({ ...draft, delivery_instructions: event.target.value })} placeholder="Delivery Instructions note" />
             </div>
           </section>
@@ -355,6 +376,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
             isOpen={productPickerOpen}
             onClose={() => { setProductPickerOpen(false); setTargetItemIndex(null) }}
             onSuccess={handleProductCreated}
+            lockedSupplierId={draft.supplier_id || undefined}
           />
         </Modal>
       )}

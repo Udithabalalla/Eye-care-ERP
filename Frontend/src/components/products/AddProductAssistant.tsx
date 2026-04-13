@@ -14,6 +14,7 @@ interface AddProductAssistantProps {
   onClose: () => void
   onSuccess: (product?: Product) => void
   product?: Product | null
+  lockedSupplierId?: string
 }
 
 type FormState = AddProductAssistantData & {
@@ -51,7 +52,7 @@ const createDefaultState = (product?: Product | null): FormState => ({
   internal_notes: '',
 })
 
-const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProductAssistantProps) => {
+const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSupplierId }: AddProductAssistantProps) => {
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
   const [form, setForm] = useState<FormState>(createDefaultState(product))
@@ -59,6 +60,11 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
   useEffect(() => {
     setForm(createDefaultState(product))
   }, [product, isOpen])
+
+  useEffect(() => {
+    if (!lockedSupplierId) return
+    setForm((current) => ({ ...current, supplier_id: lockedSupplierId }))
+  }, [lockedSupplierId])
 
   useEffect(() => {
     const selectedSupplier = suppliers?.data.find((entry) => entry.id === form.supplier_id)
@@ -118,6 +124,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
     if (!form.name.trim()) return toast.error('Product name is required')
     if (!form.category) return toast.error('Category is required')
     if (!form.sku.trim()) return toast.error('SKU is required')
+    if (!form.supplier_id) return toast.error('Supplier is required')
     if (form.cost_price < 0 || form.selling_price < 0) return toast.error('Prices must be positive')
 
     const payload: AddProductAssistantData = {
@@ -153,7 +160,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Product Name</label>
+            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Product Name</label>
             <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Product Name" />
           </div>
           <div className="md:col-span-4">
@@ -161,7 +168,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
             <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Description" />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Category</label>
+            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Category</label>
             <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ProductCategory })}>
               {categoryOptions.map((category) => (
                 <option key={category.value} value={category.value}>{category.label}</option>
@@ -173,7 +180,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
             <Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder="Brand" />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">SKU</label>
+            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>SKU</label>
             <Input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} placeholder="SKU" />
           </div>
           <div className="md:col-span-4">
@@ -190,11 +197,11 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary">Cost Price</label>
+              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Cost Price</label>
               <Input type="number" step="0.01" value={form.cost_price} onChange={(event) => setForm({ ...form, cost_price: Number(event.target.value) })} placeholder="Qty" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary">Selling Price</label>
+              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Selling Price</label>
               <Input type="number" step="0.01" value={form.selling_price} onChange={(event) => setForm({ ...form, selling_price: Number(event.target.value) })} placeholder="0.00 LKR" />
             </div>
           </div>
@@ -210,7 +217,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
               <Input value={product ? String(product.current_stock) : '0'} readOnly />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary">Min Stock Level</label>
+              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Min Stock Level</label>
               <Input type="number" value={form.min_stock_level} onChange={(event) => setForm({ ...form, min_stock_level: Number(event.target.value) })} placeholder="0.00 LKR" />
             </div>
           </div>
@@ -223,13 +230,17 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product }: AddProduct
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Supplier</label>
-            <select className="input" value={form.supplier_id} onChange={(event) => setForm({ ...form, supplier_id: event.target.value })}>
-              <option value="">Select an option</option>
-              {suppliers?.data.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>
-              ))}
-            </select>
+            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Supplier</label>
+            {lockedSupplierId ? (
+              <Input value={selectedSupplier?.supplier_name || ''} readOnly />
+            ) : (
+              <select className="input" value={form.supplier_id} onChange={(event) => setForm({ ...form, supplier_id: event.target.value })}>
+                <option value="">Select an option</option>
+                {suppliers?.data.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium text-secondary">Supplier Contact</label>
