@@ -24,6 +24,7 @@ const statusOptions: Array<{ id: string; label: string }> = [
 
 interface SalesOrderFormItem {
   product_id: string
+  barcode: string
   quantity: number
   unit_price: number
 }
@@ -41,7 +42,7 @@ const defaultForm: SalesOrderFormState = {
   prescription_id: '',
   notes: '',
   status: 'draft',
-  items: [{ product_id: '', quantity: 1, unit_price: 0 }],
+  items: [{ product_id: '', barcode: '', quantity: 1, unit_price: 0 }],
 }
 
 const SalesOrders = () => {
@@ -52,6 +53,7 @@ const SalesOrders = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null)
   const [form, setForm] = useState<SalesOrderFormState>(defaultForm)
+  const [barcodeLookupIndex, setBarcodeLookupIndex] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-orders', search, status],
@@ -60,12 +62,12 @@ const SalesOrders = () => {
 
   const { data: patientsData } = useQuery({
     queryKey: ['sales-order-patients-lookup'],
-    queryFn: () => patientsApi.getAll({ page: 1, page_size: 200, search: '' }),
+    queryFn: () => patientsApi.getAll({ page: 1, page_size: 100, search: '' }),
   })
 
   const { data: productsData } = useQuery({
     queryKey: ['sales-order-products-lookup'],
-    queryFn: () => productsApi.getAll({ page: 1, page_size: 200, search: '' }),
+    queryFn: () => productsApi.getAll({ page: 1, page_size: 100, search: '' }),
   })
 
   const saveMutation = useMutation({
@@ -172,6 +174,7 @@ const SalesOrders = () => {
       status: order.status,
       items: order.items.map((item) => ({
         product_id: item.product_id,
+        barcode: item.sku || '',
         quantity: item.quantity,
         unit_price: item.unit_price,
       })),
@@ -188,6 +191,7 @@ const SalesOrders = () => {
       if (key === 'product_id') {
         const product = (productsData?.data || []).find((p) => p.product_id === value)
         if (product) {
+          updated.barcode = product.barcode || product.sku || ''
           updated.unit_price = product.selling_price
         }
       }
@@ -200,7 +204,7 @@ const SalesOrders = () => {
   const addItem = () => {
     setForm((current) => ({
       ...current,
-      items: [...current.items, { product_id: '', quantity: 1, unit_price: 0 }],
+      items: [...current.items, { product_id: '', barcode: '', quantity: 1, unit_price: 0 }],
     }))
   }
 
@@ -209,9 +213,39 @@ const SalesOrders = () => {
       const nextItems = current.items.filter((_, itemIndex) => itemIndex !== index)
       return {
         ...current,
-        items: nextItems.length ? nextItems : [{ product_id: '', quantity: 1, unit_price: 0 }],
+        items: nextItems.length ? nextItems : [{ product_id: '', barcode: '', quantity: 1, unit_price: 0 }],
       }
     })
+  }
+
+  const applyBarcode = async (index: number) => {
+    const code = form.items[index]?.barcode?.trim()
+    if (!code) {
+      toast.error('Enter a barcode/SKU/product ID first')
+      return
+    }
+
+    setBarcodeLookupIndex(index)
+    try {
+      const product = await productsApi.lookupByCode(code)
+      setForm((current) => {
+        const nextItems = [...current.items]
+        const existing = nextItems[index]
+        if (!existing) return current
+        nextItems[index] = {
+          ...existing,
+          product_id: product.product_id,
+          barcode: code,
+          unit_price: product.selling_price,
+        }
+        return { ...current, items: nextItems }
+      })
+      toast.success(`Added ${product.name}`)
+    } catch {
+      toast.error('Product not found for this barcode/SKU')
+    } finally {
+      setBarcodeLookupIndex(null)
+    }
   }
 
   const handleSave = () => {
@@ -428,7 +462,32 @@ const SalesOrders = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
+                    <label className="block text-xs text-tertiary mb-1">Barcode / SKU</label>
+                    <div className="flex gap-2">
+                      <input
+                        className="input w-full"
+                        value={item.barcode}
+                        onChange={(event) => handleItemChange(index, 'barcode', event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            applyBarcode(index)
+                          }
+                        }}
+                        placeholder="Scan or type code"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => applyBarcode(index)}
+                        isLoading={barcodeLookupIndex === index}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="md:col-span-1">
                     <label className="block text-xs text-tertiary mb-1">Qty</label>
                     <input
                       type="number"
@@ -438,7 +497,7 @@ const SalesOrders = () => {
                       onChange={(event) => handleItemChange(index, 'quantity', Number(event.target.value || 0))}
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-1">
                     <label className="block text-xs text-tertiary mb-1">Unit Price</label>
                     <input
                       type="number"
@@ -449,7 +508,7 @@ const SalesOrders = () => {
                       onChange={(event) => handleItemChange(index, 'unit_price', Number(event.target.value || 0))}
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-1">
                     <label className="block text-xs text-tertiary mb-1">Line Total</label>
                     <div className="h-10 rounded-lg border border-border px-3 flex items-center bg-secondary">{formatCurrency(item.quantity * item.unit_price)}</div>
                   </div>
