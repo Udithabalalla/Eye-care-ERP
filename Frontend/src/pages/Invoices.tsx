@@ -123,17 +123,17 @@ const Invoices = () => {
       {/* Table Card with Untitled UI Structure */}
       <TableCard.Root>
         <TableCard.Header
-          title="Invoices"
+          title="Sales Orders"
           badge={data?.total || 0}
-          description="Manage invoices and billing"
+          description="Manage sales orders and billing"
           contentTrailing={
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               <Input
-                placeholder="Search invoices..."
+                placeholder="Search sales orders..."
                 value={search}
                 onChange={setSearch}
                 iconLeading={SearchLg}
-                aria-label="Search invoices"
+                aria-label="Search sales orders"
                 className="w-full sm:w-56"
               />
               <Select
@@ -161,7 +161,7 @@ const Invoices = () => {
                 <SelectItem id="50">50 rows</SelectItem>
               </Select>
               <Button onClick={handleAdd} iconLeading={Plus} size="sm">
-                Create Invoice
+                Create Sales Order
               </Button>
             </div>
           }
@@ -173,9 +173,9 @@ const Invoices = () => {
           </div>
         ) : (
           <>
-            <Table aria-label="Invoices table" selectionMode="multiple" selectionBehavior="toggle">
+            <Table aria-label="Sales orders table" selectionMode="multiple" selectionBehavior="toggle">
               <Table.Header>
-                <Table.Head label="Invoice #" isRowHeader />
+                <Table.Head label="Sales Order #" isRowHeader />
                 <Table.Head label="Patient" />
                 <Table.Head label="Date" />
                 <Table.Head label="Amount" />
