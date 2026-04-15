@@ -2,6 +2,8 @@ import { axiosInstance } from './axios'
 import { ApiResponse, PaginatedResponse } from '@/types/common.types'
 import {
   SalesOrder,
+  SalesOrderCreatePayload,
+  SalesOrderUpdatePayload,
   InventoryMovement,
   Payment,
   Transaction,
@@ -18,6 +20,18 @@ export const salesOrdersApi = {
   },
   getById: async (id: string) => {
     const response = await axiosInstance.get<ApiResponse<SalesOrder>>(`/sales-orders/${id}`)
+    return response.data.data
+  },
+  create: async (data: SalesOrderCreatePayload) => {
+    const response = await axiosInstance.post<ApiResponse<SalesOrder>>('/sales-orders', data)
+    return response.data.data
+  },
+  update: async (id: string, data: SalesOrderUpdatePayload) => {
+    const response = await axiosInstance.put<ApiResponse<SalesOrder>>(`/sales-orders/${id}`, data)
+    return response.data.data
+  },
+  updateStatus: async (id: string, status: SalesOrderStatus) => {
+    const response = await axiosInstance.patch<ApiResponse<SalesOrder>>(`/sales-orders/${id}/status`, { status })
     return response.data.data
   },
 }

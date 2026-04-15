@@ -12,20 +12,26 @@ class SalesOrderItemCreate(BaseModel):
     sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
-    total: float = Field(..., ge=0)
+    total: Optional[float] = Field(default=None, ge=0)
 
 
 class SalesOrderCreate(BaseModel):
     patient_id: str
     prescription_id: Optional[str] = None
     items: List[SalesOrderItemCreate] = Field(default_factory=list, min_length=1)
+    notes: Optional[str] = None
     status: SalesOrderStatus = SalesOrderStatus.DRAFT
 
 
 class SalesOrderUpdate(BaseModel):
     prescription_id: Optional[str] = None
     items: Optional[List[SalesOrderItemCreate]] = None
+    notes: Optional[str] = None
     status: Optional[SalesOrderStatus] = None
+
+
+class SalesOrderStatusUpdate(BaseModel):
+    status: SalesOrderStatus
 
 
 class SalesOrderResponse(BaseModel):
@@ -35,6 +41,9 @@ class SalesOrderResponse(BaseModel):
     patient_id: str
     prescription_id: Optional[str]
     items: List[SalesOrderItemModel]
+    subtotal: float
+    total_amount: float
+    notes: Optional[str] = None
     status: SalesOrderStatus
     created_by: str
     created_at: datetime

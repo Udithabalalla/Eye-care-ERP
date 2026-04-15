@@ -17,12 +17,30 @@ export interface SalesOrderItem {
   total: number
 }
 
+export interface SalesOrderCreatePayload {
+  patient_id: string
+  prescription_id?: string
+  notes?: string
+  status: SalesOrderStatus
+  items: SalesOrderItem[]
+}
+
+export interface SalesOrderUpdatePayload {
+  prescription_id?: string
+  notes?: string
+  status?: SalesOrderStatus
+  items?: SalesOrderItem[]
+}
+
 export interface SalesOrder {
   order_id: string
   order_number: string
   patient_id: string
   prescription_id?: string
   items: SalesOrderItem[]
+  subtotal: number
+  total_amount: number
+  notes?: string
   status: SalesOrderStatus
   created_by: string
   created_at: string

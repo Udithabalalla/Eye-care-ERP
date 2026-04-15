@@ -22,5 +22,8 @@ class SalesOrderModel(TimestampModel):
     patient_id: str
     prescription_id: Optional[str] = None
     items: List[SalesOrderItemModel] = Field(default_factory=list)
+    subtotal: float = Field(default=0, ge=0)
+    total_amount: float = Field(default=0, ge=0)
+    notes: Optional[str] = None
     status: SalesOrderStatus = Field(default=SalesOrderStatus.DRAFT)
     created_by: str
