@@ -11,6 +11,7 @@ import { productsApi } from '@/api/products.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 
 const statusOptions: Array<{ id: string; label: string }> = [
   { id: 'draft', label: 'Draft' },
@@ -44,6 +45,7 @@ const defaultForm: SalesOrderFormState = {
 }
 
 const SalesOrders = () => {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<SalesOrderStatus | ''>('')
@@ -116,6 +118,19 @@ const SalesOrders = () => {
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Failed to update status'
+      toast.error(message)
+    },
+  })
+
+  const convertMutation = useMutation({
+    mutationFn: (orderId: string) => salesOrdersApi.convertToInvoice(orderId),
+    onSuccess: (invoice) => {
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success(`Invoice ${invoice.invoice_number} created from sales order`)
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to convert to invoice'
       toast.error(message)
     },
   })
@@ -286,6 +301,25 @@ const SalesOrders = () => {
                           <option key={option.id} value={option.id}>{option.label}</option>
                         ))}
                       </select>
+                      {order.status === 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => convertMutation.mutate(order.order_id)}
+                          disabled={Boolean(order.invoice_id) || convertMutation.isPending}
+                        >
+                          {order.invoice_id ? 'Invoiced' : 'Convert to Invoice'}
+                        </Button>
+                      )}
+                      {order.invoice_id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => navigate('/invoices')}
+                        >
+                          View Invoice
+                        </Button>
+                      )}
                     </div>
                   </Table.Cell>
                 </Table.Row>

@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.models.user import UserModel
 from app.schemas.responses import ResponseModel, PaginatedResponse
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrderStatusUpdate, SalesOrderResponse
+from app.schemas.invoice import InvoiceResponse
 from app.services.sales_order_service import SalesOrderService
 
 router = APIRouter()
@@ -39,3 +40,9 @@ async def update_sales_order(order_id: str, data: SalesOrderUpdate, db: AsyncIOM
 async def update_sales_order_status(order_id: str, data: SalesOrderStatusUpdate, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
     order = await SalesOrderService(db).update_sales_order(order_id, SalesOrderUpdate(status=data.status), current_user.user_id)
     return ResponseModel(message="Sales order status updated successfully", data=order)
+
+
+@router.post("/{order_id}/convert-to-invoice", response_model=ResponseModel[InvoiceResponse])
+async def convert_sales_order_to_invoice(order_id: str, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    invoice = await SalesOrderService(db).convert_to_invoice(order_id, current_user.user_id)
+    return ResponseModel(message="Sales order converted to invoice successfully", data=invoice)

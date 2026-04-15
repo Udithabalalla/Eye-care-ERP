@@ -14,15 +14,19 @@ from app.utils.helpers import generate_id
 from app.services.audit_service import AuditService
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.transaction_service import TransactionService
+from app.services.invoice_service import InvoiceService
 from app.schemas.inventory_movement import InventoryMovementCreate
 from app.schemas.transaction import TransactionCreate
+from app.schemas.invoice import InvoiceCreate
+from app.models.invoice import InvoiceItem
+from app.repositories.invoice_repository import InvoiceRepository
 from app.utils.constants import (
     SalesOrderStatus,
     InventoryMovementType,
     LedgerReferenceType,
     LedgerTransactionType,
 )
-from datetime import datetime
+from datetime import datetime, date
 
 
 class SalesOrderService:
@@ -34,6 +38,8 @@ class SalesOrderService:
         self.audit_service = AuditService(db)
         self.inventory_movement_service = InventoryMovementService(db)
         self.transaction_service = TransactionService(db)
+        self.invoice_service = InvoiceService(db)
+        self.invoice_repo = InvoiceRepository(db)
 
     def _allowed_status_transitions(self):
         return {
@@ -210,3 +216,59 @@ class SalesOrderService:
 
         await self.audit_service.log(created_by, "sales_order_updated", "SalesOrder", order_id, old_value=existing.dict(), new_value=updated.dict())
         return SalesOrderResponse(**updated.dict())
+
+    async def convert_to_invoice(self, order_id: str, created_by: str):
+        order = await self.repo.get_by_order_id(order_id)
+        if not order:
+            raise NotFoundException(f"Sales order {order_id} not found")
+
+        if order.status != SalesOrderStatus.COMPLETED:
+            raise BadRequestException("Only completed sales orders can be converted to invoices")
+
+        if order.invoice_id:
+            existing_invoice = await self.invoice_repo.get_by_invoice_id(order.invoice_id)
+            if existing_invoice:
+                return existing_invoice
+
+        existing_by_reference = await self.invoice_repo.get_by_sales_order_id(order.order_id)
+        if existing_by_reference:
+            await self.repo.update({"order_id": order_id}, {"invoice_id": existing_by_reference.invoice_id})
+            return existing_by_reference
+
+        invoice_items = [
+            InvoiceItem(
+                product_id=item.product_id,
+                product_name=item.product_name or item.product_id,
+                sku=item.sku or item.product_id,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                discount=0,
+                tax=0,
+                total=item.total,
+            )
+            for item in order.items
+        ]
+
+        invoice = await self.invoice_service.create_invoice(
+            InvoiceCreate(
+                patient_id=order.patient_id,
+                invoice_date=date.today(),
+                due_date=date.today(),
+                items=invoice_items,
+                prescription_id=order.prescription_id,
+                sales_order_id=order.order_id,
+                notes=order.notes,
+            ),
+            current_user_id=created_by,
+            deduct_stock=False,
+        )
+
+        await self.repo.update({"order_id": order_id}, {"invoice_id": invoice.invoice_id})
+        await self.audit_service.log(
+            created_by,
+            "sales_order_converted_to_invoice",
+            "SalesOrder",
+            order_id,
+            new_value={"invoice_id": invoice.invoice_id},
+        )
+        return invoice

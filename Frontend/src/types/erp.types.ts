@@ -41,6 +41,7 @@ export interface SalesOrder {
   subtotal: number
   total_amount: number
   notes?: string
+  invoice_id?: string
   status: SalesOrderStatus
   created_by: string
   created_at: string

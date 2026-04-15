@@ -77,17 +77,18 @@ class InvoiceService:
     async def create_invoice(
         self,
         invoice_data: InvoiceCreate,
-        current_user_id: str
+        current_user_id: str,
+        deduct_stock: bool = True,
     ) -> InvoiceResponse:
         """Create a new invoice"""
-        # Validate product availability before attempting stock deduction.
+        # Validate product references and (optionally) availability before stock deduction.
         for item in invoice_data.items:
             product = await self.product_repo.get_by_product_id(item.product_id)
             if not product:
                 raise NotFoundException(f"Product with ID {item.product_id} not found")
             if not product.is_active:
                 raise BadRequestException(f"Product {item.product_name} is inactive")
-            if product.current_stock < item.quantity:
+            if deduct_stock and product.current_stock < item.quantity:
                 raise BadRequestException(
                     f"Insufficient stock for {product.name}. Available: {product.current_stock}, requested: {item.quantity}"
                 )
@@ -138,25 +139,26 @@ class InvoiceService:
         # Deduct stock atomically for all items before invoice save.
         deducted_items = []
         try:
-            for item in invoice_data.items:
-                ok = await self.product_repo.decrement_stock_atomic(item.product_id, item.quantity)
-                if not ok:
-                    raise BadRequestException(
-                        f"Failed to deduct stock for product {item.product_id}. Stock may have changed, please retry."
-                    )
-                deducted_items.append((item.product_id, item.quantity))
+            if deduct_stock:
+                for item in invoice_data.items:
+                    ok = await self.product_repo.decrement_stock_atomic(item.product_id, item.quantity)
+                    if not ok:
+                        raise BadRequestException(
+                            f"Failed to deduct stock for product {item.product_id}. Stock may have changed, please retry."
+                        )
+                    deducted_items.append((item.product_id, item.quantity))
 
-                await self.inventory_service.create_movement(
-                    InventoryMovementCreate(
-                        product_id=item.product_id,
-                        movement_type=InventoryMovementType.SALE_OUT,
-                        quantity=item.quantity,
-                        reference_type=LedgerReferenceType.INVOICE,
-                        reference_id=invoice_id,
-                    ),
-                    current_user_id,
-                    apply_stock_change=False,
-                )
+                    await self.inventory_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=item.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.INVOICE,
+                            reference_id=invoice_id,
+                        ),
+                        current_user_id,
+                        apply_stock_change=False,
+                    )
 
             # Save invoice only after stock deduction succeeds.
             created_invoice = await self.invoice_repo.create_invoice(invoice_model)

@@ -44,6 +44,7 @@ class SalesOrderResponse(BaseModel):
     subtotal: float
     total_amount: float
     notes: Optional[str] = None
+    invoice_id: Optional[str] = None
     status: SalesOrderStatus
     created_by: str
     created_at: datetime

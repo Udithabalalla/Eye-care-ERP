@@ -23,6 +23,13 @@ class InvoiceRepository(BaseRepository):
         if invoice_dict:
             return InvoiceModel(**invoice_dict)
         return None
+
+    async def get_by_sales_order_id(self, sales_order_id: str) -> Optional[InvoiceModel]:
+        """Get invoice by sales_order_id"""
+        invoice_dict = await self.get_one({"sales_order_id": sales_order_id})
+        if invoice_dict:
+            return InvoiceModel(**invoice_dict)
+        return None
     
     async def list_invoices(
         self,

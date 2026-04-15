@@ -12,6 +12,7 @@ import {
   LedgerTransactionType,
   LedgerReferenceType,
 } from '@/types/erp.types'
+import { Invoice } from '@/types/invoice.types'
 
 export const salesOrdersApi = {
   getAll: async (params?: { page?: number; page_size?: number; patient_id?: string; status?: SalesOrderStatus }) => {
@@ -32,6 +33,10 @@ export const salesOrdersApi = {
   },
   updateStatus: async (id: string, status: SalesOrderStatus) => {
     const response = await axiosInstance.patch<ApiResponse<SalesOrder>>(`/sales-orders/${id}/status`, { status })
+    return response.data.data
+  },
+  convertToInvoice: async (id: string) => {
+    const response = await axiosInstance.post<ApiResponse<Invoice>>(`/sales-orders/${id}/convert-to-invoice`)
     return response.data.data
   },
 }
