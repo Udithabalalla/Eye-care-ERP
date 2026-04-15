@@ -9,6 +9,11 @@ import {
   Truck01,
   Receipt,
   BarChart07,
+  BarChart02,
+  CurrencyDollar,
+  AlertTriangle,
+  Key01,
+  Bell01,
   LogOut01,
   UserCheck01,
   ChevronSelectorVertical,
@@ -50,8 +55,8 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Sales Orders', path: '/sales-orders', icon: File06 },
       { name: 'Invoices', path: '/invoices', icon: Receipt },
-      { name: 'Payments', path: '/payments', icon: Receipt },
-      { name: 'Refunds', path: '/refunds', icon: Receipt },
+      { name: 'Payments', path: '/payments', icon: CurrencyDollar },
+      { name: 'Refunds', path: '/refunds', icon: AlertTriangle },
     ],
   },
   {
@@ -61,22 +66,22 @@ const navigationSections: NavSection[] = [
       { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck01 },
       { name: 'Stock Receipts', path: '/stock-receipts', icon: Package },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: File06 },
-      { name: 'Supplier Payments', path: '/supplier-payments', icon: Receipt },
+      { name: 'Supplier Payments', path: '/supplier-payments', icon: CurrencyDollar },
     ],
   },
   {
     title: 'Inventory',
     items: [
       { name: 'Products', path: '/products', icon: Package },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: Package },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Package },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: BarChart02 },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Settings01 },
     ],
   },
   {
     title: 'Finance',
     items: [
-      { name: 'Transactions', path: '/transactions', icon: Receipt },
-      { name: 'Ledger', path: '/ledger', icon: Receipt },
+      { name: 'Transactions', path: '/transactions', icon: BarChart02 },
+      { name: 'Ledger', path: '/ledger', icon: BarChart07 },
     ],
   },
   {
@@ -89,8 +94,8 @@ const navigationSections: NavSection[] = [
     title: 'System',
     items: [
       { name: 'Users', path: '/users', icon: Users01 },
-      { name: 'Roles & Permissions', path: '/roles-permissions', icon: UserCheck01 },
-      { name: 'Activity Logs', path: '/activity-logs', icon: BarChart07 },
+      { name: 'Roles & Permissions', path: '/roles-permissions', icon: Key01 },
+      { name: 'Activity Logs', path: '/activity-logs', icon: Bell01 },
       { name: 'Company Profile', path: '/settings', icon: Settings01 },
     ],
   },

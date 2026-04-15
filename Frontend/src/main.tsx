@@ -10,12 +10,14 @@ import { ThemeProvider } from './contexts/ThemeContext'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       retry: 1,
-      staleTime: 5 * 60 * 1000,      // 5 minutes - data considered fresh
+      staleTime: 0,                  // Always treat cached data as stale for live ERP tables
       gcTime: 30 * 60 * 1000,        // 30 minutes - cache garbage collection
       refetchOnReconnect: true,       // Refetch on network reconnection
-      refetchOnMount: false,          // Don't refetch if data is fresh
+      refetchOnMount: 'always',       // Refresh whenever views mount/navigate
+      refetchInterval: 15000,         // Poll active queries every 15s for near real-time updates
+      refetchIntervalInBackground: true,
       networkMode: 'offlineFirst',    // Return cached data while offline
     },
     mutations: {
