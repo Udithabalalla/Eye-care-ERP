@@ -37,7 +37,7 @@ const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Management',
+    title: 'Clinical',
     items: [
       { name: 'Patients', path: '/patients', icon: Users01 },
       { name: 'Appointments', path: '/appointments', icon: Calendar },
@@ -46,15 +46,37 @@ const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Inventory & Sales',
+    title: 'Sales',
+    items: [
+      { name: 'Sales Orders', path: '/sales-orders', icon: File06 },
+      { name: 'Invoices', path: '/invoices', icon: Receipt },
+      { name: 'Payments', path: '/payments', icon: Receipt },
+      { name: 'Refunds', path: '/refunds', icon: Receipt },
+    ],
+  },
+  {
+    title: 'Purchasing',
     items: [
       { name: 'Suppliers', path: '/suppliers', icon: Users01 },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck01 },
       { name: 'Stock Receipts', path: '/stock-receipts', icon: Package },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: File06 },
       { name: 'Supplier Payments', path: '/supplier-payments', icon: Receipt },
+    ],
+  },
+  {
+    title: 'Inventory',
+    items: [
       { name: 'Products', path: '/products', icon: Package },
-      { name: 'Invoices', path: '/invoices', icon: Receipt },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: Package },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Package },
+    ],
+  },
+  {
+    title: 'Finance',
+    items: [
+      { name: 'Transactions', path: '/transactions', icon: Receipt },
+      { name: 'Ledger', path: '/ledger', icon: Receipt },
     ],
   },
   {
@@ -66,6 +88,9 @@ const navigationSections: NavSection[] = [
   {
     title: 'System',
     items: [
+      { name: 'Users', path: '/users', icon: Users01 },
+      { name: 'Roles & Permissions', path: '/roles-permissions', icon: UserCheck01 },
+      { name: 'Activity Logs', path: '/activity-logs', icon: BarChart07 },
       { name: 'Company Profile', path: '/settings', icon: Settings01 },
     ],
   },
@@ -79,6 +104,14 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, logout } = useAuth()
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    return navigationSections.reduce<Record<string, boolean>>((sections, section) => {
+      if (section.title) {
+        sections[section.title] = true
+      }
+      return sections
+    }, {})
+  })
   const accountMenuRef = useRef<HTMLDivElement>(null)
 
   // Close menu when clicking outside
@@ -125,17 +158,30 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             {navigationSections.map((section, sectionIndex) => (
               <div key={sectionIndex} className="flex flex-col gap-1">
                 {section.title && (
-                  <div className="px-3 pb-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setOpenSections((current) => ({
+                      ...current,
+                      [section.title!]: !current[section.title!],
+                    }))}
+                    className="flex w-full items-center justify-between px-3 pb-2 pt-1 text-left"
+                  >
                     <span className="text-xs font-semibold uppercase tracking-wider text-tertiary">
                       {section.title}
                     </span>
-                  </div>
+                    <ChevronSelectorVertical
+                      className={cn(
+                        'h-4 w-4 text-quaternary transition-transform',
+                        openSections[section.title] ? 'rotate-180' : ''
+                      )}
+                    />
+                  </button>
                 )}
-                {section.items.map((item) => (
+                {(!section.title || openSections[section.title]) && section.items.map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}

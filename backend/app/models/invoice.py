@@ -54,6 +54,7 @@ class InvoiceModel(TimestampModel):
     
     # References
     prescription_id: Optional[str] = None
+    sales_order_id: Optional[str] = None
     appointment_id: Optional[str] = None
     
     # Insurance

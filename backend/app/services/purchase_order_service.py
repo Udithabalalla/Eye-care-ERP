@@ -35,6 +35,9 @@ from app.models.stock_receipt import StockReceiptModel, StockReceiptItemModel
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.utils.helpers import generate_id
 from app.config.settings import settings
+from app.services.inventory_movement_service import InventoryMovementService
+from app.schemas.inventory_movement import InventoryMovementCreate
+from app.utils.constants import InventoryMovementType, LedgerReferenceType
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -59,6 +62,7 @@ class PurchaseOrderService:
         self.product_repo = ProductRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
         self.company_profile_service = CompanyProfileService(db)
+        self.inventory_service = InventoryMovementService(db)
 
     async def list_purchase_orders(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None):
         skip = (page - 1) * page_size
@@ -283,6 +287,18 @@ class PurchaseOrderService:
                 ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
                 if not ok:
                     raise BadRequestException(f"Failed to update stock for {receipt_item.product_id}")
+
+                await self.inventory_service.create_movement(
+                    InventoryMovementCreate(
+                        product_id=receipt_item.product_id,
+                        movement_type=InventoryMovementType.PURCHASE_IN,
+                        quantity=receipt_item.received_quantity,
+                        reference_type=LedgerReferenceType.PURCHASE_ORDER,
+                        reference_id=order_id,
+                    ),
+                    received_by,
+                    apply_stock_change=False,
+                )
 
         receipt_id = generate_id("SR", (await self.stock_receipt_repo.count({})) + 1)
         receipt_model = StockReceiptModel(

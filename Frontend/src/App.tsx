@@ -15,6 +15,15 @@ const Appointments = lazy(() => import('./pages/Appointments'))
 const Prescriptions = lazy(() => import('./pages/Prescriptions'))
 const Products = lazy(() => import('./pages/Products'))
 const Invoices = lazy(() => import('./pages/Invoices'))
+const SalesOrders = lazy(() => import('./pages/SalesOrders'))
+const Transactions = lazy(() => import('./pages/Transactions'))
+const Payments = lazy(() => import('./pages/Payments'))
+const Refunds = lazy(() => import('./pages/Refunds'))
+const InventoryMovements = lazy(() => import('./pages/InventoryMovements'))
+const StockAdjustments = lazy(() => import('./pages/StockAdjustments'))
+const ActivityLogs = lazy(() => import('./pages/ActivityLogs'))
+const RolesPermissions = lazy(() => import('./pages/RolesPermissions'))
+const Ledger = lazy(() => import('./pages/Ledger'))
 const Doctors = lazy(() => import('./pages/Doctors'))
 const Reports = lazy(() => import('./pages/Reports'))
 const Suppliers = lazy(() => import('./pages/Suppliers'))
@@ -22,6 +31,7 @@ const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'))
 const StockReceipts = lazy(() => import('./pages/StockReceipts'))
 const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
+const Users = lazy(() => import('./pages/Users'))
 const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
 
 // Suspense fallback component
@@ -52,8 +62,11 @@ function App() {
             <Route path="/patients" element={<Patients />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/prescriptions" element={<Prescriptions />} />
+            <Route path="/sales-orders" element={<SalesOrders />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/refunds" element={<Refunds />} />
             <Route path="/doctors" element={<Doctors />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/suppliers" element={<Suppliers />} />
@@ -61,6 +74,13 @@ function App() {
             <Route path="/stock-receipts" element={<StockReceipts />} />
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />
             <Route path="/supplier-payments" element={<SupplierPayments />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/ledger" element={<Ledger />} />
+            <Route path="/inventory-movements" element={<InventoryMovements />} />
+            <Route path="/stock-adjustments" element={<StockAdjustments />} />
+            <Route path="/activity-logs" element={<ActivityLogs />} />
+            <Route path="/roles-permissions" element={<RolesPermissions />} />
             <Route path="/settings" element={<ClinicSettings />} />
           </Route>
         </Route>

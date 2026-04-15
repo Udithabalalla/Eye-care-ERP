@@ -189,7 +189,7 @@ async def create_supplier_payment(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    payment = await SupplierPaymentService(db).record_payment(payment_data)
+    payment = await SupplierPaymentService(db).record_payment(payment_data, current_user.user_id)
     return ResponseModel(message="Supplier payment recorded successfully", data=payment)
 
 
@@ -200,5 +200,5 @@ async def record_supplier_invoice_payment(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    payment = await SupplierPaymentService(db).record_invoice_payment(invoice_id, payment_data)
+    payment = await SupplierPaymentService(db).record_invoice_payment(invoice_id, payment_data, current_user.user_id)
     return ResponseModel(message="Supplier payment recorded successfully", data=payment)

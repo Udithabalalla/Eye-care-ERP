@@ -79,5 +79,5 @@ async def record_payment(
 ):
     """Record a payment for an invoice"""
     invoice_service = InvoiceService(db)
-    await invoice_service.record_payment(invoice_id, payment)
+    await invoice_service.record_payment(invoice_id, payment, current_user.user_id)
     return ResponseModel(message="Payment recorded successfully")

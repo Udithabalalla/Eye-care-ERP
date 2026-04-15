@@ -11,6 +11,7 @@ class InvoiceCreate(BaseModel):
     due_date: date
     items: List[InvoiceItem] = Field(..., min_length=1)
     prescription_id: Optional[str] = None
+    sales_order_id: Optional[str] = None
     appointment_id: Optional[str] = None
     payment_method: Optional[PaymentMethod] = None
     notes: Optional[str] = None
@@ -20,6 +21,7 @@ class InvoiceUpdate(BaseModel):
     due_date: Optional[date] = None
     payment_status: Optional[PaymentStatus] = None
     prescription_id: Optional[str] = None
+    sales_order_id: Optional[str] = None
     notes: Optional[str] = None
 
 class PaymentRecord(BaseModel):
@@ -51,5 +53,6 @@ class InvoiceResponse(BaseModel):
     payment_method: Optional[PaymentMethod]
     payment_date: Optional[datetime]
     prescription_id: Optional[str]
+    sales_order_id: Optional[str]
     created_by: str
     created_at: datetime

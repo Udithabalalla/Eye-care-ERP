@@ -6,11 +6,18 @@ import math
 from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.sales_order_repository import SalesOrderRepository
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaymentRecord
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.utils.helpers import generate_id, date_to_datetime
+from app.services.inventory_movement_service import InventoryMovementService
+from app.services.audit_service import AuditService
+from app.services.payment_service import PaymentService
+from app.schemas.payment import PaymentCreate
+from app.schemas.inventory_movement import InventoryMovementCreate
+from app.utils.constants import InventoryMovementType, LedgerReferenceType
 
 class InvoiceService:
     """Invoice business logic service"""
@@ -19,6 +26,10 @@ class InvoiceService:
         self.invoice_repo = InvoiceRepository(db)
         self.patient_repo = PatientRepository(db)
         self.product_repo = ProductRepository(db)
+        self.sales_order_repo = SalesOrderRepository(db)
+        self.inventory_service = InventoryMovementService(db)
+        self.audit_service = AuditService(db)
+        self.payment_service = PaymentService(db)
     
     async def list_invoices(
         self,
@@ -85,6 +96,11 @@ class InvoiceService:
         patient = await self.patient_repo.get_by_patient_id(invoice_data.patient_id)
         if not patient:
             raise NotFoundException(f"Patient with ID {invoice_data.patient_id} not found")
+
+        if invoice_data.sales_order_id:
+            sales_order = await self.sales_order_repo.get_by_order_id(invoice_data.sales_order_id)
+            if not sales_order:
+                raise NotFoundException(f"Sales order with ID {invoice_data.sales_order_id} not found")
         
         # Generate invoice ID and number
         next_number = await self.invoice_repo.get_next_invoice_number(datetime.now().year)
@@ -130,6 +146,18 @@ class InvoiceService:
                     )
                 deducted_items.append((item.product_id, item.quantity))
 
+                await self.inventory_service.create_movement(
+                    InventoryMovementCreate(
+                        product_id=item.product_id,
+                        movement_type=InventoryMovementType.SALE_OUT,
+                        quantity=item.quantity,
+                        reference_type=LedgerReferenceType.INVOICE,
+                        reference_id=invoice_id,
+                    ),
+                    current_user_id,
+                    apply_stock_change=False,
+                )
+
             # Save invoice only after stock deduction succeeds.
             created_invoice = await self.invoice_repo.create_invoice(invoice_model)
         except Exception:
@@ -165,7 +193,8 @@ class InvoiceService:
     async def record_payment(
         self,
         invoice_id: str,
-        payment: PaymentRecord
+        payment: PaymentRecord,
+        current_user_id: str,
     ):
         """Record a payment for an invoice"""
         invoice = await self.invoice_repo.get_by_invoice_id(invoice_id)
@@ -180,9 +209,19 @@ class InvoiceService:
         
         payment_status = "paid" if new_balance == 0 else "partial"
         
-        # Convert payment_date to datetime
+        payment_record = await self.payment_service.create_payment(
+            PaymentCreate(
+                amount=payment.amount,
+                payment_method=payment.payment_method,
+                reference_type=LedgerReferenceType.INVOICE,
+                reference_id=invoice_id,
+                payment_date=payment.payment_date,
+            ),
+            current_user_id=current_user_id,
+        )
+
         payment_date_dt = date_to_datetime(payment.payment_date)
-        
+
         await self.invoice_repo.update_invoice(
             invoice_id,
             {
@@ -191,6 +230,14 @@ class InvoiceService:
                 "payment_status": payment_status,
                 "payment_method": payment.payment_method,
                 "payment_date": payment_date_dt,
-                "transaction_id": payment.transaction_id
+                "transaction_id": payment_record.transaction_id,
             }
+        )
+
+        await self.audit_service.log(
+            current_user_id,
+            "invoice_payment_recorded",
+            "Invoice",
+            invoice_id,
+            new_value={"paid_amount": new_paid_amount, "balance_due": new_balance},
         )
