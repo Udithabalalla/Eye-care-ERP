@@ -267,7 +267,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       )}
     >
       {order && (
-        <div className="mb-6 space-y-4 rounded-lg border border-border bg-surface/50 p-4">
+        <div className="mb-6 space-y-4 rounded-apple border border-border/70 bg-surface/60 p-4 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-secondary">
             <div><span className="font-medium text-primary">Order ID:</span> {order.id}</div>
             <div><span className="font-medium text-primary">Status:</span> {order.status}</div>
@@ -277,7 +277,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {readonlySections.map((section) => (
-              <div key={section.title} className="rounded-md border border-border bg-white p-4 shadow-sm">
+              <div key={section.title} className="rounded-lg border border-border/70 bg-surface p-4 shadow-sm">
                 <h4 className="mb-3 font-semibold text-primary">{section.title}</h4>
                 <div className="space-y-2 text-sm">
                   {section.rows.map(([label, value]) => (
@@ -292,7 +292,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
           </div>
 
           {order.authorization && (
-            <div className="rounded-md border border-border bg-white p-4 shadow-sm">
+            <div className="rounded-lg border border-border/70 bg-surface p-4 shadow-sm">
               <h4 className="mb-3 font-semibold text-primary">Authorization</h4>
               <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
                 <div><span className="font-medium text-secondary">Approved By:</span> {order.authorization.approved_by || '-'}</div>
@@ -400,7 +400,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       {order?.authorization && (
         <div className="mt-6 space-y-3">
           <h4 className="font-semibold text-primary">Authorization</h4>
-          <div className="rounded border border-border p-4 text-sm text-secondary space-y-1">
+          <div className="space-y-1 rounded-lg border border-border/70 bg-surface-secondary p-4 text-sm text-secondary">
             <div>Approved By: {order.authorization.approved_by || '-'}</div>
             <div>Approval Date: {order.authorization.approval_date || '-'}</div>
             <div>Signature File: {order.authorization.signature || '-'}</div>

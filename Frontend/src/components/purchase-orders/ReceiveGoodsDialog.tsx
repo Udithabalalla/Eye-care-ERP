@@ -87,7 +87,7 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
       )}
     >
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-primary p-4 shadow-sm">
+        <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
             <div><span className="font-medium text-secondary">Order ID:</span> {order.id}</div>
             <div><span className="font-medium text-secondary">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
@@ -96,7 +96,7 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
           <p className="mt-2 text-sm text-tertiary">Confirm the quantities received from the supplier before updating stock.</p>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-primary shadow-sm">
+        <div className="overflow-hidden rounded-apple-lg border border-border bg-bg-primary shadow-xs">
           <Table size="sm">
             <Table.Header bordered>
               <Table.Head label="Product" isRowHeader />

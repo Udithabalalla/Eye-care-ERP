@@ -14,14 +14,14 @@ const AppointmentCard = ({ appointment, onClick }: AppointmentCardProps) => {
   return (
     <div
       onClick={onClick}
-      className="card hover:shadow-md transition-shadow cursor-pointer border-l-4"
+        className="cursor-pointer rounded-apple-lg border border-border bg-bg-primary p-5 shadow-xs transition-colors hover:bg-bg-secondary"
       style={{
-        borderLeftColor:
-          appointment.status === 'scheduled'
-            ? '#3b82f6'
-            : appointment.status === 'confirmed'
-            ? '#10b981'
-            : '#6b7280',
+          boxShadow:
+            appointment.status === 'scheduled'
+              ? 'inset 3px 0 0 0 rgb(0 113 227)'
+              : appointment.status === 'confirmed'
+              ? 'inset 3px 0 0 0 rgb(3 152 85)'
+              : 'inset 3px 0 0 0 rgb(142 142 147)',
       }}
     >
       <div className="flex items-start justify-between">
@@ -54,7 +54,7 @@ const AppointmentCard = ({ appointment, onClick }: AppointmentCardProps) => {
         </div>
 
         <div className="text-right">
-          <span className="inline-block px-2 py-1 text-xs font-medium bg-tertiary text-secondary rounded capitalize">
+            <span className="inline-block rounded-apple bg-bg-secondary px-2 py-1 text-xs font-medium capitalize text-secondary">
             {appointment.type}
           </span>
         </div>

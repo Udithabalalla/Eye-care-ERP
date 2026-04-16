@@ -154,7 +154,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
 
   return (
     <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); submit() }}>
-      <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-primary">Product Information</h4>
         </div>
@@ -191,7 +191,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-sm font-semibold text-primary">Pricing Information</h4>
           </div>
@@ -207,7 +207,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-sm font-semibold text-primary">Inventory Information</h4>
           </div>
@@ -224,7 +224,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-primary">Supplier Information</h4>
         </div>
@@ -257,7 +257,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <div className="rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-primary">Notes</h4>
         </div>

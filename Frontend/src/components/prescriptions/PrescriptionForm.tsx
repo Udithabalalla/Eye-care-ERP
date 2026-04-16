@@ -171,11 +171,11 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {existingPrescription && !prescription && (
-                <div className="bg-brand-50 dark:bg-brand-950 border-l-4 border-brand-500 p-4 mb-4">
+                <div className="mb-4 border-l-4 border-brand-500 bg-brand-50 p-4 dark:bg-bg-secondary">
                     <div className="flex justify-between items-center">
                         <div>
-                            <p className="font-medium text-brand-700 dark:text-brand-300">Existing Prescription Found</p>
-                            <p className="text-sm text-brand-600 dark:text-brand-400">
+                            <p className="font-medium text-brand-700">Existing Prescription Found</p>
+                            <p className="text-sm text-brand-600">
                                 This patient already has a prescription from {new Date(existingPrescription.prescription_date).toLocaleDateString()}.
                             </p>
                         </div>
@@ -190,7 +190,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                             <button
                                 type="button"
                                 onClick={() => setExistingPrescription(null)}
-                                className="px-3 py-1.5 bg-primary text-brand-600 text-sm font-medium rounded border border-brand-200 hover:bg-brand-50 dark:hover:bg-brand-900 transition-colors"
+                                className="rounded-apple border border-brand-200 bg-bg-primary px-3 py-1.5 text-sm font-medium text-brand-600 transition-colors hover:bg-brand-50"
                             >
                                 Create New
                             </button>
@@ -269,7 +269,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                 {/* Eye Prescription Section */}
                 <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Eye Prescription</h3>
+                        <h3 className="text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Eye Prescription</h3>
                         {!showEyePrescription && !readOnly && (
                             <button
                                 type="button"
@@ -282,7 +282,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     </div>
 
                     {showEyePrescription && formData.eye_prescription && (
-                        <div className="space-y-4 bg-secondary p-4 rounded-lg">
+                        <div className="space-y-4 rounded-apple-lg bg-bg-secondary p-4">
                             <div>
                                 <label className="label">Prescription Type</label>
                                 <select
@@ -306,7 +306,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 
                             {/* Right Eye */}
                             <div>
-                                <h4 className="font-medium mb-2">Right Eye (OD)</h4>
+                                <h4 className="mb-2 font-medium text-primary">Right Eye (OD)</h4>
                                 <div className="grid grid-cols-5 gap-2">
                                     <div>
                                         <label className="label text-xs">Sphere</label>
@@ -419,7 +419,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 
                             {/* Left Eye */}
                             <div>
-                                <h4 className="font-medium mb-2">Left Eye (OS)</h4>
+                                <h4 className="mb-2 font-medium text-primary">Left Eye (OS)</h4>
                                 <div className="grid grid-cols-5 gap-2">
                                     <div>
                                         <label className="label text-xs">Sphere</label>
@@ -536,7 +536,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                 {/* Medications Section */}
                 <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Medications</h3>
+                        <h3 className="text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Medications</h3>
                         {!readOnly && (
                             <button type="button" onClick={addMedication} className="btn-secondary text-sm">
                                 <Plus className="w-4 h-4 mr-1" /> Add Medication
@@ -547,12 +547,12 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     {formData.medications && formData.medications.length > 0 && (
                         <div className="space-y-3">
                             {formData.medications.map((med: Medication, index: number) => (
-                                <div key={index} className="bg-secondary p-4 rounded-lg relative">
+                                <div key={index} className="relative rounded-apple-lg bg-bg-secondary p-4">
                                     {!readOnly && (
                                         <button
                                             type="button"
                                             onClick={() => removeMedication(index)}
-                                            className="absolute top-2 right-2 text-error-600 hover:text-error-800"
+                                            className="absolute right-2 top-2 text-error-600 hover:text-error-700"
                                         >
                                             <Trash02 className="w-4 h-4" />
                                         </button>
@@ -640,7 +640,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 
             {/* Actions */}
             {!readOnly && (
-                <div className="flex justify-end space-x-3 pt-4 border-t">
+                <div className="flex justify-end space-x-3 border-t border-border pt-4">
                     <button type="button" onClick={onCancel} className="btn-secondary">
                         Cancel
                     </button>
@@ -658,7 +658,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                 </div>
             )}
             {readOnly && (
-                <div className="flex justify-end space-x-3 pt-4 border-t">
+                <div className="flex justify-end space-x-3 border-t border-border pt-4">
                     <button type="button" onClick={onCancel} className="btn-secondary">
                         Close
                     </button>

@@ -50,7 +50,7 @@ const ReceiveStockForm = ({ order, onSuccess, onCancel }: ReceiveStockFormProps)
     >
       <div className="space-y-4">
         {form.items.map((item, index) => (
-          <div key={item.product_id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div key={item.product_id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-border/70 bg-surface/60 p-4 md:grid-cols-3">
             <div>
               <p className="text-sm font-medium text-primary">Product: {item.product_id}</p>
               <p className="text-xs text-tertiary">Ordered: {item.ordered_quantity}</p>

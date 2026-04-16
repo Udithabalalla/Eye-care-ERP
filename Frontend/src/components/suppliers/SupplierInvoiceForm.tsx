@@ -76,7 +76,7 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
         </div>
       )}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 rounded-apple border border-border/70 bg-surface/60 p-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">Supplier</label>
           <select className="input" value={form.supplier_id} onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}>

@@ -80,9 +80,9 @@ const StockAdjustmentModal = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Adjust Stock" size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Product Info */}
-        <div className="bg-secondary p-4 rounded-lg">
+        <div className="rounded-apple-lg bg-bg-secondary p-4">
           <div className="flex items-center space-x-3 mb-3">
-            <Package className="w-8 h-8 text-primary-600" />
+            <Package className="w-8 h-8 text-brand-600" />
             <div>
               <h3 className="font-semibold text-primary">{product.name}</h3>
               <p className="text-sm text-secondary">SKU: {product.sku}</p>
@@ -96,7 +96,7 @@ const StockAdjustmentModal = ({
 
         {/* Quantity Adjustment */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Quantity Change *
           </label>
           <input
@@ -115,7 +115,7 @@ const StockAdjustmentModal = ({
 
         {/* Reason */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Reason *
           </label>
           <select {...register('reason')} className="input">
@@ -139,7 +139,7 @@ const StockAdjustmentModal = ({
 
         {/* Notes */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Additional Notes
           </label>
           <textarea {...register('notes')} rows={2} className="input" />
@@ -147,11 +147,11 @@ const StockAdjustmentModal = ({
 
         {/* Preview */}
         <div
-          className={`p-4 rounded-lg border-2 ${newStock < 0
-            ? 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-error-800'
+          className={`rounded-apple border p-4 ${newStock < 0
+            ? 'border-error-200 bg-error-50'
             : newStock <= product.min_stock_level
-              ? 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-warning-800'
-              : 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-success-800'
+              ? 'border-warning-200 bg-warning-50'
+              : 'border-success-200 bg-success-50'
             }`}
         >
           <p className="text-sm font-medium mb-2">After Adjustment:</p>
@@ -179,7 +179,7 @@ const StockAdjustmentModal = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+        <div className="flex items-center justify-end space-x-3 border-t border-border pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">
             Cancel
           </button>

@@ -101,10 +101,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Basic Information */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Product Information</h3>
+        <h3 className="mb-4 text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Product Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Product Name *
             </label>
             <input {...register('name')} className="input" />
@@ -114,14 +114,14 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Description
             </label>
             <textarea {...register('description')} rows={2} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Category *
             </label>
             <select {...register('category')} className="input">
@@ -139,12 +139,12 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Brand</label>
+            <label className="mb-2 block text-sm font-medium text-secondary">Brand</label>
             <input {...register('brand')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">SKU *</label>
+            <label className="mb-2 block text-sm font-medium text-secondary">SKU *</label>
             <input {...register('sku')} className="input" placeholder="e.g., CLS-360" />
             {errors.sku && (
               <p className="text-sm text-error-600 mt-1">{errors.sku.message}</p>
@@ -152,15 +152,15 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">Barcode</label>
+            <label className="mb-2 block text-sm font-medium text-secondary">Barcode</label>
             {product?.barcode ? (
               <input
                 value={product.barcode}
-                className="input bg-secondary/60"
+                className="input bg-bg-secondary"
                 readOnly
               />
             ) : (
-              <div className="rounded-lg border border-dashed border-secondary bg-secondary/30 px-4 py-3 text-sm text-tertiary">
+              <div className="rounded-apple border border-dashed border-border bg-bg-secondary px-4 py-3 text-sm text-tertiary">
                 Barcode will be generated automatically when the product is saved.
               </div>
             )}
@@ -170,10 +170,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Pricing */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Pricing</h3>
+        <h3 className="mb-4 text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Pricing</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Cost Price *
             </label>
             <input
@@ -188,7 +188,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Selling Price *
             </label>
             <input
@@ -203,7 +203,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">MRP *</label>
+            <label className="mb-2 block text-sm font-medium text-secondary">MRP *</label>
             <input
               type="number"
               step="0.01"
@@ -219,10 +219,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Inventory */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Inventory</h3>
+        <h3 className="mb-4 text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Inventory</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Current Stock *
             </label>
             <input
@@ -242,7 +242,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Min Stock Level *
             </label>
             <input
@@ -259,31 +259,31 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Supplier */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Supplier Information</h3>
+        <h3 className="mb-4 text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Supplier Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Supplier Name
             </label>
             <input {...register('supplier.name')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="mb-2 block text-sm font-medium text-secondary">
               Contact
             </label>
             <input {...register('supplier.contact')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Email</label>
+            <label className="mb-2 block text-sm font-medium text-secondary">Email</label>
             <input type="email" {...register('supplier.email')} className="input" />
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+      <div className="flex items-center justify-end space-x-3 border-t border-border pt-4">
         <button type="button" onClick={onCancel} className="btn-secondary">
           Cancel
         </button>

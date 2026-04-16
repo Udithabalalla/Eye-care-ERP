@@ -108,42 +108,42 @@ const Prescriptions = () => {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-apple-lg bg-bg-primary p-5 shadow-xs ring-1 ring-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-tertiary">Total Prescriptions</p>
-              <p className="text-2xl font-bold text-primary">{data?.total || 0}</p>
+              <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-primary">{data?.total || 0}</p>
             </div>
             <File06 className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-apple-lg bg-bg-primary p-5 shadow-xs ring-1 ring-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-tertiary">Eye Prescriptions</p>
-              <p className="text-2xl font-bold text-brand-600">
+              <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-brand-600">
                 {data?.data.filter((p) => p.eye_prescription).length || 0}
               </p>
             </div>
             <Eye className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-apple-lg bg-bg-primary p-5 shadow-xs ring-1 ring-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-tertiary">With Medications</p>
-              <p className="text-2xl font-bold text-success-600">
+              <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-success-600">
                 {data?.data.filter((p) => p.medications && p.medications.length > 0).length || 0}
               </p>
             </div>
-            <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-lg">💊</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success-100 text-sm text-success-600">MED</div>
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-apple-lg bg-bg-primary p-5 shadow-xs ring-1 ring-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-tertiary">Expired</p>
-              <p className="text-2xl font-bold text-error-600">
+              <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-error-600">
                 {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
               </p>
             </div>
@@ -298,7 +298,7 @@ const Prescriptions = () => {
                 page={page}
                 total={data.total_pages}
                 onPageChange={setPage}
-                className="border-t border-secondary px-6 py-4"
+                className="border-t border-border px-6 py-4"
               />
             )}
           </>

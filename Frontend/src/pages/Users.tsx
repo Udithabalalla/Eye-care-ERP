@@ -169,16 +169,16 @@ const Users = () => {
                   </Table.Cell>
                   <Table.Cell>{user.email}</Table.Cell>
                   <Table.Cell>
-                    <span className="inline-block bg-brand-100 text-brand-700 px-2 py-1 rounded text-sm font-medium">
+                    <span className="inline-flex items-center rounded-pill border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
                       {user.role}
                     </span>
                   </Table.Cell>
                   <Table.Cell>{user.department || '-'}</Table.Cell>
                   <Table.Cell>
-                    <span className={`inline-block px-2 py-1 rounded text-sm font-medium ${
+                    <span className={`inline-flex items-center rounded-pill px-2.5 py-1 text-xs font-semibold ${
                       user.is_active
-                        ? 'bg-success-100 text-success-700'
-                        : 'bg-error-100 text-error-700'
+                        ? 'bg-success-500/15 text-success-700 dark:text-success-300'
+                        : 'bg-error-500/15 text-error-700 dark:text-error-300'
                     }`}>
                       {user.is_active ? 'Active' : 'Inactive'}
                     </span>
@@ -187,7 +187,7 @@ const Users = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEditUser(user)}
-                        className="p-2 hover:bg-secondary rounded transition-colors"
+                        className="rounded-lg p-2 text-secondary transition-colors hover:bg-secondary hover:text-primary"
                         title="Edit"
                       >
                         <Edit02 className="w-4 h-4" />
@@ -197,7 +197,7 @@ const Users = () => {
                           setSelectedUser(user)
                           setResetPasswordOpen(true)
                         }}
-                        className="p-2 hover:bg-secondary rounded transition-colors"
+                        className="rounded-lg p-2 text-secondary transition-colors hover:bg-secondary hover:text-primary"
                         title="Reset Password"
                       >
                         <Lock01 className="w-4 h-4" />
@@ -209,7 +209,7 @@ const Users = () => {
                               deactivateUserMutation.mutate(user.user_id)
                             }
                           }}
-                          className="p-2 hover:bg-error-100 rounded transition-colors text-error-600"
+                          className="rounded-lg p-2 text-error-600 transition-colors hover:bg-error-500/15 dark:text-error-300"
                           title="Deactivate"
                         >
                           <Lock02 className="w-4 h-4" />
@@ -217,7 +217,7 @@ const Users = () => {
                       ) : (
                         <button
                           onClick={() => activateUserMutation.mutate(user.user_id)}
-                          className="p-2 hover:bg-success-100 rounded transition-colors text-success-600"
+                          className="rounded-lg p-2 text-success-600 transition-colors hover:bg-success-500/15 dark:text-success-300"
                           title="Activate"
                         >
                           <Lock02 className="w-4 h-4" />
@@ -310,7 +310,7 @@ const Users = () => {
               placeholder="+1 (555) 000-0000"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 border-t border-border/70 pt-4">
             <button
               onClick={() => {
                 setIsModalOpen(false)
@@ -352,7 +352,7 @@ const Users = () => {
             />
             <p className="text-xs text-tertiary mt-1">Minimum 8 characters</p>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 border-t border-border/70 pt-4">
             <button
               onClick={() => {
                 setResetPasswordOpen(false)

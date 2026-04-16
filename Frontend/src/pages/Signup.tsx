@@ -43,26 +43,40 @@ const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
-            <span className="text-white font-bold text-2xl">EC</span>
+    <div className="grid min-h-screen grid-cols-1 bg-bg-secondary lg:grid-cols-2">
+      <section className="hidden bg-black px-10 py-14 text-white lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-apple bg-brand-600 text-lg font-semibold">
+            EC
           </div>
-          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
-          <p className="text-tertiary mt-2">Institute Management System</p>
+          <h1 className="mt-8 max-w-md font-display text-[56px] font-semibold leading-[1.07] tracking-[-0.28px] text-white">
+            Build clinical teams with precision.
+          </h1>
+          <p className="mt-4 max-w-lg text-[17px] tracking-[-0.374px] text-white/74">
+            Create accounts for doctors, staff, and receptionists with an interface that stays consistent across light and dark modes.
+          </p>
         </div>
+        <p className="text-[12px] text-white/55">Eye Care ERP • Apple-inspired clinical interface</p>
+      </section>
 
-        {/* Signup Card */}
-        <div className="card">
-          <h2 className="text-2xl font-bold text-primary mb-6">Create Account</h2>
+      <section className="flex items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-apple bg-brand-600">
+              <span className="text-2xl font-bold text-white">EC</span>
+            </div>
+            <h1 className="font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.28px] text-primary">Vision Optical</h1>
+            <p className="mt-2 text-[17px] text-secondary">Institute Management System</p>
+          </div>
+
+          <div className="card bg-bg-primary ring-1 ring-border">
+            <h2 className="mb-6 font-display text-[28px] font-normal leading-[1.14] tracking-[0.196px] text-primary">Create Account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name Field */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-secondary mb-2">
-                Full Name <span className="text-red-500">*</span>
+              <label htmlFor="name" className="mb-2 block text-sm font-medium text-secondary">
+                Full Name <span className="text-error-500">*</span>
               </label>
               <div className="relative">
                 <User01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
@@ -81,8 +95,8 @@ const Signup = () => {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
-                Email Address <span className="text-red-500">*</span>
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-secondary">
+                Email Address <span className="text-error-500">*</span>
               </label>
               <div className="relative">
                 <Mail01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
@@ -102,7 +116,7 @@ const Signup = () => {
 
             {/* Phone Field */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="phone" className="mb-2 block text-sm font-medium text-secondary">
                 Phone Number
               </label>
               <div className="relative">
@@ -121,7 +135,7 @@ const Signup = () => {
 
             {/* Role Field */}
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="role" className="mb-2 block text-sm font-medium text-secondary">
                 Role
               </label>
               <select
@@ -140,8 +154,8 @@ const Signup = () => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-secondary mb-2">
-                Password <span className="text-red-500">*</span>
+              <label htmlFor="password" className="mb-2 block text-sm font-medium text-secondary">
+                Password <span className="text-error-500">*</span>
               </label>
               <div className="relative">
                 <Lock01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
@@ -165,13 +179,13 @@ const Signup = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-tertiary mt-1">Must be at least 8 characters</p>
+              <p className="mt-1 text-xs text-tertiary">Must be at least 8 characters</p>
             </div>
 
             {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary mb-2">
-                Confirm Password <span className="text-red-500">*</span>
+              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-secondary">
+                Confirm Password <span className="text-error-500">*</span>
               </label>
               <div className="relative">
                 <Lock01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
@@ -212,12 +226,13 @@ const Signup = () => {
           {/* Link to Login */}
           <p className="mt-6 text-center text-sm text-tertiary">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-500">
+            <Link to="/login" className="font-semibold text-brand-700 hover:text-brand-600">
               Sign in
             </Link>
           </p>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

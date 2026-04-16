@@ -1,55 +1,27 @@
-import { Bell01, SearchLg, Moon01, Sun, Menu01 } from '@untitledui/icons'
-import { useTheme } from '@/contexts/ThemeContext'
+import { Bell01, SearchLg } from '@untitledui/icons'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
-
-const Header = ({ onMenuClick }: HeaderProps) => {
-  const { theme, toggleTheme } = useTheme()
-
+const Header = () => {
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 z-40 bg-primary/80 backdrop-blur-md h-20 transition-all duration-300 border-b border-secondary md:border-none">
-      <div className="flex items-center justify-between h-full px-4 md:px-8">
-        {/* Left Section - Mobile Menu & Search */}
-        <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-0">
-          <button
-            onClick={onMenuClick}
-            className="md:hidden p-2 text-secondary hover:text-brand-600 rounded-xl transition-all"
-            aria-label="Open menu"
-          >
-            <Menu01 className="w-6 h-6" />
-          </button>
+    <header className="z-20 h-12 border-b bg-background">
+      <div className="flex h-full items-center justify-between px-4 md:px-8">
+        <div className="flex flex-1 items-center gap-2 md:gap-0">
+          <SidebarTrigger className="mr-2 md:hidden" />
 
-          <div className="relative group w-full hidden sm:block">
-            <SearchLg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary group-focus-within:text-brand-600 transition-colors" />
+          <div className="group relative hidden w-full max-w-xl sm:block">
+            <SearchLg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-foreground" />
             <input
               type="text"
-              placeholder="Search..."
-              className="w-full bg-primary border border-secondary rounded-2xl py-3 pl-12 pr-4 text-sm text-primary placeholder-tertiary focus:ring-2 focus:ring-brand-500/20 shadow-sm transition-all"
+              placeholder="Search records, invoices, or patients"
+              className="h-8 w-full rounded-md border bg-background py-1.5 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center space-x-4">
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-3 text-secondary hover:text-brand-600 hover:bg-secondary rounded-xl transition-all duration-200 shadow-sm"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon01 className="w-5 h-5" />
-            )}
-          </button>
-
-          {/* Notifications */}
-          <button className="relative p-3 text-secondary hover:text-brand-600 hover:bg-secondary rounded-xl transition-all duration-200 shadow-sm">
-            <Bell01 className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-error-500 rounded-full ring-2 ring-primary"></span>
+        <div className="flex items-center space-x-2">
+          <button className="relative rounded-md p-2 text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground">
+            <Bell01 className="h-5 w-5" />
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
           </button>
         </div>
       </div>

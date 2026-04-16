@@ -97,12 +97,12 @@ const RolesPermissions = () => {
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
-      <div className="flex gap-4 border-b border-border">
+      <div className="flex gap-2 border-b border-border/80">
         <button
           onClick={() => setActiveTab('roles')}
-          className={`px-4 py-2 font-medium transition-colors ${
+          className={`rounded-t-apple px-4 py-2 text-sm font-semibold transition-colors ${
             activeTab === 'roles'
-              ? 'text-primary border-b-2 border-brand-600'
+              ? 'border-b-2 border-brand-600 text-primary'
               : 'text-secondary hover:text-primary'
           }`}
         >
@@ -110,9 +110,9 @@ const RolesPermissions = () => {
         </button>
         <button
           onClick={() => setActiveTab('permissions')}
-          className={`px-4 py-2 font-medium transition-colors ${
+          className={`rounded-t-apple px-4 py-2 text-sm font-semibold transition-colors ${
             activeTab === 'permissions'
-              ? 'text-primary border-b-2 border-brand-600'
+              ? 'border-b-2 border-brand-600 text-primary'
               : 'text-secondary hover:text-primary'
           }`}
         >
@@ -171,15 +171,15 @@ const RolesPermissions = () => {
                       </Table.Cell>
                       <Table.Cell>{role.description || '-'}</Table.Cell>
                       <Table.Cell>
-                        <span className="inline-block bg-brand-100 text-brand-700 px-2 py-1 rounded text-sm">
+                        <span className="inline-flex items-center rounded-pill border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
                           {role.permission_ids.length} permissions
                         </span>
                       </Table.Cell>
                       <Table.Cell>
-                        <span className={`inline-block px-2 py-1 rounded text-sm font-medium ${
+                        <span className={`inline-flex items-center rounded-pill px-2.5 py-1 text-xs font-semibold ${
                           role.is_active
-                            ? 'bg-success-100 text-success-700'
-                            : 'bg-error-100 text-error-700'
+                            ? 'bg-success-500/15 text-success-700 dark:text-success-300'
+                            : 'bg-error-500/15 text-error-700 dark:text-error-300'
                         }`}>
                           {role.is_active ? 'Active' : 'Inactive'}
                         </span>
@@ -188,14 +188,14 @@ const RolesPermissions = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditRole(role)}
-                            className="p-2 hover:bg-secondary rounded transition-colors"
+                            className="rounded-lg p-2 text-secondary transition-colors hover:bg-secondary hover:text-primary"
                             title="Edit"
                           >
                             <Edit02 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteRole(role.role_id)}
-                            className="p-2 hover:bg-error-100 rounded transition-colors text-error-600"
+                            className="rounded-lg p-2 text-error-600 transition-colors hover:bg-error-500/15 dark:text-error-300"
                             title="Delete"
                           >
                             <Trash02 className="w-4 h-4" />
@@ -245,7 +245,7 @@ const RolesPermissions = () => {
                         <span className="font-medium text-primary">{perm.name}</span>
                       </Table.Cell>
                       <Table.Cell>
-                        <code className="bg-secondary px-2 py-1 rounded text-sm">{perm.code}</code>
+                        <code className="rounded-md border border-border/70 bg-surface-secondary px-2 py-1 text-sm text-primary">{perm.code}</code>
                       </Table.Cell>
                       <Table.Cell>{perm.category}</Table.Cell>
                       <Table.Cell>{perm.description || '-'}</Table.Cell>
@@ -320,7 +320,7 @@ const RolesPermissions = () => {
               ))}
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 border-t border-border/70 pt-4">
             <button
               onClick={() => {
                 setIsRoleModalOpen(false)
@@ -369,7 +369,7 @@ const RolesPermissions = () => {
               placeholder="e.g., patients.read"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 border-t border-border/70 pt-4">
             <button
               onClick={() => {
                 setIsPermissionModalOpen(false)

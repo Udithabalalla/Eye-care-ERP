@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import './styles/globals.css'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,30 +32,32 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              className: 'dark:bg-slate-800 dark:text-white',
-              success: {
+        <TooltipProvider>
+          <BrowserRouter>
+            <App />
+            <Toaster
+              position="top-right"
+              toastOptions={{
                 duration: 3000,
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#fff',
+                className: 'bg-white text-[#1d1d1f] border border-[#d2d2d7] shadow-card rounded-apple',
+                success: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: '#039855',
+                    secondary: '#fff',
+                  },
                 },
-              },
-              error: {
-                duration: 4000,
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                error: {
+                  duration: 4000,
+                  iconTheme: {
+                    primary: '#d92d20',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
-        </BrowserRouter>
+              }}
+            />
+          </BrowserRouter>
+        </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </React.StrictMode>,

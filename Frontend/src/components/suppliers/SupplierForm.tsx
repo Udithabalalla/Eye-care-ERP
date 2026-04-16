@@ -78,7 +78,7 @@ const SupplierForm = ({ supplier, onSuccess, onCancel }: SupplierFormProps) => {
         </div>
       )}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 rounded-apple border border-border/70 bg-surface/60 p-4 md:grid-cols-2">
         <Input label="Supplier Name" {...register('supplier_name')} error={errors.supplier_name?.message} />
         <Input label="Company Name" {...register('company_name')} />
         <Input label="Contact Person" {...register('contact_person')} />

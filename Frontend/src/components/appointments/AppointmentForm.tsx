@@ -144,7 +144,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Date *
           </label>
           <input type="date" {...register('appointment_date')} className="input" />
@@ -155,7 +155,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Time */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Time *
           </label>
           <input type="time" {...register('appointment_time')} className="input" />
@@ -166,7 +166,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Duration */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Duration (minutes) *
           </label>
           <select {...register('duration_minutes', { valueAsNumber: true })} className="input">
@@ -182,7 +182,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Type */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="mb-2 block text-sm font-medium text-secondary">
             Appointment Type *
           </label>
           <select {...register('type')} className="input">
@@ -199,7 +199,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
       {/* Reason */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="mb-2 block text-sm font-medium text-secondary">
           Reason for Visit *
         </label>
         <textarea {...register('reason')} rows={2} className="input" />
@@ -210,14 +210,14 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="mb-2 block text-sm font-medium text-secondary">
           Additional Notes
         </label>
         <textarea {...register('notes')} rows={2} className="input" />
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+      <div className="flex items-center justify-end space-x-3 border-t border-border pt-4">
         <button type="button" onClick={onCancel} className="btn-secondary">
           Cancel
         </button>

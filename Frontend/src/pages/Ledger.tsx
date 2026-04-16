@@ -38,32 +38,32 @@ const Ledger = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Ledger</h1>
-          <p className="text-secondary mt-1">Financial transaction records and account balances</p>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.28px] text-primary">Ledger</h1>
+          <p className="mt-1 text-[17px] text-secondary">Financial transaction records and account balances</p>
         </div>
       </div>
 
       {/* Summary Cards */}
       {!summaryLoading && summaryData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="card">
-            <BarChart07 className="w-8 h-8 text-brand-600 mb-3" />
-            <p className="text-sm text-tertiary mb-1">Total Transactions</p>
-            <p className="text-2xl font-bold text-primary">{summaryData.total_count || 0}</p>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="card bg-bg-primary ring-1 ring-border">
+            <BarChart07 className="mb-3 h-8 w-8 text-brand-600" />
+            <p className="mb-1 text-sm text-tertiary">Total Transactions</p>
+            <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-primary">{summaryData.total_count || 0}</p>
           </div>
-          <div className="card">
-            <BarChart07 className="w-8 h-8 text-success-600 mb-3" />
-            <p className="text-sm text-tertiary mb-1">Total Amount</p>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(summaryData.total_amount || 0)}</p>
+          <div className="card bg-bg-primary ring-1 ring-border">
+            <BarChart07 className="mb-3 h-8 w-8 text-success-600" />
+            <p className="mb-1 text-sm text-tertiary">Total Amount</p>
+            <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-primary">{formatCurrency(summaryData.total_amount || 0)}</p>
           </div>
           {summaryData.by_type &&
             Object.entries(summaryData.by_type).slice(0, 2).map(([type, data]: any) => (
-              <div key={type} className="card">
-                <BarChart07 className="w-8 h-8 text-brand-500 mb-3" />
-                <p className="text-sm text-tertiary mb-1">{type}</p>
-                <p className="text-2xl font-bold text-primary">{data.count}</p>
+              <div key={type} className="card bg-bg-primary ring-1 ring-border">
+                <BarChart07 className="mb-3 h-8 w-8 text-brand-500" />
+                <p className="mb-1 text-sm text-tertiary">{type}</p>
+                <p className="text-[28px] font-semibold leading-[1.14] tracking-[0.196px] text-primary">{data.count}</p>
                 <p className="text-xs text-secondary">{formatCurrency(data.total_amount)}</p>
               </div>
             ))}
@@ -71,8 +71,8 @@ const Ledger = () => {
       )}
 
       {/* Account Balance Table */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-primary mb-4">Account Balances</h2>
+      <div className="card bg-bg-primary ring-1 ring-border">
+        <h2 className="mb-4 text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Account Balances</h2>
         {balanceLoading ? (
           <div className="p-8">
             <Loading />
@@ -110,15 +110,15 @@ const Ledger = () => {
       </div>
 
       {/* Daily Summary */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary">Daily Activity</h2>
+      <div className="card bg-bg-primary ring-1 ring-border">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Daily Activity</h2>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-secondary" />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value as any)}
-              className="text-sm border border-border rounded px-2 py-1"
+              className="rounded-apple border border-border bg-bg-primary px-2 py-1 text-sm text-primary"
             >
               <option value="7">Last 7 days</option>
               <option value="30">Last 30 days</option>
@@ -156,13 +156,13 @@ const Ledger = () => {
       </div>
 
       {/* Transaction List */}
-      <div className="card">
-        <div className="mb-4 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-primary">Recent Transactions</h2>
+      <div className="card bg-bg-primary ring-1 ring-border">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">Recent Transactions</h2>
           <select
             value={transactionType}
             onChange={(e) => setTransactionType(e.target.value)}
-            className="text-sm border border-border rounded px-2 py-1"
+            className="rounded-apple border border-border bg-bg-primary px-2 py-1 text-sm text-primary"
           >
             <option value="">All Types</option>
             <option value="SALE">Sales</option>
@@ -192,7 +192,7 @@ const Ledger = () => {
                     <span className="text-sm">{formatDate(tx.created_at, 'MMM dd, yyyy')}</span>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="inline-block px-2 py-1 rounded text-sm font-medium bg-brand-100 text-brand-700">
+                    <span className="inline-block rounded-apple px-2 py-1 text-sm font-medium bg-brand-50 text-brand-700">
                       {tx.transaction_type}
                     </span>
                   </Table.Cell>

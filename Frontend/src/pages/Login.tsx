@@ -28,20 +28,36 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="grid min-h-screen grid-cols-1 bg-[#f5f5f7] lg:grid-cols-2">
+      <section className="hidden bg-black px-10 py-14 text-white lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-apple bg-brand-600 text-lg font-semibold">
+            EC
+          </div>
+          <h1 className="mt-8 max-w-md font-display text-[56px] font-semibold leading-[1.07] tracking-[-0.28px] text-white">
+            Precision workflow for optical clinics.
+          </h1>
+          <p className="mt-4 max-w-lg text-[17px] tracking-[-0.374px] text-white/74">
+            Manage patients, appointments, diagnostics, inventory, and billing from a unified ERP tuned for eye care operations.
+          </p>
+        </div>
+        <p className="text-[12px] text-white/55">Eye Care ERP • Apple-inspired clinical interface</p>
+      </section>
+
+      <section className="flex items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-apple bg-brand-600">
             <span className="text-white font-bold text-2xl">EC</span>
           </div>
-          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
-          <p className="text-tertiary mt-2">Institute Management System</p>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.28px] text-primary">Vision Optical</h1>
+          <p className="mt-2 text-[17px] text-secondary">Institute Management System</p>
         </div>
 
         {/* Login Card */}
-        <div className="card">
-          <h2 className="text-2xl font-bold text-primary mb-6">Sign In</h2>
+        <div className="card bg-white ring-1 ring-[#d2d2d7]">
+          <h2 className="mb-6 font-display text-[28px] font-normal leading-[1.14] tracking-[0.196px] text-primary">Sign In</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
@@ -116,28 +132,29 @@ const Login = () => {
           {/* Link to Sign Up */}
           <p className="mt-6 text-center text-sm text-tertiary">
             Don&apos;t have an account?{' '}
-            <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-500">
+            <Link to="/signup" className="font-semibold text-brand-700 hover:text-brand-600">
               Sign up
             </Link>
           </p>
 
           <p className="mt-3 text-center text-sm text-tertiary">
-            <Link to="/forgot-password" className="font-semibold text-brand-600 hover:text-brand-500">
+            <Link to="/forgot-password" className="font-semibold text-brand-700 hover:text-brand-600">
               Forgot your password?
             </Link>
           </p>
         </div>
 
         {/* Demo Credentials */}
-        <div className="mt-6 card bg-brand-50 dark:bg-brand-950 border-brand-200 dark:border-brand-800">
-          <h3 className="text-sm font-semibold text-brand-900 dark:text-brand-100 mb-2">Demo Credentials</h3>
-          <div className="text-xs text-brand-700 dark:text-brand-300 space-y-1">
+        <div className="mt-6 rounded-apple bg-white p-5 ring-1 ring-[#d2d2d7]">
+          <h3 className="mb-2 text-sm font-semibold text-primary">Demo Credentials</h3>
+          <div className="space-y-1 text-xs text-secondary">
             <p><strong>Admin:</strong> admin@eyecare.com / admin123</p>
             <p><strong>Doctor:</strong> doctor@eyecare.com / doctor123</p>
             <p><strong>Receptionist:</strong> receptionist@eyecare.com / reception123</p>
           </div>
         </div>
       </div>
+      </section>
     </div>
   )
 }

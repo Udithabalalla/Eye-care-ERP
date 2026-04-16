@@ -57,30 +57,44 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
-            <span className="text-white font-bold text-2xl">EC</span>
-          </div>
-          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
-          <p className="text-tertiary mt-2">Reset your account password</p>
+    <div className="grid min-h-screen grid-cols-1 bg-bg-secondary lg:grid-cols-2">
+      <section className="hidden bg-black px-10 py-14 text-white lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-apple bg-brand-600 text-lg font-semibold">EC</div>
+          <h1 className="mt-8 max-w-md font-display text-[56px] font-semibold leading-[1.07] tracking-[-0.28px] text-white">
+            Recover access without breaking flow.
+          </h1>
+          <p className="mt-4 max-w-lg text-[17px] tracking-[-0.374px] text-white/74">
+            Reset passwords with a clean one-time-code flow that stays readable in both light and dark themes.
+          </p>
         </div>
+        <p className="text-[12px] text-white/55">Eye Care ERP • Apple-inspired clinical interface</p>
+      </section>
 
-        <div className="card space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-primary">Password Recovery</h2>
-            <p className="mt-2 text-sm text-tertiary">
+      <section className="flex items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-apple bg-brand-600">
+              <span className="text-2xl font-bold text-white">EC</span>
+            </div>
+            <h1 className="font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.28px] text-primary">Vision Optical</h1>
+            <p className="mt-2 text-[17px] text-secondary">Reset your account password</p>
+          </div>
+
+          <div className="card space-y-6 bg-bg-primary ring-1 ring-border">
+            <div>
+              <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[0.196px] text-primary">Password Recovery</h2>
+              <p className="mt-2 text-sm text-tertiary">
               {isOtpSent
                 ? 'Enter the OTP from your registered email and set a new password.'
                 : 'We will send a one-time password to your registered email address.'}
-            </p>
-          </div>
+              </p>
+            </div>
 
           {!isOtpSent ? (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="email" className="mb-2 block text-sm font-medium text-secondary">
                   Registered Email Address
                 </label>
                 <div className="relative">
@@ -106,7 +120,7 @@ const ForgotPassword = () => {
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="otp" className="mb-2 block text-sm font-medium text-secondary">
                   OTP
                 </label>
                 <div className="relative">
@@ -128,7 +142,7 @@ const ForgotPassword = () => {
               </div>
 
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="newPassword" className="mb-2 block text-sm font-medium text-secondary">
                   New Password
                 </label>
                 <div className="relative">
@@ -155,7 +169,7 @@ const ForgotPassword = () => {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-secondary">
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -197,12 +211,13 @@ const ForgotPassword = () => {
 
           <p className="text-center text-sm text-tertiary">
             Remembered your password?{' '}
-            <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-500">
+            <Link to="/login" className="font-semibold text-brand-700 hover:text-brand-600">
               Sign in
             </Link>
           </p>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

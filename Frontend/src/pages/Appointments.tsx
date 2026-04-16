@@ -86,7 +86,7 @@ const Appointments = () => {
               {groupedAppointments &&
                 Object.entries(groupedAppointments).map(([date, appointments]) => (
                   <div key={date}>
-                    <h2 className="text-lg font-semibold text-primary mb-3 flex items-center">
+                    <h2 className="mb-3 flex items-center text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">
                       <Calendar className="w-5 h-5 mr-2" />
                       {new Date(date).toLocaleDateString('en-US', {
                         weekday: 'long',

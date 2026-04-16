@@ -75,7 +75,7 @@ const SupplierPaymentForm = ({ payment, invoiceId, onSuccess, onCancel }: Suppli
         </div>
       )}
     >
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 rounded-apple border border-border/70 bg-surface/60 p-4">
         {!invoiceId && (
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">Invoice</label>

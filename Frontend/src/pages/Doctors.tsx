@@ -107,10 +107,10 @@ const Doctors = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary">Doctors</h1>
-                    <p className="text-secondary">Manage medical staff and specialists</p>
+                    <h1 className="font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.28px] text-primary">Doctors</h1>
+                    <p className="text-[17px] text-secondary">Manage medical staff and specialists</p>
                 </div>
                 <Button onClick={() => { setSelectedDoctor(null); setIsModalOpen(true); }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -118,32 +118,32 @@ const Doctors = () => {
                 </Button>
             </div>
 
-            <div className="flex items-center space-x-4 bg-secondary p-4 rounded-xl border border-secondary">
+            <div className="flex items-center space-x-4 rounded-apple-lg border border-border bg-bg-primary p-4 shadow-xs">
                 <SearchLg className="w-5 h-5 text-tertiary" />
                 <input
                     type="text"
                     placeholder="Search doctors by name or specialization..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 text-primary placeholder-tertiary w-full"
+                    className="w-full border-none bg-transparent text-primary placeholder-tertiary focus:ring-0"
                 />
             </div>
 
             {isLoading ? (
-                <div className="text-center py-8">Loading doctors...</div>
+                <div className="py-8 text-center text-secondary">Loading doctors...</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredDoctors?.map((doctor) => (
-                        <div key={doctor.doctor_id} className="bg-secondary p-6 rounded-xl border border-secondary hover:border-brand-500/50 transition-colors">
-                            <div className="flex justify-between items-start mb-4">
+                        <div key={doctor.doctor_id} className="rounded-apple-lg border border-border bg-bg-primary p-6 shadow-xs transition-colors">
+                            <div className="mb-4 flex items-start justify-between">
                                 <div>
-                                    <h3 className="font-semibold text-lg text-primary">{doctor.name}</h3>
-                                    <p className="text-brand-500 text-sm">{doctor.specialization}</p>
+                                    <h3 className="text-[21px] font-semibold leading-[1.19] tracking-[0.231px] text-primary">{doctor.name}</h3>
+                                    <p className="text-sm text-brand-700">{doctor.specialization}</p>
                                 </div>
                                 <div className="flex space-x-2">
                                     <button
                                         onClick={() => { setSelectedDoctor(doctor); setIsModalOpen(true); }}
-                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-brand-500 transition-colors"
+                                        className="rounded-apple p-2 text-secondary transition-colors hover:bg-bg-secondary hover:text-brand-600"
                                     >
                                         <Edit02 className="w-4 h-4" />
                                     </button>
@@ -153,7 +153,7 @@ const Doctors = () => {
                                                 deleteMutation.mutate(doctor.doctor_id)
                                             }
                                         }}
-                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-error-500 transition-colors"
+                                        className="rounded-apple p-2 text-secondary transition-colors hover:bg-bg-secondary hover:text-error-500"
                                     >
                                         <Trash02 className="w-4 h-4" />
                                     </button>
@@ -177,14 +177,14 @@ const Doctors = () => {
                                     <CurrencyDollar className="w-4 h-4 mr-2 text-tertiary" />
                                     <span>{formatCurrency(doctor.consultation_fee)} / visit</span>
                                 </div>
-                                <div className="pt-3 border-t border-secondary mt-3">
+                                <div className="mt-3 border-t border-border pt-3">
                                     <div className="flex items-center mb-2">
                                         <Clock className="w-4 h-4 mr-2 text-tertiary" />
                                         <span>{doctor.available_time_start} - {doctor.available_time_end}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
                                         {doctor.available_days.map(day => (
-                                            <span key={day} className="text-xs bg-tertiary px-2 py-1 rounded-md">
+                                            <span key={day} className="rounded-apple bg-bg-secondary px-2 py-1 text-xs text-secondary">
                                                 {day.slice(0, 3)}
                                             </span>
                                         ))}
@@ -212,13 +212,13 @@ const Doctors = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="w-full">
-                            <label className="block text-sm font-medium text-secondary mb-1.5">
+                            <label className="mb-1.5 block text-sm font-medium text-secondary">
                                 Specialization
                             </label>
                             <select
                                 name="specialization"
                                 defaultValue={selectedDoctor?.specialization || "Ophthalmologist"}
-                                className="w-full px-3 py-2 bg-primary border border-secondary rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                                className="w-full rounded-apple-md border border-border bg-bg-primary px-3.5 py-2.5 text-primary transition-all focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
                                 required
                             >
                                 <option value="Ophthalmologist">Ophthalmologist</option>
@@ -270,7 +270,7 @@ const Doctors = () => {
                     </div>
 
                     <div className="border-t border-border pt-4">
-                        <h4 className="font-medium mb-3">Availability</h4>
+                        <h4 className="mb-3 font-medium text-primary">Availability</h4>
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <Input
                                 label="Start Time"
@@ -296,7 +296,7 @@ const Doctors = () => {
                                             type="checkbox"
                                             name={`day_${day}`}
                                             defaultChecked={selectedDoctor?.available_days.includes(day)}
-                                            className="rounded border-border text-brand-600 focus:ring-brand-500"
+                                            className="rounded border-border text-brand-600 focus:ring-brand-600"
                                         />
                                         <span className="text-sm">{day.slice(0, 3)}</span>
                                     </label>
