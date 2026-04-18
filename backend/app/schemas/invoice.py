@@ -13,7 +13,6 @@ class InvoiceCreate(BaseModel):
     prescription_id: Optional[str] = None
     sales_order_id: Optional[str] = None
     appointment_id: Optional[str] = None
-    payment_method: Optional[PaymentMethod] = None
     notes: Optional[str] = None
 
 class InvoiceUpdate(BaseModel):

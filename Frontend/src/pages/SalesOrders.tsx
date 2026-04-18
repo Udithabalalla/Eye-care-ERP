@@ -32,6 +32,13 @@ interface SalesOrderFormItem {
 interface SalesOrderFormState {
   patient_id: string
   prescription_id: string
+  tested_by: string
+  expected_delivery_date: string
+  measurements: {
+    pd: string
+    fitting_height: string
+    segment_height: string
+  }
   notes: string
   status: SalesOrderStatus
   items: SalesOrderFormItem[]
@@ -40,6 +47,13 @@ interface SalesOrderFormState {
 const defaultForm: SalesOrderFormState = {
   patient_id: '',
   prescription_id: '',
+  tested_by: '',
+  expected_delivery_date: '',
+  measurements: {
+    pd: '',
+    fitting_height: '',
+    segment_height: '',
+  },
   notes: '',
   status: 'draft',
   items: [{ product_id: '', barcode: '', quantity: 1, unit_price: 0 }],
@@ -87,6 +101,13 @@ const SalesOrders = () => {
       const request = {
         patient_id: payload.patient_id,
         prescription_id: payload.prescription_id || undefined,
+        tested_by: payload.tested_by || undefined,
+        expected_delivery_date: payload.expected_delivery_date || undefined,
+        measurements: {
+          pd: payload.measurements.pd || undefined,
+          fitting_height: payload.measurements.fitting_height || undefined,
+          segment_height: payload.measurements.segment_height || undefined,
+        },
         notes: payload.notes || undefined,
         status: payload.status,
         items,
@@ -125,14 +146,14 @@ const SalesOrders = () => {
   })
 
   const convertMutation = useMutation({
-    mutationFn: (orderId: string) => salesOrdersApi.convertToInvoice(orderId),
+    mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId),
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success(`Invoice ${invoice.invoice_number} created from sales order`)
+      toast.success(`Invoice ${invoice.invoice_number} generated from sales order`)
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to convert to invoice'
+      const message = error?.response?.data?.detail || 'Failed to generate invoice'
       toast.error(message)
     },
   })
@@ -140,7 +161,8 @@ const SalesOrders = () => {
   const rows = (data?.data || []).filter((order) => {
     const query = search.trim().toLowerCase()
     if (!query) return true
-    return [order.order_number, order.patient_id, order.prescription_id || '']
+    const patientName = order.patient_name || ''
+    return [order.order_number, order.patient_id, patientName, order.prescription_id || '']
       .join(' ')
       .toLowerCase()
       .includes(query)
@@ -170,6 +192,13 @@ const SalesOrders = () => {
     setForm({
       patient_id: order.patient_id,
       prescription_id: order.prescription_id || '',
+      tested_by: order.tested_by || '',
+      expected_delivery_date: order.expected_delivery_date ? String(order.expected_delivery_date).split('T')[0] : '',
+      measurements: {
+        pd: String(order.measurements?.pd ?? ''),
+        fitting_height: String(order.measurements?.fitting_height ?? ''),
+        segment_height: String(order.measurements?.segment_height ?? ''),
+      },
       notes: order.notes || '',
       status: order.status,
       items: order.items.map((item) => ({
@@ -301,7 +330,7 @@ const SalesOrders = () => {
                   <Table.Cell>{order.order_number}</Table.Cell>
                   <Table.Cell>
                     <div className="flex flex-col">
-                      <span>{patientNameMap[order.patient_id] || order.patient_id}</span>
+                      <span>{order.patient_name || patientNameMap[order.patient_id] || order.patient_id}</span>
                       <span className="text-xs text-tertiary">{order.patient_id}</span>
                     </div>
                   </Table.Cell>
@@ -335,14 +364,14 @@ const SalesOrders = () => {
                           <option key={option.id} value={option.id}>{option.label}</option>
                         ))}
                       </select>
-                      {order.status === 'completed' && (
+                      {['confirmed', 'in_production', 'ready', 'completed'].includes(order.status) && (
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => convertMutation.mutate(order.order_id)}
                           disabled={Boolean(order.invoice_id) || convertMutation.isPending}
                         >
-                          {order.invoice_id ? 'Invoiced' : 'Convert to Invoice'}
+                          {order.invoice_id ? 'Invoiced' : 'Generate Invoice'}
                         </Button>
                       )}
                       {order.invoice_id && (
@@ -429,6 +458,24 @@ const SalesOrders = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-secondary mb-2">Tested By (optional)</label>
+              <input
+                className="input w-full"
+                value={form.tested_by}
+                onChange={(event) => setForm((current) => ({ ...current, tested_by: event.target.value }))}
+                placeholder="Optometrist / Staff"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-2">Expected Delivery Date (optional)</label>
+              <input
+                type="date"
+                className="input w-full"
+                value={form.expected_delivery_date}
+                onChange={(event) => setForm((current) => ({ ...current, expected_delivery_date: event.target.value }))}
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
               <input
                 className="input w-full"
@@ -436,6 +483,48 @@ const SalesOrders = () => {
                 onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
                 placeholder="Any notes for this order"
               />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-primary mb-3">Optical Measurements</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-2">PD</label>
+                <input
+                  className="input w-full"
+                  value={form.measurements.pd}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    measurements: { ...current.measurements, pd: event.target.value },
+                  }))}
+                  placeholder="e.g. 63"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-2">Fitting Height</label>
+                <input
+                  className="input w-full"
+                  value={form.measurements.fitting_height}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    measurements: { ...current.measurements, fitting_height: event.target.value },
+                  }))}
+                  placeholder="e.g. 18"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-2">Segment Height</label>
+                <input
+                  className="input w-full"
+                  value={form.measurements.segment_height}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    measurements: { ...current.measurements, segment_height: event.target.value },
+                  }))}
+                  placeholder="e.g. 16"
+                />
+              </div>
             </div>
           </div>
 

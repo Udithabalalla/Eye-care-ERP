@@ -8,7 +8,6 @@ import { patientsApi } from '@/api/patients.api'
 import { productsApi } from '@/api/products.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice, InvoiceFormData } from '@/types/invoice.types'
-import { PaymentMethod } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { Plus, Trash02 } from '@untitledui/icons'
 import { useAuthStore } from '@/store/authStore'
@@ -33,7 +32,6 @@ const invoiceSchema = z.object({
   invoice_date: z.string(),
   due_date: z.string(),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
-  payment_method: z.nativeEnum(PaymentMethod).optional(),
   prescription_id: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -75,7 +73,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         invoice_date: safeDate(invoice.invoice_date),
         due_date: safeDate(invoice.due_date),
         items: invoice.items,
-        payment_method: invoice.payment_method,
         prescription_id: invoice.prescription_id === 'string' ? undefined : invoice.prescription_id,
         notes: invoice.notes || '',
       }
@@ -446,26 +443,10 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         </div>
       </div>
 
-      {/* Payment Method & Notes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
-            Payment Method
-          </label>
-          <select {...register('payment_method')} className="input">
-            <option value="">Select payment method</option>
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-            <option value="upi">UPI</option>
-            <option value="netbanking">Net Banking</option>
-            <option value="insurance">Insurance</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
-          <input {...register('notes')} className="input" />
-        </div>
+      {/* Notes */}
+      <div>
+        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
+        <input {...register('notes')} className="input" />
       </div>
 
       {/* Actions */}

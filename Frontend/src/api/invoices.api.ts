@@ -50,7 +50,13 @@ export const invoicesApi = {
     payment_date: string
     transaction_id?: string
   }): Promise<void> => {
-    await axiosInstance.post(`/invoices/${id}/payment`, data)
+    await axiosInstance.post('/payments', {
+      amount: data.amount,
+      payment_method: data.payment_method,
+      payment_date: data.payment_date,
+      reference_type: 'INVOICE',
+      reference_id: id,
+    })
   },
 
   downloadPDF: async (id: string): Promise<Blob> => {

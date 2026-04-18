@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 
 from app.models.common import TimestampModel
 from app.utils.constants import SalesOrderStatus
@@ -24,6 +25,9 @@ class SalesOrderModel(TimestampModel):
     items: List[SalesOrderItemModel] = Field(default_factory=list)
     subtotal: float = Field(default=0, ge=0)
     total_amount: float = Field(default=0, ge=0)
+    measurements: Optional[Dict[str, Any]] = None
+    tested_by: Optional[str] = None
+    expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
     status: SalesOrderStatus = Field(default=SalesOrderStatus.DRAFT)

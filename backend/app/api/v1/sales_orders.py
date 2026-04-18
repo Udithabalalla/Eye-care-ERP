@@ -46,3 +46,9 @@ async def update_sales_order_status(order_id: str, data: SalesOrderStatusUpdate,
 async def convert_sales_order_to_invoice(order_id: str, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
     invoice = await SalesOrderService(db).convert_to_invoice(order_id, current_user.user_id)
     return ResponseModel(message="Sales order converted to invoice successfully", data=invoice)
+
+
+@router.post("/{order_id}/generate-invoice", response_model=ResponseModel[InvoiceResponse])
+async def generate_sales_order_invoice(order_id: str, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    invoice = await SalesOrderService(db).generate_invoice(order_id, current_user.user_id)
+    return ResponseModel(message="Invoice generated from sales order successfully", data=invoice)

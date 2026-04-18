@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from app.models.sales_order import SalesOrderItemModel
@@ -19,6 +19,9 @@ class SalesOrderCreate(BaseModel):
     patient_id: str
     prescription_id: Optional[str] = None
     items: List[SalesOrderItemCreate] = Field(default_factory=list, min_length=1)
+    measurements: Optional[Dict[str, Any]] = None
+    tested_by: Optional[str] = None
+    expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
     status: SalesOrderStatus = SalesOrderStatus.DRAFT
 
@@ -26,6 +29,9 @@ class SalesOrderCreate(BaseModel):
 class SalesOrderUpdate(BaseModel):
     prescription_id: Optional[str] = None
     items: Optional[List[SalesOrderItemCreate]] = None
+    measurements: Optional[Dict[str, Any]] = None
+    tested_by: Optional[str] = None
+    expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
     status: Optional[SalesOrderStatus] = None
 
@@ -39,10 +45,14 @@ class SalesOrderResponse(BaseModel):
     order_id: str
     order_number: str
     patient_id: str
+    patient_name: Optional[str] = None
     prescription_id: Optional[str]
     items: List[SalesOrderItemModel]
     subtotal: float
     total_amount: float
+    measurements: Optional[Dict[str, Any]] = None
+    tested_by: Optional[str] = None
+    expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
     status: SalesOrderStatus

@@ -39,6 +39,10 @@ export const salesOrdersApi = {
     const response = await axiosInstance.post<ApiResponse<Invoice>>(`/sales-orders/${id}/convert-to-invoice`)
     return response.data.data
   },
+  generateInvoice: async (id: string) => {
+    const response = await axiosInstance.post<ApiResponse<Invoice>>(`/sales-orders/${id}/generate-invoice`)
+    return response.data.data
+  },
 }
 
 export const transactionsApi = {

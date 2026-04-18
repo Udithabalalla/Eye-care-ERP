@@ -20,6 +20,9 @@ export interface SalesOrderItem {
 export interface SalesOrderCreatePayload {
   patient_id: string
   prescription_id?: string
+  measurements?: Record<string, string | number | boolean | null | undefined>
+  tested_by?: string
+  expected_delivery_date?: string
   notes?: string
   status: SalesOrderStatus
   items: SalesOrderItem[]
@@ -27,6 +30,9 @@ export interface SalesOrderCreatePayload {
 
 export interface SalesOrderUpdatePayload {
   prescription_id?: string
+  measurements?: Record<string, string | number | boolean | null | undefined>
+  tested_by?: string
+  expected_delivery_date?: string
   notes?: string
   status?: SalesOrderStatus
   items?: SalesOrderItem[]
@@ -36,10 +42,14 @@ export interface SalesOrder {
   order_id: string
   order_number: string
   patient_id: string
+  patient_name?: string
   prescription_id?: string
   items: SalesOrderItem[]
   subtotal: number
   total_amount: number
+  measurements?: Record<string, string | number | boolean | null | undefined>
+  tested_by?: string
+  expected_delivery_date?: string
   notes?: string
   invoice_id?: string
   status: SalesOrderStatus
@@ -73,6 +83,14 @@ export interface Payment {
   transaction_id?: string
   created_at: string
   updated_at: string
+}
+
+export interface PaymentCreatePayload {
+  amount: number
+  payment_method: PaymentMethod
+  reference_type: LedgerReferenceType
+  reference_id: string
+  payment_date: string
 }
 
 export interface InventoryMovement {

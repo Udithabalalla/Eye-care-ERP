@@ -14,6 +14,7 @@ const Patients = lazy(() => import('./pages/Patients'))
 const Appointments = lazy(() => import('./pages/Appointments'))
 const Prescriptions = lazy(() => import('./pages/Prescriptions'))
 const Products = lazy(() => import('./pages/Products'))
+const SalesOrders = lazy(() => import('./pages/SalesOrders'))
 const Invoices = lazy(() => import('./pages/Invoices'))
 const Transactions = lazy(() => import('./pages/Transactions'))
 const Payments = lazy(() => import('./pages/Payments'))
@@ -61,7 +62,7 @@ function App() {
             <Route path="/patients" element={<Patients />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/prescriptions" element={<Prescriptions />} />
-            <Route path="/sales-orders" element={<Navigate to="/invoices" replace />} />
+            <Route path="/sales-orders" element={<SalesOrders />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />

@@ -2,9 +2,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoicesApi } from '@/api/invoices.api'
+import { paymentsApi } from '@/api/payments.api'
 import { Invoice } from '@/types/invoice.types'
 import { PaymentMethod } from '@/types/common.types'
+import { LedgerReferenceType } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
 import toast from 'react-hot-toast'
 import { CurrencyDollar } from '@untitledui/icons'
@@ -46,9 +47,16 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
   const mutation = useMutation({
     mutationFn: (data: PaymentFormValues) =>
-      invoicesApi.recordPayment(invoice.invoice_id, data),
+      paymentsApi.create({
+        amount: data.amount,
+        payment_method: data.payment_method,
+        payment_date: data.payment_date,
+        reference_type: 'INVOICE' as LedgerReferenceType,
+        reference_id: invoice.invoice_id,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
       toast.success('Payment recorded successfully')
       onSuccess()
     },

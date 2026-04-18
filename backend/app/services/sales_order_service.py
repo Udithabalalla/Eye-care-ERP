@@ -105,12 +105,24 @@ class SalesOrderService:
                     f"Insufficient stock for {product.name}. Available: {product.current_stock}, required: {item.quantity}"
                 )
 
+    async def _to_response(self, order: SalesOrderModel) -> SalesOrderResponse:
+        patient_name = None
+        patient = await self.patient_repo.get_by_patient_id(order.patient_id)
+        if patient:
+            patient_name = patient.name
+        payload = order.dict()
+        payload["patient_name"] = patient_name
+        return SalesOrderResponse(**payload)
+
     async def list_sales_orders(self, page: int, page_size: int, patient_id: Optional[str] = None, status: Optional[str] = None):
         skip = (page - 1) * page_size
         orders, total = await self.repo.list_sales_orders(skip=skip, limit=page_size, patient_id=patient_id, status=status)
         total_pages = math.ceil(total / page_size)
+        response_data = []
+        for order in orders:
+            response_data.append(await self._to_response(order))
         return PaginatedResponse(
-            data=[SalesOrderResponse(**order.dict()) for order in orders],
+            data=response_data,
             total=total,
             page=page,
             page_size=page_size,
@@ -121,7 +133,7 @@ class SalesOrderService:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Sales order {order_id} not found")
-        return SalesOrderResponse(**order.dict())
+        return await self._to_response(order)
 
     async def create_sales_order(self, data: SalesOrderCreate, created_by: str) -> SalesOrderResponse:
         patient = await self.patient_repo.get_by_patient_id(data.patient_id)
@@ -147,13 +159,17 @@ class SalesOrderService:
             items=item_models,
             subtotal=subtotal,
             total_amount=subtotal,
+            measurements=data.measurements,
+            tested_by=data.tested_by,
+            expected_delivery_date=data.expected_delivery_date,
             notes=data.notes,
             status=data.status,
             created_by=created_by,
         )
         created = await self.repo.create(order_model.dict())
         await self.audit_service.log(created_by, "sales_order_created", "SalesOrder", order_id, new_value=created)
-        return SalesOrderResponse(**created)
+        created_model = SalesOrderModel(**created)
+        return await self._to_response(created_model)
 
     async def update_sales_order(self, order_id: str, data: SalesOrderUpdate, created_by: str) -> SalesOrderResponse:
         existing = await self.repo.get_by_order_id(order_id)
@@ -215,15 +231,31 @@ class SalesOrderService:
             )
 
         await self.audit_service.log(created_by, "sales_order_updated", "SalesOrder", order_id, old_value=existing.dict(), new_value=updated.dict())
-        return SalesOrderResponse(**updated.dict())
+        return await self._to_response(updated)
 
     async def convert_to_invoice(self, order_id: str, created_by: str):
+        return await self._convert_order_to_invoice(order_id, created_by, strict_completed=True)
+
+    async def generate_invoice(self, order_id: str, created_by: str):
+        return await self._convert_order_to_invoice(order_id, created_by, strict_completed=False)
+
+    async def _convert_order_to_invoice(self, order_id: str, created_by: str, strict_completed: bool):
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Sales order {order_id} not found")
 
-        if order.status != SalesOrderStatus.COMPLETED:
-            raise BadRequestException("Only completed sales orders can be converted to invoices")
+        if strict_completed:
+            if order.status != SalesOrderStatus.COMPLETED:
+                raise BadRequestException("Only completed sales orders can be converted to invoices")
+        else:
+            allowed_statuses = {
+                SalesOrderStatus.CONFIRMED,
+                SalesOrderStatus.IN_PRODUCTION,
+                SalesOrderStatus.READY,
+                SalesOrderStatus.COMPLETED,
+            }
+            if order.status not in allowed_statuses:
+                raise BadRequestException("Only confirmed or later sales orders can generate invoices")
 
         if order.invoice_id:
             existing_invoice = await self.invoice_repo.get_by_invoice_id(order.invoice_id)
@@ -266,7 +298,7 @@ class SalesOrderService:
         await self.repo.update({"order_id": order_id}, {"invoice_id": invoice.invoice_id})
         await self.audit_service.log(
             created_by,
-            "sales_order_converted_to_invoice",
+            "sales_order_generated_invoice" if not strict_completed else "sales_order_converted_to_invoice",
             "SalesOrder",
             order_id,
             new_value={"invoice_id": invoice.invoice_id},

@@ -43,7 +43,6 @@ export interface InvoiceFormData {
   invoice_date: string
   due_date: string
   items: InvoiceItem[]
-  payment_method?: PaymentMethod
   prescription_id?: string
   notes?: string
 }

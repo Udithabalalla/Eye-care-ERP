@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 from datetime import date
@@ -70,14 +70,18 @@ async def update_invoice(
         data=invoice
     )
 
-@router.post("/{invoice_id}/payment")
+@router.post("/{invoice_id}/payment", deprecated=True)
 async def record_payment(
     invoice_id: str,
     payment: PaymentRecord,
+    response: Response,
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user)
 ):
     """Record a payment for an invoice"""
     invoice_service = InvoiceService(db)
     await invoice_service.record_payment(invoice_id, payment, current_user.user_id)
+    response.headers["Warning"] = '299 - "Deprecated endpoint. Use POST /payments with reference_type=INVOICE instead."'
+    response.headers["X-Deprecated"] = "true"
+    response.headers["X-Replacement-Endpoint"] = "/payments"
     return ResponseModel(message="Payment recorded successfully")

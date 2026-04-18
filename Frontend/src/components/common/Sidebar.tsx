@@ -53,7 +53,8 @@ const navigationSections: NavSection[] = [
   {
     title: 'Sales',
     items: [
-      { name: 'Sales Orders', path: '/invoices', icon: Receipt },
+      { name: 'Sales Orders', path: '/sales-orders', icon: Receipt },
+      { name: 'Invoices', path: '/invoices', icon: File06 },
       { name: 'Payments', path: '/payments', icon: CurrencyDollar },
       { name: 'Refunds', path: '/refunds', icon: AlertTriangle },
     ],
