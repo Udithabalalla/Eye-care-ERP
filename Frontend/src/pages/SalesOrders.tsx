@@ -1,26 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, SearchLg } from '@untitledui/icons'
-import { Table, TableCard, Input, Select, SelectItem } from '@/components/ui'
+import { Table, TableCard, Input } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import Modal from '@/components/common/Modal'
 import Button from '@/components/common/Button'
 import { salesOrdersApi } from '@/api/erp.api'
 import { patientsApi } from '@/api/patients.api'
 import { productsApi } from '@/api/products.api'
-import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
+import { SalesOrder } from '@/types/erp.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
-
-const statusOptions: Array<{ id: string; label: string }> = [
-  { id: 'draft', label: 'Draft' },
-  { id: 'confirmed', label: 'Confirmed' },
-  { id: 'in_production', label: 'In Production' },
-  { id: 'ready', label: 'Ready' },
-  { id: 'completed', label: 'Completed' },
-  { id: 'cancelled', label: 'Cancelled' },
-]
 
 interface SalesOrderFormItem {
   product_id: string
@@ -40,7 +31,6 @@ interface SalesOrderFormState {
     segment_height: string
   }
   notes: string
-  status: SalesOrderStatus
   items: SalesOrderFormItem[]
 }
 
@@ -55,7 +45,6 @@ const defaultForm: SalesOrderFormState = {
     segment_height: '',
   },
   notes: '',
-  status: 'draft',
   items: [{ product_id: '', barcode: '', quantity: 1, unit_price: 0 }],
 }
 
@@ -63,15 +52,14 @@ const SalesOrders = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<SalesOrderStatus | ''>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null)
   const [form, setForm] = useState<SalesOrderFormState>(defaultForm)
   const [barcodeLookupIndex, setBarcodeLookupIndex] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sales-orders', search, status],
-    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 100, status: status || undefined }),
+    queryKey: ['sales-orders', search],
+    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 100 }),
   })
 
   const { data: patientsData } = useQuery({
@@ -109,7 +97,6 @@ const SalesOrders = () => {
           segment_height: payload.measurements.segment_height || undefined,
         },
         notes: payload.notes || undefined,
-        status: payload.status,
         items,
       }
 
@@ -127,20 +114,6 @@ const SalesOrders = () => {
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Failed to save sales order'
-      toast.error(message)
-    },
-  })
-
-  const statusMutation = useMutation({
-    mutationFn: ({ orderId, nextStatus }: { orderId: string; nextStatus: SalesOrderStatus }) => salesOrdersApi.updateStatus(orderId, nextStatus),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      toast.success('Sales order status updated')
-    },
-    onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to update status'
       toast.error(message)
     },
   })
@@ -200,7 +173,6 @@ const SalesOrders = () => {
         segment_height: String(order.measurements?.segment_height ?? ''),
       },
       notes: order.notes || '',
-      status: order.status,
       items: order.items.map((item) => ({
         product_id: item.product_id,
         barcode: item.sku || '',
@@ -297,14 +269,10 @@ const SalesOrders = () => {
         <TableCard.Header
           title="Sales Orders"
           badge={rows.length}
-          description="Track customer commitments before billing"
+          description="Create sales orders and generate invoices when ready"
           contentTrailing={(
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Input placeholder="Search sales orders..." value={search} onChange={setSearch} iconLeading={SearchLg} className="w-full sm:w-72" />
-              <Select selectedKey={status || 'all'} onSelectionChange={(key) => setStatus(key === 'all' ? '' : String(key) as SalesOrderStatus)} placeholder="Status">
-                <SelectItem id="all">All Statuses</SelectItem>
-                {statusOptions.map((option) => <SelectItem key={option.id} id={option.id}>{option.label}</SelectItem>)}
-              </Select>
               <Button onClick={openCreate}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Sales Order
@@ -320,7 +288,6 @@ const SalesOrders = () => {
               <Table.Head label="Items" />
               <Table.Head label="Total" />
               <Table.Head label="Prescription" />
-              <Table.Head label="Status" />
               <Table.Head label="Created" />
               <Table.Head label="Actions" />
             </Table.Header>
@@ -337,7 +304,6 @@ const SalesOrders = () => {
                   <Table.Cell>{order.items.length}</Table.Cell>
                   <Table.Cell>{formatCurrency(order.total_amount || order.subtotal || 0)}</Table.Cell>
                   <Table.Cell>{order.prescription_id || '-'}</Table.Cell>
-                  <Table.Cell>{order.status}</Table.Cell>
                   <Table.Cell>{formatDate(order.created_at)}</Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center gap-2">
@@ -345,33 +311,18 @@ const SalesOrders = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => openEdit(order)}
-                        disabled={order.status === 'completed' || order.status === 'cancelled'}
+                        disabled={Boolean(order.invoice_id)}
                       >
                         Edit
                       </Button>
-                      <select
-                        className="input h-8 min-w-[160px] text-xs"
-                        value={order.status}
-                        onChange={(event) => {
-                          const nextStatus = event.target.value as SalesOrderStatus
-                          if (nextStatus !== order.status) {
-                            statusMutation.mutate({ orderId: order.order_id, nextStatus })
-                          }
-                        }}
-                        disabled={statusMutation.isPending || order.status === 'completed' || order.status === 'cancelled'}
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option.id} value={option.id}>{option.label}</option>
-                        ))}
-                      </select>
-                      {['confirmed', 'in_production', 'ready', 'completed'].includes(order.status) && (
+                      {!order.invoice_id && (
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => convertMutation.mutate(order.order_id)}
-                          disabled={Boolean(order.invoice_id) || convertMutation.isPending}
+                          disabled={convertMutation.isPending}
                         >
-                          {order.invoice_id ? 'Invoiced' : 'Generate Invoice'}
+                          Generate Invoice
                         </Button>
                       )}
                       {order.invoice_id && (
@@ -437,18 +388,6 @@ const SalesOrders = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Status</label>
-              <select
-                className="input w-full"
-                value={form.status}
-                onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as SalesOrderStatus }))}
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="block text-sm font-medium text-secondary mb-2">Prescription ID (optional)</label>
               <input
                 className="input w-full"
@@ -475,7 +414,7 @@ const SalesOrders = () => {
                 onChange={(event) => setForm((current) => ({ ...current, expected_delivery_date: event.target.value }))}
               />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
               <input
                 className="input w-full"

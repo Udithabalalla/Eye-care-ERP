@@ -163,7 +163,7 @@ class SalesOrderService:
             tested_by=data.tested_by,
             expected_delivery_date=data.expected_delivery_date,
             notes=data.notes,
-            status=data.status,
+            status=data.status or SalesOrderStatus.CONFIRMED,
             created_by=created_by,
         )
         created = await self.repo.create(order_model.dict())
@@ -248,14 +248,8 @@ class SalesOrderService:
             if order.status != SalesOrderStatus.COMPLETED:
                 raise BadRequestException("Only completed sales orders can be converted to invoices")
         else:
-            allowed_statuses = {
-                SalesOrderStatus.CONFIRMED,
-                SalesOrderStatus.IN_PRODUCTION,
-                SalesOrderStatus.READY,
-                SalesOrderStatus.COMPLETED,
-            }
-            if order.status not in allowed_statuses:
-                raise BadRequestException("Only confirmed or later sales orders can generate invoices")
+            if order.status == SalesOrderStatus.CANCELLED:
+                raise BadRequestException("Cancelled sales orders cannot generate invoices")
 
         if order.invoice_id:
             existing_invoice = await self.invoice_repo.get_by_invoice_id(order.invoice_id)

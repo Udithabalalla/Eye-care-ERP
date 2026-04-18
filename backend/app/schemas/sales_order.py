@@ -23,7 +23,7 @@ class SalesOrderCreate(BaseModel):
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
-    status: SalesOrderStatus = SalesOrderStatus.DRAFT
+    status: SalesOrderStatus = SalesOrderStatus.CONFIRMED
 
 
 class SalesOrderUpdate(BaseModel):

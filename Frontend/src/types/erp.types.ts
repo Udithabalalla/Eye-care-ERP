@@ -24,7 +24,7 @@ export interface SalesOrderCreatePayload {
   tested_by?: string
   expected_delivery_date?: string
   notes?: string
-  status: SalesOrderStatus
+  status?: SalesOrderStatus
   items: SalesOrderItem[]
 }
 
