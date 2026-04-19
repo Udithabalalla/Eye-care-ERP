@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, SearchLg } from '@untitledui/icons'
-import SalesOrderIntakeForm from '@/components/sales-orders/SalesOrderIntakeForm'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
 import { BadgeWithDot, Button, Input, PaginationPageDefault, Select, SelectItem, Table, TableCard } from '@/components/ui'
@@ -34,7 +33,6 @@ const SalesOrders = () => {
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | ''>('')
   const [search, setSearch] = useState('')
-  const [showIntake, setShowIntake] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-orders', page, pageSize, statusFilter],
@@ -73,7 +71,7 @@ const SalesOrders = () => {
         <TableCard.Header
           title="Sales Orders"
           badge={data?.total || 0}
-          description="View all created sales orders and launch the intake workflow"
+          description="View all created sales orders and open the sales order assistant"
           contentTrailing={(
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
               <Input
@@ -111,8 +109,8 @@ const SalesOrders = () => {
                 <SelectItem id="25">25 rows</SelectItem>
                 <SelectItem id="50">50 rows</SelectItem>
               </Select>
-              <Button onClick={() => setShowIntake((current) => !current)} iconLeading={Plus} size="sm">
-                {showIntake ? 'Hide Intake' : 'New Sales Order'}
+              <Button onClick={() => navigate('/sales-orders/assistant')} iconLeading={Plus} size="sm">
+                New Sales Order
               </Button>
             </div>
           )}
@@ -187,8 +185,6 @@ const SalesOrders = () => {
           </>
         )}
       </TableCard.Root>
-
-      {showIntake && <SalesOrderIntakeForm />}
     </div>
   )
 }
