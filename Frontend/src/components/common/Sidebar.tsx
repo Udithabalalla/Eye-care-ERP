@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import {
   HomeLine,
@@ -28,6 +28,7 @@ interface NavItem {
   path: string
   icon: React.ComponentType<{ className?: string }>
   badge?: number | string
+  children?: NavItem[]
 }
 
 interface NavSection {
@@ -97,6 +98,15 @@ const navigationSections: NavSection[] = [
       { name: 'Roles & Permissions', path: '/roles-permissions', icon: Key01 },
       { name: 'Activity Logs', path: '/activity-logs', icon: Bell01 },
       { name: 'Company Profile', path: '/settings', icon: Settings01 },
+      {
+        name: 'Basic Data',
+        path: '/basic-data',
+        icon: Settings01,
+        children: [
+          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: Settings01 },
+          { name: 'Lenses', path: '/basic-data/lenses', icon: Settings01 },
+        ],
+      },
     ],
   },
 ]
@@ -108,6 +118,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, logout } = useAuth()
+  const location = useLocation()
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     return navigationSections.reduce<Record<string, boolean>>((sections, section) => {
@@ -116,6 +127,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       }
       return sections
     }, {})
+  })
+  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
+    'System-Basic Data': true,
   })
   const accountMenuRef = useRef<HTMLDivElement>(null)
 
@@ -186,41 +200,117 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     />
                   </button>
                 )}
-                {(!section.title || openSections[section.title]) && section.items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    end={item.path === '/'}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      cn(
-                        'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
-                        isActive
-                          ? 'bg-bg-active text-primary'
-                          : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <item.icon
+                {(!section.title || openSections[section.title]) && section.items.map((item) => {
+                  if (item.children?.length) {
+                    const submenuKey = `${section.title || 'root'}-${item.name}`
+                    const isSubmenuOpen = openSubMenus[submenuKey] ?? true
+                    const hasActiveChild = item.children.some((child) => location.pathname === child.path)
+
+                    return (
+                      <div key={submenuKey} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setOpenSubMenus((current) => ({
+                            ...current,
+                            [submenuKey]: !isSubmenuOpen,
+                          }))}
                           className={cn(
-                            'h-5 w-5 shrink-0 transition-colors duration-100',
-                            isActive
-                              ? 'text-brand-600'
-                              : 'text-quaternary group-hover:text-tertiary'
+                            'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
+                            hasActiveChild
+                              ? 'bg-bg-active text-primary'
+                              : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
                           )}
-                        />
-                        <span className="flex-1 truncate">{item.name}</span>
-                        {item.badge && (
-                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white">
-                            {item.badge}
-                          </span>
+                        >
+                          <item.icon
+                            className={cn(
+                              'h-5 w-5 shrink-0 transition-colors duration-100',
+                              hasActiveChild
+                                ? 'text-brand-600'
+                                : 'text-quaternary group-hover:text-tertiary'
+                            )}
+                          />
+                          <span className="flex-1 truncate text-left">{item.name}</span>
+                          <ChevronSelectorVertical
+                            className={cn(
+                              'h-4 w-4 text-quaternary transition-transform',
+                              isSubmenuOpen ? 'rotate-180' : ''
+                            )}
+                          />
+                        </button>
+
+                        {isSubmenuOpen && (
+                          <div className="ml-6 space-y-1 border-l border-border pl-2">
+                            {item.children.map((child) => (
+                              <NavLink
+                                key={child.path}
+                                to={child.path}
+                                onClick={onClose}
+                                className={({ isActive }) =>
+                                  cn(
+                                    'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
+                                    isActive
+                                      ? 'bg-bg-active text-primary'
+                                      : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
+                                  )
+                                }
+                              >
+                                {({ isActive }) => (
+                                  <>
+                                    <child.icon
+                                      className={cn(
+                                        'h-4 w-4 shrink-0 transition-colors duration-100',
+                                        isActive
+                                          ? 'text-brand-600'
+                                          : 'text-quaternary group-hover:text-tertiary'
+                                      )}
+                                    />
+                                    <span className="flex-1 truncate">{child.name}</span>
+                                  </>
+                                )}
+                              </NavLink>
+                            ))}
+                          </div>
                         )}
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === '/'}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        cn(
+                          'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
+                          isActive
+                            ? 'bg-bg-active text-primary'
+                            : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
+                        )
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <item.icon
+                            className={cn(
+                              'h-5 w-5 shrink-0 transition-colors duration-100',
+                              isActive
+                                ? 'text-brand-600'
+                                : 'text-quaternary group-hover:text-tertiary'
+                            )}
+                          />
+                          <span className="flex-1 truncate">{item.name}</span>
+                          {item.badge && (
+                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white">
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  )
+                })}
               </div>
             ))}
           </div>
