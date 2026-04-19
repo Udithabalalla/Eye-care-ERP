@@ -342,8 +342,8 @@ const SalesOrderIntakeForm = () => {
     queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
   })
 
-  const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 200, is_active: true })
-  const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 200, is_active: true })
+  const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
+  const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
   const {
     register,
