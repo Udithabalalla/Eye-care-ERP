@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import {
   HomeLine,
@@ -119,6 +119,23 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+  const navigateTo = (path: string) => {
+    if (location.pathname === path) {
+      onClose?.()
+      return
+    }
+
+    navigate(path)
+    onClose?.()
+
+    // Fallback for any edge case where client-side navigation is blocked.
+    requestAnimationFrame(() => {
+      if (window.location.pathname !== path) {
+        window.location.assign(path)
+      }
+    })
+  }
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     return navigationSections.reduce<Record<string, boolean>>((sections, section) => {
@@ -241,33 +258,27 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         {isSubmenuOpen && (
                           <div className="ml-6 space-y-1 border-l border-border pl-2">
                             {item.children.map((child) => (
-                              <NavLink
+                              <button
                                 key={child.path}
-                                to={child.path}
-                                onClick={onClose}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
-                                    isActive
-                                      ? 'bg-bg-active text-primary'
-                                      : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
-                                  )
-                                }
-                              >
-                                {({ isActive }) => (
-                                  <>
-                                    <child.icon
-                                      className={cn(
-                                        'h-4 w-4 shrink-0 transition-colors duration-100',
-                                        isActive
-                                          ? 'text-brand-600'
-                                          : 'text-quaternary group-hover:text-tertiary'
-                                      )}
-                                    />
-                                    <span className="flex-1 truncate">{child.name}</span>
-                                  </>
+                                type="button"
+                                onClick={() => navigateTo(child.path)}
+                                className={cn(
+                                  'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
+                                  location.pathname === child.path
+                                    ? 'bg-bg-active text-primary'
+                                    : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
                                 )}
-                              </NavLink>
+                              >
+                                <child.icon
+                                  className={cn(
+                                    'h-4 w-4 shrink-0 transition-colors duration-100',
+                                    location.pathname === child.path
+                                      ? 'text-brand-600'
+                                      : 'text-quaternary group-hover:text-tertiary'
+                                  )}
+                                />
+                                <span className="flex-1 truncate text-left">{child.name}</span>
+                              </button>
                             ))}
                           </div>
                         )}
