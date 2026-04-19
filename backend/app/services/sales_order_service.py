@@ -28,6 +28,7 @@ from app.utils.constants import (
     LedgerTransactionType,
 )
 from datetime import datetime, date
+from pymongo import ReturnDocument
 
 
 class SalesOrderService:
@@ -43,6 +44,17 @@ class SalesOrderService:
         self.transaction_service = TransactionService(db)
         self.invoice_service = InvoiceService(db)
         self.invoice_repo = InvoiceRepository(db)
+        self.db = db
+
+    async def _next_sales_order_sequence(self) -> int:
+        """Get the next SO sequence atomically to avoid duplicate numbers under concurrent writes."""
+        counter = await self.db["counters"].find_one_and_update(
+            {"_id": "sales_order_sequence"},
+            {"$inc": {"value": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        return int(counter.get("value", 1))
 
     def _allowed_status_transitions(self):
         return {
@@ -199,7 +211,7 @@ class SalesOrderService:
         if data.status in {SalesOrderStatus.COMPLETED, SalesOrderStatus.CANCELLED}:
             raise BadRequestException("New sales orders must start in draft/active workflow states")
 
-        next_number = await self.repo.count({}) + 1
+        next_number = await self._next_sales_order_sequence()
         order_id = generate_id("SO", next_number)
         order_number = f"SO-{datetime.utcnow().year}-{str(next_number).zfill(6)}"
         item_models, subtotal = await self._build_validated_items(data.items)
