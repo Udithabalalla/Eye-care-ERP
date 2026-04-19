@@ -339,7 +339,25 @@ const SalesOrderIntakeForm = () => {
 
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['sales-order-products-master'],
-    queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
+    queryFn: async () => {
+      const firstPage = await productsApi.getAll({ page: 1, page_size: 100 })
+      if (firstPage.total_pages <= 1) {
+        return firstPage
+      }
+
+      const allItems = [...firstPage.data]
+      for (let page = 2; page <= firstPage.total_pages; page += 1) {
+        const nextPage = await productsApi.getAll({ page, page_size: 100 })
+        allItems.push(...nextPage.data)
+      }
+
+      return {
+        ...firstPage,
+        data: allItems,
+        page: 1,
+        page_size: allItems.length,
+      }
+    },
   })
 
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
@@ -381,8 +399,13 @@ const SalesOrderIntakeForm = () => {
   })
 
   const frameOptions = useMemo<LookupOption[]>(() => {
+    const frameCategories = new Set<ProductCategory>([
+      ProductCategory.FRAMES,
+      ProductCategory.SUNGLASSES,
+    ])
+
     return (productData?.data || [])
-      .filter((product) => product.category === ProductCategory.FRAMES)
+      .filter((product) => frameCategories.has(product.category) && product.current_stock > 0)
       .map((product) => ({
         value: product.product_id,
         label: product.name,
