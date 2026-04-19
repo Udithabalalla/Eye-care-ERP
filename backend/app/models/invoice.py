@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from app.models.common import TimestampModel
 from app.utils.constants import PaymentStatus, PaymentMethod
@@ -14,6 +14,9 @@ class InvoiceItem(BaseModel):
     discount: float = Field(default=0, ge=0)
     tax: float = Field(default=0, ge=0)
     total: float = Field(..., ge=0)
+    master_data_id: Optional[str] = None
+    line_type: Literal["product", "lens", "expense"] = "product"
+    track_stock: bool = True
 
 class InsuranceClaim(BaseModel):
     """Insurance claim details"""

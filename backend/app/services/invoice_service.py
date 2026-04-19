@@ -83,6 +83,9 @@ class InvoiceService:
         """Create a new invoice"""
         # Validate product references and (optionally) availability before stock deduction.
         for item in invoice_data.items:
+            if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                continue
+
             product = await self.product_repo.get_by_product_id(item.product_id)
             if not product:
                 raise NotFoundException(f"Product with ID {item.product_id} not found")
@@ -141,6 +144,8 @@ class InvoiceService:
         try:
             if deduct_stock:
                 for item in invoice_data.items:
+                    if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                        continue
                     ok = await self.product_repo.decrement_stock_atomic(item.product_id, item.quantity)
                     if not ok:
                         raise BadRequestException(

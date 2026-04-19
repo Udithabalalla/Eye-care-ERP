@@ -11,7 +11,6 @@ import {
   ChevronUp,
   Eye,
   Scan,
-  SearchLg,
   Trash02,
 } from '@untitledui/icons'
 import { useNavigate } from 'react-router-dom'
@@ -19,15 +18,19 @@ import Input from '@/components/common/Input'
 import Button from '@/components/common/Button'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
+import SearchableLOV from '@/components/common/SearchableLOV'
 import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
 import { salesOrdersApi } from '@/api/erp.api'
+import { useOtherExpenses } from '@/hooks/useOtherExpenses'
+import { useLensMaster } from '@/hooks/useLensMaster'
 import { Invoice } from '@/types/invoice.types'
 import { Gender, ProductCategory } from '@/types/common.types'
 import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
+import { SalesOrderItem } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -60,7 +63,6 @@ const eyeMeasurementSchema = z.object({
 const expenseRowSchema = z.object({
   expenseTypeId: z.string().optional().default(''),
   expenseTypeName: z.string().optional().default(''),
-  expenseTypeGroup: z.enum(['repair', 'soldering', 'other']).default('repair'),
   qty: requiredMoney.default(1),
   unitCost: requiredMoney.default(0),
   discount: requiredMoney.default(0),
@@ -158,20 +160,6 @@ interface LookupOption {
   subtitle: string
   value: string
 }
-
-interface ExpenseTemplateOption {
-  id: string
-  label: string
-  group: 'repair' | 'soldering' | 'other'
-  defaultUnitCost: number
-}
-
-const expenseTemplates: ExpenseTemplateOption[] = [
-  { id: 'soldering', label: 'Soldering', group: 'soldering', defaultUnitCost: 0 },
-  { id: 'nose-pad', label: 'Nose pad replacement', group: 'repair', defaultUnitCost: 0 },
-  { id: 'frame-arm', label: 'Frame arm replacement', group: 'repair', defaultUnitCost: 0 },
-  { id: 'frame-adjust', label: 'Frame adjustment', group: 'repair', defaultUnitCost: 0 },
-]
 
 const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = '' }: SectionProps) => {
   return (
@@ -332,21 +320,11 @@ const mapProductToFrame = (product: Product) => ({
   total: product.selling_price,
 })
 
-const mapProductToLens = (product: Product) => ({
-  selectionId: product.product_id,
-  lensType: product.name,
-  color: product.specifications?.color ? String(product.specifications.color) : product.brand || '',
-  size: product.specifications?.size ? String(product.specifications.size) : product.unit_of_measure || '',
-  lensId: product.sku,
-  total: product.selling_price,
-})
-
 const SalesOrderIntakeForm = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [savedOrderNumber, setSavedOrderNumber] = useState('')
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
-  const [quickExpenseId, setQuickExpenseId] = useState(expenseTemplates[0].id)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     patient: true,
     prescription: true,
@@ -363,6 +341,9 @@ const SalesOrderIntakeForm = () => {
     queryKey: ['sales-order-products-master'],
     queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
   })
+
+  const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 200, is_active: true })
+  const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 200, is_active: true })
 
   const {
     register,
@@ -410,20 +391,21 @@ const SalesOrderIntakeForm = () => {
   }, [productData])
 
   const lensOptions = useMemo<LookupOption[]>(() => {
-    return (productData?.data || [])
-      .filter((product) => product.category === ProductCategory.CONTACT_LENSES || product.category === ProductCategory.EYEGLASSES)
+    return (lensMasterData?.data || [])
       .map((product) => ({
-        value: product.product_id,
-        label: product.name,
-        subtitle: `${product.sku} ${product.barcode ? `• ${product.barcode}` : ''} • ${formatCurrency(product.selling_price)}`,
+        value: product.id,
+        label: product.lens_type,
+        subtitle: `${product.color} • ${product.size} • ${product.lens_code} • ${formatCurrency(product.price)}`,
       }))
-  }, [productData])
+  }, [lensMasterData])
 
-  const expenseOptions = expenseTemplates.map((item) => ({
-    value: item.id,
-    label: item.label,
-    subtitle: item.group,
-  }))
+  const expenseOptions = useMemo<LookupOption[]>(() => {
+    return (expenseMasterData?.data || []).map((expense) => ({
+      value: expense.id,
+      label: expense.name,
+      subtitle: formatCurrency(expense.default_cost),
+    }))
+  }, [expenseMasterData])
 
   const matchedPatient = useMemo(() => {
     const results = matchingPatients?.data || []
@@ -457,18 +439,8 @@ const SalesOrderIntakeForm = () => {
   }, [frame.barcode, frame.frameId, frame.model, frame.selectionId, productData])
 
   const resolvedLens = useMemo(() => {
-    const selected = productData?.data?.find((item) => item.product_id === lens.selectionId)
-    if (selected) return selected
-    const manualValue = normalizeText(lens.lensType || lens.lensId)
-    if (!manualValue) return null
-    return (
-      productData?.data?.find((item) =>
-        [item.name, item.sku, item.barcode, item.product_id]
-          .filter(Boolean)
-          .some((candidate) => normalizeText(String(candidate)).includes(manualValue))
-      ) || null
-    )
-  }, [lens.lensId, lens.lensType, lens.selectionId, productData])
+    return lensMasterData?.data?.find((item) => item.id === lens.selectionId) || null
+  }, [lens.selectionId, lensMasterData])
 
   const derivedTotals = useMemo(() => {
     return calculateOrderTotals({
@@ -478,7 +450,6 @@ const SalesOrderIntakeForm = () => {
         qty: Number(item.qty || 0),
         unitCost: Number(item.unitCost || 0),
         discount: Number(item.discount || 0),
-        expenseTypeGroup: item.expenseTypeGroup,
       })),
       discount: Number(totals.discount || 0),
       advancedPayment: Number(totals.advancedPayment || 0),
@@ -534,11 +505,6 @@ const SalesOrderIntakeForm = () => {
     setValue('frame', mapped, { shouldDirty: true, shouldValidate: true })
   }
 
-  const applyLensSelection = (product: Product) => {
-    const mapped = mapProductToLens(product)
-    setValue('lens', mapped, { shouldDirty: true, shouldValidate: true })
-  }
-
   const handlePatientAction = (patientRecord: Patient) => {
     setValue('patient.existingId', patientRecord.patient_id, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.fullName', patientRecord.name, { shouldDirty: true, shouldValidate: true })
@@ -560,13 +526,12 @@ const SalesOrderIntakeForm = () => {
     toast.success('Continuing as a new patient')
   }
 
-  const addExpenseRow = (template?: ExpenseTemplateOption) => {
+  const addExpenseRow = () => {
     append({
-      expenseTypeId: template?.id || '',
-      expenseTypeName: template?.label || '',
-      expenseTypeGroup: template?.group || 'repair',
+      expenseTypeId: '',
+      expenseTypeName: '',
       qty: 1,
-      unitCost: template?.defaultUnitCost || 0,
+      unitCost: 0,
       discount: 0,
       total: 0,
     })
@@ -579,15 +544,16 @@ const SalesOrderIntakeForm = () => {
     ;(row as any)[field] = value
 
     if (field === 'expenseTypeId') {
-      const template = expenseTemplates.find((item) => item.id === value)
-      if (template) {
-        row.expenseTypeName = template.label
-        row.expenseTypeGroup = template.group
-        if (!row.unitCost) row.unitCost = template.defaultUnitCost
+      const expenseType = expenseMasterData?.data.find((item) => item.id === value)
+      if (expenseType) {
+        row.expenseTypeName = expenseType.name
+        if (!row.unitCost) row.unitCost = expenseType.default_cost
+      } else if (!value) {
+        row.expenseTypeName = ''
       }
     }
 
-    row.total = calculateLineTotal({ qty: Number(row.qty || 0), unitCost: Number(row.unitCost || 0), discount: Number(row.discount || 0), expenseTypeGroup: row.expenseTypeGroup })
+    row.total = calculateLineTotal({ qty: Number(row.qty || 0), unitCost: Number(row.unitCost || 0), discount: Number(row.discount || 0) })
     next[index] = row
     setValue('expenses', next, { shouldDirty: true, shouldValidate: true })
   }
@@ -599,7 +565,6 @@ const SalesOrderIntakeForm = () => {
         qty: Number(row.qty || 0),
         unitCost: Number(row.unitCost || 0),
         discount: Number(row.discount || 0),
-        expenseTypeGroup: row.expenseTypeGroup,
       }),
     }))
     const hasDifference = nextExpenses.some((row, index) => row.total !== expenses[index]?.total)
@@ -621,11 +586,11 @@ const SalesOrderIntakeForm = () => {
 
   useEffect(() => {
     if (lens.selectionId && resolvedLens) {
-      setValue('lens.lensType', resolvedLens.name, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.color', resolvedLens.specifications?.color ? String(resolvedLens.specifications.color) : resolvedLens.brand || '', { shouldDirty: false, shouldValidate: false })
-      setValue('lens.size', resolvedLens.specifications?.size ? String(resolvedLens.specifications.size) : resolvedLens.unit_of_measure || '', { shouldDirty: false, shouldValidate: false })
-      setValue('lens.lensId', resolvedLens.sku, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.total', resolvedLens.selling_price, { shouldDirty: false, shouldValidate: false })
+      setValue('lens.lensType', resolvedLens.lens_type, { shouldDirty: false, shouldValidate: false })
+      setValue('lens.color', resolvedLens.color, { shouldDirty: false, shouldValidate: false })
+      setValue('lens.size', resolvedLens.size, { shouldDirty: false, shouldValidate: false })
+      setValue('lens.lensId', resolvedLens.lens_code, { shouldDirty: false, shouldValidate: false })
+      setValue('lens.total', resolvedLens.price, { shouldDirty: false, shouldValidate: false })
     }
   }, [lens.selectionId, resolvedLens, setValue])
 
@@ -664,14 +629,26 @@ const SalesOrderIntakeForm = () => {
       }
 
       const frameItem = values.frame.selectionId ? resolvedFrame : null
-      const lensItem = values.lens.selectionId ? resolvedLens : null
-
-      if (!frameItem || !lensItem) {
-        toast.error('Full order requires both frame and lens')
+      if (!frameItem) {
+        toast.error('Frame selection is required')
         return
       }
 
-      const itemPayload = [
+      const lensItem = resolvedLens
+      if (!values.salesOrder.isOld && !lensItem) {
+        toast.error('Lens selection is required')
+        return
+      }
+
+      if (!values.salesOrder.isOld) {
+        const invalidExpense = (values.expenses || []).some((expense) => !expense.expenseTypeId || !expenseMasterData?.data.some((item) => item.id === expense.expenseTypeId))
+        if (invalidExpense) {
+          toast.error('Expense type must come from master data')
+          return
+        }
+      }
+
+      const itemPayload: SalesOrderItem[] = [
         {
           product_id: frameItem.product_id,
           product_name: values.frame.model || frameItem.name,
@@ -679,29 +656,46 @@ const SalesOrderIntakeForm = () => {
           quantity: 1,
           unit_price: Number(values.frame.total || frameItem.selling_price),
           total: Number(values.frame.total || frameItem.selling_price),
+          master_data_id: frameItem.product_id,
+          line_type: 'product' as const,
+          track_stock: true,
         },
-        {
-          product_id: lensItem.product_id,
-          product_name: values.lens.lensType || lensItem.name,
-          sku: values.lens.lensId || lensItem.sku,
-          quantity: 1,
-          unit_price: Number(values.lens.total || lensItem.selling_price),
-          total: Number(values.lens.total || lensItem.selling_price),
-        },
-        ...values.expenses.map((expense) => ({
-          product_id: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
-          product_name: expense.expenseTypeName || 'Expense',
-          sku: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
-          quantity: Number(expense.qty || 0),
-          unit_price: Number(expense.unitCost || 0),
-          total: calculateLineTotal({
-            qty: Number(expense.qty || 0),
-            unitCost: Number(expense.unitCost || 0),
-            discount: Number(expense.discount || 0),
-            expenseTypeGroup: expense.expenseTypeGroup,
-          }),
-        })),
       ]
+
+      if (lensItem || values.salesOrder.isOld) {
+        itemPayload.push({
+          product_id: lensItem?.id || values.lens.lensId || 'LENS',
+          product_name: values.lens.lensType || lensItem?.lens_type || 'Lens',
+          sku: values.lens.lensId || lensItem?.lens_code || 'LENS',
+          quantity: 1,
+          unit_price: Number(values.lens.total || lensItem?.price || 0),
+          total: Number(values.lens.total || lensItem?.price || 0),
+          master_data_id: lensItem?.id,
+          line_type: 'lens' as const,
+          track_stock: false,
+        })
+      }
+
+      itemPayload.push(
+        ...values.expenses.map((expense) => {
+          const selectedExpense = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
+          return {
+            product_id: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
+            product_name: expense.expenseTypeName || selectedExpense?.name || 'Expense',
+            sku: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
+            quantity: Number(expense.qty || 0),
+            unit_price: Number(expense.unitCost || 0),
+            total: calculateLineTotal({
+              qty: Number(expense.qty || 0),
+              unitCost: Number(expense.unitCost || 0),
+              discount: Number(expense.discount || 0),
+            }),
+            master_data_id: selectedExpense?.id || expense.expenseTypeId || undefined,
+            line_type: 'expense' as const,
+            track_stock: false,
+          }
+        })
+      )
 
       const orderPayload = {
         patient_id: patientId,
@@ -719,8 +713,7 @@ const SalesOrderIntakeForm = () => {
           order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER',
           frame_total: values.frame.total,
           lens_total: values.lens.total,
-          repair_total: derivedTotals.repairTotal,
-          soldering_total: derivedTotals.solderingTotal,
+          other_expenses_total: derivedTotals.expenseTotal,
           discount: values.totals.discount,
           advance_payment: values.totals.advancedPayment,
         },
@@ -1049,40 +1042,20 @@ const SalesOrderIntakeForm = () => {
                   <Button type="button" variant="outline" size="sm" onClick={openScanner} isLoading={isScanningProduct}>
                     <Scan className="mr-2 h-4 w-4" /> Scan Barcode
                   </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (frameOptions[0]) {
-                          setValue('frame.selectionId', frameOptions[0].value, { shouldDirty: true, shouldValidate: true })
-                        }
-                      }}
-                    >
-                      <Scan className="mr-2 h-4 w-4" /> Select Frame
-                    </Button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">Frame List</label>
-                    <select
-                      className="w-full rounded-xl border border-secondary bg-primary px-3 py-2.5 text-sm text-primary"
-                      value={frame.selectionId || ''}
-                      onChange={(event) => {
-                        setValue('frame.selectionId', event.target.value, { shouldDirty: true, shouldValidate: true })
-                        const product = productData?.data.find((item) => item.product_id === event.target.value)
-                        if (product) applyFrameSelection(product)
-                      }}
-                    >
-                      <option value="">Select frame</option>
-                      {frameOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableLOV
+                    label="Frame List"
+                    placeholder="Select frame"
+                    value={frame.selectionId || ''}
+                    onChange={(value) => {
+                      setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
+                      const product = productData?.data.find((item) => item.product_id === value)
+                      if (product) applyFrameSelection(product)
+                    }}
+                    options={frameOptions}
+                  />
                   <Input label="Model" {...register('frame.model')} />
                   <Input label="Color" {...register('frame.color')} />
                   <Input label="Size" {...register('frame.size')} />
@@ -1100,41 +1073,24 @@ const SalesOrderIntakeForm = () => {
               onToggle={() => setSectionOpen('lens')}
             >
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (lensOptions[0]) {
-                        setValue('lens.selectionId', lensOptions[0].value, { shouldDirty: true, shouldValidate: true })
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <SearchableLOV
+                    label="Lens List"
+                    placeholder="Select lens"
+                    value={lens.selectionId || ''}
+                    onChange={(value) => {
+                      setValue('lens.selectionId', value, { shouldDirty: true, shouldValidate: true })
+                      const lensType = lensMasterData?.data.find((item) => item.id === value)
+                      if (lensType) {
+                        setValue('lens.lensType', lensType.lens_type, { shouldDirty: true, shouldValidate: true })
+                        setValue('lens.color', lensType.color, { shouldDirty: true, shouldValidate: true })
+                        setValue('lens.size', lensType.size, { shouldDirty: true, shouldValidate: true })
+                        setValue('lens.lensId', lensType.lens_code, { shouldDirty: true, shouldValidate: true })
+                        setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
                       }
                     }}
-                  >
-                    <SearchLg className="mr-2 h-4 w-4" /> Select Lens
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">Lens List</label>
-                    <select
-                      className="w-full rounded-xl border border-secondary bg-primary px-3 py-2.5 text-sm text-primary"
-                      value={lens.selectionId || ''}
-                      onChange={(event) => {
-                        setValue('lens.selectionId', event.target.value, { shouldDirty: true, shouldValidate: true })
-                        const product = productData?.data.find((item) => item.product_id === event.target.value)
-                        if (product) applyLensSelection(product)
-                      }}
-                    >
-                      <option value="">Select lens</option>
-                      {lensOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    options={lensOptions}
+                  />
                   <Input label="Lens Type" {...register('lens.lensType')} />
                   <Input label="Color" {...register('lens.color')} />
                   <Input label="Size" {...register('lens.size')} />
@@ -1147,39 +1103,15 @@ const SalesOrderIntakeForm = () => {
 
           <SectionCard
             title="Section 6 - Other Expenses"
-            subtitle="Use the master list to keep repair and support charges traceable."
+            subtitle="Use master-configured expense types with editable pricing."
             isOpen={openSections.expenses}
             onToggle={() => setSectionOpen('expenses')}
           >
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="w-full max-w-sm">
-                  <label className="mb-1.5 block text-sm font-medium text-secondary">Quick Add Template</label>
-                  <select
-                    className="w-full rounded-xl border border-secondary bg-primary px-3 py-2.5 text-sm text-primary"
-                    value={quickExpenseId}
-                    onChange={(event) => setQuickExpenseId(event.target.value)}
-                  >
-                    {expenseOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => addExpenseRow()}>
-                    + Add New Item
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => addExpenseRow(expenseTemplates.find((item) => item.id === quickExpenseId))}
-                  >
-                    + Add Item
-                  </Button>
-                </div>
+              <div className="flex justify-end">
+                <Button type="button" variant="outline" size="sm" onClick={() => addExpenseRow()}>
+                  + Add Expense Row
+                </Button>
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-secondary">
@@ -1198,18 +1130,12 @@ const SalesOrderIntakeForm = () => {
                   {expenseFields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-3 px-4 py-4">
                       <div className="col-span-12 md:col-span-3">
-                        <select
-                          className="w-full rounded-xl border border-secondary bg-primary px-3 py-2.5 text-sm text-primary"
+                        <SearchableLOV
+                          placeholder="Select expense"
                           value={expenses?.[index]?.expenseTypeId || ''}
-                          onChange={(event) => updateExpenseRow(index, 'expenseTypeId', event.target.value)}
-                        >
-                          <option value="">Select expense</option>
-                          {expenseOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)}
+                          options={expenseOptions}
+                        />
                       </div>
                       <div className="col-span-4 md:col-span-1">
                         <Input type="number" min={0} step="1" value={expenses?.[index]?.qty || 0} onChange={(event) => updateExpenseRow(index, 'qty', Number(event.target.value))} />
@@ -1259,8 +1185,7 @@ const SalesOrderIntakeForm = () => {
               <div className="space-y-3 text-sm">
                 <SummaryRow label="Frame Total" value={derivedTotals.frameTotal} />
                 <SummaryRow label="Lens Total" value={derivedTotals.lensTotal} />
-                <SummaryRow label="Repair Total" value={derivedTotals.repairTotal} />
-                <SummaryRow label="Soldering Total" value={derivedTotals.solderingTotal} />
+                <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
                 <SummaryRow label="Discount" value={derivedTotals.discountTotal} isCurrency />
                 <div className="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700">
                   {isFullOrder ? 'Order Type: FULL ORDER' : 'Order Type: PARTIAL ORDER'}

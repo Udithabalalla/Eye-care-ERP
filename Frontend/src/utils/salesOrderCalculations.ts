@@ -2,7 +2,6 @@ export interface ExpenseLineInput {
   qty: number
   unitCost: number
   discount: number
-  expenseTypeGroup?: 'repair' | 'soldering' | 'other'
 }
 
 export interface OrderTotalsInput {
@@ -39,16 +38,6 @@ export const calculateOrderTotals = ({
   isOldOrder,
 }: OrderTotalsInput) => {
   const expenseTotal = calculateExpensesTotal(expenses)
-  const repairTotal = roundCurrency(
-    expenses
-      .filter((expense) => expense.expenseTypeGroup !== 'soldering')
-      .reduce((sum, expense) => sum + calculateLineTotal(expense), 0)
-  )
-  const solderingTotal = roundCurrency(
-    expenses
-      .filter((expense) => expense.expenseTypeGroup === 'soldering')
-      .reduce((sum, expense) => sum + calculateLineTotal(expense), 0)
-  )
   const subtotalBeforeDiscount = roundCurrency(
     Math.max(frameTotal, 0) + Math.max(lensTotal, 0) + expenseTotal
   )
@@ -61,8 +50,6 @@ export const calculateOrderTotals = ({
     frameTotal: roundCurrency(Math.max(frameTotal, 0)),
     lensTotal: roundCurrency(Math.max(lensTotal, 0)),
     expenseTotal,
-    repairTotal,
-    solderingTotal,
     discountTotal,
     subtotal,
     advancedPayment: isOldOrder ? subtotal : payment,

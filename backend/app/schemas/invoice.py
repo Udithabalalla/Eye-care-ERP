@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import date, datetime
 from app.utils.constants import PaymentStatus, PaymentMethod
 from app.models.invoice import InvoiceItem, InsuranceClaim

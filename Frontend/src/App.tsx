@@ -15,6 +15,8 @@ const Appointments = lazy(() => import('./pages/Appointments'))
 const Prescriptions = lazy(() => import('./pages/Prescriptions'))
 const Products = lazy(() => import('./pages/Products'))
 const SalesOrders = lazy(() => import('./pages/SalesOrders'))
+const OtherExpenses = lazy(() => import('./pages/OtherExpenses'))
+const Lenses = lazy(() => import('./pages/Lenses'))
 const Invoices = lazy(() => import('./pages/Invoices'))
 const Transactions = lazy(() => import('./pages/Transactions'))
 const Payments = lazy(() => import('./pages/Payments'))
@@ -63,6 +65,8 @@ function App() {
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/prescriptions" element={<Prescriptions />} />
             <Route path="/sales-orders" element={<SalesOrders />} />
+            <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
+            <Route path="/basic-data/lenses" element={<Lenses />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />

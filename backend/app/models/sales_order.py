@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
 from app.models.common import TimestampModel
@@ -14,6 +14,9 @@ class SalesOrderItemModel(BaseModel):
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
     total: float = Field(..., ge=0)
+    master_data_id: Optional[str] = None
+    line_type: Literal["product", "lens", "expense"] = "product"
+    track_stock: bool = True
 
 
 class SalesOrderModel(TimestampModel):

@@ -6,6 +6,7 @@ from app.repositories.sales_order_repository import SalesOrderRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.basic_data_repository import OtherExpenseTypeRepository, LensMasterRepository
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrderResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.sales_order import SalesOrderModel, SalesOrderItemModel
@@ -35,6 +36,8 @@ class SalesOrderService:
         self.patient_repo = PatientRepository(db)
         self.prescription_repo = PrescriptionRepository(db)
         self.product_repo = ProductRepository(db)
+        self.other_expense_repo = OtherExpenseTypeRepository(db)
+        self.lens_master_repo = LensMasterRepository(db)
         self.audit_service = AuditService(db)
         self.inventory_movement_service = InventoryMovementService(db)
         self.transaction_service = TransactionService(db)
@@ -62,12 +65,18 @@ class SalesOrderService:
                 unit_price = float(raw_item.get("unit_price", 0))
                 product_name = raw_item.get("product_name")
                 sku = raw_item.get("sku")
+                master_data_id = raw_item.get("master_data_id")
+                line_type = raw_item.get("line_type", "product")
+                track_stock = bool(raw_item.get("track_stock", line_type == "product"))
             else:
                 product_id = raw_item.product_id
                 quantity = raw_item.quantity
                 unit_price = raw_item.unit_price
                 product_name = raw_item.product_name
                 sku = raw_item.sku
+                master_data_id = getattr(raw_item, "master_data_id", None)
+                line_type = getattr(raw_item, "line_type", "product")
+                track_stock = getattr(raw_item, "track_stock", line_type == "product")
 
             if quantity <= 0:
                 raise BadRequestException("Item quantity must be greater than zero")
@@ -75,21 +84,62 @@ class SalesOrderService:
             if unit_price < 0:
                 raise BadRequestException("Item unit price cannot be negative")
 
-            product = await self.product_repo.get_by_product_id(product_id)
-            if not product:
-                raise NotFoundException(f"Product with ID {product_id} not found")
+            if line_type == "product":
+                product = await self.product_repo.get_by_product_id(product_id)
+                if not product:
+                    raise NotFoundException(f"Product with ID {product_id} not found")
+                resolved_name = product_name or product.name
+                resolved_sku = sku or product.sku
+                resolved_unit_price = unit_price if unit_price >= 0 else product.selling_price
+                resolved_master_id = master_data_id or product.product_id
+                resolved_track_stock = True
+            elif line_type == "lens":
+                lens = await self.lens_master_repo.get_by_id(master_data_id or product_id)
+                if lens:
+                    resolved_name = product_name or lens.lens_type
+                    resolved_sku = sku or lens.lens_code
+                    resolved_unit_price = unit_price if unit_price >= 0 else lens.price
+                    resolved_master_id = lens.id or master_data_id or product_id
+                else:
+                    if not product_name:
+                        raise NotFoundException(f"Lens with ID {master_data_id or product_id} not found")
+                    resolved_name = product_name
+                    resolved_sku = sku or product_id
+                    resolved_unit_price = unit_price
+                    resolved_master_id = master_data_id or product_id
+                resolved_track_stock = False
+            elif line_type == "expense":
+                expense_type = await self.other_expense_repo.get_by_id(master_data_id or product_id)
+                if expense_type:
+                    resolved_name = product_name or expense_type.name
+                    resolved_sku = sku or expense_type.name
+                    resolved_unit_price = unit_price if unit_price >= 0 else expense_type.default_cost
+                    resolved_master_id = expense_type.id or master_data_id or product_id
+                else:
+                    if not product_name:
+                        raise NotFoundException(f"Other expense type with ID {master_data_id or product_id} not found")
+                    resolved_name = product_name
+                    resolved_sku = sku or product_id
+                    resolved_unit_price = unit_price
+                    resolved_master_id = master_data_id or product_id
+                resolved_track_stock = False
+            else:
+                raise BadRequestException(f"Unsupported sales order line type: {line_type}")
 
-            line_total = round(quantity * unit_price, 2)
+            line_total = round(quantity * resolved_unit_price, 2)
             subtotal += line_total
 
             item_models.append(
                 SalesOrderItemModel(
                     product_id=product_id,
-                    product_name=product_name or product.name,
-                    sku=sku or product.sku,
+                    product_name=resolved_name,
+                    sku=resolved_sku,
                     quantity=quantity,
-                    unit_price=unit_price,
+                    unit_price=resolved_unit_price,
                     total=line_total,
+                    master_data_id=resolved_master_id,
+                    line_type=line_type,
+                    track_stock=resolved_track_stock if line_type != "product" else track_stock,
                 )
             )
 
@@ -97,6 +147,8 @@ class SalesOrderService:
 
     async def _ensure_stock_available(self, items):
         for item in items:
+            if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                continue
             product = await self.product_repo.get_by_product_id(item.product_id)
             if not product:
                 raise NotFoundException(f"Product with ID {item.product_id} not found")
@@ -207,6 +259,8 @@ class SalesOrderService:
 
         if target_status == SalesOrderStatus.COMPLETED and old_status != SalesOrderStatus.COMPLETED:
             for item in updated.items:
+                if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                    continue
                 await self.inventory_movement_service.create_movement(
                     InventoryMovementCreate(
                         product_id=item.product_id,

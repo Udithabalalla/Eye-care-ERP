@@ -15,6 +15,9 @@ export interface SalesOrderItem {
   quantity: number
   unit_price: number
   total: number
+  master_data_id?: string
+  line_type?: 'product' | 'lens' | 'expense'
+  track_stock?: boolean
 }
 
 export interface SalesOrderCreatePayload {
