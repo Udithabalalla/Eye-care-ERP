@@ -172,13 +172,13 @@ const Patients = () => {
                         onCheckedChange={(checked) => toggleAllVisiblePatients(checked === true)}
                       />
                     </TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead className="w-[260px]">Name</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Age/Gender</TableHead>
                     <TableHead>Last Visit</TableHead>
                     <TableHead>Visits</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -191,12 +191,12 @@ const Patients = () => {
                           onCheckedChange={(checked) => togglePatientSelection(patient.patient_id, checked === true)}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-[260px]">
                         <div className="flex items-center gap-3">
                           <Avatar src={`https://ui-avatars.com/api/?name=${patient.name}&background=random`} alt={patient.name} size="md" />
-                          <div>
-                            <p className="font-medium text-foreground">{patient.name}</p>
-                            <p className="text-sm text-muted-foreground">{patient.email}</p>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-foreground">{patient.name}</p>
+                            <p className="truncate text-sm text-muted-foreground">{patient.email}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -213,7 +213,7 @@ const Patients = () => {
                           {patient.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
