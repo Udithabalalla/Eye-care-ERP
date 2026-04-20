@@ -42,6 +42,8 @@ import { usePrescriptionFetch } from '@/hooks/usePrescriptionFetch'
 
 const phoneDigits = (value: string) => value.replace(/\D/g, '')
 
+const safeText = (value: unknown) => (typeof value === 'string' ? value : '')
+
 const optionalNumber = () =>
   z.preprocess((value) => {
     if (value === '' || value === null || value === undefined) return undefined
@@ -514,13 +516,13 @@ const SalesOrderIntakeForm = () => {
   }, [expenseMasterData])
 
   const matchedPatient = useMemo(() => {
-    const results = matchingPatients?.data || []
+    const results = (matchingPatients?.data || []).filter(Boolean)
     const phone = phoneDigits(patient.newData.phone || '')
     if (!phone && !patient.newData.fullName.trim()) return results[0] || null
 
     return (
-      results.find((item) => phoneDigits(item.phone) === phone) ||
-      results.find((item) => normalizeText(item.name).includes(normalizeText(patient.newData.fullName))) ||
+      results.find((item) => phoneDigits(safeText(item.phone)) === phone) ||
+      results.find((item) => normalizeText(safeText(item.name)).includes(normalizeText(patient.newData.fullName))) ||
       results[0] ||
       null
     )
@@ -611,6 +613,15 @@ const SalesOrderIntakeForm = () => {
     setValue('frame', mapped, { shouldDirty: true, shouldValidate: true })
   }
 
+  const applyLensSelection = (lensType: NonNullable<typeof lensMasterData>['data'][number]) => {
+    setValue('lens.selectionId', lensType.id, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.lensType', lensType.lens_type, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.color', lensType.color, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.size', lensType.size, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.lensId', lensType.lens_code, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
+  }
+
   const handlePatientAction = (patientRecord: Patient) => {
     setValue('patient.existingId', patientRecord.patient_id, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.fullName', patientRecord.name, { shouldDirty: true, shouldValidate: true })
@@ -623,7 +634,7 @@ const SalesOrderIntakeForm = () => {
 
   const continueAsNew = () => {
     const phone = phoneDigits(patient.newData.phone || '')
-    const matchedPhone = phoneDigits(matchedPatient?.phone || '')
+    const matchedPhone = phoneDigits(safeText(matchedPatient?.phone))
     if (matchedPhone && phone === matchedPhone) {
       toast.error('Phone number already exists. Please use a different number.')
       return
@@ -703,7 +714,7 @@ const SalesOrderIntakeForm = () => {
   const onSubmit = async (values: SalesOrderIntakeValues) => {
     try {
       const phone = phoneDigits(values.patient.newData.phone)
-      const exactDuplicate = (matchingPatients?.data || []).find((item) => phoneDigits(item.phone) === phone)
+      const exactDuplicate = (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item.phone)) === phone)
 
       if (!values.patient.existingId && exactDuplicate) {
         toast.error('Phone number already exists. Please use a different number.')
@@ -990,7 +1001,7 @@ const SalesOrderIntakeForm = () => {
                 <FormAlert
                   type="warning"
                   title="Existing Patient Found"
-                  description={`${matchedPatient.name} (${matchedPatient.phone})`}
+                  description={`${safeText(matchedPatient.name)} (${safeText(matchedPatient.phone)})`}
                 />
               )}
 
@@ -1190,9 +1201,12 @@ const SalesOrderIntakeForm = () => {
                     placeholder="Select frame"
                     value={frame.selectionId || ''}
                     onChange={(value) => {
-                      setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
                       const product = productData?.data.find((item) => item.product_id === value)
-                      if (product) applyFrameSelection(product)
+                      if (product) {
+                        applyFrameSelection(product)
+                        return
+                      }
+                      setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
                     }}
                     options={frameOptions}
                   />
@@ -1218,15 +1232,12 @@ const SalesOrderIntakeForm = () => {
                     placeholder="Select lens"
                     value={lens.selectionId || ''}
                     onChange={(value) => {
-                      setValue('lens.selectionId', value, { shouldDirty: true, shouldValidate: true })
                       const lensType = lensMasterData?.data.find((item) => item.id === value)
                       if (lensType) {
-                        setValue('lens.lensType', lensType.lens_type, { shouldDirty: true, shouldValidate: true })
-                        setValue('lens.color', lensType.color, { shouldDirty: true, shouldValidate: true })
-                        setValue('lens.size', lensType.size, { shouldDirty: true, shouldValidate: true })
-                        setValue('lens.lensId', lensType.lens_code, { shouldDirty: true, shouldValidate: true })
-                        setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
+                        applyLensSelection(lensType)
+                        return
                       }
+                      setValue('lens.selectionId', value, { shouldDirty: true, shouldValidate: true })
                     }}
                     options={lensOptions}
                   />

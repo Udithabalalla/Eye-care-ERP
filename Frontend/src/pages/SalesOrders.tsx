@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, SearchLg } from '@untitledui/icons'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
-import { BadgeWithDot, Button, Input, PaginationPageDefault, Select, SelectItem, Table, TableCard } from '@/components/ui'
+import { BadgeWithDot, Button, Input, PaginationPageDefault, Select, SelectItem } from '@/components/ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import Loading from '@/components/common/Loading'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 
@@ -67,13 +69,14 @@ const SalesOrders = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Sales Orders"
-          badge={data?.total || 0}
-          description="View all created sales orders and open the sales order assistant"
-          contentTrailing={(
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+      <Card>
+        <CardHeader className="border-b border-border">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle className="text-2xl">Sales Orders</CardTitle>
+              <CardDescription className="mt-1">View all created sales orders and open the sales order assistant</CardDescription>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Input
                 placeholder="Search order #, patient, status..."
                 value={search}
@@ -113,78 +116,84 @@ const SalesOrders = () => {
                 New Sales Order
               </Button>
             </div>
-          )}
-        />
-
-        {isLoading ? (
-          <div className="p-12">
-            <Loading />
           </div>
-        ) : (
-          <>
-            <Table aria-label="Sales orders table">
-              <Table.Header>
-                <Table.Head label="Order #" isRowHeader />
-                <Table.Head label="Patient" />
-                <Table.Head label="Status" />
-                <Table.Head label="Items" />
-                <Table.Head label="Total" />
-                <Table.Head label="Delivery" />
-                <Table.Head label="Created" />
-                <Table.Head label="Invoice" />
-              </Table.Header>
-              <Table.Body items={rows as SalesOrder[]}>
-                {(order) => (
-                  <Table.Row id={order.order_id}>
-                    <Table.Cell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{order.order_number}</span>
-                        <span className="text-xs text-muted-foreground">{order.order_id}</span>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-col">
-                        <span className="text-foreground">{order.patient_name || order.patient_id}</span>
-                        <span className="text-xs text-muted-foreground">{order.patient_id}</span>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <BadgeWithDot size="sm" color={statusColors[order.status]}>
-                        {order.status.replace('_', ' ')}
-                      </BadgeWithDot>
-                    </Table.Cell>
-                    <Table.Cell>{order.items.length}</Table.Cell>
-                    <Table.Cell>{formatCurrency(order.total_amount || order.subtotal || 0)}</Table.Cell>
-                    <Table.Cell>{order.expected_delivery_date ? formatDate(order.expected_delivery_date) : '-'}</Table.Cell>
-                    <Table.Cell>{formatDate(order.created_at)}</Table.Cell>
-                    <Table.Cell>
-                      {order.invoice_id ? (
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/invoices?detail=${order.invoice_id}`)}
-                        >
-                          View Invoice
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Not generated</span>
-                      )}
-                    </Table.Cell>
-                  </Table.Row>
-                )}
-              </Table.Body>
-            </Table>
+        </CardHeader>
 
-            {data && data.total_pages > 1 && (
-              <PaginationPageDefault
-                page={page}
-                total={data.total_pages}
-                onPageChange={setPage}
-                className="border-t border-border px-6 py-4"
-              />
-            )}
-          </>
-        )}
-      </TableCard.Root>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-12">
+              <Loading />
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[220px]">Order #</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Delivery</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Invoice</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((order) => (
+                      <TableRow key={order.order_id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{order.order_number}</span>
+                            <span className="text-xs text-muted-foreground">{order.order_id}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-foreground">{order.patient_name || order.patient_id}</span>
+                            <span className="text-xs text-muted-foreground">{order.patient_id}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <BadgeWithDot size="sm" color={statusColors[order.status]}>
+                            {order.status.replace('_', ' ')}
+                          </BadgeWithDot>
+                        </TableCell>
+                        <TableCell>{order.items.length}</TableCell>
+                        <TableCell>{formatCurrency(order.total_amount || order.subtotal || 0)}</TableCell>
+                        <TableCell>{order.expected_delivery_date ? formatDate(order.expected_delivery_date) : '-'}</TableCell>
+                        <TableCell>{formatDate(order.created_at)}</TableCell>
+                        <TableCell>
+                          {order.invoice_id ? (
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/invoices?detail=${order.invoice_id}`)}
+                            >
+                              View Invoice
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Not generated</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {data && data.total_pages > 1 && (
+                <PaginationPageDefault
+                  page={page}
+                  total={data.total_pages}
+                  onPageChange={setPage}
+                  className="border-t border-border px-6 py-4"
+                />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
