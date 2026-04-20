@@ -12,8 +12,13 @@ import {
   Eye,
   Scan,
   Trash02,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
 } from '@untitledui/icons'
 import { useNavigate } from 'react-router-dom'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import Input from '@/components/common/Input'
 import Button from '@/components/common/Button'
 import Loading from '@/components/common/Loading'
@@ -153,6 +158,8 @@ interface SectionProps {
   onToggle: () => void
   children: React.ReactNode
   className?: string
+  icon?: React.ReactNode
+  variant?: 'default' | 'success' | 'warning' | 'info'
 }
 
 interface LookupOption {
@@ -161,24 +168,93 @@ interface LookupOption {
   value: string
 }
 
-const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = '' }: SectionProps) => {
+const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = '', icon, variant = 'default' }: SectionProps) => {
+  const variantStyles = {
+    default: 'border-border bg-card hover:bg-card/80',
+    success: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
+    warning: 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30',
+    info: 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30',
+  }
+
   return (
-    <section className={`rounded-3xl border border-border bg-background shadow-sm ${className}`}>
+    <Card className={`${variantStyles[variant]} transition-all duration-200 ${className}`}>
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 border-b border-border px-5 py-4 text-left"
+        className="flex w-full items-center justify-between gap-4 p-6 text-left transition-colors hover:bg-muted/40"
       >
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        <div className="flex items-start gap-3">
+          {icon && <div className="mt-1 flex-shrink-0">{icon}</div>}
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
         </div>
-        {isOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+        <div className="flex-shrink-0">
+          {isOpen ? 
+            <ChevronUp className="h-5 w-5 text-muted-foreground transition-transform" /> : 
+            <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform" />
+          }
+        </div>
       </button>
-      <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="p-5">{children}</div>
+      <Separator className="m-0" />
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="space-y-5 p-6">{children}</div>
       </div>
-    </section>
+    </Card>
+  )
+}
+
+// Alert wrapper component
+const FormAlert = ({ type, title, description }: { type: 'info' | 'warning' | 'error' | 'success'; title: string; description: string }) => {
+  const variantConfig = {
+    info: { icon: AlertCircle, className: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30' },
+    warning: { icon: AlertTriangle, className: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30' },
+    error: { icon: AlertTriangle, className: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/30' },
+    success: { icon: CheckCircle, className: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30' },
+  }
+
+  const config = variantConfig[type]
+  const Icon = config.icon
+
+  return (
+    <div className={`rounded-lg border p-4 ${config.className}`}>
+      <div className="flex items-start gap-3">
+        <Icon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm mt-1 opacity-90">{description}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Field group wrapper for better organization
+const FieldGroup = ({ 
+  children, 
+  label,
+  cols = 1 
+}: { 
+  children: React.ReactNode
+  label?: string
+  cols?: 1 | 2 | 3 | 4 | 5
+}) => {
+  const gridCols = {
+    1: 'grid-cols-1',
+    2: 'md:grid-cols-2',
+    3: 'md:grid-cols-3',
+    4: 'lg:grid-cols-4',
+    5: 'lg:grid-cols-5',
+  }
+
+  return (
+    <div>
+      {label && <h3 className="mb-4 text-sm font-semibold text-foreground/80">{label}</h3>}
+      <div className={`grid grid-cols-1 gap-4 ${gridCols[cols]}`}>
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -320,6 +396,15 @@ const mapProductToFrame = (product: Product) => ({
   total: product.selling_price,
 })
 
+const SummaryRow = ({ label, value, isCurrency = true }: { label: string; value: number; isCurrency?: boolean }) => {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{isCurrency ? formatCurrency(roundCurrency(value)) : value}</span>
+    </div>
+  )
+}
+
 const SalesOrderIntakeForm = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -332,7 +417,7 @@ const SalesOrderIntakeForm = () => {
     frame: true,
     lens: true,
     expenses: true,
-    remarks: true,
+    remarks: false,
     summary: true,
     totals: true,
   })
@@ -791,7 +876,7 @@ const SalesOrderIntakeForm = () => {
 
   if (isLoadingProducts) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center rounded-3xl border border-border bg-background shadow-sm">
+      <div className="flex min-h-[50vh] items-center justify-center rounded-lg border border-border bg-card">
         <Loading text="Loading sales order masters..." />
       </div>
     )
@@ -801,273 +886,307 @@ const SalesOrderIntakeForm = () => {
     <>
       <QRScanner isOpen={barcodeScannerOpen} onScan={handleBarcodeScan} onClose={closeScanner} />
 
-      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-background shadow-[0_24px_80px_-24px_rgba(0,0,0,0.12)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(22,163,74,0.12),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.08),transparent_24%)]" />
-
-        <div className="relative border-b border-border px-6 py-6 sm:px-8 sm:py-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Sales Order Intake</p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Create a guided order for walk-in patients</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                This workflow keeps patient lookup, prescriptions, frame/lens selection, legacy paper entry, and invoice generation separate while preserving the order life cycle.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700">
-                {isFullOrder ? 'Order Type: FULL ORDER' : 'Order Type: PARTIAL ORDER'}
-              </div>
-              <div className={`rounded-full px-4 py-2 text-sm font-semibold ${salesOrder.isOld ? 'bg-warning-100 text-warning-700' : 'bg-success-100 text-success-700'}`}>
-                {salesOrder.isOld ? 'Historical Entry' : 'Invoice Eligible'}
-              </div>
-              {savedOrderNumber && (
-                <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-foreground">
-                  SO {savedOrderNumber}
+      <div className="space-y-6">
+        {/* Header Card */}
+        <Card className="border-0 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm overflow-hidden">
+          <CardHeader>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex-1">
+                <div className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-3">
+                  Sales Order Intake
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="relative space-y-6 px-6 py-6 sm:px-8">
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <SectionCard
-              title="Section 1 - Patient Information"
-              subtitle="Default to a new patient. Search by phone or name to link an existing record."
-              isOpen={openSections.patient}
-              onToggle={() => setSectionOpen('patient')}
-            >
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-secondary/40 p-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Input
-                      label="Full Name *"
-                      placeholder="John Doe"
-                      error={errors.patient?.newData?.fullName?.message}
-                      {...register('patient.newData.fullName')}
-                      disabled={patientIsLinked}
-                    />
-                    <Input
-                      label="Phone *"
-                      placeholder="0771234567"
-                      error={errors.patient?.newData?.phone?.message}
-                      {...register('patient.newData.phone')}
-                      disabled={patientIsLinked}
-                    />
-                    <Input
-                      label="Age"
-                      type="number"
-                      min={0}
-                      placeholder="34"
-                      error={errors.patient?.newData?.age?.message as string | undefined}
-                      {...register('patient.newData.age')}
-                      disabled={patientIsLinked}
-                    />
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Gender *</label>
-                      <select
-                        className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${errors.patient?.newData?.gender ? 'border-error-500' : 'border-border'}`}
-                        {...register('patient.newData.gender')}
-                        disabled={patientIsLinked}
-                      >
-                        <option value="">Select gender</option>
-                        <option value={Gender.MALE}>Male</option>
-                        <option value={Gender.FEMALE}>Female</option>
-                        <option value={Gender.OTHER}>Other</option>
-                      </select>
-                      {errors.patient?.newData?.gender && <p className="mt-1 text-sm text-error-600">{errors.patient.newData.gender.message}</p>}
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <Input
-                      label="Address"
-                      placeholder="Street address or short delivery note"
-                      {...register('patient.newData.address')}
-                      disabled={patientIsLinked}
-                    />
-                  </div>
+                <CardTitle className="text-3xl sm:text-4xl">Create a guided order</CardTitle>
+                <CardDescription className="mt-3 max-w-2xl text-base">
+                  Streamlined workflow for patient lookup, prescriptions, frame/lens selection, and invoice generation. All in one place.
+                </CardDescription>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                  <span className="text-xs font-medium text-foreground">
+                    {isFullOrder ? 'FULL ORDER' : 'PARTIAL ORDER'}
+                  </span>
                 </div>
-
-                {matchedPatient && !patientIsLinked && (
-                  <div className="rounded-2xl border border-warning-200 bg-warning-50 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="flex items-center gap-2 text-sm font-semibold text-warning-700">
-                          <AlertCircle className="h-4 w-4" /> Existing patient found: {matchedPatient.name} ({matchedPatient.phone})
-                        </p>
-                        <p className="mt-1 text-sm text-warning-700/90">Link the patient to avoid duplicate records or continue as a new patient only if the phone number changes.</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="primary" size="sm" onClick={() => handlePatientAction(matchedPatient)}>
-                          Use Existing Patient
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={continueAsNew}>
-                          Continue as New
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {patientIsLinked && (
-                  <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-brand-700">Linked patient record</p>
-                        <p className="text-sm text-brand-600">The fields are locked until you choose Continue as New.</p>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setValue('patient.existingId', '', { shouldDirty: true })}>
-                        Continue as New
-                      </Button>
-                    </div>
+                <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 ${
+                  salesOrder.isOld 
+                    ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30' 
+                    : 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
+                }`}>
+                  <div className={`h-2 w-2 rounded-full ${salesOrder.isOld ? 'bg-yellow-600' : 'bg-green-600'}`}></div>
+                  <span className={`text-xs font-medium ${salesOrder.isOld ? 'text-yellow-900' : 'text-green-900'}`}>
+                    {salesOrder.isOld ? 'Historical' : 'Invoice Eligible'}
+                  </span>
+                </div>
+                {savedOrderNumber && (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-xs font-semibold text-foreground">SO {savedOrderNumber}</span>
                   </div>
                 )}
               </div>
-            </SectionCard>
+            </div>
+          </CardHeader>
+        </Card>
 
-            <SectionCard
-              title="Section 2 - Prescription"
-              subtitle="Select an existing prescription or add a new one without leaving the page."
-              isOpen={openSections.prescription}
-              onToggle={() => setSectionOpen('prescription')}
-            >
-              <div className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1">
-                    <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Select Prescription</label>
-                    <select
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground"
-                      value={prescription.existingId || ''}
-                      onChange={(event) => {
-                        const selectedId = event.target.value
-                        setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
-                        const selectedPrescription = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
-                        if (selectedPrescription) {
-                          setValue('prescription.newData', mapPrescriptionToForm(selectedPrescription), { shouldDirty: true, shouldValidate: false })
-                        }
-                      }}
-                      disabled={!patient.existingId}
-                    >
-                      <option value="">{patient.existingId ? 'Select linked prescription' : 'Link a patient first'}</option>
-                      {(patientPrescriptions?.data || []).map((item) => (
-                        <option key={item.prescription_id} value={item.prescription_id}>
-                          {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="self-end"
-                    onClick={() => {
-                      setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true })
-                      setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
-                    }}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Section 1: Patient Information */}
+          <SectionCard
+            title="Patient Information"
+            subtitle="Create new or link existing patient record"
+            isOpen={openSections.patient}
+            onToggle={() => setSectionOpen('patient')}
+            variant={patientIsLinked ? 'success' : 'default'}
+          >
+            <div className="space-y-5">
+              <FieldGroup label="Patient Details" cols={2}>
+                <Input
+                  label="Full Name *"
+                  placeholder="John Doe"
+                  error={errors.patient?.newData?.fullName?.message}
+                  {...register('patient.newData.fullName')}
+                  disabled={patientIsLinked}
+                />
+                <Input
+                  label="Phone Number *"
+                  placeholder="0771234567"
+                  error={errors.patient?.newData?.phone?.message}
+                  {...register('patient.newData.phone')}
+                  disabled={patientIsLinked}
+                />
+                <Input
+                  label="Age"
+                  type="number"
+                  min={0}
+                  placeholder="34"
+                  error={errors.patient?.newData?.age?.message as string | undefined}
+                  {...register('patient.newData.age')}
+                  disabled={patientIsLinked}
+                />
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-muted-foreground">Gender {!patientIsLinked && '*'}</label>
+                  <select
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/20 ${errors.patient?.newData?.gender ? 'border-red-500' : 'border-input'}`}
+                    {...register('patient.newData.gender')}
+                    disabled={patientIsLinked}
                   >
-                    + Add New Prescription
+                    <option value="">Select gender</option>
+                    <option value={Gender.MALE}>Male</option>
+                    <option value={Gender.FEMALE}>Female</option>
+                    <option value={Gender.OTHER}>Other</option>
+                  </select>
+                  {errors.patient?.newData?.gender && <p className="mt-1 text-xs text-red-600">{errors.patient.newData.gender.message}</p>}
+                </div>
+              </FieldGroup>
+
+              <FieldGroup label="Delivery Address">
+                <Input
+                  label="Address"
+                  placeholder="Street address or delivery note"
+                  {...register('patient.newData.address')}
+                  disabled={patientIsLinked}
+                />
+              </FieldGroup>
+
+              {matchedPatient && !patientIsLinked && (
+                <FormAlert
+                  type="warning"
+                  title="Existing Patient Found"
+                  description={`${matchedPatient.name} (${matchedPatient.phone})`}
+                />
+              )}
+
+              {matchedPatient && !patientIsLinked && (
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <Button 
+                    type="button" 
+                    onClick={() => handlePatientAction(matchedPatient)}
+                    className="flex-1 sm:flex-auto"
+                  >
+                    Use Existing Patient
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={continueAsNew}
+                    className="flex-1 sm:flex-auto"
+                  >
+                    Continue as New
                   </Button>
                 </div>
+              )}
 
-                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-border bg-secondary/40'} p-4`}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">Right Eye (OD)</p>
-                    {prescriptionIsLinked && <span className="text-xs font-medium text-brand-700">Read only</span>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Axis" type="number" step="1" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Add" type="number" step="0.25" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="PD" type="number" step="0.1" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  </div>
-                </div>
-
-                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-border bg-secondary/40'} p-4`}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">Left Eye (OS)</p>
-                    {prescriptionIsLinked && <span className="text-xs font-medium text-brand-700">Read only</span>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Axis" type="number" step="1" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="Add" type="number" step="0.25" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                    <Input label="PD" type="number" step="0.1" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Input label="Diagnosis" {...register('prescription.newData.diagnosis')} disabled={prescriptionIsLinked} />
-                  <Input label="Notes" {...register('prescription.newData.notes')} disabled={prescriptionIsLinked} />
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-
-          <SectionCard
-            title="Section 3 - Sales Order Information"
-            subtitle="Keep the clinical order separate from financial posting and invoice generation."
-            isOpen={openSections.salesOrder}
-            onToggle={() => setSectionOpen('salesOrder')}
-          >
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-              <Input label="Delivery Date *" type="date" error={errors.salesOrder?.deliveryDate?.message} {...register('salesOrder.deliveryDate')} />
-              <Input
-                label="SO Number / Order Number"
-                placeholder={salesOrder.isOld ? 'Enter legacy order number' : 'Generated automatically on save'}
-                {...register('salesOrder.orderNumber')}
-                disabled={!salesOrder.isOld}
-              />
-              <Input label="Tested By *" placeholder="Optometrist or staff member" error={errors.salesOrder?.testedBy?.message} {...register('salesOrder.testedBy')} />
-              <Input label="Order Date *" type="date" error={errors.salesOrder?.orderDate?.message} {...register('salesOrder.orderDate')} />
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${!salesOrder.isOld ? 'border-brand-500 bg-brand-50' : 'border-border bg-secondary/40'}`}>
-                <input
-                  type="radio"
-                  className="mt-1"
-                  checked={!salesOrder.isOld}
-                  onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })}
+              {patientIsLinked && (
+                <FormAlert
+                  type="info"
+                  title="Patient Linked"
+                  description="Fields are locked. Click 'Continue as New' to unlock and edit."
                 />
-                <div>
-                  <p className="font-semibold text-foreground">New Sales Order</p>
-                  <p className="text-sm text-muted-foreground">Auto-generate the SO number and enable invoice generation after save.</p>
-                </div>
-              </label>
-              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${salesOrder.isOld ? 'border-warning-500 bg-warning-50' : 'border-border bg-secondary/40'}`}>
-                <input
-                  type="radio"
-                  className="mt-1"
-                  checked={salesOrder.isOld}
-                  onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })}
-                />
-                <div>
-                  <p className="font-semibold text-foreground">Old Sales Order</p>
-                  <p className="text-sm text-muted-foreground">Use for legacy paper entries. No invoice will be generated and stock validation stays out of the workflow.</p>
-                </div>
-              </label>
+              )}
             </div>
           </SectionCard>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {/* Section 2: Prescription */}
+          <SectionCard
+            title="Prescription & Eye Measurements"
+            subtitle="Link existing or create new prescription"
+            isOpen={openSections.prescription}
+            onToggle={() => setSectionOpen('prescription')}
+          >
+            <div className="space-y-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className="mb-2 block text-sm font-medium text-muted-foreground">Select Prescription</label>
+                  <select
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    value={prescription.existingId || ''}
+                    onChange={(event) => {
+                      const selectedId = event.target.value
+                      setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
+                      const selectedPrescription = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
+                      if (selectedPrescription) {
+                        setValue('prescription.newData', mapPrescriptionToForm(selectedPrescription), { shouldDirty: true, shouldValidate: false })
+                      }
+                    }}
+                    disabled={!patient.existingId}
+                  >
+                    <option value="">{patient.existingId ? 'Select linked prescription' : 'Link a patient first'}</option>
+                    {(patientPrescriptions?.data || []).map((item) => (
+                      <option key={item.prescription_id} value={item.prescription_id}>
+                        {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true })
+                    setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
+                  }}
+                >
+                  + New Prescription
+                </Button>
+              </div>
+
+              <div className="rounded-lg border border-input bg-muted/40 p-4">
+                <h3 className="mb-4 text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">OD</span>
+                  Right Eye
+                </h3>
+                <FieldGroup cols={5}>
+                  <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Axis" type="number" step="1" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Add" type="number" step="0.25" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="PD" type="number" step="0.1" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                </FieldGroup>
+              </div>
+
+              <div className="rounded-lg border border-input bg-muted/40 p-4">
+                <h3 className="mb-4 text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">OS</span>
+                  Left Eye
+                </h3>
+                <FieldGroup cols={5}>
+                  <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Axis" type="number" step="1" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="Add" type="number" step="0.25" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                  <Input label="PD" type="number" step="0.1" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
+                </FieldGroup>
+              </div>
+
+              <FieldGroup label="Prescription Details" cols={2}>
+                <Input label="Diagnosis" {...register('prescription.newData.diagnosis')} disabled={prescriptionIsLinked} />
+                <Input label="Notes" {...register('prescription.newData.notes')} disabled={prescriptionIsLinked} />
+              </FieldGroup>
+            </div>
+          </SectionCard>
+
+          {/* Section 3: Sales Order Information */}
+          <SectionCard
+            title="Sales Order Details"
+            subtitle="Order dates, delivery info, and order type selection"
+            isOpen={openSections.salesOrder}
+            onToggle={() => setSectionOpen('salesOrder')}
+          >
+            <div className="space-y-5">
+              <FieldGroup label="Order Dates & Person" cols={4}>
+                <Input label="Order Date *" type="date" error={errors.salesOrder?.orderDate?.message} {...register('salesOrder.orderDate')} />
+                <Input label="Delivery Date *" type="date" error={errors.salesOrder?.deliveryDate?.message} {...register('salesOrder.deliveryDate')} />
+                <Input label="Tested By *" placeholder="Optometrist name" error={errors.salesOrder?.testedBy?.message} {...register('salesOrder.testedBy')} />
+                <Input 
+                  label="SO Number" 
+                  placeholder={salesOrder.isOld ? 'Legacy #' : 'Auto-generated'} 
+                  {...register('salesOrder.orderNumber')}
+                  disabled={!salesOrder.isOld}
+                />
+              </FieldGroup>
+
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-semibold text-foreground">Order Type</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition ${
+                    !salesOrder.isOld 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:bg-muted/50'
+                  }`}>
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      checked={!salesOrder.isOld}
+                      onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">New Sales Order</p>
+                      <p className="text-sm text-muted-foreground">Auto-generate SO# and invoice</p>
+                    </div>
+                  </label>
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition ${
+                    salesOrder.isOld 
+                      ? 'border-yellow-600 bg-yellow-50 dark:bg-yellow-950/30' 
+                      : 'border-border hover:bg-muted/50'
+                  }`}>
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      checked={salesOrder.isOld}
+                      onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })}
+                    />
+                    <div>
+                      <p className="font-semibold text-foreground">Historical Entry</p>
+                      <p className="text-sm text-muted-foreground">Legacy paper order entry</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Section 4 & 5: Frame & Lens (Side by Side) */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SectionCard
-              title="Section 4 - Frame Information"
-              subtitle="Scan a barcode or choose a frame. Frame variants are stored as unique items."
+              title="Frame Selection"
+              subtitle="Scan or browse from inventory"
               isOpen={openSections.frame}
               onToggle={() => setSectionOpen('frame')}
             >
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" variant="outline" size="sm" onClick={openScanner} isLoading={isScanningProduct}>
-                    <Scan className="mr-2 h-4 w-4" /> Scan Barcode
-                  </Button>
-                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={openScanner}
+                  isLoading={isScanningProduct}
+                  className="w-full"
+                >
+                  <Scan className="mr-2 h-4 w-4" /> Scan Barcode
+                </Button>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Separator />
+
+                <FieldGroup label="Frame Details" cols={2}>
                   <SearchableLOV
                     label="Frame List"
                     placeholder="Select frame"
@@ -1079,24 +1198,23 @@ const SalesOrderIntakeForm = () => {
                     }}
                     options={frameOptions}
                   />
+                  <Input label="Price" type="number" step="0.01" {...register('frame.total', { valueAsNumber: true })} />
                   <Input label="Model" {...register('frame.model')} />
                   <Input label="Color" {...register('frame.color')} />
                   <Input label="Size" {...register('frame.size')} />
-                  <Input label="Frame ID" {...register('frame.frameId')} />
-                  <Input label="Total" type="number" step="0.01" {...register('frame.total', { valueAsNumber: true })} />
-                  <Input label="Barcode" {...register('frame.barcode')} />
-                </div>
+                  <Input label="Barcode/SKU" {...register('frame.barcode')} />
+                </FieldGroup>
               </div>
             </SectionCard>
 
             <SectionCard
-              title="Section 5 - Lens Information"
-              subtitle="Lenses come from the Basic Data master table and do not affect inventory tracking."
+              title="Lens Selection"
+              subtitle="From basic data master"
               isOpen={openSections.lens}
               onToggle={() => setSectionOpen('lens')}
             >
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FieldGroup label="Lens Details" cols={2}>
                   <SearchableLOV
                     label="Lens List"
                     placeholder="Select lens"
@@ -1114,171 +1232,248 @@ const SalesOrderIntakeForm = () => {
                     }}
                     options={lensOptions}
                   />
+                  <Input label="Price" type="number" step="0.01" {...register('lens.total', { valueAsNumber: true })} />
                   <Input label="Lens Type" {...register('lens.lensType')} />
                   <Input label="Color" {...register('lens.color')} />
                   <Input label="Size" {...register('lens.size')} />
-                  <Input label="Lens ID" {...register('lens.lensId')} />
-                  <Input label="Total" type="number" step="0.01" {...register('lens.total', { valueAsNumber: true })} />
-                </div>
+                  <Input label="Code" {...register('lens.lensId')} />
+                </FieldGroup>
               </div>
             </SectionCard>
           </div>
 
+          {/* Section 6: Expenses */}
           <SectionCard
-            title="Section 6 - Other Expenses"
-            subtitle="Use master-configured expense types with editable pricing."
+            title="Other Expenses"
+            subtitle="Additional charges and services"
             isOpen={openSections.expenses}
             onToggle={() => setSectionOpen('expenses')}
           >
             <div className="space-y-4">
               <div className="flex justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={() => addExpenseRow()}>
-                  + Add Expense Row
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => addExpenseRow()}
+                >
+                  + Add Expense
                 </Button>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-border">
-                <div className="grid grid-cols-12 bg-secondary/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <div className="col-span-3">Expense Type</div>
-                  <div className="col-span-1 text-center">Qty</div>
-                  <div className="col-span-2 text-right">Unit Cost</div>
-                  <div className="col-span-2 text-right">Discount</div>
-                  <div className="col-span-2 text-right">Total</div>
-                  <div className="col-span-2 text-right">Action</div>
+              {expenseFields.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                  No expenses added yet
                 </div>
-                <div className="divide-y divide-secondary">
-                  {expenseFields.length === 0 && (
-                    <div className="px-4 py-6 text-sm text-muted-foreground">No expense items added yet.</div>
-                  )}
-                  {expenseFields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-12 gap-3 px-4 py-4">
-                      <div className="col-span-12 md:col-span-3">
-                        <SearchableLOV
-                          placeholder="Select expense"
-                          value={expenses?.[index]?.expenseTypeId || ''}
-                          onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)}
-                          options={expenseOptions}
-                        />
-                      </div>
-                      <div className="col-span-4 md:col-span-1">
-                        <Input type="number" min={0} step="1" value={expenses?.[index]?.qty || 0} onChange={(event) => updateExpenseRow(index, 'qty', Number(event.target.value))} />
-                      </div>
-                      <div className="col-span-4 md:col-span-2">
-                        <Input type="number" min={0} step="0.01" value={expenses?.[index]?.unitCost || 0} onChange={(event) => updateExpenseRow(index, 'unitCost', Number(event.target.value))} />
-                      </div>
-                      <div className="col-span-4 md:col-span-2">
-                        <Input type="number" min={0} step="0.01" value={expenses?.[index]?.discount || 0} onChange={(event) => updateExpenseRow(index, 'discount', Number(event.target.value))} />
-                      </div>
-                      <div className="col-span-6 md:col-span-2">
-                        <Input type="text" value={formatCurrency(expenses?.[index]?.total || 0)} readOnly />
-                      </div>
-                      <div className="col-span-6 flex items-center justify-end md:col-span-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                          <Trash02 className="mr-2 h-4 w-4" /> Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-input">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-input bg-muted/50">
+                        <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Expense Type</th>
+                        <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Qty</th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Unit Cost</th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Discount</th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Total</th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {expenseFields.map((field, index) => (
+                        <tr key={field.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-3">
+                            <SearchableLOV
+                              placeholder="Select expense"
+                              value={expenses?.[index]?.expenseTypeId || ''}
+                              onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)}
+                              options={expenseOptions}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="1" 
+                              value={expenses?.[index]?.qty || 0} 
+                              onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))}
+                              className="text-center"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={expenses?.[index]?.unitCost || 0} 
+                              onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))}
+                              className="text-right"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={expenses?.[index]?.discount || 0} 
+                              onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))}
+                              className="text-right"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">
+                            {formatCurrency(expenses?.[index]?.total || 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => remove(index)}
+                            >
+                              <Trash02 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              )}
             </div>
           </SectionCard>
 
+          {/* Section 7: Remarks */}
           <SectionCard
-            title="Section 7 - Remarks"
-            subtitle="Add any notes that should travel with the order or invoice."
+            title="Remarks & Notes"
+            subtitle="Additional information for the order"
             isOpen={openSections.remarks}
             onToggle={() => setSectionOpen('remarks')}
           >
             <textarea
               {...register('remarks')}
-              rows={5}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-              placeholder="Remarks / Notes"
+              rows={4}
+              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Add any notes or special instructions..."
             />
           </SectionCard>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {/* Section 8 & 9: Summary & Totals (Side by Side) */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SectionCard
-              title="Section 8 - Summary"
-              subtitle="Left panel overview of the commercial components of the order."
+              title="Order Summary"
+              subtitle="Commercial components breakdown"
               isOpen={openSections.summary}
               onToggle={() => setSectionOpen('summary')}
             >
-              <div className="space-y-3 text-sm">
+              <div className="space-y-3">
                 <SummaryRow label="Frame Total" value={derivedTotals.frameTotal} />
                 <SummaryRow label="Lens Total" value={derivedTotals.lensTotal} />
                 <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
-                <SummaryRow label="Discount" value={derivedTotals.discountTotal} isCurrency />
-                <div className="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700">
-                  {isFullOrder ? 'Order Type: FULL ORDER' : 'Order Type: PARTIAL ORDER'}
+                <Separator />
+                <SummaryRow label="Subtotal" value={derivedTotals.subtotal} isCurrency />
+                <div className="rounded-lg border-2 border-primary bg-primary/5 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Type</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {isFullOrder ? '✓ Full Order' : '○ Partial Order'}
+                  </p>
                 </div>
               </div>
             </SectionCard>
 
             <SectionCard
-              title="Section 9 - Totals"
-              subtitle="Right panel financial summary and invoice status."
+              title="Financial Summary"
+              subtitle="Payment and invoice details"
               isOpen={openSections.totals}
               onToggle={() => setSectionOpen('totals')}
             >
               <div className="space-y-4">
-                <SummaryRow label="Subtotal" value={derivedTotals.subtotal} isCurrency />
-                <Input
-                  label="Advanced Payment"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={totals.advancedPayment || 0}
-                  onChange={(event) => setValue('totals.advancedPayment', Number(event.target.value), { shouldDirty: true })}
-                  disabled={salesOrder.isOld}
-                />
-                <SummaryRow label="Balance Payment" value={derivedTotals.balancePayment} isCurrency />
-                <Input
-                  label="Date of full payment"
-                  type="date"
-                  value={totals.fullPaymentDate || ''}
-                  onChange={(event) => setValue('totals.fullPaymentDate', event.target.value, { shouldDirty: true })}
-                  disabled={salesOrder.isOld}
-                />
+                <div className="rounded-lg border border-input bg-muted/30 p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Balance Due</p>
+                  <p className="mt-2 text-3xl font-bold text-foreground">
+                    {formatCurrency(roundCurrency(derivedTotals.subtotal))}
+                  </p>
+                </div>
 
-                {!salesOrder.isOld ? (
-                  <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
+                <FieldGroup label="Payment Info" cols={1}>
+                  <Input
+                    label="Advanced/Partial Payment"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={totals.advancedPayment || 0}
+                    onChange={(e) => setValue('totals.advancedPayment', Number(e.target.value), { shouldDirty: true })}
+                    disabled={salesOrder.isOld}
+                  />
+                </FieldGroup>
+
+                <div className="rounded-lg border border-input bg-muted/30 p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Outstanding Balance</p>
+                  <p className="mt-2 text-2xl font-bold text-foreground">
+                    {formatCurrency(roundCurrency(derivedTotals.balancePayment))}
+                  </p>
+                </div>
+
+                <FieldGroup label="Payment Schedule" cols={1}>
+                  <Input
+                    label="Date of Full Payment"
+                    type="date"
+                    value={totals.fullPaymentDate || ''}
+                    onChange={(e) => setValue('totals.fullPaymentDate', e.target.value, { shouldDirty: true })}
+                    disabled={salesOrder.isOld}
+                  />
+                </FieldGroup>
+
+                {!salesOrder.isOld && (
+                  <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-semibold text-brand-700">Invoice Number</p>
-                        <p className="text-sm text-brand-600">Generated after the sales order is created.</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-base font-semibold text-brand-700">{totals.invoiceNumber || savedInvoice?.invoice_number || 'Pending'}</p>
-                        {(savedInvoice || totals.invoiceNumber) && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => navigate(`/invoices?detail=${savedInvoice?.invoice_id || totals.invoiceNumber}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" /> View Invoice
-                          </Button>
-                        )}
+                        <p className="text-sm font-semibold text-foreground">Invoice Status</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {totals.invoiceNumber || savedInvoice?.invoice_number 
+                            ? `Invoice ${totals.invoiceNumber || savedInvoice?.invoice_number}` 
+                            : 'Generated after save'
+                          }
+                        </p>
                       </div>
                     </div>
+                    {(savedInvoice || totals.invoiceNumber) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full"
+                        onClick={() => navigate(`/invoices?detail=${savedInvoice?.invoice_id || totals.invoiceNumber}`)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" /> View Invoice
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm font-semibold text-warning-700">
-                    Historical Entry (No invoice generated)
+                )}
+
+                {salesOrder.isOld && (
+                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30 p-4">
+                    <p className="text-sm font-semibold text-yellow-900">Historical Entry</p>
+                    <p className="text-sm text-yellow-700 mt-1">No invoice will be generated</p>
                   </div>
                 )}
               </div>
             </SectionCard>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
-            <Button type="button" variant="outline" size="lg" onClick={handleReset}>
+          {/* Action Buttons */}
+          <Separator className="my-6" />
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={handleReset}
+            >
               Reset Draft
             </Button>
-            <Button type="submit" variant="primary" size="lg" isLoading={createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending}>
+            <Button 
+              type="submit"
+              isLoading={createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending}
+            >
               Save Sales Order
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -1289,18 +1484,4 @@ const SalesOrderIntakeForm = () => {
   )
 }
 
-const SummaryRow = ({ label, value, isCurrency = true }: { label: string; value: number; isCurrency?: boolean }) => {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/30 px-4 py-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold text-foreground">{isCurrency ? formatCurrency(roundCurrency(value)) : value}</span>
-    </div>
-  )
-}
-
 export default SalesOrderIntakeForm
-
-
-
-
-
