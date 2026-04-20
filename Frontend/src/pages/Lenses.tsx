@@ -136,8 +136,8 @@ const Lenses = () => {
                 <Table.Row id={lens.id}>
                   <Table.Cell>
                     <div>
-                      <p className="font-medium text-primary">{lens.lens_type}</p>
-                      <p className="text-xs text-tertiary">{lens.id}</p>
+                      <p className="font-medium text-foreground">{lens.lens_type}</p>
+                      <p className="text-xs text-muted-foreground">{lens.id}</p>
                     </div>
                   </Table.Cell>
                   <Table.Cell>{lens.color}</Table.Cell>
@@ -228,7 +228,7 @@ const Lenses = () => {
               isRequired
             />
           </div>
-          <label className="flex items-center gap-3 rounded-xl border border-secondary bg-secondary/20 px-4 py-3 text-sm text-primary">
+          <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
             <input
               type="checkbox"
               checked={form.is_active}
@@ -259,3 +259,8 @@ const Lenses = () => {
 }
 
 export default Lenses
+
+
+
+
+

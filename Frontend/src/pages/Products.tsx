@@ -78,19 +78,19 @@ const Products = () => {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Total Products</p>
-              <p className="text-2xl font-bold text-primary">{data?.total || 0}</p>
+              <p className="text-sm text-muted-foreground">Total Products</p>
+              <p className="text-2xl font-bold text-foreground">{data?.total || 0}</p>
             </div>
             <Package className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Low Stock Items</p>
+              <p className="text-sm text-muted-foreground">Low Stock Items</p>
               <p className="text-2xl font-bold text-error-600">
                 {data?.data.filter((p) => p.current_stock <= p.min_stock_level).length || 0}
               </p>
@@ -98,10 +98,10 @@ const Products = () => {
             <AlertTriangle className="w-8 h-8 text-error-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Total Inventory Value</p>
+              <p className="text-sm text-muted-foreground">Total Inventory Value</p>
               <p className="text-2xl font-bold text-success-600">
                 {formatCurrency(
                   data?.data.reduce(
@@ -205,8 +205,8 @@ const Products = () => {
                   <Table.Row id={product.product_id}>
                     <Table.Cell>
                       <div>
-                        <p className="font-medium text-primary">{product.name}</p>
-                        <p className="text-sm text-tertiary">{product.sku}</p>
+                        <p className="font-medium text-foreground">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">{product.sku}</p>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
@@ -281,7 +281,7 @@ const Products = () => {
                 page={page}
                 total={data.total_pages}
                 onPageChange={setPage}
-                className="border-t border-secondary px-6 py-4"
+                className="border-t border-border px-6 py-4"
               />
             )}
           </>
@@ -327,3 +327,4 @@ const Products = () => {
 }
 
 export default Products
+

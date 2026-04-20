@@ -109,8 +109,8 @@ const Doctors = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary">Doctors</h1>
-                    <p className="text-secondary">Manage medical staff and specialists</p>
+                    <h1 className="text-2xl font-bold text-foreground">Doctors</h1>
+                    <p className="text-muted-foreground">Manage medical staff and specialists</p>
                 </div>
                 <Button onClick={() => { setSelectedDoctor(null); setIsModalOpen(true); }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -118,14 +118,14 @@ const Doctors = () => {
                 </Button>
             </div>
 
-            <div className="flex items-center space-x-4 bg-secondary p-4 rounded-xl border border-secondary">
-                <SearchLg className="w-5 h-5 text-tertiary" />
+            <div className="flex items-center space-x-4 bg-secondary p-4 rounded-xl border border-border">
+                <SearchLg className="w-5 h-5 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder="Search doctors by name or specialization..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 text-primary placeholder-tertiary w-full"
+                    className="bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground w-full"
                 />
             </div>
 
@@ -134,16 +134,16 @@ const Doctors = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredDoctors?.map((doctor) => (
-                        <div key={doctor.doctor_id} className="bg-secondary p-6 rounded-xl border border-secondary hover:border-brand-500/50 transition-colors">
+                        <div key={doctor.doctor_id} className="bg-secondary p-6 rounded-xl border border-border hover:border-brand-500/50 transition-colors">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="font-semibold text-lg text-primary">{doctor.name}</h3>
+                                    <h3 className="font-semibold text-lg text-foreground">{doctor.name}</h3>
                                     <p className="text-brand-500 text-sm">{doctor.specialization}</p>
                                 </div>
                                 <div className="flex space-x-2">
                                     <button
                                         onClick={() => { setSelectedDoctor(doctor); setIsModalOpen(true); }}
-                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-brand-500 transition-colors"
+                                        className="p-2 hover:bg-tertiary rounded-lg text-muted-foreground hover:text-brand-500 transition-colors"
                                     >
                                         <Edit02 className="w-4 h-4" />
                                     </button>
@@ -153,33 +153,33 @@ const Doctors = () => {
                                                 deleteMutation.mutate(doctor.doctor_id)
                                             }
                                         }}
-                                        className="p-2 hover:bg-tertiary rounded-lg text-secondary hover:text-error-500 transition-colors"
+                                        className="p-2 hover:bg-tertiary rounded-lg text-muted-foreground hover:text-error-500 transition-colors"
                                     >
                                         <Trash02 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="space-y-3 text-sm text-secondary">
+                            <div className="space-y-3 text-sm text-muted-foreground">
                                 <div className="flex items-center">
                                     <span className="font-medium w-24">Qualification:</span>
                                     <span>{doctor.qualification}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Phone01 className="w-4 h-4 mr-2 text-tertiary" />
+                                    <Phone01 className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{doctor.contact_number}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Mail01 className="w-4 h-4 mr-2 text-tertiary" />
+                                    <Mail01 className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{doctor.email}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <CurrencyDollar className="w-4 h-4 mr-2 text-tertiary" />
+                                    <CurrencyDollar className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{formatCurrency(doctor.consultation_fee)} / visit</span>
                                 </div>
-                                <div className="pt-3 border-t border-secondary mt-3">
+                                <div className="pt-3 border-t border-border mt-3">
                                     <div className="flex items-center mb-2">
-                                        <Clock className="w-4 h-4 mr-2 text-tertiary" />
+                                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
                                         <span>{doctor.available_time_start} - {doctor.available_time_end}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
@@ -212,13 +212,13 @@ const Doctors = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="w-full">
-                            <label className="block text-sm font-medium text-secondary mb-1.5">
+                            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                                 Specialization
                             </label>
                             <select
                                 name="specialization"
                                 defaultValue={selectedDoctor?.specialization || "Ophthalmologist"}
-                                className="w-full px-3 py-2 bg-primary border border-secondary rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                                 required
                             >
                                 <option value="Ophthalmologist">Ophthalmologist</option>
@@ -288,7 +288,7 @@ const Doctors = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-secondary">Available Days</label>
+                            <label className="text-sm font-medium text-muted-foreground">Available Days</label>
                             <div className="flex flex-wrap gap-4">
                                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
                                     <label key={day} className="flex items-center space-x-2 cursor-pointer">
@@ -324,3 +324,8 @@ const Doctors = () => {
 }
 
 export default Doctors
+
+
+
+
+

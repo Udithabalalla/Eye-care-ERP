@@ -81,17 +81,17 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
             <div className="bg-secondary rounded-xl shadow-2xl max-w-md w-full mx-4">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-secondary">
+                <div className="flex items-center justify-between p-4 border-b border-border">
                     <div className="flex items-center space-x-2">
-                        <Camera01 className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-primary">Scan QR Code</h2>
+                        <Camera01 className="w-5 h-5 text-foreground" />
+                        <h2 className="text-lg font-semibold text-foreground">Scan QR Code</h2>
                     </div>
                     <button
                         onClick={() => {
                             stopScanning()
                             onClose()
                         }}
-                        className="text-tertiary hover:text-primary transition-colors"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <XClose className="w-5 h-5" />
                     </button>
@@ -113,10 +113,10 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
                         <>
                             <div
                                 id={qrCodeRegionId}
-                                className="rounded-lg overflow-hidden border-2 border-secondary"
+                                className="rounded-lg overflow-hidden border-2 border-border"
                                 style={{ width: '100%' }}
                             />
-                            <p className="text-center text-secondary text-sm mt-4">
+                            <p className="text-center text-muted-foreground text-sm mt-4">
                                 Position the QR code within the frame
                             </p>
                         </>
@@ -124,7 +124,7 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-secondary">
+                <div className="p-4 border-t border-border">
                     <button
                         onClick={() => {
                             stopScanning()
@@ -141,3 +141,8 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
 }
 
 export default QRScanner
+
+
+
+
+

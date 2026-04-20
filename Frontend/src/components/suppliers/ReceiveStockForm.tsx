@@ -52,11 +52,11 @@ const ReceiveStockForm = ({ order, onSuccess, onCancel }: ReceiveStockFormProps)
         {form.items.map((item, index) => (
           <div key={item.product_id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
-              <p className="text-sm font-medium text-primary">Product: {item.product_id}</p>
-              <p className="text-xs text-tertiary">Ordered: {item.ordered_quantity}</p>
+              <p className="text-sm font-medium text-foreground">Product: {item.product_id}</p>
+              <p className="text-xs text-muted-foreground">Ordered: {item.ordered_quantity}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Received Quantity</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Received Quantity</label>
               <input
                 type="number"
                 className="input"
@@ -78,3 +78,4 @@ const ReceiveStockForm = ({ order, onSuccess, onCancel }: ReceiveStockFormProps)
 }
 
 export default ReceiveStockForm
+

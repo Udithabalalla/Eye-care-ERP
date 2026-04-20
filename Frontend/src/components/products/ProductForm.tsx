@@ -101,10 +101,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Basic Information */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Product Information</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Product Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Product Name *
             </label>
             <input {...register('name')} className="input" />
@@ -114,14 +114,14 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Description
             </label>
             <textarea {...register('description')} rows={2} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Category *
             </label>
             <select {...register('category')} className="input">
@@ -139,12 +139,12 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Brand</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Brand</label>
             <input {...register('brand')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">SKU *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">SKU *</label>
             <input {...register('sku')} className="input" placeholder="e.g., CLS-360" />
             {errors.sku && (
               <p className="text-sm text-error-600 mt-1">{errors.sku.message}</p>
@@ -152,7 +152,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">Barcode</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Barcode</label>
             {product?.barcode ? (
               <input
                 value={product.barcode}
@@ -160,7 +160,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
                 readOnly
               />
             ) : (
-              <div className="rounded-lg border border-dashed border-secondary bg-secondary/30 px-4 py-3 text-sm text-tertiary">
+              <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
                 Barcode will be generated automatically when the product is saved.
               </div>
             )}
@@ -170,10 +170,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Pricing */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Pricing</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Pricing</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Cost Price *
             </label>
             <input
@@ -188,7 +188,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Selling Price *
             </label>
             <input
@@ -203,7 +203,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">MRP *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">MRP *</label>
             <input
               type="number"
               step="0.01"
@@ -219,10 +219,10 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Inventory */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Inventory</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Inventory</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Current Stock *
             </label>
             <input
@@ -235,14 +235,14 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
               <p className="text-sm text-error-600 mt-1">{errors.current_stock.message}</p>
             )}
             {product && (
-              <p className="text-xs text-tertiary mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Use stock adjustment to change quantity
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Min Stock Level *
             </label>
             <input
@@ -259,24 +259,24 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
       {/* Supplier */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Supplier Information</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Supplier Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Supplier Name
             </label>
             <input {...register('supplier.name')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Contact
             </label>
             <input {...register('supplier.contact')} className="input" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Email</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
             <input type="email" {...register('supplier.email')} className="input" />
           </div>
         </div>
@@ -296,3 +296,8 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 }
 
 export default ProductForm
+
+
+
+
+

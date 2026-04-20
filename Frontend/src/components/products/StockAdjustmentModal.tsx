@@ -82,21 +82,21 @@ const StockAdjustmentModal = ({
         {/* Product Info */}
         <div className="bg-secondary p-4 rounded-lg">
           <div className="flex items-center space-x-3 mb-3">
-            <Package className="w-8 h-8 text-primary-600" />
+            <Package className="w-8 h-8 text-primary" />
             <div>
-              <h3 className="font-semibold text-primary">{product.name}</h3>
-              <p className="text-sm text-secondary">SKU: {product.sku}</p>
+              <h3 className="font-semibold text-foreground">{product.name}</h3>
+              <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
             </div>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-secondary">Current Stock:</span>
+            <span className="text-muted-foreground">Current Stock:</span>
             <span className="font-bold text-lg">{product.current_stock}</span>
           </div>
         </div>
 
         {/* Quantity Adjustment */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Quantity Change *
           </label>
           <input
@@ -108,14 +108,14 @@ const StockAdjustmentModal = ({
           {errors.quantity && (
             <p className="text-sm text-error-600 mt-1">{errors.quantity.message}</p>
           )}
-          <p className="text-xs text-tertiary mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Positive to add, negative to remove
           </p>
         </div>
 
         {/* Reason */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Reason *
           </label>
           <select {...register('reason')} className="input">
@@ -139,7 +139,7 @@ const StockAdjustmentModal = ({
 
         {/* Notes */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Additional Notes
           </label>
           <textarea {...register('notes')} rows={2} className="input" />
@@ -197,3 +197,9 @@ const StockAdjustmentModal = ({
 }
 
 export default StockAdjustmentModal
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoicesApi } from '@/api/invoices.api'
 import { Plus, SearchLg, Eye, File06, CurrencyDollar, Download01 } from '@untitledui/icons'
@@ -191,7 +191,7 @@ const Invoices = () => {
                       <span className="font-medium text-brand-600">{invoice.invoice_number}</span>
                     </Table.Cell>
                     <Table.Cell>
-                      <span className="text-primary">{invoice.patient_name}</span>
+                      <span className="text-foreground">{invoice.patient_name}</span>
                     </Table.Cell>
                     <Table.Cell>{formatDate(invoice.invoice_date)}</Table.Cell>
                     <Table.Cell>
@@ -261,7 +261,7 @@ const Invoices = () => {
                 page={page}
                 total={data.total_pages}
                 onPageChange={setPage}
-                className="border-t border-secondary px-6 py-4"
+                className="border-t border-border px-6 py-4"
               />
             )}
           </>
@@ -334,3 +334,4 @@ const Invoices = () => {
 }
 
 export default Invoices
+

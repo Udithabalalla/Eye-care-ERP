@@ -134,11 +134,11 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
       )}
     >
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-primary p-4 shadow-sm">
+        <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-secondary">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
-            <div><span className="font-medium text-secondary">Purchase Order:</span> {order.id}</div>
-            <div><span className="font-medium text-secondary">Match Status:</span> <Badge color={matchingStatus === 'Matched' ? 'success' : 'warning'} size="sm">{matchingStatus}</Badge></div>
+            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
+            <div><span className="font-medium text-muted-foreground">Purchase Order:</span> {order.id}</div>
+            <div><span className="font-medium text-muted-foreground">Match Status:</span> <Badge color={matchingStatus === 'Matched' ? 'success' : 'warning'} size="sm">{matchingStatus}</Badge></div>
           </div>
           {matchingIssues.length > 0 && (
             <div className="mt-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-900">
@@ -156,7 +156,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
           <Input label="Due Date" type="datetime-local" value={dueDate} onChange={(value) => setDueDate(value.target.value)} />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-primary shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           <Table size="sm">
             <Table.Header bordered>
               <Table.Head label="Product" isRowHeader />
@@ -173,8 +173,8 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
                   <Table.Row key={item.product_id}>
                     <Table.Cell>
                       <div className="space-y-1">
-                        <div className="font-medium text-primary">{item.product_name}</div>
-                        <div className="text-xs text-tertiary">{item.product_id}</div>
+                        <div className="font-medium text-foreground">{item.product_name}</div>
+                        <div className="text-xs text-muted-foreground">{item.product_id}</div>
                         {warnings.length > 0 && <Badge color="warning" size="sm">Flagged</Badge>}
                       </div>
                     </Table.Cell>
@@ -223,10 +223,10 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
           </Table>
         </div>
 
-        <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-secondary">Total Amount</span>
-            <span className="text-lg font-semibold text-primary">{formatCurrency(totalAmount)}</span>
+            <span className="text-muted-foreground">Total Amount</span>
+            <span className="text-lg font-semibold text-foreground">{formatCurrency(totalAmount)}</span>
           </div>
         </div>
       </div>
@@ -235,3 +235,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 }
 
 export default CreateSupplierInvoiceDialog
+
+
+
+

@@ -7,6 +7,20 @@ import { Patient, PatientFormData } from '@/types/patient.types'
 import { Gender } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { safeDate } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+} from '@/components/ui/field'
 
 const patientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -127,133 +141,132 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Basic Information */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Basic Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Full Name *
-            </label>
-            <input {...register('name')} className="input" />
-            {errors.name && (
-              <p className="text-sm text-error-600 mt-1">{errors.name.message}</p>
-            )}
-          </div>
+      <FieldGroup className="rounded-xl border border-border bg-card p-6">
+        <FieldSet className="gap-5">
+          <FieldLegend>Basic Information</FieldLegend>
+          <FieldDescription>Core patient details used across the system.</FieldDescription>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Date of Birth *
-            </label>
-            <input type="date" {...register('date_of_birth')} className="input" />
-            {errors.date_of_birth && (
-              <p className="text-sm text-error-600 mt-1">{errors.date_of_birth.message}</p>
-            )}
-          </div>
+          <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field data-invalid={!!errors.name}>
+              <FieldLabel htmlFor="patient-name">Full Name *</FieldLabel>
+              <Input id="patient-name" placeholder="Enter patient name" {...register('name')} />
+              <FieldError errors={[errors.name]} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Gender *
-            </label>
-            <select {...register('gender')} className="input">
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-            {errors.gender && (
-              <p className="text-sm text-error-600 mt-1">{errors.gender.message}</p>
-            )}
-          </div>
+            <Field data-invalid={!!errors.date_of_birth}>
+              <FieldLabel htmlFor="patient-dob">Date of Birth *</FieldLabel>
+              <Input id="patient-dob" type="date" {...register('date_of_birth')} />
+              <FieldError errors={[errors.date_of_birth]} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Phone *
-            </label>
-            <input {...register('phone')} className="input" placeholder="+1234567890" />
-            {errors.phone && (
-              <p className="text-sm text-error-600 mt-1">{errors.phone.message}</p>
-            )}
-          </div>
+            <Field data-invalid={!!errors.gender}>
+              <FieldLabel htmlFor="patient-gender">Gender *</FieldLabel>
+              <select
+                id="patient-gender"
+                {...register('gender')}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+              <FieldError errors={[errors.gender]} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Email
-            </label>
-            <input type="email" {...register('email')} className="input" />
-            {errors.email && (
-              <p className="text-sm text-error-600 mt-1">{errors.email.message}</p>
-            )}
-          </div>
-        </div>
-      </div>
+            <Field data-invalid={!!errors.phone}>
+              <FieldLabel htmlFor="patient-phone">Phone *</FieldLabel>
+              <Input id="patient-phone" placeholder="+1234567890" {...register('phone')} />
+              <FieldError errors={[errors.phone]} />
+            </Field>
 
-      {/* Address */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Address</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">Street</label>
-            <input {...register('address.street')} className="input" />
-          </div>
+            <Field data-invalid={!!errors.email}>
+              <FieldLabel htmlFor="patient-email">Email</FieldLabel>
+              <Input id="patient-email" type="email" placeholder="patient@example.com" {...register('email')} />
+              <FieldError errors={[errors.email]} />
+            </Field>
+          </FieldGroup>
+        </FieldSet>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">City</label>
-            <input {...register('address.city')} className="input" />
-          </div>
+        <FieldSeparator />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">State</label>
-            <input {...register('address.state')} className="input" />
-          </div>
+        <FieldSet className="gap-5">
+          <FieldLegend>Address</FieldLegend>
+          <FieldDescription>Optional location details for correspondence and records.</FieldDescription>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">ZIP Code</label>
-            <input {...register('address.zip_code')} className="input" />
-          </div>
-        </div>
-      </div>
+          <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field className="md:col-span-2">
+              <FieldLabel htmlFor="patient-street">Street</FieldLabel>
+              <Input id="patient-street" placeholder="Street address" {...register('address.street')} />
+            </Field>
 
-      {/* Emergency Contact */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Emergency Contact</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Name</label>
-            <input {...register('emergency_contact.name')} className="input" />
-          </div>
+            <Field>
+              <FieldLabel htmlFor="patient-city">City</FieldLabel>
+              <Input id="patient-city" placeholder="City" {...register('address.city')} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Relationship
-            </label>
-            <input {...register('emergency_contact.relationship')} className="input" />
-          </div>
+            <Field>
+              <FieldLabel htmlFor="patient-state">State</FieldLabel>
+              <Input id="patient-state" placeholder="State" {...register('address.state')} />
+            </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
-            <input {...register('emergency_contact.phone')} className="input" />
-          </div>
-        </div>
-      </div>
+            <Field>
+              <FieldLabel htmlFor="patient-zip">ZIP Code</FieldLabel>
+              <Input id="patient-zip" placeholder="ZIP code" {...register('address.zip_code')} />
+            </Field>
+          </FieldGroup>
+        </FieldSet>
 
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
-        <textarea {...register('notes')} rows={3} className="input" />
-      </div>
+        <FieldSeparator />
 
-      {/* Actions */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <FieldSet className="gap-5">
+          <FieldLegend>Emergency Contact</FieldLegend>
+          <FieldDescription>Used when a quick alternate contact is needed.</FieldDescription>
+
+          <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="emergency-name">Name</FieldLabel>
+              <Input id="emergency-name" placeholder="Contact name" {...register('emergency_contact.name')} />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="emergency-relationship">Relationship</FieldLabel>
+              <Input id="emergency-relationship" placeholder="Relationship" {...register('emergency_contact.relationship')} />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="emergency-phone">Phone</FieldLabel>
+              <Input id="emergency-phone" placeholder="Contact phone" {...register('emergency_contact.phone')} />
+            </Field>
+          </FieldGroup>
+        </FieldSet>
+
+        <FieldSeparator />
+
+        <FieldSet>
+          <FieldLegend>Notes</FieldLegend>
+          <FieldDescription>Add any clinical or administrative notes here.</FieldDescription>
+
+          <Field>
+            <FieldLabel htmlFor="patient-notes">Notes</FieldLabel>
+            <Textarea id="patient-notes" rows={4} placeholder="Optional notes" {...register('notes')} />
+          </Field>
+        </FieldSet>
+      </FieldGroup>
+
+      <Separator />
+
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : patient ? 'Update Patient' : 'Create Patient'}
-        </button>
+        </Button>
       </div>
     </form>
   )
 }
 
 export default PatientForm
+

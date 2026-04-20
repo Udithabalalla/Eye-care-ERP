@@ -8,11 +8,11 @@ const SalesOrderAssistant = () => {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-secondary bg-primary px-5 py-4 shadow-xs">
+      <div className="rounded-xl border border-border bg-background px-5 py-4 shadow-xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-primary">Sales Order Assistant</h1>
-            <p className="text-sm text-tertiary">Use the guided assistant to create a new sales order.</p>
+            <h1 className="text-xl font-semibold text-foreground">Sales Order Assistant</h1>
+            <p className="text-sm text-muted-foreground">Use the guided assistant to create a new sales order.</p>
           </div>
           <Button size="sm" color="secondary" iconLeading={ArrowLeft} onClick={() => navigate('/sales-orders')}>
             Back to Sales Orders
@@ -26,3 +26,4 @@ const SalesOrderAssistant = () => {
 }
 
 export default SalesOrderAssistant
+

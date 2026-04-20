@@ -136,7 +136,7 @@ const Payments = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Invoice *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Invoice *</label>
             <select
               className="input w-full"
               value={form.reference_id}
@@ -161,7 +161,7 @@ const Payments = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Amount *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Amount *</label>
             <input
               type="number"
               min={0.01}
@@ -171,14 +171,14 @@ const Payments = () => {
               onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
             />
             {selectedInvoice && (
-              <p className="text-xs text-tertiary mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Balance due: {formatCurrency(selectedInvoice.balance_due)}
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Payment Method *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Method *</label>
             <select
               className="input w-full"
               value={form.payment_method}
@@ -193,7 +193,7 @@ const Payments = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Payment Date *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Date *</label>
             <input
               type="date"
               className="input w-full"

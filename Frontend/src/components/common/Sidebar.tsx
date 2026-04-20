@@ -1,27 +1,28 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import {
-  HomeLine,
-  Users01,
-  Calendar,
-  File06,
+  House,
+  Users,
+  CalendarDays,
+  FileText,
   Package,
-  Truck01,
+  Truck,
   Receipt,
-  BarChart07,
-  BarChart02,
-  CurrencyDollar,
-  AlertTriangle,
-  Key01,
-  Bell01,
-  LogOut01,
-  UserCheck01,
-  ChevronSelectorVertical,
-  Settings01,
-} from '@untitledui/icons'
+  BarChart3,
+  ChartColumn,
+  DollarSign,
+  TriangleAlert,
+  KeyRound,
+  Bell,
+  LogOut,
+  UserCheck,
+  ChevronsUpDown,
+  Settings,
+} from 'lucide-react'
 import { cn } from '@/utils/helpers'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
 
 interface NavItem {
   name: string
@@ -39,72 +40,72 @@ interface NavSection {
 const navigationSections: NavSection[] = [
   {
     items: [
-      { name: 'Dashboard', path: '/', icon: HomeLine },
+      { name: 'Dashboard', path: '/', icon: House },
     ],
   },
   {
     title: 'Clinical',
     items: [
-      { name: 'Patients', path: '/patients', icon: Users01 },
-      { name: 'Appointments', path: '/appointments', icon: Calendar },
-      { name: 'Prescriptions', path: '/prescriptions', icon: File06 },
-      { name: 'Doctors', path: '/doctors', icon: UserCheck01 },
+      { name: 'Patients', path: '/patients', icon: Users },
+      { name: 'Appointments', path: '/appointments', icon: CalendarDays },
+      { name: 'Prescriptions', path: '/prescriptions', icon: FileText },
+      { name: 'Doctors', path: '/doctors', icon: UserCheck },
     ],
   },
   {
     title: 'Sales',
     items: [
       { name: 'Sales Orders', path: '/sales-orders', icon: Receipt },
-      { name: 'Invoices', path: '/invoices', icon: File06 },
-      { name: 'Payments', path: '/payments', icon: CurrencyDollar },
-      { name: 'Refunds', path: '/refunds', icon: AlertTriangle },
+      { name: 'Invoices', path: '/invoices', icon: FileText },
+      { name: 'Payments', path: '/payments', icon: DollarSign },
+      { name: 'Refunds', path: '/refunds', icon: TriangleAlert },
     ],
   },
   {
     title: 'Purchasing',
     items: [
-      { name: 'Suppliers', path: '/suppliers', icon: Users01 },
-      { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck01 },
+      { name: 'Suppliers', path: '/suppliers', icon: Users },
+      { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck },
       { name: 'Stock Receipts', path: '/stock-receipts', icon: Package },
-      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: File06 },
-      { name: 'Supplier Payments', path: '/supplier-payments', icon: CurrencyDollar },
+      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: FileText },
+      { name: 'Supplier Payments', path: '/supplier-payments', icon: DollarSign },
     ],
   },
   {
     title: 'Inventory',
     items: [
       { name: 'Products', path: '/products', icon: Package },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: BarChart02 },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Settings01 },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: ChartColumn },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Settings },
     ],
   },
   {
     title: 'Finance',
     items: [
-      { name: 'Transactions', path: '/transactions', icon: BarChart02 },
-      { name: 'Ledger', path: '/ledger', icon: BarChart07 },
+      { name: 'Transactions', path: '/transactions', icon: ChartColumn },
+      { name: 'Ledger', path: '/ledger', icon: BarChart3 },
     ],
   },
   {
     title: 'Analytics',
     items: [
-      { name: 'Reports', path: '/reports', icon: BarChart07 },
+      { name: 'Reports', path: '/reports', icon: BarChart3 },
     ],
   },
   {
     title: 'System',
     items: [
-      { name: 'Users', path: '/users', icon: Users01 },
-      { name: 'Roles & Permissions', path: '/roles-permissions', icon: Key01 },
-      { name: 'Activity Logs', path: '/activity-logs', icon: Bell01 },
-      { name: 'Company Profile', path: '/settings', icon: Settings01 },
+      { name: 'Users', path: '/users', icon: Users },
+      { name: 'Roles & Permissions', path: '/roles-permissions', icon: KeyRound },
+      { name: 'Activity Logs', path: '/activity-logs', icon: Bell },
+      { name: 'Company Profile', path: '/settings', icon: Settings },
       {
         name: 'Basic Data',
         path: '/basic-data',
-        icon: Settings01,
+        icon: Settings,
         children: [
-          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: Settings01 },
-          { name: 'Lenses', path: '/basic-data/lenses', icon: Settings01 },
+          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: Settings },
+          { name: 'Lenses', path: '/basic-data/lenses', icon: Settings },
         ],
       },
     ],
@@ -178,17 +179,17 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       )}
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 w-64 bg-sidebar flex flex-col z-50 border-r border-border transition-transform duration-300 ease-in-out md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 shadow-sm">
-            <span className="text-lg font-bold text-white">EC</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+            <span className="text-lg font-bold text-sidebar-primary-foreground">EC</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-base font-semibold text-primary">Sequence</span>
-            <span className="text-xs text-tertiary">Eye Care ERP</span>
+            <span className="text-base font-semibold text-sidebar-foreground">Sequence</span>
+            <span className="text-xs text-muted-foreground">Eye Care ERP</span>
           </div>
         </div>
 
@@ -206,12 +207,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     }))}
                     className="flex w-full items-center justify-between px-3 pb-2 pt-1 text-left"
                   >
-                    <span className="text-xs font-semibold uppercase tracking-wider text-tertiary">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {section.title}
                     </span>
-                    <ChevronSelectorVertical
+                    <ChevronsUpDown
                       className={cn(
-                        'h-4 w-4 text-quaternary transition-transform',
+                        'h-4 w-4 text-muted-foreground transition-transform',
                         openSections[section.title] ? 'rotate-180' : ''
                       )}
                     />
@@ -234,22 +235,22 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                           className={cn(
                             'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
                             hasActiveChild
-                              ? 'bg-bg-active text-primary'
-                              : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                              : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                           )}
                         >
                           <item.icon
                             className={cn(
                               'h-5 w-5 shrink-0 transition-colors duration-100',
                               hasActiveChild
-                                ? 'text-brand-600'
-                                : 'text-quaternary group-hover:text-tertiary'
+                                ? 'text-sidebar-primary'
+                                : 'text-muted-foreground group-hover:text-foreground'
                             )}
                           />
                           <span className="flex-1 truncate text-left">{item.name}</span>
-                          <ChevronSelectorVertical
+                          <ChevronsUpDown
                             className={cn(
-                              'h-4 w-4 text-quaternary transition-transform',
+                              'h-4 w-4 text-muted-foreground transition-transform',
                               isSubmenuOpen ? 'rotate-180' : ''
                             )}
                           />
@@ -265,16 +266,16 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                 className={cn(
                                   'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
                                   location.pathname === child.path
-                                    ? 'bg-bg-active text-primary'
-                                    : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
+                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                                 )}
                               >
                                 <child.icon
                                   className={cn(
                                     'h-4 w-4 shrink-0 transition-colors duration-100',
                                     location.pathname === child.path
-                                      ? 'text-brand-600'
-                                      : 'text-quaternary group-hover:text-tertiary'
+                                      ? 'text-sidebar-primary'
+                                      : 'text-muted-foreground group-hover:text-foreground'
                                   )}
                                 />
                                 <span className="flex-1 truncate text-left">{child.name}</span>
@@ -296,8 +297,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         cn(
                           'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
                           isActive
-                            ? 'bg-bg-active text-primary'
-                            : 'text-secondary hover:bg-bg-primary-hover hover:text-primary'
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                         )
                       }
                     >
@@ -307,13 +308,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                             className={cn(
                               'h-5 w-5 shrink-0 transition-colors duration-100',
                               isActive
-                                ? 'text-brand-600'
-                                : 'text-quaternary group-hover:text-tertiary'
+                                ? 'text-sidebar-primary'
+                                : 'text-muted-foreground group-hover:text-foreground'
                             )}
                           />
                           <span className="flex-1 truncate">{item.name}</span>
                           {item.badge && (
-                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white">
+                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-xs font-medium text-sidebar-primary-foreground">
                               {item.badge}
                             </span>
                           )}
@@ -328,44 +329,43 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </nav>
 
         {/* Account Card */}
-        <div className="border-t border-border p-4" ref={accountMenuRef}>
+        <div className="border-t border-border bg-background/60 p-4" ref={accountMenuRef}>
           <div className="relative">
             <div
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-              className="flex cursor-pointer items-center gap-3 rounded-lg p-3 ring-1 ring-border ring-inset transition-colors hover:bg-bg-primary-hover"
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors hover:bg-accent/40"
             >
               {/* Avatar */}
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 font-semibold">
-                {user?.name ? getInitials(user.name) : <Users01 className="h-5 w-5" />}
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-sidebar bg-success-500" />
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 font-semibold text-sidebar-primary">
+                {user?.name ? getInitials(user.name) : <Users className="h-5 w-5" />}
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-sidebar bg-emerald-500" />
               </div>
 
               {/* User Info */}
               <div className="flex flex-1 flex-col overflow-hidden">
-                <span className="truncate text-sm font-semibold text-primary">
+                <span className="truncate text-sm font-semibold text-sidebar-foreground">
                   {user?.name || 'User'}
                 </span>
-                <span className="truncate text-xs text-tertiary">
+                <span className="truncate text-xs text-muted-foreground">
                   {user?.email || user?.role || 'admin@eyecare.com'}
                 </span>
               </div>
 
               {/* Expand Icon */}
-              <ChevronSelectorVertical className="h-5 w-5 shrink-0 text-quaternary" />
+              <ChevronsUpDown className="h-5 w-5 shrink-0 text-muted-foreground" />
             </div>
 
             {/* Account Menu Dropdown */}
             {isAccountMenuOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-primary p-1.5 shadow-lg">
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={logout}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-secondary hover:bg-bg-primary-hover hover:text-primary transition-colors"
-                  >
-                    <LogOut01 className="h-5 w-5 text-quaternary" />
-                    Sign out
-                  </button>
-                </div>
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-popover p-2 shadow-lg">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-sm font-semibold text-muted-foreground hover:text-foreground"
+                  onClick={logout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
               </div>
             )}
           </div>
@@ -376,3 +376,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 }
 
 export default Sidebar
+
+
+
+

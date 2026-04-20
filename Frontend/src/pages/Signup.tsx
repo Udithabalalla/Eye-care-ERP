@@ -50,18 +50,18 @@ const Signup = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">EC</span>
           </div>
-          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
-          <p className="text-tertiary mt-2">Institute Management System</p>
+          <h1 className="text-3xl font-bold text-foreground">Vision Optical</h1>
+          <p className="text-muted-foreground mt-2">Institute Management System</p>
         </div>
 
         {/* Signup Card */}
         <div className="card">
-          <h2 className="text-2xl font-bold text-primary mb-6">Create Account</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">Create Account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name Field */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-2">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -81,7 +81,7 @@ const Signup = () => {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-2">
                 Email Address <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -102,7 +102,7 @@ const Signup = () => {
 
             {/* Phone Field */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="phone" className="block text-sm font-medium text-muted-foreground mb-2">
                 Phone Number
               </label>
               <div className="relative">
@@ -121,7 +121,7 @@ const Signup = () => {
 
             {/* Role Field */}
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="role" className="block text-sm font-medium text-muted-foreground mb-2">
                 Role
               </label>
               <select
@@ -140,7 +140,7 @@ const Signup = () => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-muted-foreground mb-2">
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -165,12 +165,12 @@ const Signup = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-tertiary mt-1">Must be at least 8 characters</p>
+              <p className="text-xs text-muted-foreground mt-1">Must be at least 8 characters</p>
             </div>
 
             {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-muted-foreground mb-2">
                 Confirm Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -210,7 +210,7 @@ const Signup = () => {
           </form>
 
           {/* Link to Login */}
-          <p className="mt-6 text-center text-sm text-tertiary">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-500">
               Sign in
@@ -223,3 +223,4 @@ const Signup = () => {
 }
 
 export default Signup
+

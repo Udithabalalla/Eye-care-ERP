@@ -265,10 +265,10 @@ const InnerMultiSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder
         <div className="relative flex w-full flex-1 flex-row flex-wrap items-center justify-start gap-1.5">
             {!isSelectionEmpty &&
                 comboBoxContext?.selectedItems?.items?.map((value) => (
-                    <span key={value.id} className="flex items-center rounded-md bg-primary py-0.5 pr-1 pl-1.25 ring-1 ring-primary ring-inset">
+                    <span key={value.id} className="flex items-center rounded-md bg-background py-0.5 pr-1 pl-1.25 ring-1 ring-primary ring-inset">
                         <Avatar size="xxs" alt={value?.label} src={value?.avatarUrl} />
 
-                        <p className="ml-1.25 truncate text-sm font-medium whitespace-nowrap text-secondary select-none">{value?.label}</p>
+                        <p className="ml-1.25 truncate text-sm font-medium whitespace-nowrap text-muted-foreground select-none">{value?.label}</p>
 
                         <TagCloseX
                             size="md"
@@ -286,20 +286,20 @@ const InnerMultiSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder
                     placeholder={placeholder}
                     onKeyDown={handleInputKeyDown}
                     onMouseDown={handleInputMouseDown}
-                    className="w-full flex-[1_0_0] appearance-none bg-transparent text-md text-ellipsis text-primary caret-alpha-black/90 outline-none placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed disabled:text-disabled disabled:placeholder:text-disabled"
+                    className="w-full flex-[1_0_0] appearance-none bg-transparent text-md text-ellipsis text-foreground caret-alpha-black/90 outline-none placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed disabled:text-disabled disabled:placeholder:text-disabled"
                 />
 
                 {shortcut && (
                     <div
                         aria-hidden="true"
                         className={cx(
-                            "absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8",
+                            "absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-background to-40% pl-8",
                             shortcutClassName,
                         )}
                     >
                         <span
                             className={cx(
-                                "pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset",
+                                "pointer-events-none rounded px-1 py-px text-xs font-medium text-muted-foreground ring-1 ring-secondary select-none ring-inset",
                                 isDisabled && "bg-transparent text-disabled",
                             )}
                         >
@@ -328,7 +328,7 @@ export const MultiSelectTagsValue = ({
             {...otherProps}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "relative flex w-full items-center gap-2 rounded-lg bg-primary shadow-xs ring-1 ring-primary outline-hidden transition duration-100 ease-linear ring-inset",
+                    "relative flex w-full items-center gap-2 rounded-lg bg-background shadow-xs ring-1 ring-primary outline-hidden transition duration-100 ease-linear ring-inset",
                     isDisabled && "cursor-not-allowed bg-disabled_subtle",
                     isFocusWithin && "ring-2 ring-brand",
                     sizes[size].root,
@@ -360,3 +360,4 @@ const MultiSelect = MultiSelectBase as typeof MultiSelectBase & {
 MultiSelect.Item = SelectItem;
 
 export { MultiSelect as MultiSelect };
+

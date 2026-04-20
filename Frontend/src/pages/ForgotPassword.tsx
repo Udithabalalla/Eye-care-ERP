@@ -63,14 +63,14 @@ const ForgotPassword = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">EC</span>
           </div>
-          <h1 className="text-3xl font-bold text-primary">Vision Optical</h1>
-          <p className="text-tertiary mt-2">Reset your account password</p>
+          <h1 className="text-3xl font-bold text-foreground">Vision Optical</h1>
+          <p className="text-muted-foreground mt-2">Reset your account password</p>
         </div>
 
         <div className="card space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary">Password Recovery</h2>
-            <p className="mt-2 text-sm text-tertiary">
+            <h2 className="text-2xl font-bold text-foreground">Password Recovery</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               {isOtpSent
                 ? 'Enter the OTP from your registered email and set a new password.'
                 : 'We will send a one-time password to your registered email address.'}
@@ -80,7 +80,7 @@ const ForgotPassword = () => {
           {!isOtpSent ? (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-2">
                   Registered Email Address
                 </label>
                 <div className="relative">
@@ -106,7 +106,7 @@ const ForgotPassword = () => {
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="otp" className="block text-sm font-medium text-muted-foreground mb-2">
                   OTP
                 </label>
                 <div className="relative">
@@ -128,7 +128,7 @@ const ForgotPassword = () => {
               </div>
 
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="newPassword" className="block text-sm font-medium text-muted-foreground mb-2">
                   New Password
                 </label>
                 <div className="relative">
@@ -155,7 +155,7 @@ const ForgotPassword = () => {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-muted-foreground mb-2">
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -195,7 +195,7 @@ const ForgotPassword = () => {
             </form>
           )}
 
-          <p className="text-center text-sm text-tertiary">
+          <p className="text-center text-sm text-muted-foreground">
             Remembered your password?{' '}
             <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-500">
               Sign in

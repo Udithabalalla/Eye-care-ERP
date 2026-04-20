@@ -144,7 +144,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Date *
           </label>
           <input type="date" {...register('appointment_date')} className="input" />
@@ -155,7 +155,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Time */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Time *
           </label>
           <input type="time" {...register('appointment_time')} className="input" />
@@ -166,7 +166,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Duration */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Duration (minutes) *
           </label>
           <select {...register('duration_minutes', { valueAsNumber: true })} className="input">
@@ -182,7 +182,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
         {/* Type */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Appointment Type *
           </label>
           <select {...register('type')} className="input">
@@ -199,7 +199,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
       {/* Reason */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Reason for Visit *
         </label>
         <textarea {...register('reason')} rows={2} className="input" />
@@ -210,7 +210,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Additional Notes
         </label>
         <textarea {...register('notes')} rows={2} className="input" />
@@ -234,3 +234,4 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
 }
 
 export default AppointmentForm
+

@@ -26,21 +26,21 @@ function Table<T extends Record<string, any>>({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-tertiary">
+      <div className="text-center py-12 text-muted-foreground">
         <p>{emptyMessage}</p>
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-bg-secondary shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="table">
           <thead>
@@ -76,3 +76,5 @@ function Table<T extends Record<string, any>>({
 }
 
 export default Table
+
+

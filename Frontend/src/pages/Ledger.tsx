@@ -40,8 +40,8 @@ const Ledger = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Ledger</h1>
-          <p className="text-secondary mt-1">Financial transaction records and account balances</p>
+          <h1 className="text-3xl font-bold text-foreground">Ledger</h1>
+          <p className="text-muted-foreground mt-1">Financial transaction records and account balances</p>
         </div>
       </div>
 
@@ -50,21 +50,21 @@ const Ledger = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="card">
             <BarChart07 className="w-8 h-8 text-brand-600 mb-3" />
-            <p className="text-sm text-tertiary mb-1">Total Transactions</p>
-            <p className="text-2xl font-bold text-primary">{summaryData.total_count || 0}</p>
+            <p className="text-sm text-muted-foreground mb-1">Total Transactions</p>
+            <p className="text-2xl font-bold text-foreground">{summaryData.total_count || 0}</p>
           </div>
           <div className="card">
             <BarChart07 className="w-8 h-8 text-success-600 mb-3" />
-            <p className="text-sm text-tertiary mb-1">Total Amount</p>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(summaryData.total_amount || 0)}</p>
+            <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(summaryData.total_amount || 0)}</p>
           </div>
           {summaryData.by_type &&
             Object.entries(summaryData.by_type).slice(0, 2).map(([type, data]: any) => (
               <div key={type} className="card">
                 <BarChart07 className="w-8 h-8 text-brand-500 mb-3" />
-                <p className="text-sm text-tertiary mb-1">{type}</p>
-                <p className="text-2xl font-bold text-primary">{data.count}</p>
-                <p className="text-xs text-secondary">{formatCurrency(data.total_amount)}</p>
+                <p className="text-sm text-muted-foreground mb-1">{type}</p>
+                <p className="text-2xl font-bold text-foreground">{data.count}</p>
+                <p className="text-xs text-muted-foreground">{formatCurrency(data.total_amount)}</p>
               </div>
             ))}
         </div>
@@ -72,7 +72,7 @@ const Ledger = () => {
 
       {/* Account Balance Table */}
       <div className="card">
-        <h2 className="text-lg font-semibold text-primary mb-4">Account Balances</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Account Balances</h2>
         {balanceLoading ? (
           <div className="p-8">
             <Loading />
@@ -89,7 +89,7 @@ const Ledger = () => {
               {(balanceData || []).map((account: any) => (
                 <Table.Row key={account._id}>
                   <Table.Cell>
-                    <span className="font-medium text-primary">{account._id || 'Unknown'}</span>
+                    <span className="font-medium text-foreground">{account._id || 'Unknown'}</span>
                   </Table.Cell>
                   <Table.Cell>
                     <span className="text-success-600 font-medium">{formatCurrency(account.total_debit)}</span>
@@ -112,9 +112,9 @@ const Ledger = () => {
       {/* Daily Summary */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary">Daily Activity</h2>
+          <h2 className="text-lg font-semibold text-foreground">Daily Activity</h2>
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-secondary" />
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value as any)}
@@ -142,7 +142,7 @@ const Ledger = () => {
               {(dailyData || []).slice(0, 30).map((day: any) => (
                 <Table.Row key={day._id}>
                   <Table.Cell>
-                    <span className="font-medium text-primary">{day._id}</span>
+                    <span className="font-medium text-foreground">{day._id}</span>
                   </Table.Cell>
                   <Table.Cell>{day.count}</Table.Cell>
                   <Table.Cell>
@@ -158,7 +158,7 @@ const Ledger = () => {
       {/* Transaction List */}
       <div className="card">
         <div className="mb-4 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-primary">Recent Transactions</h2>
+          <h2 className="text-lg font-semibold text-foreground">Recent Transactions</h2>
           <select
             value={transactionType}
             onChange={(e) => setTransactionType(e.target.value)}
@@ -197,7 +197,7 @@ const Ledger = () => {
                     </span>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-sm text-secondary">{tx.reference_type}</span>
+                    <span className="text-sm text-muted-foreground">{tx.reference_type}</span>
                   </Table.Cell>
                   <Table.Cell>
                     <span className="font-medium">{formatCurrency(tx.amount)}</span>

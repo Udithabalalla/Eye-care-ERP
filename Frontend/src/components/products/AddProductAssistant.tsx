@@ -156,19 +156,19 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
     <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); submit() }}>
       <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-primary">Product Information</h4>
+          <h4 className="text-sm font-semibold text-foreground">Product Information</h4>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Product Name</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Product Name</label>
             <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Product Name" />
           </div>
           <div className="md:col-span-4">
-            <label className="mb-2 block text-sm font-medium text-secondary">Description</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Description</label>
             <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Description" />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Category</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Category</label>
             <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ProductCategory })}>
               {categoryOptions.map((category) => (
                 <option key={category.value} value={category.value}>{category.label}</option>
@@ -176,15 +176,15 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Brand</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Brand</label>
             <Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder="Brand" />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>SKU</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>SKU</label>
             <Input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} placeholder="SKU" />
           </div>
           <div className="md:col-span-4">
-            <label className="mb-2 block text-sm font-medium text-secondary">Barcode</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Barcode</label>
             <Input value={product?.barcode || 'Barcode will be generated automatically when the product is saved.'} readOnly />
           </div>
         </div>
@@ -193,15 +193,15 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-primary">Pricing Information</h4>
+            <h4 className="text-sm font-semibold text-foreground">Pricing Information</h4>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Cost Price</label>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Cost Price</label>
               <Input type="number" step="0.01" value={form.cost_price} onChange={(event) => setForm({ ...form, cost_price: Number(event.target.value) })} placeholder="Qty" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Selling Price</label>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Selling Price</label>
               <Input type="number" step="0.01" value={form.selling_price} onChange={(event) => setForm({ ...form, selling_price: Number(event.target.value) })} placeholder="0.00 LKR" />
             </div>
           </div>
@@ -209,15 +209,15 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
 
         <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-primary">Inventory Information</h4>
+            <h4 className="text-sm font-semibold text-foreground">Inventory Information</h4>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary">Current Stock</label>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Current Stock</label>
               <Input value={product ? String(product.current_stock) : '0'} readOnly />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Min Stock Level</label>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Min Stock Level</label>
               <Input type="number" value={form.min_stock_level} onChange={(event) => setForm({ ...form, min_stock_level: Number(event.target.value) })} placeholder="0.00 LKR" />
             </div>
           </div>
@@ -226,11 +226,11 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
 
       <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-primary">Supplier Information</h4>
+          <h4 className="text-sm font-semibold text-foreground">Supplier Information</h4>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Supplier</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Supplier</label>
             {lockedSupplierId ? (
               <Input value={selectedSupplier?.supplier_name || ''} readOnly />
             ) : (
@@ -243,15 +243,15 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
             )}
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Supplier Contact</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Contact</label>
             <Input value={form.supplier_contact || selectedSupplier?.contact_person || ''} readOnly />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-secondary">Supplier Person</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Person</label>
             <Input value={selectedSupplier?.contact_person || ''} readOnly />
           </div>
           <div className="md:col-span-4">
-            <label className="mb-2 block text-sm font-medium text-secondary">Supplier Address</label>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Address</label>
             <Input value={selectedSupplier?.address || form.supplier_address || ''} readOnly />
           </div>
         </div>
@@ -259,7 +259,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
 
       <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-primary">Notes</h4>
+          <h4 className="text-sm font-semibold text-foreground">Notes</h4>
         </div>
         <div className="grid grid-cols-1 gap-4">
           <Input label="Supplier Notes" value={form.supplier_notes} onChange={(event) => setForm({ ...form, supplier_notes: event.target.value })} placeholder="Notes" />

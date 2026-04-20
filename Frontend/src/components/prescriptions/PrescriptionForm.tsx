@@ -190,7 +190,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                             <button
                                 type="button"
                                 onClick={() => setExistingPrescription(null)}
-                                className="px-3 py-1.5 bg-primary text-brand-600 text-sm font-medium rounded border border-brand-200 hover:bg-brand-50 dark:hover:bg-brand-900 transition-colors"
+                                className="px-3 py-1.5 bg-background text-brand-600 text-sm font-medium rounded border border-brand-200 hover:bg-brand-50 dark:hover:bg-brand-900 transition-colors"
                             >
                                 Create New
                             </button>
@@ -669,3 +669,8 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 }
 
 export default PrescriptionForm
+
+
+
+
+

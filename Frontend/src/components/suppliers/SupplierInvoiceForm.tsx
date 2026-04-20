@@ -78,7 +78,7 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Supplier</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Supplier</label>
           <select className="input" value={form.supplier_id} onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}>
             <option value="">Select supplier</option>
             {suppliers?.data.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>)}
@@ -89,7 +89,7 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
         <Input label="Due Date" type="datetime-local" value={form.due_date ? form.due_date.slice(0, 16) : ''} onChange={(e) => setForm({ ...form, due_date: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
         <Input label="Total Amount" type="number" step="0.01" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: Number(e.target.value) })} />
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Status</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Status</label>
           <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as any })}>
             <option value="Unpaid">Unpaid</option>
             <option value="Partial">Partial</option>
@@ -102,3 +102,4 @@ const SupplierInvoiceForm = ({ invoice, onSuccess, onCancel }: SupplierInvoiceFo
 }
 
 export default SupplierInvoiceForm
+

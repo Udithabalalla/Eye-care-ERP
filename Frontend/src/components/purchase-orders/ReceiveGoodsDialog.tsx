@@ -87,16 +87,16 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
       )}
     >
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-primary p-4 shadow-sm">
+        <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-secondary">Order ID:</span> {order.id}</div>
-            <div><span className="font-medium text-secondary">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
-            <div><span className="font-medium text-secondary">Status:</span> <Badge color="warning" size="sm">{order.status}</Badge></div>
+            <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
+            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
+            <div><span className="font-medium text-muted-foreground">Status:</span> <Badge color="warning" size="sm">{order.status}</Badge></div>
           </div>
-          <p className="mt-2 text-sm text-tertiary">Confirm the quantities received from the supplier before updating stock.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Confirm the quantities received from the supplier before updating stock.</p>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-primary shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           <Table size="sm">
             <Table.Header bordered>
               <Table.Head label="Product" isRowHeader />
@@ -108,8 +108,8 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
                 <Table.Row key={item.product_id}>
                   <Table.Cell>
                     <div className="space-y-1">
-                      <div className="font-medium text-primary">{item.product_name}</div>
-                      <div className="text-xs text-tertiary">{item.product_id}</div>
+                      <div className="font-medium text-foreground">{item.product_name}</div>
+                      <div className="text-xs text-muted-foreground">{item.product_id}</div>
                     </div>
                   </Table.Cell>
                   <Table.Cell>{item.ordered_quantity}</Table.Cell>

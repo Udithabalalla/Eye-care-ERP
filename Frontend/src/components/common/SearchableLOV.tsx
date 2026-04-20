@@ -83,34 +83,34 @@ const SearchableLOV = ({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
-          w-full px-4 py-2.5 text-left bg-primary border rounded-lg
+          w-full px-4 py-2.5 text-left bg-background border rounded-lg
           flex items-center justify-between transition-all
-          ${disabled ? 'bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-secondary cursor-pointer'}
-          ${error ? 'border-error-500' : 'border-secondary'}
+          ${disabled ? 'bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-border cursor-pointer'}
+          ${error ? 'border-error-500' : 'border-border'}
           ${isOpen ? 'ring-2 ring-brand-500/20 border-brand-500' : ''}
         `}
             >
                 <div className="flex-1 truncate">
                     {selectedOption ? (
                         <div>
-                            <div className="text-primary font-medium">{selectedOption.label}</div>
+                            <div className="text-foreground font-medium">{selectedOption.label}</div>
                             {selectedOption.subtitle && (
-                                <div className="text-sm text-tertiary">{selectedOption.subtitle}</div>
+                                <div className="text-sm text-muted-foreground">{selectedOption.subtitle}</div>
                             )}
                         </div>
                     ) : (
-                        <span className="text-tertiary">{placeholder}</span>
+                        <span className="text-muted-foreground">{placeholder}</span>
                     )}
                 </div>
                 <div className="flex items-center space-x-2">
                     {value && !disabled && (
                         <XClose
-                            className="w-4 h-4 text-tertiary hover:text-secondary"
+                            className="w-4 h-4 text-muted-foreground hover:text-muted-foreground"
                             onClick={handleClear}
                         />
                     )}
                     <ChevronDown
-                        className={`w-5 h-5 text-tertiary transition-transform ${isOpen ? 'transform rotate-180' : ''
+                        className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'transform rotate-180' : ''
                             }`}
                     />
                 </div>
@@ -118,17 +118,17 @@ const SearchableLOV = ({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-primary border border-secondary rounded-xl shadow-lg max-h-80 overflow-hidden">
+                <div className="absolute z-50 w-full mt-2 bg-background border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
                     {/* Search Input */}
-                    <div className="p-3 border-b border-secondary sticky top-0 bg-primary">
+                    <div className="p-3 border-b border-border sticky top-0 bg-background">
                         <div className="relative">
-                            <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-tertiary" />
+                            <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 border border-secondary bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-primary placeholder-tertiary"
+                                className="w-full pl-10 pr-4 py-2 border border-border bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-foreground placeholder:text-muted-foreground"
                                 autoFocus
                             />
                         </div>
@@ -147,14 +147,14 @@ const SearchableLOV = ({
                     ${value === option.value ? 'bg-brand-500/10 border-l-2 border-brand-500' : ''}
                   `}
                                 >
-                                    <div className="font-medium text-primary">{option.label}</div>
+                                    <div className="font-medium text-foreground">{option.label}</div>
                                     {option.subtitle && (
-                                        <div className="text-sm text-tertiary">{option.subtitle}</div>
+                                        <div className="text-sm text-muted-foreground">{option.subtitle}</div>
                                     )}
                                 </button>
                             ))
                         ) : (
-                            <div className="px-4 py-8 text-center text-tertiary">
+                            <div className="px-4 py-8 text-center text-muted-foreground">
                                 No results found
                             </div>
                         )}
@@ -169,3 +169,8 @@ const SearchableLOV = ({
 }
 
 export default SearchableLOV
+
+
+
+
+

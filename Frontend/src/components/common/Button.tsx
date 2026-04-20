@@ -1,6 +1,7 @@
 import { forwardRef } from 'react'
-import { Loading01 } from '@untitledui/icons'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/utils/helpers'
+import { Button as ShadButton } from '@/components/ui/button'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
@@ -10,35 +11,34 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-        const variants = {
-            primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow',
-            secondary: 'bg-tertiary text-primary hover:bg-tertiary/80',
-            outline: 'border border-secondary bg-transparent text-primary hover:bg-tertiary',
-            ghost: 'bg-transparent text-primary hover:bg-tertiary',
-            danger: 'bg-error-600 text-white hover:bg-error-700 shadow-sm hover:shadow',
+        const variants: Record<NonNullable<ButtonProps['variant']>, 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive'> = {
+            primary: 'default',
+            secondary: 'secondary',
+            outline: 'outline',
+            ghost: 'ghost',
+            danger: 'destructive',
         }
 
-        const sizes = {
-            sm: 'h-8 px-3 text-xs',
-            md: 'h-10 px-4 text-sm',
-            lg: 'h-12 px-6 text-base',
+        const sizes: Record<NonNullable<ButtonProps['size']>, 'sm' | 'default' | 'lg'> = {
+            sm: 'sm',
+            md: 'default',
+            lg: 'lg',
         }
 
         return (
-            <button
+            <ShadButton
                 ref={ref}
                 disabled={disabled || isLoading}
+                variant={variants[variant]}
+                size={sizes[size]}
                 className={cn(
-                    "inline-flex items-center justify-center rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed",
-                    variants[variant],
-                    sizes[size],
                     className
                 )}
                 {...props}
             >
-                {isLoading && <Loading01 className="w-4 h-4 mr-2 animate-spin" />}
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {children}
-            </button>
+            </ShadButton>
         )
     }
 )
@@ -46,3 +46,4 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = 'Button'
 
 export default Button
+

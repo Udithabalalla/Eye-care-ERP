@@ -102,8 +102,8 @@ const RolesPermissions = () => {
           onClick={() => setActiveTab('roles')}
           className={`px-4 py-2 font-medium transition-colors ${
             activeTab === 'roles'
-              ? 'text-primary border-b-2 border-brand-600'
-              : 'text-secondary hover:text-primary'
+              ? 'text-foreground border-b-2 border-brand-600'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Roles
@@ -112,8 +112,8 @@ const RolesPermissions = () => {
           onClick={() => setActiveTab('permissions')}
           className={`px-4 py-2 font-medium transition-colors ${
             activeTab === 'permissions'
-              ? 'text-primary border-b-2 border-brand-600'
-              : 'text-secondary hover:text-primary'
+              ? 'text-foreground border-b-2 border-brand-600'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Permissions
@@ -167,7 +167,7 @@ const RolesPermissions = () => {
                   {rolesDisplay.map((role: Role) => (
                     <Table.Row key={role.role_id}>
                       <Table.Cell>
-                        <span className="font-medium text-primary">{role.name}</span>
+                        <span className="font-medium text-foreground">{role.name}</span>
                       </Table.Cell>
                       <Table.Cell>{role.description || '-'}</Table.Cell>
                       <Table.Cell>
@@ -242,7 +242,7 @@ const RolesPermissions = () => {
                   {(permissionsData?.data || []).map((perm: Permission) => (
                     <Table.Row key={perm.permission_id}>
                       <Table.Cell>
-                        <span className="font-medium text-primary">{perm.name}</span>
+                        <span className="font-medium text-foreground">{perm.name}</span>
                       </Table.Cell>
                       <Table.Cell>
                         <code className="bg-secondary px-2 py-1 rounded text-sm">{perm.code}</code>
@@ -270,7 +270,7 @@ const RolesPermissions = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Role Name</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Role Name</label>
             <input
               type="text"
               value={formData.name}
@@ -280,7 +280,7 @@ const RolesPermissions = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Description</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -290,7 +290,7 @@ const RolesPermissions = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Permissions</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Permissions</label>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {(permissionsData?.data || []).map((perm: Permission) => (
                 <label key={perm.permission_id} className="flex items-center">
@@ -314,7 +314,7 @@ const RolesPermissions = () => {
                   />
                   <span className="text-sm">
                     {perm.name}
-                    <span className="text-tertiary text-xs ml-2">({perm.code})</span>
+                    <span className="text-muted-foreground text-xs ml-2">({perm.code})</span>
                   </span>
                 </label>
               ))}
@@ -350,7 +350,7 @@ const RolesPermissions = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Permission Name</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Permission Name</label>
             <input
               type="text"
               value={formData.name}
@@ -360,7 +360,7 @@ const RolesPermissions = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Code</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Code</label>
             <input
               type="text"
               value={formData.description}
@@ -404,3 +404,7 @@ const RolesPermissions = () => {
 }
 
 export default RolesPermissions
+
+
+
+

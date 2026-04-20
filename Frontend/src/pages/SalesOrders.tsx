@@ -138,14 +138,14 @@ const SalesOrders = () => {
                   <Table.Row id={order.order_id}>
                     <Table.Cell>
                       <div className="flex flex-col">
-                        <span className="font-medium text-primary">{order.order_number}</span>
-                        <span className="text-xs text-tertiary">{order.order_id}</span>
+                        <span className="font-medium text-foreground">{order.order_number}</span>
+                        <span className="text-xs text-muted-foreground">{order.order_id}</span>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex flex-col">
-                        <span className="text-primary">{order.patient_name || order.patient_id}</span>
-                        <span className="text-xs text-tertiary">{order.patient_id}</span>
+                        <span className="text-foreground">{order.patient_name || order.patient_id}</span>
+                        <span className="text-xs text-muted-foreground">{order.patient_id}</span>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
@@ -166,7 +166,7 @@ const SalesOrders = () => {
                           View Invoice
                         </Button>
                       ) : (
-                        <span className="text-xs text-tertiary">Not generated</span>
+                        <span className="text-xs text-muted-foreground">Not generated</span>
                       )}
                     </Table.Cell>
                   </Table.Row>
@@ -179,7 +179,7 @@ const SalesOrders = () => {
                 page={page}
                 total={data.total_pages}
                 onPageChange={setPage}
-                className="border-t border-secondary px-6 py-4"
+                className="border-t border-border px-6 py-4"
               />
             )}
           </>
@@ -190,3 +190,4 @@ const SalesOrders = () => {
 }
 
 export default SalesOrders
+

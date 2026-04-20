@@ -8,7 +8,7 @@ interface SchedulingHistoryTableProps {
 
 const SchedulingHistoryTable = ({ appointments }: SchedulingHistoryTableProps) => {
   if (!appointments.length) {
-    return <p className="py-4 text-sm text-tertiary">No scheduling history found.</p>
+    return <p className="py-4 text-sm text-muted-foreground">No scheduling history found.</p>
   }
 
   return (

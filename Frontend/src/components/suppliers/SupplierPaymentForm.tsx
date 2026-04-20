@@ -78,7 +78,7 @@ const SupplierPaymentForm = ({ payment, invoiceId, onSuccess, onCancel }: Suppli
       <div className="grid grid-cols-1 gap-4">
         {!invoiceId && (
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Invoice</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Invoice</label>
             <select className="input" value={form.invoice_id} onChange={(e) => setForm({ ...form, invoice_id: e.target.value })}>
               <option value="">Select invoice</option>
               {invoices?.data.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.invoice_number}</option>)}
@@ -87,7 +87,7 @@ const SupplierPaymentForm = ({ payment, invoiceId, onSuccess, onCancel }: Suppli
         )}
         <Input label="Payment Date" type="datetime-local" value={form.payment_date.slice(0, 16)} onChange={(e) => setForm({ ...form, payment_date: new Date(e.target.value).toISOString() })} />
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Payment Method</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Method</label>
           <select className="input" value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}>
             <option value="cash">Cash</option>
             <option value="card">Card</option>
@@ -105,3 +105,4 @@ const SupplierPaymentForm = ({ payment, invoiceId, onSuccess, onCancel }: Suppli
 }
 
 export default SupplierPaymentForm
+

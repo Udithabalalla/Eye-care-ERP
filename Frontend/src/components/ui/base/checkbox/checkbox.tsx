@@ -15,7 +15,7 @@ export const CheckboxBase = ({ className, isSelected, isDisabled, isIndeterminat
     return (
         <div
             className={cx(
-                "relative flex size-4 shrink-0 cursor-pointer appearance-none items-center justify-center rounded bg-primary ring-1 ring-secondary ring-inset",
+                "relative flex size-4 shrink-0 cursor-pointer appearance-none items-center justify-center rounded bg-background ring-1 ring-secondary ring-inset",
                 size === "md" && "size-5 rounded-md",
                 (isSelected || isIndeterminate) && "bg-brand-solid ring-bg-brand-solid",
                 isDisabled && "cursor-not-allowed bg-disabled_subtle ring-disabled",
@@ -102,9 +102,9 @@ export const Checkbox = ({ label, hint, size = "sm", className, ...ariaCheckboxP
                     />
                     {(label || hint) && (
                         <div className={cx("inline-flex flex-col", sizes[size].textWrapper)}>
-                            {label && <p className={cx("text-secondary select-none", sizes[size].label)}>{label}</p>}
+                            {label && <p className={cx("text-muted-foreground select-none", sizes[size].label)}>{label}</p>}
                             {hint && (
-                                <span className={cx("text-tertiary", sizes[size].hint)} onClick={(event) => event.stopPropagation()}>
+                                <span className={cx("text-muted-foreground", sizes[size].hint)} onClick={(event) => event.stopPropagation()}>
                                     {hint}
                                 </span>
                             )}
@@ -116,3 +116,4 @@ export const Checkbox = ({ label, hint, size = "sm", className, ...ariaCheckboxP
     );
 };
 Checkbox.displayName = "Checkbox";
+

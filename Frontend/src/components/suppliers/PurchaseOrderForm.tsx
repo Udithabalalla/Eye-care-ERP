@@ -268,22 +268,22 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
     >
       {order && (
         <div className="mb-6 space-y-4 rounded-lg border border-border bg-surface/50 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-secondary">
-            <div><span className="font-medium text-primary">Order ID:</span> {order.id}</div>
-            <div><span className="font-medium text-primary">Status:</span> {order.status}</div>
-            <div><span className="font-medium text-primary">Created By:</span> {order.created_by}</div>
-            <div><span className="font-medium text-primary">Locked:</span> {order.is_locked ? 'Yes' : 'No'}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+            <div><span className="font-medium text-foreground">Order ID:</span> {order.id}</div>
+            <div><span className="font-medium text-foreground">Status:</span> {order.status}</div>
+            <div><span className="font-medium text-foreground">Created By:</span> {order.created_by}</div>
+            <div><span className="font-medium text-foreground">Locked:</span> {order.is_locked ? 'Yes' : 'No'}</div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {readonlySections.map((section) => (
               <div key={section.title} className="rounded-md border border-border bg-white p-4 shadow-sm">
-                <h4 className="mb-3 font-semibold text-primary">{section.title}</h4>
+                <h4 className="mb-3 font-semibold text-foreground">{section.title}</h4>
                 <div className="space-y-2 text-sm">
                   {section.rows.map(([label, value]) => (
                     <div key={label} className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
-                      <span className="font-medium text-secondary">{label}</span>
-                      <span className="text-primary sm:text-right">{value}</span>
+                      <span className="font-medium text-muted-foreground">{label}</span>
+                      <span className="text-foreground sm:text-right">{value}</span>
                     </div>
                   ))}
                 </div>
@@ -293,11 +293,11 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 
           {order.authorization && (
             <div className="rounded-md border border-border bg-white p-4 shadow-sm">
-              <h4 className="mb-3 font-semibold text-primary">Authorization</h4>
+              <h4 className="mb-3 font-semibold text-foreground">Authorization</h4>
               <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
-                <div><span className="font-medium text-secondary">Approved By:</span> {order.authorization.approved_by || '-'}</div>
-                <div><span className="font-medium text-secondary">Approval Date:</span> {order.authorization.approval_date || '-'}</div>
-                <div><span className="font-medium text-secondary">Signature File:</span> {order.authorization.signature || '-'}</div>
+                <div><span className="font-medium text-muted-foreground">Approved By:</span> {order.authorization.approved_by || '-'}</div>
+                <div><span className="font-medium text-muted-foreground">Approval Date:</span> {order.authorization.approval_date || '-'}</div>
+                <div><span className="font-medium text-muted-foreground">Signature File:</span> {order.authorization.signature || '-'}</div>
               </div>
             </div>
           )}
@@ -306,7 +306,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Supplier</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Supplier</label>
           <select className="input" value={form.supplier_id} onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}>
             <option value="">Select supplier</option>
             {suppliers?.data.map((supplier) => (
@@ -319,11 +319,11 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Items</h4>
+        <h4 className="font-semibold text-foreground">Items</h4>
         {form.items.map((item, index) => (
           <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-secondary mb-2">Product</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Product</label>
               <select className="input" value={item.product_id} onChange={(e) => {
                 const next = [...form.items]
                 next[index].product_id = e.target.value
@@ -348,7 +348,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
           </div>
         ))}
         <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
-        <p className="text-sm text-secondary">Items Total: {totalAmount.toFixed(2)}</p>
+        <p className="text-sm text-muted-foreground">Items Total: {totalAmount.toFixed(2)}</p>
         {order?.status === 'Approved' && <p className="text-sm font-medium text-success-600">This purchase order is approved and locked for edits. It can now be sent.</p>}
         {order?.status === 'Ordered' && <p className="text-sm font-medium text-brand-600">This purchase order has been ordered.</p>}
         {order?.status === 'Received' && <p className="text-sm font-medium text-warning-600">Stock has been received. You can now close this purchase order.</p>}
@@ -356,7 +356,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Shipping Information</h4>
+        <h4 className="font-semibold text-foreground">Shipping Information</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label="* Ship To Location" value={form.shipping_information?.ship_to_location || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), ship_to_location: e.target.value } })} />
           <Input label="* Delivery Address" value={form.shipping_information?.delivery_address || ''} onChange={(e) => setForm({ ...form, shipping_information: { ...(form.shipping_information || {}), delivery_address: e.target.value } })} />
@@ -366,18 +366,18 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Order Summary</h4>
+        <h4 className="font-semibold text-foreground">Order Summary</h4>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input label="Tax Rate" type="number" step="0.0001" value={form.summary?.tax_rate ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), tax_rate: Number(e.target.value) } })} />
           <Input label="Shipping Cost" type="number" step="0.01" value={form.summary?.shipping_cost ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), shipping_cost: Number(e.target.value) } })} />
           <Input label="Discount" type="number" step="0.01" value={form.summary?.discount ?? 0} onChange={(e) => setForm({ ...form, summary: { ...(form.summary || {}), discount: Number(e.target.value) } })} />
           <Input label="Tax Amount (preview)" type="number" value={summaryTax.toFixed(2)} readOnly />
         </div>
-        <p className="text-sm text-secondary">Summary Total: {summaryTotal.toFixed(2)}</p>
+        <p className="text-sm text-muted-foreground">Summary Total: {summaryTotal.toFixed(2)}</p>
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Payment Terms</h4>
+        <h4 className="font-semibold text-foreground">Payment Terms</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input label="Payment Terms" value={form.payment_terms?.payment_terms || ''} onChange={(e) => setForm({ ...form, payment_terms: { ...(form.payment_terms || {}), payment_terms: e.target.value } })} />
           <Input label="Payment Method" value={form.payment_terms?.payment_method || ''} onChange={(e) => setForm({ ...form, payment_terms: { ...(form.payment_terms || {}), payment_method: e.target.value } })} />
@@ -386,21 +386,21 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Notes</h4>
+        <h4 className="font-semibold text-foreground">Notes</h4>
         <Input label="Supplier Notes" value={form.notes?.supplier_notes || ''} onChange={(e) => setForm({ ...form, notes: { ...(form.notes || {}), supplier_notes: e.target.value } })} />
         <Input label="Internal Notes" value={form.notes?.internal_notes || ''} onChange={(e) => setForm({ ...form, notes: { ...(form.notes || {}), internal_notes: e.target.value } })} />
       </div>
 
       <div className="mt-6 space-y-3">
-        <h4 className="font-semibold text-primary">Footer</h4>
+        <h4 className="font-semibold text-foreground">Footer</h4>
         <Input label="Company Policy Note" value={form.footer?.company_policy_note || ''} onChange={(e) => setForm({ ...form, footer: { ...(form.footer || {}), company_policy_note: e.target.value } })} />
         <Input label="Contact Information" value={form.footer?.contact_information || ''} onChange={(e) => setForm({ ...form, footer: { ...(form.footer || {}), contact_information: e.target.value } })} />
       </div>
 
       {order?.authorization && (
         <div className="mt-6 space-y-3">
-          <h4 className="font-semibold text-primary">Authorization</h4>
-          <div className="rounded border border-border p-4 text-sm text-secondary space-y-1">
+          <h4 className="font-semibold text-foreground">Authorization</h4>
+          <div className="rounded border border-border p-4 text-sm text-muted-foreground space-y-1">
             <div>Approved By: {order.authorization.approved_by || '-'}</div>
             <div>Approval Date: {order.authorization.approval_date || '-'}</div>
             <div>Signature File: {order.authorization.signature || '-'}</div>
@@ -412,3 +412,4 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 }
 
 export default PurchaseOrderForm
+

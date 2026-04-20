@@ -145,17 +145,17 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
     >
       <Modal className="w-full">
         <Dialog aria-label="Patient details" className="mx-auto w-full max-w-[740px] outline-none">
-          <div className="max-h-[calc(100dvh-48px)] w-full overflow-y-auto rounded-[18px] bg-white p-5 text-primary shadow-[0_24px_60px_rgba(15,23,42,0.12)] ring-1 ring-black/5 sm:p-6">
+          <div className="max-h-[calc(100dvh-48px)] w-full overflow-y-auto rounded-[18px] bg-white p-5 text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.12)] ring-1 ring-black/5 sm:p-6">
             <div className="space-y-7">
               <div className="space-y-1">
-                <h2 className="text-[22px] font-medium leading-tight text-primary">
+                <h2 className="text-[22px] font-medium leading-tight text-foreground">
                   {patient?.name || 'Patient Details'}
                 </h2>
                 {error && <p className="text-sm text-error-600">{error}</p>}
               </div>
 
               <section className="space-y-3">
-                <h3 className="text-base font-medium text-primary">General</h3>
+                <h3 className="text-base font-medium text-foreground">General</h3>
                 <div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
                   <Field label="DOB" value={patient ? formatDate(patient.date_of_birth, 'dd/MM/yyyy') : '—'} />
                   <Field label="Phone" value={patient ? formatPhone(patient.phone) : '—'} />
@@ -167,24 +167,24 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
 
               <section className="grid gap-6 lg:grid-cols-12">
                 <div className="space-y-3 lg:col-span-7">
-                  <h3 className="text-base font-medium text-primary">Notes</h3>
-                  <div className="rounded-lg bg-primary px-1 py-1">
-                    <p className="border-l border-secondary pl-3 text-xs text-tertiary">Notes / Diagnoses</p>
-                    <p className="mt-2 whitespace-pre-line px-3 text-sm leading-6 text-primary">
+                  <h3 className="text-base font-medium text-foreground">Notes</h3>
+                  <div className="rounded-lg bg-background px-1 py-1">
+                    <p className="border-l border-border pl-3 text-xs text-muted-foreground">Notes / Diagnoses</p>
+                    <p className="mt-2 whitespace-pre-line px-3 text-sm leading-6 text-foreground">
                       {isLoading && !patient ? 'Loading notes...' : notesText}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3 lg:col-span-5">
-                  <h3 className="text-base font-medium text-primary">Connected Sources</h3>
+                  <h3 className="text-base font-medium text-foreground">Connected Sources</h3>
                   <div className="space-y-3">
                     <Button
                       color="tertiary"
                       onClick={handleNavigateToInvoices}
                       iconLeading={File06}
                       className={cx(
-                        'w-full justify-start rounded-lg border border-secondary bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
+                        'w-full justify-start rounded-lg border border-border bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
                         !latestInvoice && 'pointer-events-none opacity-60'
                       )}
                       isDisabled={!latestInvoice}
@@ -198,7 +198,7 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
                       onClick={handleNavigateToPrescriptions}
                       iconLeading={File06}
                       className={cx(
-                        'w-full justify-start rounded-lg border border-secondary bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
+                        'w-full justify-start rounded-lg border border-border bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
                         !latestPrescription && 'pointer-events-none opacity-60'
                       )}
                       isDisabled={!latestPrescription}
@@ -214,15 +214,15 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
               {isExpanded && (
                 <>
                   <section className="space-y-3">
-                    <h3 className="text-base font-medium text-primary">Invoice History</h3>
-                    <div className="overflow-hidden rounded-xl border border-secondary bg-white">
+                    <h3 className="text-base font-medium text-foreground">Invoice History</h3>
+                    <div className="overflow-hidden rounded-xl border border-border bg-white">
                       <InvoiceHistoryTable invoices={invoices} />
                     </div>
                   </section>
 
                   <section className="space-y-3">
-                    <h3 className="text-base font-medium text-primary">Scheduling History</h3>
-                    <div className="overflow-hidden rounded-xl border border-secondary bg-white">
+                    <h3 className="text-base font-medium text-foreground">Scheduling History</h3>
+                    <div className="overflow-hidden rounded-xl border border-border bg-white">
                       <SchedulingHistoryTable appointments={appointments} />
                     </div>
                   </section>
@@ -234,7 +234,7 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
                   color="tertiary"
                   onClick={() => setIsExpanded((current) => !current)}
                   iconTrailing={isExpanded ? ChevronUp : ChevronDown}
-                  className="px-4 text-sm font-medium text-primary"
+                  className="px-4 text-sm font-medium text-foreground"
                 >
                   {isExpanded ? 'Show Less' : 'Show More'}
                 </Button>
@@ -255,11 +255,15 @@ interface FieldProps {
 
 const Field = ({ label, value, className }: FieldProps) => {
   return (
-    <div className={cx('border-l border-secondary pl-3', className)}>
-      <p className="text-xs text-tertiary">{label} :</p>
-      <p className="mt-1 text-sm font-normal text-primary">{value}</p>
+    <div className={cx('border-l border-border pl-3', className)}>
+      <p className="text-xs text-muted-foreground">{label} :</p>
+      <p className="mt-1 text-sm font-normal text-foreground">{value}</p>
     </div>
   )
 }
 
 export default PatientDetailsDialog
+
+
+
+

@@ -78,19 +78,19 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
       {/* Invoice Summary */}
       <div className="bg-secondary p-4 rounded-lg space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-secondary">Invoice Number:</span>
+          <span className="text-muted-foreground">Invoice Number:</span>
           <span className="font-medium">{invoice.invoice_number}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Patient:</span>
+          <span className="text-muted-foreground">Patient:</span>
           <span className="font-medium">{invoice.patient_name}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Total Amount:</span>
+          <span className="text-muted-foreground">Total Amount:</span>
           <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Already Paid:</span>
+          <span className="text-muted-foreground">Already Paid:</span>
           <span className="font-medium text-success-600">
             {formatCurrency(invoice.paid_amount)}
           </span>
@@ -103,11 +103,11 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Payment Amount */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Amount *
         </label>
         <div className="relative">
-          <CurrencyDollar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary" />
+          <CurrencyDollar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
             type="number"
             step="0.01"
@@ -128,7 +128,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Payment Method */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Method *
         </label>
         <select {...register('payment_method')} className="input">
@@ -145,7 +145,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Payment Date */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Date *
         </label>
         <input type="date" {...register('payment_date')} className="input" />
@@ -156,7 +156,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Transaction ID */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Transaction ID / Reference Number
         </label>
         <input {...register('transaction_id')} className="input" placeholder="Optional" />
@@ -164,7 +164,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
+        <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
         <textarea {...register('notes')} rows={2} className="input" placeholder="Optional" />
       </div>
 
@@ -213,3 +213,8 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 }
 
 export default PaymentForm
+
+
+
+
+

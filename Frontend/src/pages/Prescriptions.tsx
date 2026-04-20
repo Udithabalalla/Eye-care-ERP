@@ -108,19 +108,19 @@ const Prescriptions = () => {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Total Prescriptions</p>
-              <p className="text-2xl font-bold text-primary">{data?.total || 0}</p>
+              <p className="text-sm text-muted-foreground">Total Prescriptions</p>
+              <p className="text-2xl font-bold text-foreground">{data?.total || 0}</p>
             </div>
             <File06 className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Eye Prescriptions</p>
+              <p className="text-sm text-muted-foreground">Eye Prescriptions</p>
               <p className="text-2xl font-bold text-brand-600">
                 {data?.data.filter((p) => p.eye_prescription).length || 0}
               </p>
@@ -128,10 +128,10 @@ const Prescriptions = () => {
             <Eye className="w-8 h-8 text-brand-600" />
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">With Medications</p>
+              <p className="text-sm text-muted-foreground">With Medications</p>
               <p className="text-2xl font-bold text-success-600">
                 {data?.data.filter((p) => p.medications && p.medications.length > 0).length || 0}
               </p>
@@ -139,10 +139,10 @@ const Prescriptions = () => {
             <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-lg">💊</div>
           </div>
         </div>
-        <div className="rounded-xl bg-primary shadow-xs ring-1 ring-secondary p-5">
+        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-tertiary">Expired</p>
+              <p className="text-sm text-muted-foreground">Expired</p>
               <p className="text-2xl font-bold text-error-600">
                 {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
               </p>
@@ -221,21 +221,21 @@ const Prescriptions = () => {
                   <Table.Row id={prescription.prescription_id}>
                     <Table.Cell>
                       <div>
-                        <p className="font-medium text-primary">{prescription.prescription_id}</p>
-                        <p className="text-sm text-tertiary">{formatDate(prescription.prescription_date)}</p>
+                        <p className="font-medium text-foreground">{prescription.prescription_id}</p>
+                        <p className="text-sm text-muted-foreground">{formatDate(prescription.prescription_date)}</p>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
                       <div>
-                        <p className="font-medium text-primary">{prescription.patient_name}</p>
-                        <p className="text-sm text-tertiary">{prescription.patient_id}</p>
+                        <p className="font-medium text-foreground">{prescription.patient_name}</p>
+                        <p className="text-sm text-muted-foreground">{prescription.patient_id}</p>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
-                      <span className="text-primary">{prescription.doctor_name}</span>
+                      <span className="text-foreground">{prescription.doctor_name}</span>
                     </Table.Cell>
                     <Table.Cell>
-                      <span className="text-primary">{prescription.diagnosis}</span>
+                      <span className="text-foreground">{prescription.diagnosis}</span>
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex flex-wrap gap-1">
@@ -261,7 +261,7 @@ const Prescriptions = () => {
                         const validDate = new Date(prescription.valid_until)
                         const isExpired = validDate < new Date()
                         return (
-                          <span className={isExpired ? 'text-error-600 font-medium' : 'text-primary'}>
+                          <span className={isExpired ? 'text-error-600 font-medium' : 'text-foreground'}>
                             {formatDate(prescription.valid_until)}
                           </span>
                         )
@@ -298,7 +298,7 @@ const Prescriptions = () => {
                 page={page}
                 total={data.total_pages}
                 onPageChange={setPage}
-                className="border-t border-secondary px-6 py-4"
+                className="border-t border-border px-6 py-4"
               />
             )}
           </>
@@ -322,3 +322,4 @@ const Prescriptions = () => {
 }
 
 export default Prescriptions
+

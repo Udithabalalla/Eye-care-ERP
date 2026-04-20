@@ -211,11 +211,11 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
         <div className="space-y-4">
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">General Information</h4>
+              <h4 className="text-sm font-semibold text-foreground">General Information</h4>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Supplier</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Supplier</label>
                 <select className="input" value={draft.supplier_id} onChange={(event) => setDraft({ ...draft, supplier_id: event.target.value })}>
                   <option value="">Select an option</option>
                   {suppliers?.data.map((supplier) => (
@@ -224,23 +224,23 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Order Date</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Order Date</label>
                 <Input type="datetime-local" value={draft.order_date} onChange={(event) => setDraft({ ...draft, order_date: event.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary">Expected Delivery Date (optional)</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Expected Delivery Date (optional)</label>
                 <Input type="datetime-local" value={draft.expected_delivery_date} onChange={(event) => setDraft({ ...draft, expected_delivery_date: event.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary">Supplier Contact</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Contact</label>
                 <Input value={selectedSupplier?.phone || selectedSupplier?.email || ''} readOnly />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-secondary">Supplier Person</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Person</label>
                 <Input value={selectedSupplier?.contact_person || ''} readOnly />
               </div>
               <div className="md:col-span-4">
-                <label className="mb-2 block text-sm font-medium text-secondary">Supplier Address</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Address</label>
                 <Input value={selectedSupplier?.address || ''} readOnly />
               </div>
             </div>
@@ -248,7 +248,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">Amounts</h4>
+              <h4 className="text-sm font-semibold text-foreground">Amounts</h4>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <Input label="Total Net Amount" value={formatCurrency(subtotal)} readOnly />
@@ -260,7 +260,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">Item Information</h4>
+              <h4 className="text-sm font-semibold text-foreground">Item Information</h4>
               <Button variant="outline" size="sm" onClick={addItem}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
             </div>
             <div className="space-y-4">
@@ -270,7 +270,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                 return (
                   <div key={`${item.product_id || 'item'}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
                     <div className="md:col-span-3">
-                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Product</label>
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Product</label>
                       <div className="flex gap-2">
                         <select
                           className="input"
@@ -301,19 +301,19 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                       </div>
                     </div>
                     <div className="md:col-span-4">
-                      <label className="mb-2 block text-sm font-medium text-secondary">Description</label>
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground">Description</label>
                       <Input value={item.description} onChange={(event) => updateItem(index, { description: event.target.value })} placeholder="Description" />
                     </div>
                     <div className="md:col-span-1">
-                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Qty Ordered</label>
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Qty Ordered</label>
                       <Input type="number" min={1} value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value) })} />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Unit Cost</label>
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Unit Cost</label>
                       <Input type="number" step="0.01" value={item.unit_cost} onChange={(event) => updateItem(index, { unit_cost: Number(event.target.value) })} />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-secondary">Subtotal</label>
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground">Subtotal</label>
                       <Input value={formatCurrency(itemSubtotal)} readOnly />
                     </div>
                     <div className="md:col-span-12 flex justify-end">
@@ -327,19 +327,19 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">Shipping Information</h4>
+              <h4 className="text-sm font-semibold text-foreground">Shipping Information</h4>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Delivery Address</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Delivery Address</label>
                 <Input value={draft.shipping_address} onChange={(event) => setDraft({ ...draft, shipping_address: event.target.value })} placeholder="Delivery Address" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Ship To Location</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Ship To Location</label>
                 <Input value={draft.ship_to_location} onChange={(event) => setDraft({ ...draft, ship_to_location: event.target.value })} placeholder="Ship To Location" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-secondary"><span className="mr-1 text-error-500">*</span>Receiving Department</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Receiving Department</label>
                 <Input value={draft.receiving_department} onChange={(event) => setDraft({ ...draft, receiving_department: event.target.value })} placeholder="Receiving Department" />
               </div>
               <Input label="Delivery Instructions (optional)" value={draft.delivery_instructions} onChange={(event) => setDraft({ ...draft, delivery_instructions: event.target.value })} placeholder="Delivery Instructions note" />
@@ -348,7 +348,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">Notes</h4>
+              <h4 className="text-sm font-semibold text-foreground">Notes</h4>
             </div>
             <div className="grid grid-cols-1 gap-4">
               <Input label="Supplier Notes" value={draft.supplier_notes} onChange={(event) => setDraft({ ...draft, supplier_notes: event.target.value })} placeholder="Notes" />
@@ -358,11 +358,11 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
           {order && (
             <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-              <h4 className="mb-3 text-sm font-semibold text-primary">Current Purchase Order</h4>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">Current Purchase Order</h4>
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-                <div><span className="font-medium text-secondary">Order ID:</span> {order.id}</div>
-                <div><span className="font-medium text-secondary">Status:</span> {orderStatus}</div>
-                <div><span className="font-medium text-secondary">Total:</span> {formatCurrency(order.total_amount)}</div>
+                <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
+                <div><span className="font-medium text-muted-foreground">Status:</span> {orderStatus}</div>
+                <div><span className="font-medium text-muted-foreground">Total:</span> {formatCurrency(order.total_amount)}</div>
               </div>
             </section>
           )}

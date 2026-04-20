@@ -18,9 +18,9 @@ const PaginationItem = ({ value, rounded, isCurrent }: { value: number; rounded?
             isCurrent={isCurrent}
             className={({ isSelected }) =>
                 cx(
-                    "flex size-10 cursor-pointer items-center justify-center p-3 text-sm font-medium text-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-secondary focus-visible:z-10 focus-visible:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2",
+                    "flex size-10 cursor-pointer items-center justify-center p-3 text-sm font-medium text-muted-foreground outline-focus-ring transition duration-100 ease-linear hover:bg-muted hover:text-muted-foreground focus-visible:z-10 focus-visible:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2",
                     rounded ? "rounded-full" : "rounded-lg",
-                    isSelected && "bg-primary_hover text-secondary",
+                    isSelected && "bg-muted text-muted-foreground",
                 )
             }
         >
@@ -74,7 +74,7 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
             {...props}
             page={page}
             total={total}
-            className={cx("flex w-full items-center justify-between gap-3 border-t border-secondary pt-4 md:pt-5", className)}
+            className={cx("flex w-full items-center justify-between gap-3 border-t border-border pt-4 md:pt-5", className)}
         >
             <div className="hidden flex-1 justify-start md:flex">
                 <Pagination.PrevTrigger asChild>
@@ -98,7 +98,7 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
                                 page.type === "page" ? (
                                     <PaginationItem key={index} rounded={rounded} {...page} />
                                 ) : (
-                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-tertiary">
+                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-muted-foreground">
                                         &#8230;
                                     </Pagination.Ellipsis>
                                 ),
@@ -136,7 +136,7 @@ export const PaginationPageMinimalCenter = ({ rounded, page = 1, total = 10, cla
             {...props}
             page={page}
             total={total}
-            className={cx("flex w-full items-center justify-between gap-3 border-t border-secondary pt-4 md:pt-5", className)}
+            className={cx("flex w-full items-center justify-between gap-3 border-t border-border pt-4 md:pt-5", className)}
         >
             <div className="flex flex-1 justify-start">
                 <Pagination.PrevTrigger asChild>
@@ -154,7 +154,7 @@ export const PaginationPageMinimalCenter = ({ rounded, page = 1, total = 10, cla
                                 page.type === "page" ? (
                                     <PaginationItem key={index} rounded={rounded} {...page} />
                                 ) : (
-                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-tertiary">
+                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-muted-foreground">
                                         &#8230;
                                     </Pagination.Ellipsis>
                                 ),
@@ -187,7 +187,7 @@ export const PaginationCardDefault = ({ rounded, page = 1, total = 10, ...props 
             {...props}
             page={page}
             total={total}
-            className="flex w-full items-center justify-between gap-3 border-t border-secondary px-4 py-3 md:px-6 md:pt-3 md:pb-4"
+            className="flex w-full items-center justify-between gap-3 border-t border-border px-4 py-3 md:px-6 md:pt-3 md:pb-4"
         >
             <div className="flex flex-1 justify-start">
                 <Pagination.PrevTrigger asChild>
@@ -205,7 +205,7 @@ export const PaginationCardDefault = ({ rounded, page = 1, total = 10, ...props 
                                 page.type === "page" ? (
                                     <PaginationItem key={index} rounded={rounded} {...page} />
                                 ) : (
-                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-tertiary">
+                                    <Pagination.Ellipsis key={index} className="flex size-10 shrink-0 items-center justify-center text-muted-foreground">
                                         &#8230;
                                     </Pagination.Ellipsis>
                                 ),
@@ -245,7 +245,7 @@ interface PaginationCardMinimalProps {
 
 export const PaginationCardMinimal = ({ page = 1, total = 10, align = "left", onPageChange, className }: PaginationCardMinimalProps) => {
     return (
-        <div className={cx("border-t border-secondary px-4 py-3 md:px-6 md:pt-3 md:pb-4", className)}>
+        <div className={cx("border-t border-border px-4 py-3 md:px-6 md:pt-3 md:pb-4", className)}>
             <MobilePagination page={page} total={total} onPageChange={onPageChange} />
 
             <nav aria-label="Pagination" className={cx("hidden items-center gap-3 md:flex", align === "center" && "justify-between")}>
@@ -286,7 +286,7 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
     return (
         <div
             className={cx(
-                "flex border-t border-secondary px-4 py-3 md:px-6 md:pt-3 md:pb-4",
+                "flex border-t border-border px-4 py-3 md:px-6 md:pt-3 md:pb-4",
                 align === "left" && "justify-start",
                 align === "center" && "justify-center",
                 align === "right" && "justify-end",
@@ -326,3 +326,5 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
         </div>
     );
 };
+
+

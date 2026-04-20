@@ -163,17 +163,17 @@ interface LookupOption {
 
 const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = '' }: SectionProps) => {
   return (
-    <section className={`rounded-3xl border border-secondary bg-primary shadow-sm ${className}`}>
+    <section className={`rounded-3xl border border-border bg-background shadow-sm ${className}`}>
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 border-b border-secondary px-5 py-4 text-left"
+        className="flex w-full items-center justify-between gap-4 border-b border-border px-5 py-4 text-left"
       >
         <div>
-          <h2 className="text-lg font-semibold text-primary">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm text-tertiary">{subtitle}</p>}
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
-        {isOpen ? <ChevronUp className="h-5 w-5 text-tertiary" /> : <ChevronDown className="h-5 w-5 text-tertiary" />}
+        {isOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
       </button>
       <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="p-5">{children}</div>
@@ -791,7 +791,7 @@ const SalesOrderIntakeForm = () => {
 
   if (isLoadingProducts) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center rounded-3xl border border-secondary bg-primary shadow-sm">
+      <div className="flex min-h-[50vh] items-center justify-center rounded-3xl border border-border bg-background shadow-sm">
         <Loading text="Loading sales order masters..." />
       </div>
     )
@@ -801,15 +801,15 @@ const SalesOrderIntakeForm = () => {
     <>
       <QRScanner isOpen={barcodeScannerOpen} onScan={handleBarcodeScan} onClose={closeScanner} />
 
-      <div className="relative overflow-hidden rounded-[2rem] border border-secondary bg-primary shadow-[0_24px_80px_-24px_rgba(0,0,0,0.12)]">
+      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-background shadow-[0_24px_80px_-24px_rgba(0,0,0,0.12)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(22,163,74,0.12),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.08),transparent_24%)]" />
 
-        <div className="relative border-b border-secondary px-6 py-6 sm:px-8 sm:py-7">
+        <div className="relative border-b border-border px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Sales Order Intake</p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-primary sm:text-4xl">Create a guided order for walk-in patients</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-tertiary">
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Create a guided order for walk-in patients</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                 This workflow keeps patient lookup, prescriptions, frame/lens selection, legacy paper entry, and invoice generation separate while preserving the order life cycle.
               </p>
             </div>
@@ -822,7 +822,7 @@ const SalesOrderIntakeForm = () => {
                 {salesOrder.isOld ? 'Historical Entry' : 'Invoice Eligible'}
               </div>
               {savedOrderNumber && (
-                <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-primary">
+                <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-foreground">
                   SO {savedOrderNumber}
                 </div>
               )}
@@ -839,7 +839,7 @@ const SalesOrderIntakeForm = () => {
               onToggle={() => setSectionOpen('patient')}
             >
               <div className="space-y-4">
-                <div className="rounded-2xl border border-secondary bg-secondary/40 p-4">
+                <div className="rounded-2xl border border-border bg-secondary/40 p-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <Input
                       label="Full Name *"
@@ -865,9 +865,9 @@ const SalesOrderIntakeForm = () => {
                       disabled={patientIsLinked}
                     />
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-secondary">Gender *</label>
+                      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Gender *</label>
                       <select
-                        className={`w-full rounded-xl border bg-primary px-3 py-2.5 text-sm text-primary transition focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${errors.patient?.newData?.gender ? 'border-error-500' : 'border-secondary'}`}
+                        className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${errors.patient?.newData?.gender ? 'border-error-500' : 'border-border'}`}
                         {...register('patient.newData.gender')}
                         disabled={patientIsLinked}
                       >
@@ -935,9 +935,9 @@ const SalesOrderIntakeForm = () => {
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">Select Prescription</label>
+                    <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Select Prescription</label>
                     <select
-                      className="w-full rounded-xl border border-secondary bg-primary px-3 py-2.5 text-sm text-primary"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground"
                       value={prescription.existingId || ''}
                       onChange={(event) => {
                         const selectedId = event.target.value
@@ -971,9 +971,9 @@ const SalesOrderIntakeForm = () => {
                   </Button>
                 </div>
 
-                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-secondary bg-secondary/40'} p-4`}>
+                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-border bg-secondary/40'} p-4`}>
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-primary">Right Eye (OD)</p>
+                    <p className="text-sm font-semibold text-foreground">Right Eye (OD)</p>
                     {prescriptionIsLinked && <span className="text-xs font-medium text-brand-700">Read only</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -985,9 +985,9 @@ const SalesOrderIntakeForm = () => {
                   </div>
                 </div>
 
-                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-secondary bg-secondary/40'} p-4`}>
+                <div className={`rounded-2xl border ${prescriptionIsLinked ? 'border-brand-200 bg-brand-50' : 'border-border bg-secondary/40'} p-4`}>
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-primary">Left Eye (OS)</p>
+                    <p className="text-sm font-semibold text-foreground">Left Eye (OS)</p>
                     {prescriptionIsLinked && <span className="text-xs font-medium text-brand-700">Read only</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -1026,7 +1026,7 @@ const SalesOrderIntakeForm = () => {
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${!salesOrder.isOld ? 'border-brand-500 bg-brand-50' : 'border-secondary bg-secondary/40'}`}>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${!salesOrder.isOld ? 'border-brand-500 bg-brand-50' : 'border-border bg-secondary/40'}`}>
                 <input
                   type="radio"
                   className="mt-1"
@@ -1034,11 +1034,11 @@ const SalesOrderIntakeForm = () => {
                   onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })}
                 />
                 <div>
-                  <p className="font-semibold text-primary">New Sales Order</p>
-                  <p className="text-sm text-tertiary">Auto-generate the SO number and enable invoice generation after save.</p>
+                  <p className="font-semibold text-foreground">New Sales Order</p>
+                  <p className="text-sm text-muted-foreground">Auto-generate the SO number and enable invoice generation after save.</p>
                 </div>
               </label>
-              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${salesOrder.isOld ? 'border-warning-500 bg-warning-50' : 'border-secondary bg-secondary/40'}`}>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${salesOrder.isOld ? 'border-warning-500 bg-warning-50' : 'border-border bg-secondary/40'}`}>
                 <input
                   type="radio"
                   className="mt-1"
@@ -1046,8 +1046,8 @@ const SalesOrderIntakeForm = () => {
                   onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })}
                 />
                 <div>
-                  <p className="font-semibold text-primary">Old Sales Order</p>
-                  <p className="text-sm text-tertiary">Use for legacy paper entries. No invoice will be generated and stock validation stays out of the workflow.</p>
+                  <p className="font-semibold text-foreground">Old Sales Order</p>
+                  <p className="text-sm text-muted-foreground">Use for legacy paper entries. No invoice will be generated and stock validation stays out of the workflow.</p>
                 </div>
               </label>
             </div>
@@ -1137,8 +1137,8 @@ const SalesOrderIntakeForm = () => {
                 </Button>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-secondary">
-                <div className="grid grid-cols-12 bg-secondary/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tertiary">
+              <div className="overflow-hidden rounded-2xl border border-border">
+                <div className="grid grid-cols-12 bg-secondary/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <div className="col-span-3">Expense Type</div>
                   <div className="col-span-1 text-center">Qty</div>
                   <div className="col-span-2 text-right">Unit Cost</div>
@@ -1148,7 +1148,7 @@ const SalesOrderIntakeForm = () => {
                 </div>
                 <div className="divide-y divide-secondary">
                   {expenseFields.length === 0 && (
-                    <div className="px-4 py-6 text-sm text-tertiary">No expense items added yet.</div>
+                    <div className="px-4 py-6 text-sm text-muted-foreground">No expense items added yet.</div>
                   )}
                   {expenseFields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-3 px-4 py-4">
@@ -1193,7 +1193,7 @@ const SalesOrderIntakeForm = () => {
             <textarea
               {...register('remarks')}
               rows={5}
-              className="w-full rounded-2xl border border-secondary bg-primary px-4 py-3 text-sm text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               placeholder="Remarks / Notes"
             />
           </SectionCard>
@@ -1274,7 +1274,7 @@ const SalesOrderIntakeForm = () => {
             </SectionCard>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-secondary pt-6 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
             <Button type="button" variant="outline" size="lg" onClick={handleReset}>
               Reset Draft
             </Button>
@@ -1291,11 +1291,16 @@ const SalesOrderIntakeForm = () => {
 
 const SummaryRow = ({ label, value, isCurrency = true }: { label: string; value: number; isCurrency?: boolean }) => {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-secondary bg-secondary/30 px-4 py-3">
-      <span className="text-sm text-tertiary">{label}</span>
-      <span className="text-sm font-semibold text-primary">{isCurrency ? formatCurrency(roundCurrency(value)) : value}</span>
+    <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/30 px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{isCurrency ? formatCurrency(roundCurrency(value)) : value}</span>
     </div>
   )
 }
 
 export default SalesOrderIntakeForm
+
+
+
+
+

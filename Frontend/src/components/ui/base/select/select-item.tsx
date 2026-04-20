@@ -49,7 +49,7 @@ export const SelectItem = ({ label, id, value, avatarUrl, supportingText, isDisa
                         state.isFocusVisible && "ring-2 ring-focus-ring ring-inset",
 
                         // Icon styles
-                        "*:data-icon:size-5 *:data-icon:shrink-0 *:data-icon:text-tertiary",
+                        "*:data-icon:size-5 *:data-icon:shrink-0 *:data-icon:text-muted-foreground",
                         state.isDisabled && "*:data-icon:text-fg-disabled",
                         state.isSelected && "*:data-icon:text-brand-600",
 
@@ -68,7 +68,7 @@ export const SelectItem = ({ label, id, value, avatarUrl, supportingText, isDisa
                         <AriaText
                             slot="label"
                             className={cx("truncate text-md font-medium whitespace-nowrap",
-                                state.isSelected ? "text-brand-900 dark:text-brand-100" : "text-primary",
+                                state.isSelected ? "text-brand-900 dark:text-brand-100" : "text-foreground",
                                 state.isDisabled && "text-disabled"
                             )}
                         >
@@ -77,7 +77,7 @@ export const SelectItem = ({ label, id, value, avatarUrl, supportingText, isDisa
 
                         {supportingText && (
                             <AriaText slot="description" className={cx("text-md whitespace-nowrap",
-                                state.isSelected ? "text-brand-700 dark:text-brand-300" : "text-tertiary",
+                                state.isSelected ? "text-brand-700 dark:text-brand-300" : "text-muted-foreground",
                                 state.isDisabled && "text-disabled"
                             )}>
                                 {supportingText}
@@ -100,3 +100,8 @@ export const SelectItem = ({ label, id, value, avatarUrl, supportingText, isDisa
         </AriaListBoxItem>
     );
 };
+
+
+
+
+

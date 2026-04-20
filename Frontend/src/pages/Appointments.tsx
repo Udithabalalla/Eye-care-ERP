@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { appointmentsApi } from '@/api/appointments.api'
 import { Plus, Calendar } from '@untitledui/icons'
@@ -86,7 +86,7 @@ const Appointments = () => {
               {groupedAppointments &&
                 Object.entries(groupedAppointments).map(([date, appointments]) => (
                   <div key={date}>
-                    <h2 className="text-lg font-semibold text-primary mb-3 flex items-center">
+                    <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center">
                       <Calendar className="w-5 h-5 mr-2" />
                       {new Date(date).toLocaleDateString('en-US', {
                         weekday: 'long',
@@ -109,8 +109,8 @@ const Appointments = () => {
 
               {(!groupedAppointments || Object.keys(groupedAppointments).length === 0) && (
                 <div className="text-center py-12">
-                  <Calendar className="w-12 h-12 text-tertiary mx-auto mb-4" />
-                  <p className="text-tertiary mb-4">No appointments found</p>
+                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">No appointments found</p>
                   <Button onClick={handleAdd} iconLeading={Plus}>
                     Schedule First Appointment
                   </Button>
@@ -133,3 +133,4 @@ const Appointments = () => {
 }
 
 export default Appointments
+

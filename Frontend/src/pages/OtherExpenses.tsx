@@ -124,8 +124,8 @@ const OtherExpenses = () => {
                 <Table.Row id={expense.id}>
                   <Table.Cell>
                     <div>
-                      <p className="font-medium text-primary">{expense.name}</p>
-                      <p className="text-xs text-tertiary">{expense.id}</p>
+                      <p className="font-medium text-foreground">{expense.name}</p>
+                      <p className="text-xs text-muted-foreground">{expense.id}</p>
                     </div>
                   </Table.Cell>
                   <Table.Cell>{formatCurrency(expense.default_cost)}</Table.Cell>
@@ -188,7 +188,7 @@ const OtherExpenses = () => {
             onChange={(value) => setForm((current) => ({ ...current, default_cost: Number(value) }))}
             isRequired
           />
-          <label className="flex items-center gap-3 rounded-xl border border-secondary bg-secondary/20 px-4 py-3 text-sm text-primary">
+          <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
             <input
               type="checkbox"
               checked={form.is_active}
@@ -219,3 +219,8 @@ const OtherExpenses = () => {
 }
 
 export default OtherExpenses
+
+
+
+
+

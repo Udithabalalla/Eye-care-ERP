@@ -56,10 +56,10 @@ const Pagination = ({
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-primary border-t border-secondary">
+    <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-border">
       {/* Items per page */}
       <div className="flex items-center space-x-2">
-        <span className="text-sm text-secondary">Show</span>
+        <span className="text-sm text-muted-foreground">Show</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -71,7 +71,7 @@ const Pagination = ({
             </option>
           ))}
         </select>
-        <span className="text-sm text-secondary">
+        <span className="text-sm text-muted-foreground">
           Showing {startItem} to {endItem} of {totalItems} results
         </span>
       </div>
@@ -81,7 +81,7 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-secondary"
+          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -95,7 +95,7 @@ const Pagination = ({
               'px-3 py-1 rounded-lg text-sm',
               page === currentPage
                 ? 'bg-primary-600 text-white'
-                : 'hover:bg-tertiary text-secondary',
+                : 'hover:bg-tertiary text-muted-foreground',
               page === '...' && 'cursor-default'
             )}
           >
@@ -106,7 +106,7 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-secondary"
+          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -116,3 +116,4 @@ const Pagination = ({
 }
 
 export default Pagination
+

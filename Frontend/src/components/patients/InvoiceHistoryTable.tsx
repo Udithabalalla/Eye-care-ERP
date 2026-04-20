@@ -20,7 +20,7 @@ const getStatus = (status: string) => {
 
 const InvoiceHistoryTable = ({ invoices }: InvoiceHistoryTableProps) => {
   if (!invoices.length) {
-    return <p className="py-4 text-sm text-tertiary">No invoice history found.</p>
+    return <p className="py-4 text-sm text-muted-foreground">No invoice history found.</p>
   }
 
   return (

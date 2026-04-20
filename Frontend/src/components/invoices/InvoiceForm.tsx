@@ -293,7 +293,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Invoice Date *
           </label>
           <input type="date" {...register('invoice_date')} className="input" />
@@ -303,7 +303,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
             Due Date *
           </label>
           <input type="date" {...register('due_date')} className="input" />
@@ -316,7 +316,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       {/* Line Items */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-primary">Items</h3>
+          <h3 className="text-lg font-semibold text-foreground">Items</h3>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -334,10 +334,10 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
         <div className="space-y-3">
           {fields.map((field, index) => (
-            <div key={field.id} className="p-4 border border-secondary rounded-lg">
+            <div key={field.id} className="p-4 border border-border rounded-lg">
               <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-3">
-                  <label className="block text-xs font-medium text-secondary mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Product
                   </label>
                   <select
@@ -355,7 +355,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-secondary mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Quantity
                   </label>
                   <input
@@ -367,7 +367,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-secondary mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Unit Price
                   </label>
                   <input
@@ -379,7 +379,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-secondary mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Discount
                   </label>
                   <input
@@ -391,7 +391,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-secondary mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Total
                   </label>
                   <input
@@ -425,27 +425,27 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       <div className="bg-secondary p-4 rounded-lg">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-secondary">Subtotal:</span>
+            <span className="text-muted-foreground">Subtotal:</span>
             <span className="font-medium">{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-secondary">Total Discount:</span>
+            <span className="text-muted-foreground">Total Discount:</span>
             <span className="font-medium text-error-600">-{formatCurrency(totalDiscount)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-secondary">Total Tax:</span>
+            <span className="text-muted-foreground">Total Tax:</span>
             <span className="font-medium">{formatCurrency(totalTax)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold border-t pt-2">
             <span>Total Amount:</span>
-            <span className="text-primary-600">{formatCurrency(totalAmount)}</span>
+            <span className="text-primary">{formatCurrency(totalAmount)}</span>
           </div>
         </div>
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
+        <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
         <input {...register('notes')} className="input" />
       </div>
 
@@ -477,3 +477,9 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 }
 
 export default InvoiceForm
+
+
+
+
+
+

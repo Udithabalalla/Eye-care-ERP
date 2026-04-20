@@ -77,27 +77,27 @@ const ReceiveGoodsAssistant = ({ isOpen, onClose, onSuccess, order }: ReceiveGoo
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-secondary">Order ID:</span> {order.id}</div>
-            <div><span className="font-medium text-secondary">Supplier:</span> {order.supplier_id}</div>
-            <div><span className="font-medium text-secondary">Status:</span> {order.status}</div>
+            <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
+            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_id}</div>
+            <div><span className="font-medium text-muted-foreground">Status:</span> {order.status}</div>
           </div>
-          <p className="mt-2 text-sm text-tertiary">Confirm the quantities received from the supplier before updating stock.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Confirm the quantities received from the supplier before updating stock.</p>
         </div>
 
         <div className="space-y-3">
           {items.map((item, index) => (
             <div key={item.product_id} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-12 md:items-end">
               <div className="md:col-span-5">
-                <label className="mb-2 block text-sm font-medium text-secondary">Product</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Product</label>
                 <Input value={item.product_name} readOnly />
-                <p className="mt-1 text-xs text-tertiary">Ordered: {item.ordered_quantity}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Ordered: {item.ordered_quantity}</p>
               </div>
               <div className="md:col-span-3">
-                <label className="mb-2 block text-sm font-medium text-secondary">Ordered Quantity</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Ordered Quantity</label>
                 <Input value={item.ordered_quantity} readOnly />
               </div>
               <div className="md:col-span-4">
-                <label className="mb-2 block text-sm font-medium text-secondary">Received Quantity</label>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Received Quantity</label>
                 <Input
                   type="number"
                   min={0}

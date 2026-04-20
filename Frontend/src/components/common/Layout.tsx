@@ -7,7 +7,7 @@ const Layout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
       <div className="pl-0 md:pl-64 pt-20 transition-all duration-300">

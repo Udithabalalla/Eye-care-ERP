@@ -72,13 +72,13 @@ const ClinicSettings = () => {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold text-primary">Company Profile</h1>
-        <p className="text-sm text-secondary mt-1">
+        <h1 className="text-2xl font-semibold text-foreground">Company Profile</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Configure the company header and shipping defaults used across purchase orders.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-primary p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Company Name"
@@ -161,17 +161,17 @@ const ClinicSettings = () => {
       </div>
 
       <div className="rounded-2xl border border-border bg-tertiary/30 p-6">
-        <h2 className="text-base font-semibold text-primary">Preview</h2>
-        <div className="mt-4 grid gap-2 text-sm text-secondary">
-          <p><span className="font-medium text-primary">Company:</span> {form.company_name || '-'}</p>
-          <p><span className="font-medium text-primary">Address:</span> {form.address || '-'}</p>
-          <p><span className="font-medium text-primary">Phone:</span> {form.phone || '-'}</p>
-          <p><span className="font-medium text-primary">Email:</span> {form.email || '-'}</p>
-          <p><span className="font-medium text-primary">Tax Number:</span> {form.tax_number || '-'}</p>
-          <p><span className="font-medium text-primary">Default Ship To:</span> {form.default_ship_to_location || '-'}</p>
-          <p><span className="font-medium text-primary">Default Delivery Address:</span> {form.default_delivery_address || '-'}</p>
-          <p><span className="font-medium text-primary">Default Receiving Department:</span> {form.default_receiving_department || '-'}</p>
-          <p><span className="font-medium text-primary">Default Delivery Instructions:</span> {form.default_delivery_instructions || '-'}</p>
+        <h2 className="text-base font-semibold text-foreground">Preview</h2>
+        <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+          <p><span className="font-medium text-foreground">Company:</span> {form.company_name || '-'}</p>
+          <p><span className="font-medium text-foreground">Address:</span> {form.address || '-'}</p>
+          <p><span className="font-medium text-foreground">Phone:</span> {form.phone || '-'}</p>
+          <p><span className="font-medium text-foreground">Email:</span> {form.email || '-'}</p>
+          <p><span className="font-medium text-foreground">Tax Number:</span> {form.tax_number || '-'}</p>
+          <p><span className="font-medium text-foreground">Default Ship To:</span> {form.default_ship_to_location || '-'}</p>
+          <p><span className="font-medium text-foreground">Default Delivery Address:</span> {form.default_delivery_address || '-'}</p>
+          <p><span className="font-medium text-foreground">Default Receiving Department:</span> {form.default_receiving_department || '-'}</p>
+          <p><span className="font-medium text-foreground">Default Delivery Instructions:</span> {form.default_delivery_instructions || '-'}</p>
         </div>
       </div>
     </div>
@@ -179,3 +179,4 @@ const ClinicSettings = () => {
 }
 
 export default ClinicSettings
+

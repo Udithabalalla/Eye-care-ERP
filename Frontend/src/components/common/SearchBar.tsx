@@ -22,7 +22,7 @@ const SearchBar = ({
 
   return (
     <div className="relative">
-      <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary" />
+      <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
       <input
         type="text"
         value={searchTerm}
@@ -35,3 +35,4 @@ const SearchBar = ({
 }
 
 export default SearchBar
+

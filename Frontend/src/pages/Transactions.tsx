@@ -61,8 +61,8 @@ const Transactions = () => {
                 {referenceTypes.map((type) => <SelectItem key={type} id={type}>{type}</SelectItem>)}
               </Select>
               <div className="flex gap-2 lg:col-span-1">
-                <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-10 w-full rounded-md border border-border bg-primary px-3 text-sm text-primary" />
-                <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-10 w-full rounded-md border border-border bg-primary px-3 text-sm text-primary" />
+                <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground" />
+                <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground" />
               </div>
             </div>
           )}

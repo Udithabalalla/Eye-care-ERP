@@ -165,7 +165,7 @@ const Users = () => {
               {usersDisplay.map((user: User) => (
                 <Table.Row key={user.user_id}>
                   <Table.Cell>
-                    <span className="font-medium text-primary">{user.name}</span>
+                    <span className="font-medium text-foreground">{user.name}</span>
                   </Table.Cell>
                   <Table.Cell>{user.email}</Table.Cell>
                   <Table.Cell>
@@ -244,7 +244,7 @@ const Users = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Email</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
             <input
               type="email"
               value={formData.email}
@@ -255,7 +255,7 @@ const Users = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Full Name</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Full Name</label>
             <input
               type="text"
               value={formData.name}
@@ -266,7 +266,7 @@ const Users = () => {
           </div>
           {!selectedUser && (
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Password</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Password</label>
               <input
                 type="password"
                 value={formData.password}
@@ -277,7 +277,7 @@ const Users = () => {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Role</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Role</label>
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
@@ -291,7 +291,7 @@ const Users = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Department</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Department</label>
             <input
               type="text"
               value={formData.department}
@@ -301,7 +301,7 @@ const Users = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Phone</label>
             <input
               type="tel"
               value={formData.phone}
@@ -339,9 +339,9 @@ const Users = () => {
         title="Reset Password"
       >
         <div className="space-y-4">
-          <p className="text-secondary">Set a new password for {selectedUser?.name}</p>
+          <p className="text-muted-foreground">Set a new password for {selectedUser?.name}</p>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">New Password</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">New Password</label>
             <input
               type="password"
               value={newPassword}
@@ -350,7 +350,7 @@ const Users = () => {
               placeholder="••••••••"
               minLength={8}
             />
-            <p className="text-xs text-tertiary mt-1">Minimum 8 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">Minimum 8 characters</p>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button
@@ -386,3 +386,7 @@ const Users = () => {
 }
 
 export default Users
+
+
+
+
