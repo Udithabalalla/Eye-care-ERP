@@ -5,20 +5,24 @@ import { Plus, SearchLg, Eye } from '@untitledui/icons'
 import {
   PaginationPageDefault,
   Avatar,
-  Select,
-  SelectItem,
-  Checkbox,
 } from '@/components/ui'
 import Loading from '@/components/common/Loading'
 import PatientModal from '@/components/patients/PatientModal'
 import PatientDetailsDialog from '@/components/patients/PatientDetailsDialog'
 import { formatDate, formatPhone } from '@/utils/formatters'
 import { Patient } from '@/types/patient.types'
-import { Key } from 'react-aria-components'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -65,9 +69,9 @@ const Patients = () => {
     setSelectedDetailsPatient(null)
   }
 
-  const handlePageSizeChange = (key: Key | null) => {
-    if (key) {
-      setPageSize(Number(key))
+  const handlePageSizeChange = (value: string) => {
+    if (value) {
+      setPageSize(Number(value))
       setPage(1) // Reset to first page when changing page size
     }
   }
@@ -133,16 +137,18 @@ const Patients = () => {
               <Field className="w-full sm:w-32">
                 <FieldLabel>Rows</FieldLabel>
                 <Select
-                  selectedKey={String(pageSize)}
-                  onSelectionChange={handlePageSizeChange}
-                  placeholder="Rows"
-                  aria-label="Rows per page"
-                  className="w-full"
+                  value={String(pageSize)}
+                  onValueChange={handlePageSizeChange}
                 >
-                  <SelectItem id="10">10 rows</SelectItem>
-                  <SelectItem id="25">25 rows</SelectItem>
-                  <SelectItem id="50">50 rows</SelectItem>
-                  <SelectItem id="100">100 rows</SelectItem>
+                  <SelectTrigger aria-label="Rows per page" className="w-full">
+                    <SelectValue placeholder="Rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 rows</SelectItem>
+                    <SelectItem value="25">25 rows</SelectItem>
+                    <SelectItem value="50">50 rows</SelectItem>
+                    <SelectItem value="100">100 rows</SelectItem>
+                  </SelectContent>
                 </Select>
               </Field>
             </div>
@@ -162,9 +168,8 @@ const Patients = () => {
                     <TableHead className="w-12">
                       <Checkbox
                         aria-label="Select all patients"
-                        isSelected={isAllSelected}
-                        isIndeterminate={isIndeterminate}
-                        onChange={(isSelected) => toggleAllVisiblePatients(isSelected === true)}
+                        checked={isAllSelected ? true : isIndeterminate ? 'indeterminate' : false}
+                        onCheckedChange={(checked) => toggleAllVisiblePatients(checked === true)}
                       />
                     </TableHead>
                     <TableHead>Name</TableHead>
@@ -182,8 +187,8 @@ const Patients = () => {
                       <TableCell>
                         <Checkbox
                           aria-label={`Select ${patient.name}`}
-                          isSelected={selectedPatientIds.includes(patient.patient_id)}
-                          onChange={(isSelected) => togglePatientSelection(patient.patient_id, isSelected === true)}
+                          checked={selectedPatientIds.includes(patient.patient_id)}
+                          onCheckedChange={(checked) => togglePatientSelection(patient.patient_id, checked === true)}
                         />
                       </TableCell>
                       <TableCell>
