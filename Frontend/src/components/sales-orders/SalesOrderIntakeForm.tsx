@@ -12,8 +12,6 @@ import {
   Eye,
   Scan,
   Trash02,
-  AlertTriangle,
-  CheckCircle,
   Clock,
 } from '@untitledui/icons'
 import { useNavigate } from 'react-router-dom'
@@ -209,13 +207,13 @@ const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = 
 const FormAlert = ({ type, title, description }: { type: 'info' | 'warning' | 'error' | 'success'; title: string; description: string }) => {
   const variantConfig = {
     info: { icon: AlertCircle, className: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30' },
-    warning: { icon: AlertTriangle, className: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30' },
-    error: { icon: AlertTriangle, className: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/30' },
-    success: { icon: CheckCircle, className: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30' },
+    warning: { icon: AlertCircle, className: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30' },
+    error: { icon: AlertCircle, className: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/30' },
+    success: { icon: AlertCircle, className: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30' },
   }
 
   const config = variantConfig[type]
-  const Icon = config.icon
+  const Icon = config.icon || AlertCircle
 
   return (
     <div className={`rounded-lg border p-4 ${config.className}`}>
