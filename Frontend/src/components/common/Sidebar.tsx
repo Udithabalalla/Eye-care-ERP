@@ -173,7 +173,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity"
           onClick={onClose}
         />
       )}
@@ -236,7 +236,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                             'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
                             hasActiveChild
                               ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                              : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           )}
                         >
                           <item.icon
@@ -267,7 +267,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                   'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
                                   location.pathname === child.path
                                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                 )}
                               >
                                 <child.icon
@@ -333,12 +333,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <div className="relative">
             <div
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-              className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors hover:bg-accent/40"
+              className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 shadow-sm transition-colors hover:bg-muted/50"
             >
               {/* Avatar */}
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 font-semibold text-sidebar-primary">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/10 font-semibold text-sidebar-primary">
                 {user?.name ? getInitials(user.name) : <Users className="h-5 w-5" />}
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-sidebar bg-emerald-500" />
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
               </div>
 
               {/* User Info */}
@@ -357,7 +357,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
             {/* Account Menu Dropdown */}
             {isAccountMenuOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-popover p-2 shadow-lg">
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-md border border-border bg-popover p-2 shadow-lg">
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-sm font-semibold text-muted-foreground hover:text-foreground"

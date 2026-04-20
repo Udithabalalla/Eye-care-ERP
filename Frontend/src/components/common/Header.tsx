@@ -11,10 +11,10 @@ const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <header className="fixed top-0 right-0 left-0 z-40 h-20 border-b border-border bg-background/90 backdrop-blur-md transition-all duration-300 md:left-64 md:border-none">
+    <header className="fixed top-0 right-0 left-0 z-40 h-20 border-b border-border bg-background/95 backdrop-blur-md transition-all duration-300 md:left-64 md:border-none">
       <div className="flex items-center justify-between h-full px-4 md:px-8">
         {/* Left Section - Mobile Menu & Search */}
-        <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-0">
+        <div className="flex items-center flex-1 gap-2 md:gap-0">
           <Button
             onClick={onMenuClick}
             variant="ghost"
@@ -25,12 +25,12 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="relative group w-full hidden sm:block">
+          <div className="relative group w-full max-w-sm hidden sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-foreground" />
             <Input
               type="text"
               placeholder="Search..."
-              className="h-9 rounded-xl border-border bg-background pl-9"
+              className="h-9 rounded-md border-border bg-card pl-9 text-sm"
             />
           </div>
         </div>
