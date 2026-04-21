@@ -18,7 +18,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
-  DropdownMenuPortal,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -293,33 +292,39 @@ const Patients = () => {
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-sm"
                 className="data-[state=open]:bg-muted"
                 aria-label="Open patient actions"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent align="end" sideOffset={6} className="w-56 min-w-56">
-                <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
-                  Customer History
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
-                  New Appointment
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
-                  View Latest Prescription
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
-                  View Latest Invoice
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={6}
+              className="z-[100] w-56 min-w-56 bg-background text-foreground"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
+                Customer History
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
+                New Appointment
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
+                View Latest Prescription
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
+                View Latest Invoice
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
         ),
       },
