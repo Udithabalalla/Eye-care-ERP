@@ -521,8 +521,8 @@ const SalesOrderIntakeForm = () => {
     if (!phone && !patient.newData.fullName.trim()) return results[0] || null
 
     return (
-      results.find((item) => phoneDigits(safeText(item.phone)) === phone) ||
-      results.find((item) => normalizeText(safeText(item.name)).includes(normalizeText(patient.newData.fullName))) ||
+      results.find((item) => phoneDigits(safeText(item?.phone)) === phone) ||
+      results.find((item) => normalizeText(safeText(item?.name)).includes(normalizeText(patient.newData.fullName))) ||
       results[0] ||
       null
     )
@@ -714,7 +714,9 @@ const SalesOrderIntakeForm = () => {
   const onSubmit = async (values: SalesOrderIntakeValues) => {
     try {
       const phone = phoneDigits(values.patient.newData.phone)
-      const exactDuplicate = (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item.phone)) === phone)
+      const exactDuplicate = phone
+        ? (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item?.phone)) === phone)
+        : null
 
       if (!values.patient.existingId && exactDuplicate) {
         toast.error('Phone number already exists. Please use a different number.')
@@ -1201,7 +1203,7 @@ const SalesOrderIntakeForm = () => {
                     placeholder="Select frame"
                     value={frame.selectionId || ''}
                     onChange={(value) => {
-                      const product = productData?.data.find((item) => item.product_id === value)
+                      const product = productData?.data.find((item) => String(item.product_id) === String(value))
                       if (product) {
                         applyFrameSelection(product)
                         return
@@ -1232,7 +1234,7 @@ const SalesOrderIntakeForm = () => {
                     placeholder="Select lens"
                     value={lens.selectionId || ''}
                     onChange={(value) => {
-                      const lensType = lensMasterData?.data.find((item) => item.id === value)
+                      const lensType = lensMasterData?.data.find((item) => String(item.id) === String(value))
                       if (lensType) {
                         applyLensSelection(lensType)
                         return
