@@ -307,9 +307,11 @@ const Patients = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              align="end"
+              align="start"
+              side="left"
               sideOffset={6}
-              className="z-[100] w-56 min-w-56 bg-background text-foreground"
+              collisionPadding={16}
+              className="z-[9999] !w-56 !min-w-56 overflow-visible border border-border bg-background text-foreground shadow-lg"
             >
               <DropdownMenuItem onSelect={() => handleShowDetails(row.original)}>
                 Customer History
