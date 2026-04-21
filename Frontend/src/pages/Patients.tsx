@@ -301,28 +301,25 @@ const Patients = () => {
                 size="icon-sm"
                 className="data-[state=open]:bg-muted"
                 aria-label="Open patient actions"
-                onClick={(event) => event.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              align="start"
-              side="left"
+              align="end"
               sideOffset={6}
-              collisionPadding={16}
-              className="z-[9999] !w-56 !min-w-56 overflow-visible border border-border bg-background text-foreground shadow-lg"
+              className="w-56"
             >
-              <DropdownMenuItem onSelect={() => handleShowDetails(row.original)}>
+              <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
                 Customer History
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleOpenAppointment(row.original)}>
+              <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
                 New Appointment
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleViewLatestPrescription(row.original)}>
+              <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
                 View Latest Prescription
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleViewLatestInvoice(row.original)}>
+              <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
                 View Latest Invoice
               </DropdownMenuItem>
             </DropdownMenuContent>
