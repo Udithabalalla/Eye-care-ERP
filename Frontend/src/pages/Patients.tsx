@@ -1,18 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
-import { Plus, SearchLg, Eye } from '@untitledui/icons'
+import { Plus, Eye } from '@untitledui/icons'
 import {
   PaginationPageDefault,
   Avatar,
 } from '@/components/ui'
-import Loading from '@/components/common/Loading'
 import PatientModal from '@/components/patients/PatientModal'
 import PatientDetailsDialog from '@/components/patients/PatientDetailsDialog'
 import { formatDate, formatPhone } from '@/utils/formatters'
 import { Patient } from '@/types/patient.types'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -23,14 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { DataTable } from '@/components/data-table'
 
 const Patients = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([])
   const [selectedPatientIds, setSelectedPatientIds] = useState<string[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
@@ -38,9 +37,12 @@ const Patients = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [selectedDetailsPatient, setSelectedDetailsPatient] = useState<Patient | null>(null)
 
+  const sortBy = sorting[0]?.id
+  const sortOrder = sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['patients', page, pageSize, search],
-    queryFn: () => patientsApi.getAll({ page, page_size: pageSize, search }),
+    queryKey: ['patients', page, pageSize, search, sortBy, sortOrder],
+    queryFn: () => patientsApi.getAll({ page, page_size: pageSize, search, sort_by: sortBy, sort_order: sortOrder }),
   })
 
   const patients = data?.data || []
@@ -93,6 +95,142 @@ const Patients = () => {
     )
   }
 
+  const handleSortingChange = (updaterOrValue: Updater<SortingState>) => {
+    setSorting((current) => {
+      const nextSorting =
+        typeof updaterOrValue === 'function' ? updaterOrValue(current) : updaterOrValue
+      setPage(1)
+      return nextSorting
+    })
+  }
+
+  const columns = useMemo<ColumnDef<Patient>[]>(
+    () => [
+      {
+        id: 'select',
+        header: () => (
+          <Checkbox
+            aria-label="Select all patients"
+            checked={isAllSelected ? true : isIndeterminate ? 'indeterminate' : false}
+            onCheckedChange={(checked) => toggleAllVisiblePatients(checked === true)}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label={`Select ${row.original.name}`}
+            checked={selectedPatientIds.includes(row.original.patient_id)}
+            onCheckedChange={(checked) => togglePatientSelection(row.original.patient_id, checked === true)}
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: 'name',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Name {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Avatar src={`https://ui-avatars.com/api/?name=${row.original.name}&background=random`} alt={row.original.name} size="md" />
+            <div className="min-w-0">
+              <p className="truncate font-medium text-foreground">{row.original.name}</p>
+              <p className="truncate text-sm text-muted-foreground">{row.original.email}</p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'phone',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Phone {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+          </Button>
+        ),
+        cell: ({ row }) => formatPhone(row.original.phone),
+      },
+      {
+        id: 'age_gender',
+        header: 'Age/Gender',
+        cell: ({ row }) => <span className="capitalize">{row.original.age} / {row.original.gender}</span>,
+        enableSorting: false,
+      },
+      {
+        accessorKey: 'last_visit',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Last Visit {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+          </Button>
+        ),
+        cell: ({ row }) => (row.original.last_visit ? formatDate(row.original.last_visit) : 'Never'),
+      },
+      {
+        accessorKey: 'total_visits',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Visits {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+          </Button>
+        ),
+      },
+      {
+        accessorKey: 'is_active',
+        header: 'Status',
+        cell: ({ row }) => (
+          <Badge variant={row.original.is_active ? 'secondary' : 'destructive'}>
+            {row.original.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleShowDetails(row.original)}
+                  aria-label="Details"
+                >
+                  <Eye className="size-4" />
+                  Details
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View patient details</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ),
+      },
+    ],
+    [handleShowDetails, isAllSelected, isIndeterminate, selectedPatientIds],
+  )
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -118,132 +256,46 @@ const Patients = () => {
             </Badge>
           </div>
 
-          <FieldGroup className="w-full md:w-auto md:self-end">
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
-              <Field className="w-full sm:w-64">
-                <FieldLabel htmlFor="patients-search">Search</FieldLabel>
-                <div className="relative">
-                  <SearchLg className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="patients-search"
-                    placeholder="Search patients..."
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    className="pl-9"
-                    aria-label="Search patients"
-                  />
-                </div>
-              </Field>
-              <Field className="w-full sm:w-32">
-                <FieldLabel>Rows</FieldLabel>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={handlePageSizeChange}
-                >
-                  <SelectTrigger aria-label="Rows per page" className="w-full">
-                    <SelectValue placeholder="Rows" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10 rows</SelectItem>
-                    <SelectItem value="25">25 rows</SelectItem>
-                    <SelectItem value="50">50 rows</SelectItem>
-                    <SelectItem value="100">100 rows</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </FieldGroup>
+          <div className="w-full md:w-auto md:self-end">
+            <Select
+              value={String(pageSize)}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger aria-label="Rows per page" className="w-full sm:w-32">
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 rows</SelectItem>
+                <SelectItem value="25">25 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+                <SelectItem value="100">100 rows</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
 
         <CardContent className="px-0 pb-0">
-          {isLoading ? (
-            <div className="p-12">
-              <Loading />
-            </div>
-          ) : (
-            <>
-              <Table aria-label="Patients table">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        aria-label="Select all patients"
-                        checked={isAllSelected ? true : isIndeterminate ? 'indeterminate' : false}
-                        onCheckedChange={(checked) => toggleAllVisiblePatients(checked === true)}
-                      />
-                    </TableHead>
-                    <TableHead className="w-[260px]">Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Age/Gender</TableHead>
-                    <TableHead>Last Visit</TableHead>
-                    <TableHead>Visits</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {patients.map((patient) => (
-                    <TableRow key={patient.patient_id}>
-                      <TableCell>
-                        <Checkbox
-                          aria-label={`Select ${patient.name}`}
-                          checked={selectedPatientIds.includes(patient.patient_id)}
-                          onCheckedChange={(checked) => togglePatientSelection(patient.patient_id, checked === true)}
-                        />
-                      </TableCell>
-                      <TableCell className="max-w-[260px]">
-                        <div className="flex items-center gap-3">
-                          <Avatar src={`https://ui-avatars.com/api/?name=${patient.name}&background=random`} alt={patient.name} size="md" />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-foreground">{patient.name}</p>
-                            <p className="truncate text-sm text-muted-foreground">{patient.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatPhone(patient.phone)}</TableCell>
-                      <TableCell>
-                        <span className="capitalize">{patient.age} / {patient.gender}</span>
-                      </TableCell>
-                      <TableCell>
-                        {patient.last_visit ? formatDate(patient.last_visit) : 'Never'}
-                      </TableCell>
-                      <TableCell>{patient.total_visits}</TableCell>
-                      <TableCell>
-                        <Badge variant={patient.is_active ? 'secondary' : 'destructive'}>
-                          {patient.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleShowDetails(patient)}
-                                aria-label="Details"
-                              >
-                                <Eye className="size-4" />
-                                Details
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>View patient details</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {data && (
-                <PaginationPageDefault
-                  page={page}
-                  total={data.total_pages}
-                  onPageChange={setPage}
-                  className="border-t border-border px-6 py-4"
-                />
-              )}
-            </>
+          <DataTable
+            columns={columns}
+            data={patients}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            globalFilter={search}
+            onGlobalFilterChange={(value) => {
+              setSearch(value)
+              setPage(1)
+            }}
+            loading={isLoading}
+            searchPlaceholder="Search patients..."
+            className="px-6"
+          />
+          {data && (
+            <PaginationPageDefault
+              page={page}
+              total={data.total_pages}
+              onPageChange={setPage}
+              className="border-t border-border px-6 py-4"
+            />
           )}
         </CardContent>
       </Card>

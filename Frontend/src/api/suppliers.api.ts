@@ -13,7 +13,13 @@ import {
 } from '@/types/supplier.types'
 
 export const suppliersApi = {
-  getAll: async (params: { page?: number; page_size?: number; search?: string }): Promise<PaginatedResponse<Supplier>> => {
+  getAll: async (params: {
+    page?: number
+    page_size?: number
+    search?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<Supplier>> => {
     const response = await axiosInstance.get<PaginatedResponse<Supplier>>('/suppliers', { params })
     return response.data
   },

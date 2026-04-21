@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^3.9.0",
     "@remixicon/react": "^4.9.0",
     "@tanstack/react-query": "^5.56.2",
+    "@tanstack/react-table": "^8.21.3",
     "@untitledui/icons": "^0.0.21",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.1",

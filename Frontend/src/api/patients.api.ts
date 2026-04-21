@@ -7,6 +7,8 @@ export const patientsApi = {
     page?: number
     page_size?: number
     search?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
   }): Promise<PaginatedResponse<Patient>> => {
     const response = await axiosInstance.get<PaginatedResponse<Patient>>('/patients', { params })
     return response.data
