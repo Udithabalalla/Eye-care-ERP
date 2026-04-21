@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
-import { Plus, Eye } from '@untitledui/icons'
+import { Plus } from '@untitledui/icons'
+import { MoreHorizontal } from 'lucide-react'
 import {
   PaginationPageDefault,
   Avatar,
@@ -16,14 +17,28 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DataTable } from '@/components/data-table'
+import { invoicesApi } from '@/api/invoices.api'
+import { prescriptionsApi } from '@/api/prescriptions.api'
+import { Invoice } from '@/types/invoice.types'
+import { Prescription } from '@/types/prescription.types'
+import AppointmentModal from '@/components/appointments/AppointmentModal'
+import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
+import Modal from '@/components/common/Modal'
+import InvoiceDetail from '@/components/invoices/InvoiceDetail'
+import toast from 'react-hot-toast'
 
 const Patients = () => {
   const [page, setPage] = useState(1)
@@ -36,6 +51,12 @@ const Patients = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [selectedDetailsPatient, setSelectedDetailsPatient] = useState<Patient | null>(null)
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false)
+  const [appointmentPatientId, setAppointmentPatientId] = useState<string | undefined>(undefined)
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
+  const [isInvoiceDetailOpen, setIsInvoiceDetailOpen] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
   const sortBy = sorting[0]?.id
   const sortOrder = sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined
@@ -58,6 +79,55 @@ const Patients = () => {
     setSelectedPatientId(patient.patient_id)
     setSelectedDetailsPatient(patient)
     setIsDetailsOpen(true)
+  }
+
+  const getLatestByDate = <T,>(items: T[], getDate: (item: T) => string | undefined): T | null => {
+    if (!items.length) return null
+
+    return [...items].sort((left, right) => {
+      const leftValue = new Date(getDate(left) || '').getTime()
+      const rightValue = new Date(getDate(right) || '').getTime()
+      return rightValue - leftValue
+    })[0]
+  }
+
+  const handleOpenAppointment = (patient: Patient) => {
+    setAppointmentPatientId(patient.patient_id)
+    setIsAppointmentModalOpen(true)
+  }
+
+  const handleViewLatestPrescription = async (patient: Patient) => {
+    try {
+      const response = await prescriptionsApi.getByPatientId(patient.patient_id, { page_size: 100 })
+      const latestPrescription = getLatestByDate(response.data, (item) => item.prescription_date)
+
+      if (!latestPrescription) {
+        toast.error('No prescriptions found for this patient')
+        return
+      }
+
+      setSelectedPrescription(latestPrescription)
+      setIsPrescriptionModalOpen(true)
+    } catch (error) {
+      toast.error('Failed to load latest prescription')
+    }
+  }
+
+  const handleViewLatestInvoice = async (patient: Patient) => {
+    try {
+      const response = await invoicesApi.getByPatientId(patient.patient_id, { page_size: 100 })
+      const latestInvoice = getLatestByDate(response.data, (item) => item.invoice_date)
+
+      if (!latestInvoice) {
+        toast.error('No invoices found for this patient')
+        return
+      }
+
+      setSelectedInvoice(latestInvoice)
+      setIsInvoiceDetailOpen(true)
+    } catch (error) {
+      toast.error('Failed to load latest invoice')
+    }
   }
 
   const handleModalClose = () => {
@@ -209,26 +279,31 @@ const Patients = () => {
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleShowDetails(row.original)}
-                  aria-label="Details"
-                >
-                  <Eye className="size-4" />
-                  Details
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>View patient details</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Open patient actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
+                Customer History
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
+                New Appointment
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
+                View Latest Prescription
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
+                View Latest Invoice
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
-    [handleShowDetails, isAllSelected, isIndeterminate, selectedPatientIds],
+    [isAllSelected, isIndeterminate, selectedPatientIds],
   )
 
   return (
@@ -314,6 +389,45 @@ const Patients = () => {
         initialPatient={selectedDetailsPatient}
         onClose={handleDetailsClose}
       />
+
+      <AppointmentModal
+        isOpen={isAppointmentModalOpen}
+        onClose={() => {
+          setIsAppointmentModalOpen(false)
+          setAppointmentPatientId(undefined)
+        }}
+        initialPatientId={appointmentPatientId}
+        onSuccess={() => refetch()}
+      />
+
+      <PrescriptionModal
+        isOpen={isPrescriptionModalOpen}
+        onClose={() => {
+          setIsPrescriptionModalOpen(false)
+          setSelectedPrescription(null)
+        }}
+        prescription={selectedPrescription}
+        onSuccess={() => {}}
+        readOnly={true}
+      />
+
+      <Modal
+        isOpen={isInvoiceDetailOpen}
+        onClose={() => {
+          setIsInvoiceDetailOpen(false)
+          setSelectedInvoice(null)
+        }}
+        title="Invoice Details"
+        size="xl"
+      >
+        {selectedInvoice && (
+          <InvoiceDetail
+            invoice={selectedInvoice}
+            onPayment={() => {}}
+            onDownloadPDF={() => {}}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

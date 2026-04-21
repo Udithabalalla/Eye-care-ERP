@@ -6,10 +6,11 @@ interface AppointmentModalProps {
   isOpen: boolean
   onClose: () => void
   appointment?: Appointment | null
+  initialPatientId?: string
   onSuccess: () => void
 }
 
-const AppointmentModal = ({ isOpen, onClose, appointment, onSuccess }: AppointmentModalProps) => {
+const AppointmentModal = ({ isOpen, onClose, appointment, initialPatientId, onSuccess }: AppointmentModalProps) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -19,6 +20,7 @@ const AppointmentModal = ({ isOpen, onClose, appointment, onSuccess }: Appointme
     >
       <AppointmentForm
         appointment={appointment}
+        initialPatientId={initialPatientId}
         onSuccess={() => {
           onSuccess()
           onClose()

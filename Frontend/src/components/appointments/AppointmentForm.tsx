@@ -27,11 +27,12 @@ type AppointmentFormValues = z.infer<typeof appointmentSchema>
 
 interface AppointmentFormProps {
   appointment?: Appointment | null
+  initialPatientId?: string
   onSuccess: () => void
   onCancel: () => void
 }
 
-const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormProps) => {
+const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }: AppointmentFormProps) => {
   const queryClient = useQueryClient()
   const { } = useAuthStore()
 
@@ -67,6 +68,7 @@ const AppointmentForm = ({ appointment, onSuccess, onCancel }: AppointmentFormPr
         notes: appointment.notes || '',
       }
       : {
+        patient_id: initialPatientId || '',
         duration_minutes: 30,
         type: AppointmentType.CONSULTATION,
       },
