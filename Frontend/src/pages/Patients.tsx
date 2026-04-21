@@ -1,3 +1,5 @@
+'use client'
+
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
@@ -300,7 +302,6 @@ const Patients = () => {
                 className="data-[state=open]:bg-muted"
                 aria-label="Open patient actions"
                 onClick={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
@@ -309,19 +310,17 @@ const Patients = () => {
               align="end"
               sideOffset={6}
               className="z-[100] w-56 min-w-56 bg-background text-foreground"
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
             >
-              <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
+              <DropdownMenuItem onSelect={() => handleShowDetails(row.original)}>
                 Customer History
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
+              <DropdownMenuItem onSelect={() => handleOpenAppointment(row.original)}>
                 New Appointment
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
+              <DropdownMenuItem onSelect={() => handleViewLatestPrescription(row.original)}>
                 View Latest Prescription
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
+              <DropdownMenuItem onSelect={() => handleViewLatestInvoice(row.original)}>
                 View Latest Invoice
               </DropdownMenuItem>
             </DropdownMenuContent>
