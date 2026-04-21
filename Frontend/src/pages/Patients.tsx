@@ -38,6 +38,8 @@ import AppointmentModal from '@/components/appointments/AppointmentModal'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import Modal from '@/components/common/Modal'
 import InvoiceDetail from '@/components/invoices/InvoiceDetail'
+import PaymentModal from '@/components/invoices/PaymentModal'
+import { downloadFile } from '@/utils/helpers'
 import toast from 'react-hot-toast'
 
 const Patients = () => {
@@ -57,6 +59,7 @@ const Patients = () => {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
   const [isInvoiceDetailOpen, setIsInvoiceDetailOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
   const sortBy = sorting[0]?.id
   const sortOrder = sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined
@@ -127,6 +130,16 @@ const Patients = () => {
       setIsInvoiceDetailOpen(true)
     } catch (error) {
       toast.error('Failed to load latest invoice')
+    }
+  }
+
+  const handleDownloadInvoicePDF = async (invoiceId: string) => {
+    try {
+      const blob = await invoicesApi.downloadPDF(invoiceId)
+      downloadFile(blob, `invoice-${invoiceId}.pdf`)
+      toast.success('Invoice PDF downloaded')
+    } catch (error) {
+      toast.error('Failed to download invoice PDF')
     }
   }
 
@@ -423,11 +436,23 @@ const Patients = () => {
         {selectedInvoice && (
           <InvoiceDetail
             invoice={selectedInvoice}
-            onPayment={() => {}}
-            onDownloadPDF={() => {}}
+            onPayment={() => setIsPaymentModalOpen(true)}
+            onDownloadPDF={() => handleDownloadInvoicePDF(selectedInvoice.invoice_id)}
           />
         )}
       </Modal>
+
+      {selectedInvoice && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          invoice={selectedInvoice}
+          onSuccess={() => {
+            setIsPaymentModalOpen(false)
+            refetch()
+          }}
+        />
+      )}
     </div>
   )
 }
