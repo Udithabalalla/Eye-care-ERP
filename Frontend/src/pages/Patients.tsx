@@ -223,7 +223,7 @@ const Patients = () => {
           </Button>
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
+          <div className="relative z-0 flex items-center gap-3">
             <Avatar src={`https://ui-avatars.com/api/?name=${row.original.name}&background=random`} alt={row.original.name} size="md" />
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">{row.original.name}</p>
@@ -307,8 +307,8 @@ const Patients = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              sideOffset={6}
-              className="w-56"
+              sideOffset={4}
+              className="z-[9999] pointer-events-auto w-56"
             >
               <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
                 Customer History
