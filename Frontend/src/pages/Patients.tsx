@@ -294,7 +294,7 @@ const Patients = () => {
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => (
-          <DropdownMenu modal={false}>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -305,11 +305,7 @@ const Patients = () => {
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={4}
-              className="z-[9999] pointer-events-auto w-56"
-            >
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
                 Customer History
               </DropdownMenuItem>

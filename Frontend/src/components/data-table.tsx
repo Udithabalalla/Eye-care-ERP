@@ -83,7 +83,7 @@ export function DataTable<TData, TValue>({
               Columns <ChevronDown className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={4} className="z-[9999] pointer-events-auto">
+          <DropdownMenuContent align="end">
             {table
               .getAllColumns()
               .filter((column) => column.getCanHide())
