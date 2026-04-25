@@ -1,4 +1,12 @@
-import { Badge, Table } from '@/components/ui'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { formatDate } from '@/utils/formatters'
 import type { Invoice } from '@/types/invoice.types'
 
@@ -12,55 +20,57 @@ const formatAmount = (value: number): string => {
   }).format(value)
 }
 
-const getStatus = (status: string) => {
-  if (status === 'paid') return { color: 'success' as const, label: 'Paid' }
-  if (status === 'pending') return { color: 'warning' as const, label: 'Pending' }
-  return { color: 'gray' as const, label: status.replace(/-/g, ' ') }
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  paid: 'default',
+  partial: 'secondary',
+  pending: 'outline',
+  overdue: 'destructive',
 }
 
 const InvoiceHistoryTable = ({ invoices }: InvoiceHistoryTableProps) => {
   if (!invoices.length) {
-    return <p className="py-4 text-sm text-muted-foreground">No invoice history found.</p>
+    return <p className="py-4 px-4 text-sm text-muted-foreground">No invoice history found.</p>
   }
 
   return (
-    <Table aria-label="Invoice history" size="sm">
-      <Table.Header bordered={false}>
-        <Table.Head label="Invoice ID" />
-        <Table.Head label="Product/s" />
-        <Table.Head label="Date of Invoice" />
-        <Table.Head label="Status" />
-        <Table.Head label="Qty" />
-        <Table.Head label="Total (LKR)" />
-        <Table.Head label="Remaining (LKR)" />
-      </Table.Header>
-      <Table.Body items={invoices}>
-        {(invoice) => {
-          const status = getStatus(invoice.payment_status)
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Invoice ID</TableHead>
+          <TableHead>Product/s</TableHead>
+          <TableHead>Date of Invoice</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Qty</TableHead>
+          <TableHead>Total (LKR)</TableHead>
+          <TableHead>Remaining (LKR)</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {invoices.map((invoice) => {
           const productNames = Array.from(new Set(invoice.items.map((item) => item.product_name))).join(', ')
           const totalQuantity = invoice.items.reduce((sum, item) => sum + item.quantity, 0)
 
           return (
-            <Table.Row id={invoice.invoice_id}>
-              <Table.Cell>
-                <span className="font-medium text-brand-secondary">{invoice.invoice_number}</span>
-              </Table.Cell>
-              <Table.Cell className="max-w-[220px] truncate">{productNames}</Table.Cell>
-              <Table.Cell>{formatDate(invoice.invoice_date, 'dd/MM/yyyy')}</Table.Cell>
-              <Table.Cell>
-                <Badge type="color" color={status.color} size="sm">
-                  {status.label}
+            <TableRow key={invoice.invoice_id}>
+              <TableCell>
+                <span className="font-medium text-primary">{invoice.invoice_number}</span>
+              </TableCell>
+              <TableCell className="max-w-[220px] truncate">{productNames}</TableCell>
+              <TableCell>{formatDate(invoice.invoice_date, 'dd/MM/yyyy')}</TableCell>
+              <TableCell>
+                <Badge variant={statusVariant[invoice.payment_status] ?? 'outline'} className="capitalize">
+                  {invoice.payment_status}
                 </Badge>
-              </Table.Cell>
-              <Table.Cell>{totalQuantity}</Table.Cell>
-              <Table.Cell>{formatAmount(invoice.total_amount)}</Table.Cell>
-              <Table.Cell className={invoice.balance_due > 0 ? 'text-error-600' : ''}>
+              </TableCell>
+              <TableCell>{totalQuantity}</TableCell>
+              <TableCell>{formatAmount(invoice.total_amount)}</TableCell>
+              <TableCell className={invoice.balance_due > 0 ? 'text-destructive' : ''}>
                 {formatAmount(invoice.balance_due)}
-              </Table.Cell>
-            </Table.Row>
+              </TableCell>
+            </TableRow>
           )
-        }}
-      </Table.Body>
+        })}
+      </TableBody>
     </Table>
   )
 }

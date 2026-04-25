@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui'
-import { Dialog, Modal, ModalOverlay } from '@/components/ui/application/modals/modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { appointmentsApi } from '@/api/appointments.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { patientsApi } from '@/api/patients.api'
@@ -11,8 +11,8 @@ import type { Invoice } from '@/types/invoice.types'
 import type { Appointment } from '@/types/appointment.types'
 import type { Prescription } from '@/types/prescription.types'
 import { formatDate, formatPhone } from '@/utils/formatters'
-import { ChevronDown, ChevronUp, File06 } from '@untitledui/icons'
-import { cx } from '@/utils/cx'
+import { RiFileTextLine, RiArrowDownSLine, RiArrowUpSLine } from '@remixicon/react'
+import { cn } from '@/utils/helpers'
 import InvoiceHistoryTable from './InvoiceHistoryTable'
 import SchedulingHistoryTable from './SchedulingHistoryTable'
 
@@ -92,7 +92,7 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
         setInvoices(invoiceResponse.data)
         setAppointments(appointmentResponse.data)
         setPrescriptions(prescriptionResponse.data)
-      } catch (loadError) {
+      } catch {
         if (!isActive) return
         setError('Unable to load patient details.')
       } finally {
@@ -116,134 +116,110 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
 
   const handleNavigateToInvoices = () => {
     if (!latestInvoice) return
-
     navigate(`/invoices?detail=${latestInvoice.invoice_id}`)
     onClose()
   }
 
   const handleNavigateToPrescriptions = () => {
     if (!latestPrescription) return
-
     navigate(`/prescriptions?detail=${latestPrescription.prescription_id}`)
     onClose()
   }
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) onClose()
-  }
-
   return (
-    <ModalOverlay
-      isOpen={isOpen}
-      isDismissable
-      onOpenChange={handleOpenChange}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          handleOpenChange(false)
-        }
-      }}
-    >
-      <Modal className="w-full">
-        <Dialog aria-label="Patient details" className="mx-auto w-full max-w-[740px] outline-none">
-          <div className="max-h-[calc(100dvh-48px)] w-full overflow-y-auto rounded-[18px] bg-white p-5 text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.12)] ring-1 ring-black/5 sm:p-6">
-            <div className="space-y-7">
-              <div className="space-y-1">
-                <h2 className="text-[22px] font-medium leading-tight text-foreground">
-                  {patient?.name || 'Patient Details'}
-                </h2>
-                {error && <p className="text-sm text-error-600">{error}</p>}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[740px] max-h-[calc(100dvh-48px)] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{patient?.name || 'Patient Details'}</DialogTitle>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </DialogHeader>
+
+        <div className="space-y-7">
+          <section className="space-y-3">
+            <h3 className="text-base font-medium text-foreground">General</h3>
+            <div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+              <Field label="DOB" value={patient ? formatDate(patient.date_of_birth, 'dd/MM/yyyy') : '—'} />
+              <Field label="Phone" value={patient ? formatPhone(patient.phone) : '—'} />
+              <Field label="Address" value={formatAddress(patient)} />
+              <Field label="Gender" value={patient ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : '—'} />
+              <Field label="Email" value={patient?.email || '—'} />
+            </div>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-12">
+            <div className="space-y-3 lg:col-span-7">
+              <h3 className="text-base font-medium text-foreground">Notes</h3>
+              <div className="rounded-lg bg-muted/40 px-1 py-1">
+                <p className="border-l border-border pl-3 text-xs text-muted-foreground">Notes / Diagnoses</p>
+                <p className="mt-2 whitespace-pre-line px-3 text-sm leading-6 text-foreground">
+                  {isLoading && !patient ? 'Loading notes...' : notesText}
+                </p>
               </div>
+            </div>
 
-              <section className="space-y-3">
-                <h3 className="text-base font-medium text-foreground">General</h3>
-                <div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
-                  <Field label="DOB" value={patient ? formatDate(patient.date_of_birth, 'dd/MM/yyyy') : '—'} />
-                  <Field label="Phone" value={patient ? formatPhone(patient.phone) : '—'} />
-                  <Field label="Address" value={formatAddress(patient)} />
-                  <Field label="Gender" value={patient ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : '—'} />
-                  <Field label="Email" value={patient?.email || '—'} />
-                </div>
-              </section>
-
-              <section className="grid gap-6 lg:grid-cols-12">
-                <div className="space-y-3 lg:col-span-7">
-                  <h3 className="text-base font-medium text-foreground">Notes</h3>
-                  <div className="rounded-lg bg-background px-1 py-1">
-                    <p className="border-l border-border pl-3 text-xs text-muted-foreground">Notes / Diagnoses</p>
-                    <p className="mt-2 whitespace-pre-line px-3 text-sm leading-6 text-foreground">
-                      {isLoading && !patient ? 'Loading notes...' : notesText}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 lg:col-span-5">
-                  <h3 className="text-base font-medium text-foreground">Connected Sources</h3>
-                  <div className="space-y-3">
-                    <Button
-                      color="tertiary"
-                      onClick={handleNavigateToInvoices}
-                      iconLeading={File06}
-                      className={cx(
-                        'w-full justify-start rounded-lg border border-border bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
-                        !latestInvoice && 'pointer-events-none opacity-60'
-                      )}
-                      isDisabled={!latestInvoice}
-                    >
-                      {latestInvoice
-                        ? `Latest Invoice - ${formatDate(latestInvoice.invoice_date, 'dd/MM/yyyy')}`
-                        : 'Latest Invoice'}
-                    </Button>
-                    <Button
-                      color="tertiary"
-                      onClick={handleNavigateToPrescriptions}
-                      iconLeading={File06}
-                      className={cx(
-                        'w-full justify-start rounded-lg border border-border bg-white px-3 py-2 text-sm font-normal text-brand-secondary shadow-none hover:bg-secondary/50',
-                        !latestPrescription && 'pointer-events-none opacity-60'
-                      )}
-                      isDisabled={!latestPrescription}
-                    >
-                      {latestPrescription
-                        ? `Latest Prescription - ${formatDate(latestPrescription.prescription_date, 'dd/MM/yyyy')}`
-                        : 'Latest Prescription'}
-                    </Button>
-                  </div>
-                </div>
-              </section>
-
-              {isExpanded && (
-                <>
-                  <section className="space-y-3">
-                    <h3 className="text-base font-medium text-foreground">Invoice History</h3>
-                    <div className="overflow-hidden rounded-xl border border-border bg-white">
-                      <InvoiceHistoryTable invoices={invoices} />
-                    </div>
-                  </section>
-
-                  <section className="space-y-3">
-                    <h3 className="text-base font-medium text-foreground">Scheduling History</h3>
-                    <div className="overflow-hidden rounded-xl border border-border bg-white">
-                      <SchedulingHistoryTable appointments={appointments} />
-                    </div>
-                  </section>
-                </>
-              )}
-
-              <div className="flex justify-center pt-1">
+            <div className="space-y-3 lg:col-span-5">
+              <h3 className="text-base font-medium text-foreground">Connected Sources</h3>
+              <div className="space-y-3">
                 <Button
-                  color="tertiary"
-                  onClick={() => setIsExpanded((current) => !current)}
-                  iconTrailing={isExpanded ? ChevronUp : ChevronDown}
-                  className="px-4 text-sm font-medium text-foreground"
+                  variant="outline"
+                  onClick={handleNavigateToInvoices}
+                  disabled={!latestInvoice}
+                  className={cn('w-full justify-start text-sm font-normal', !latestInvoice && 'opacity-60')}
                 >
-                  {isExpanded ? 'Show Less' : 'Show More'}
+                  <RiFileTextLine className="size-4 shrink-0" />
+                  {latestInvoice
+                    ? `Latest Invoice - ${formatDate(latestInvoice.invoice_date, 'dd/MM/yyyy')}`
+                    : 'Latest Invoice'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleNavigateToPrescriptions}
+                  disabled={!latestPrescription}
+                  className={cn('w-full justify-start text-sm font-normal', !latestPrescription && 'opacity-60')}
+                >
+                  <RiFileTextLine className="size-4 shrink-0" />
+                  {latestPrescription
+                    ? `Latest Prescription - ${formatDate(latestPrescription.prescription_date, 'dd/MM/yyyy')}`
+                    : 'Latest Prescription'}
                 </Button>
               </div>
             </div>
+          </section>
+
+          {isExpanded && (
+            <>
+              <section className="space-y-3">
+                <h3 className="text-base font-medium text-foreground">Invoice History</h3>
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <InvoiceHistoryTable invoices={invoices} />
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-base font-medium text-foreground">Scheduling History</h3>
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <SchedulingHistoryTable appointments={appointments} />
+                </div>
+              </section>
+            </>
+          )}
+
+          <div className="flex justify-center pt-1">
+            <Button
+              variant="ghost"
+              onClick={() => setIsExpanded((current) => !current)}
+              className="text-sm font-medium"
+            >
+              {isExpanded ? (
+                <>Show Less <RiArrowUpSLine className="ml-1 size-4" /></>
+              ) : (
+                <>Show More <RiArrowDownSLine className="ml-1 size-4" /></>
+              )}
+            </Button>
           </div>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -255,7 +231,7 @@ interface FieldProps {
 
 const Field = ({ label, value, className }: FieldProps) => {
   return (
-    <div className={cx('border-l border-border pl-3', className)}>
+    <div className={cn('border-l border-border pl-3', className)}>
       <p className="text-xs text-muted-foreground">{label} :</p>
       <p className="mt-1 text-sm font-normal text-foreground">{value}</p>
     </div>
@@ -263,7 +239,3 @@ const Field = ({ label, value, className }: FieldProps) => {
 }
 
 export default PatientDetailsDialog
-
-
-
-
