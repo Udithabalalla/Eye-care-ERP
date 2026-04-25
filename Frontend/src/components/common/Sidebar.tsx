@@ -15,7 +15,7 @@ import {
   RiKeyLine,
   RiBellLine,
   RiLogoutBoxRLine,
-  RiUserCheckLine,
+  RiUserFollowLine,
   RiArrowUpDownLine,
   RiSettings4Line,
 } from '@remixicon/react'
@@ -49,7 +49,7 @@ const navigationSections: NavSection[] = [
       { name: 'Patients', path: '/patients', icon: RiTeamLine },
       { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
       { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
-      { name: 'Doctors', path: '/doctors', icon: RiUserCheckLine },
+      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
     ],
   },
   {
