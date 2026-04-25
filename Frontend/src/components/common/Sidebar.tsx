@@ -1,24 +1,24 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import {
-  House,
-  Users,
-  CalendarDays,
-  FileText,
-  Package,
-  Truck,
-  Receipt,
-  BarChart3,
-  ChartColumn,
-  DollarSign,
-  TriangleAlert,
-  KeyRound,
-  Bell,
-  LogOut,
-  UserCheck,
-  ChevronsUpDown,
-  Settings,
-} from 'lucide-react'
+  RiHomeLine,
+  RiTeamLine,
+  RiCalendarLine,
+  RiFileTextLine,
+  RiBox3Line,
+  RiTruckLine,
+  RiReceiptLine,
+  RiBarChartLine,
+  RiBarChart2Line,
+  RiMoneyDollarCircleLine,
+  RiAlertLine,
+  RiKeyLine,
+  RiBellLine,
+  RiLogoutBoxRLine,
+  RiUserCheckLine,
+  RiArrowUpDownLine,
+  RiSettings4Line,
+} from '@remixicon/react'
 import { cn } from '@/utils/helpers'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -40,72 +40,72 @@ interface NavSection {
 const navigationSections: NavSection[] = [
   {
     items: [
-      { name: 'Dashboard', path: '/', icon: House },
+      { name: 'Dashboard', path: '/', icon: RiHomeLine },
     ],
   },
   {
     title: 'Clinical',
     items: [
-      { name: 'Patients', path: '/patients', icon: Users },
-      { name: 'Appointments', path: '/appointments', icon: CalendarDays },
-      { name: 'Prescriptions', path: '/prescriptions', icon: FileText },
-      { name: 'Doctors', path: '/doctors', icon: UserCheck },
+      { name: 'Patients', path: '/patients', icon: RiTeamLine },
+      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
+      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
+      { name: 'Doctors', path: '/doctors', icon: RiUserCheckLine },
     ],
   },
   {
     title: 'Sales',
     items: [
-      { name: 'Sales Orders', path: '/sales-orders', icon: Receipt },
-      { name: 'Invoices', path: '/invoices', icon: FileText },
-      { name: 'Payments', path: '/payments', icon: DollarSign },
-      { name: 'Refunds', path: '/refunds', icon: TriangleAlert },
+      { name: 'Sales Orders', path: '/sales-orders', icon: RiReceiptLine },
+      { name: 'Invoices', path: '/invoices', icon: RiFileTextLine },
+      { name: 'Payments', path: '/payments', icon: RiMoneyDollarCircleLine },
+      { name: 'Refunds', path: '/refunds', icon: RiAlertLine },
     ],
   },
   {
     title: 'Purchasing',
     items: [
-      { name: 'Suppliers', path: '/suppliers', icon: Users },
-      { name: 'Purchase Orders', path: '/purchase-orders', icon: Truck },
-      { name: 'Stock Receipts', path: '/stock-receipts', icon: Package },
-      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: FileText },
-      { name: 'Supplier Payments', path: '/supplier-payments', icon: DollarSign },
+      { name: 'Suppliers', path: '/suppliers', icon: RiTeamLine },
+      { name: 'Purchase Orders', path: '/purchase-orders', icon: RiTruckLine },
+      { name: 'Stock Receipts', path: '/stock-receipts', icon: RiBox3Line },
+      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
+      { name: 'Supplier Payments', path: '/supplier-payments', icon: RiMoneyDollarCircleLine },
     ],
   },
   {
     title: 'Inventory',
     items: [
-      { name: 'Products', path: '/products', icon: Package },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: ChartColumn },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: Settings },
+      { name: 'Products', path: '/products', icon: RiBox3Line },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiBarChart2Line },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiSettings4Line },
     ],
   },
   {
     title: 'Finance',
     items: [
-      { name: 'Transactions', path: '/transactions', icon: ChartColumn },
-      { name: 'Ledger', path: '/ledger', icon: BarChart3 },
+      { name: 'Transactions', path: '/transactions', icon: RiBarChart2Line },
+      { name: 'Ledger', path: '/ledger', icon: RiBarChartLine },
     ],
   },
   {
     title: 'Analytics',
     items: [
-      { name: 'Reports', path: '/reports', icon: BarChart3 },
+      { name: 'Reports', path: '/reports', icon: RiBarChartLine },
     ],
   },
   {
     title: 'System',
     items: [
-      { name: 'Users', path: '/users', icon: Users },
-      { name: 'Roles & Permissions', path: '/roles-permissions', icon: KeyRound },
-      { name: 'Activity Logs', path: '/activity-logs', icon: Bell },
-      { name: 'Company Profile', path: '/settings', icon: Settings },
+      { name: 'Users', path: '/users', icon: RiTeamLine },
+      { name: 'Roles & Permissions', path: '/roles-permissions', icon: RiKeyLine },
+      { name: 'Activity Logs', path: '/activity-logs', icon: RiBellLine },
+      { name: 'Company Profile', path: '/settings', icon: RiSettings4Line },
       {
         name: 'Basic Data',
         path: '/basic-data',
-        icon: Settings,
+        icon: RiSettings4Line,
         children: [
-          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: Settings },
-          { name: 'Lenses', path: '/basic-data/lenses', icon: Settings },
+          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: RiSettings4Line },
+          { name: 'Lenses', path: '/basic-data/lenses', icon: RiSettings4Line },
         ],
       },
     ],
@@ -113,64 +113,55 @@ const navigationSections: NavSection[] = [
 ]
 
 interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
+  isOpen?: boolean
+  onClose?: () => void
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+
   const navigateTo = (path: string) => {
     if (location.pathname === path) {
       onClose?.()
       return
     }
-
     navigate(path)
     onClose?.()
-
-    // Fallback for any edge case where client-side navigation is blocked.
     requestAnimationFrame(() => {
       if (window.location.pathname !== path) {
         window.location.assign(path)
       }
     })
   }
+
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    return navigationSections.reduce<Record<string, boolean>>((sections, section) => {
-      if (section.title) {
-        sections[section.title] = true
-      }
-      return sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    navigationSections.reduce<Record<string, boolean>>((acc, section) => {
+      if (section.title) acc[section.title] = true
+      return acc
     }, {})
-  })
+  )
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
     'System-Basic Data': true,
   })
   const accountMenuRef = useRef<HTMLDivElement>(null)
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
         setIsAccountMenuOpen(false)
       }
     }
-
     if (isAccountMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isAccountMenuOpen])
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity"
@@ -210,12 +201,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {section.title}
                     </span>
-                    <ChevronsUpDown
-                      className={cn(
-                        'h-4 w-4 text-muted-foreground transition-transform',
-                        openSections[section.title] ? 'rotate-180' : ''
-                      )}
-                    />
+                    <RiArrowUpDownLine className={cn(
+                      'h-4 w-4 text-muted-foreground transition-transform',
+                      openSections[section.title] ? 'rotate-180' : ''
+                    )} />
                   </button>
                 )}
                 {(!section.title || openSections[section.title]) && section.items.map((item) => {
@@ -239,21 +228,17 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           )}
                         >
-                          <item.icon
-                            className={cn(
-                              'h-5 w-5 shrink-0 transition-colors duration-100',
-                              hasActiveChild
-                                ? 'text-sidebar-primary'
-                                : 'text-muted-foreground group-hover:text-foreground'
-                            )}
-                          />
+                          <item.icon className={cn(
+                            'h-5 w-5 shrink-0 transition-colors duration-100',
+                            hasActiveChild
+                              ? 'text-sidebar-primary'
+                              : 'text-muted-foreground group-hover:text-foreground'
+                          )} />
                           <span className="flex-1 truncate text-left">{item.name}</span>
-                          <ChevronsUpDown
-                            className={cn(
-                              'h-4 w-4 text-muted-foreground transition-transform',
-                              isSubmenuOpen ? 'rotate-180' : ''
-                            )}
-                          />
+                          <RiArrowUpDownLine className={cn(
+                            'h-4 w-4 text-muted-foreground transition-transform',
+                            isSubmenuOpen ? 'rotate-180' : ''
+                          )} />
                         </button>
 
                         {isSubmenuOpen && (
@@ -270,14 +255,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                 )}
                               >
-                                <child.icon
-                                  className={cn(
-                                    'h-4 w-4 shrink-0 transition-colors duration-100',
-                                    location.pathname === child.path
-                                      ? 'text-sidebar-primary'
-                                      : 'text-muted-foreground group-hover:text-foreground'
-                                  )}
-                                />
+                                <child.icon className={cn(
+                                  'h-4 w-4 shrink-0 transition-colors duration-100',
+                                  location.pathname === child.path
+                                    ? 'text-sidebar-primary'
+                                    : 'text-muted-foreground group-hover:text-foreground'
+                                )} />
                                 <span className="flex-1 truncate text-left">{child.name}</span>
                               </button>
                             ))}
@@ -293,25 +276,21 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       to={item.path}
                       end={item.path === '/'}
                       onClick={onClose}
-                      className={({ isActive }) =>
-                        cn(
-                          'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
-                          isActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
-                        )
-                      }
+                      className={({ isActive }) => cn(
+                        'group relative flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-100 ease-linear',
+                        isActive
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                      )}
                     >
                       {({ isActive }) => (
                         <>
-                          <item.icon
-                            className={cn(
-                              'h-5 w-5 shrink-0 transition-colors duration-100',
-                              isActive
-                                ? 'text-sidebar-primary'
-                                : 'text-muted-foreground group-hover:text-foreground'
-                            )}
-                          />
+                          <item.icon className={cn(
+                            'h-5 w-5 shrink-0 transition-colors duration-100',
+                            isActive
+                              ? 'text-sidebar-primary'
+                              : 'text-muted-foreground group-hover:text-foreground'
+                          )} />
                           <span className="flex-1 truncate">{item.name}</span>
                           {item.badge && (
                             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-xs font-medium text-sidebar-primary-foreground">
@@ -335,13 +314,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
               className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 shadow-sm transition-colors hover:bg-muted/50"
             >
-              {/* Avatar */}
               <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/10 font-semibold text-sidebar-primary">
-                {user?.name ? getInitials(user.name) : <Users className="h-5 w-5" />}
+                {user?.name ? getInitials(user.name) : <RiTeamLine className="h-5 w-5" />}
                 <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
               </div>
-
-              {/* User Info */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 <span className="truncate text-sm font-semibold text-sidebar-foreground">
                   {user?.name || 'User'}
@@ -350,12 +326,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   {user?.email || user?.role || 'admin@eyecare.com'}
                 </span>
               </div>
-
-              {/* Expand Icon */}
-              <ChevronsUpDown className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <RiArrowUpDownLine className="h-5 w-5 shrink-0 text-muted-foreground" />
             </div>
 
-            {/* Account Menu Dropdown */}
             {isAccountMenuOpen && (
               <div className="absolute bottom-full left-0 right-0 mb-2 rounded-md border border-border bg-popover p-2 shadow-lg">
                 <Button
@@ -363,7 +336,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   className="w-full justify-start text-sm font-semibold text-muted-foreground hover:text-foreground"
                   onClick={logout}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <RiLogoutBoxRLine className="h-4 w-4" />
                   Sign out
                 </Button>
               </div>
@@ -376,7 +349,3 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 }
 
 export default Sidebar
-
-
-
-

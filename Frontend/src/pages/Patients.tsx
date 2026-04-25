@@ -4,8 +4,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
-import { Plus } from '@untitledui/icons'
-import { MoreHorizontal } from 'lucide-react'
+import { RiAddLine, RiMore2Line } from '@remixicon/react'
 import {
   PaginationPageDefault,
   Avatar,
@@ -302,7 +301,7 @@ const Patients = () => {
                 className="data-[state=open]:bg-muted"
                 aria-label="Open patient actions"
               >
-                <MoreHorizontal className="size-4" />
+                <RiMore2Line className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -334,7 +333,7 @@ const Patients = () => {
           <p className="text-sm text-muted-foreground">Manage patient records and information.</p>
         </div>
         <Button onClick={handleAdd} size="sm" className="w-full md:w-auto">
-          <Plus className="size-4" />
+          <RiAddLine className="size-4" />
           Add Patient
         </Button>
       </section>

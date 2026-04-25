@@ -1,4 +1,13 @@
 import { ReactNode } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table as ShadTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { cn } from '@/utils/helpers'
 
 interface Column<T> {
@@ -25,16 +34,18 @@ function Table<T extends Record<string, any>>({
 }: TableProps<T>) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="space-y-2 p-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-md" />
+        ))}
       </div>
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>{emptyMessage}</p>
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+        {emptyMessage}
       </div>
     )
   }
@@ -42,39 +53,35 @@ function Table<T extends Record<string, any>>({
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
-        <table className="table">
-          <thead>
-            <tr>
+        <ShadTable>
+          <TableHeader>
+            <TableRow>
               {columns.map((column) => (
-                <th key={column.key} className={column.className}>
+                <TableHead key={column.key} className={column.className}>
                   {column.header}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.map((item, index) => (
-              <tr
+              <TableRow
                 key={index}
                 onClick={() => onRowClick?.(item)}
-                className={cn(
-                  onRowClick && 'cursor-pointer'
-                )}
+                className={cn(onRowClick && 'cursor-pointer')}
               >
                 {columns.map((column) => (
-                  <td key={column.key} className={column.className}>
+                  <TableCell key={column.key} className={column.className}>
                     {column.render ? column.render(item) : item[column.key]}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </ShadTable>
       </div>
     </div>
   )
 }
 
 export default Table
-
-

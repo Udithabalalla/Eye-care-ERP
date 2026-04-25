@@ -1,5 +1,13 @@
-import { ChevronLeft, ChevronRight } from '@untitledui/icons'
+import { RiArrowLeftSLine, RiArrowRightSLine } from '@remixicon/react'
 import { cn } from '@/utils/helpers'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface PaginationProps {
   currentPage: number
@@ -24,31 +32,18 @@ const Pagination = ({
   const endItem = Math.min(currentPage * pageSize, totalItems)
 
   const renderPageNumbers = () => {
-    const pages = []
+    const pages: (number | string)[] = []
     const maxVisible = 5
 
     if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
-      }
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
     } else {
       pages.push(1)
-      
-      if (currentPage > 3) {
-        pages.push('...')
-      }
-
+      if (currentPage > 3) pages.push('...')
       const start = Math.max(2, currentPage - 1)
       const end = Math.min(totalPages - 1, currentPage + 1)
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i)
-      }
-
-      if (currentPage < totalPages - 2) {
-        pages.push('...')
-      }
-
+      for (let i = start; i <= end; i++) pages.push(i)
+      if (currentPage < totalPages - 2) pages.push('...')
       pages.push(totalPages)
     }
 
@@ -57,63 +52,64 @@ const Pagination = ({
 
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-border">
-      {/* Items per page */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Show</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="input py-1 px-2 text-sm"
+        <Select
+          value={String(pageSize)}
+          onValueChange={(val) => onPageSizeChange(Number(val))}
         >
-          {pageSizeOptions.map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="h-8 w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {pageSizeOptions.map((size) => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
-          Showing {startItem} to {endItem} of {totalItems} results
+          Showing {startItem}–{endItem} of {totalItems}
         </span>
       </div>
 
-      {/* Page navigation */}
-      <div className="flex items-center space-x-2">
-        <button
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground"
+          aria-label="Previous page"
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+          <RiArrowLeftSLine className="size-4" />
+        </Button>
 
         {renderPageNumbers().map((page, index) => (
-          <button
+          <Button
             key={index}
+            variant={page === currentPage ? 'default' : 'ghost'}
+            size="icon-sm"
             onClick={() => typeof page === 'number' && onPageChange(page)}
             disabled={page === '...'}
-            className={cn(
-              'px-3 py-1 rounded-lg text-sm',
-              page === currentPage
-                ? 'bg-primary-600 text-white'
-                : 'hover:bg-tertiary text-muted-foreground',
-              page === '...' && 'cursor-default'
-            )}
+            className={cn(page === '...' && 'cursor-default')}
           >
             {page}
-          </button>
+          </Button>
         ))}
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-lg hover:bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground"
+          aria-label="Next page"
         >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          <RiArrowRightSLine className="size-4" />
+        </Button>
       </div>
     </div>
   )
 }
 
 export default Pagination
-

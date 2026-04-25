@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  Sparkles,
-  ShieldCheck,
-} from 'lucide-react'
+  RiEyeLine,
+  RiEyeOffLine,
+  RiLockLine,
+  RiMailLine,
+  RiSparklingLine,
+  RiShieldCheckLine,
+} from '@remixicon/react'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import {
@@ -65,7 +65,7 @@ const Login = () => {
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="hidden lg:block">
             <Badge variant="secondary" className="mb-4">
-              <Sparkles className="size-3" />
+              <RiSparklingLine className="size-3" />
               Eye Care ERP
             </Badge>
             <h1 className="max-w-lg text-4xl font-semibold leading-tight text-foreground">
@@ -91,7 +91,7 @@ const Login = () => {
                     <Field>
                       <FieldLabel htmlFor="email">Email address</FieldLabel>
                       <div className="relative">
-                        <Mail className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <RiMailLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="email"
                           type="email"
@@ -109,7 +109,7 @@ const Login = () => {
                     <Field>
                       <FieldLabel htmlFor="password">Password</FieldLabel>
                       <div className="relative">
-                        <Lock className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <RiLockLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
@@ -130,9 +130,9 @@ const Login = () => {
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
                           {showPassword ? (
-                            <EyeOff className="size-4" />
+                            <RiEyeOffLine className="size-4" />
                           ) : (
-                            <Eye className="size-4" />
+                            <RiEyeLine className="size-4" />
                           )}
                         </Button>
                       </div>
@@ -164,7 +164,7 @@ const Login = () => {
               <Card className="mt-5 border-dashed">
                 <CardContent className="space-y-2 pt-4 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">
-                    <ShieldCheck className="mr-1 inline size-3.5" />
+                    <RiShieldCheckLine className="mr-1 inline size-3.5" />
                     Demo credentials
                   </p>
                   <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">

@@ -1,8 +1,40 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { invoicesApi } from '@/api/invoices.api'
-import { Plus, SearchLg, Eye, File06, CurrencyDollar, Download01 } from '@untitledui/icons'
-import { Table, TableCard, PaginationPageDefault, Button, Input, BadgeWithDot, Select, SelectItem, Tooltip } from '@/components/ui'
+import {
+  RiAddLine,
+  RiSearchLine,
+  RiEyeLine,
+  RiFileTextLine,
+  RiDownloadLine,
+  RiMoneyDollarCircleLine,
+} from '@remixicon/react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import Loading from '@/components/common/Loading'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
 import PaymentModal from '@/components/invoices/PaymentModal'
@@ -14,8 +46,13 @@ import { downloadFile } from '@/utils/helpers'
 import { Invoice } from '@/types/invoice.types'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import toast from 'react-hot-toast'
-import { Key } from 'react-aria-components'
-import { useSearchParams } from 'react-router-dom'
+
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  paid: 'default',
+  partial: 'secondary',
+  pending: 'outline',
+  overdue: 'destructive',
+}
 
 const Invoices = () => {
   const [page, setPage] = useState(1)
@@ -26,6 +63,8 @@ const Invoices = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { data, isLoading, refetch } = useQuery({
@@ -34,39 +73,30 @@ const Invoices = () => {
       invoicesApi.getAll({ page, page_size: pageSize, payment_status: statusFilter, search }),
   })
 
-  const handleView = (invoice: Invoice) => {
-    setSelectedInvoice(invoice)
-    setIsDetailOpen(true)
-  }
-
   useEffect(() => {
     const detailId = searchParams.get('detail')
     if (!detailId) return
-
     let isActive = true
-
     const openDetail = async () => {
       try {
         const invoice = await invoicesApi.getById(detailId)
         if (!isActive) return
-
         setSelectedInvoice(invoice)
         setIsDetailOpen(true)
-      } catch (error) {
+      } catch {
         if (!isActive) return
         toast.error('Failed to load invoice details')
         setSearchParams({}, { replace: true })
       }
     }
-
     openDetail()
-
-    return () => {
-      isActive = false
-    }
+    return () => { isActive = false }
   }, [searchParams, setSearchParams])
 
-
+  const handleView = (invoice: Invoice) => {
+    setSelectedInvoice(invoice)
+    setIsDetailOpen(true)
+  }
 
   const handleAdd = () => {
     setSelectedInvoice(null)
@@ -83,250 +113,229 @@ const Invoices = () => {
       const blob = await invoicesApi.downloadPDF(invoiceId)
       downloadFile(blob, `invoice-${invoiceId}.pdf`)
       toast.success('PDF downloaded successfully')
-    } catch (error) {
+    } catch {
       toast.error('Failed to download PDF')
     }
   }
-
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
-  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
 
   const handleViewPrescription = async (prescriptionId: string) => {
     try {
       const prescription = await prescriptionsApi.getById(prescriptionId)
       setSelectedPrescription(prescription)
       setIsPrescriptionModalOpen(true)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load prescription details')
-    }
-  }
-
-  const handlePageSizeChange = (key: Key | null) => {
-    if (key) {
-      setPageSize(Number(key))
-      setPage(1)
-    }
-  }
-
-  const getStatusBadgeColor = (status: string): 'success' | 'warning' | 'error' | 'gray' => {
-    switch (status) {
-      case 'paid': return 'success'
-      case 'partial': return 'warning'
-      case 'pending': return 'gray'
-      case 'overdue': return 'error'
-      default: return 'gray'
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Table Card with Untitled UI Structure */}
-      <TableCard.Root>
-        <TableCard.Header
-          title="Invoices"
-          badge={data?.total || 0}
-          description="Manage invoices and billing"
-          contentTrailing={
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <Input
-                placeholder="Search invoices..."
-                value={search}
-                onChange={setSearch}
-                iconLeading={SearchLg}
-                aria-label="Search invoices"
-                className="w-full sm:w-56"
-              />
+      <Card className="border-border/60">
+        <CardHeader className="border-b border-border">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-2xl">Invoices</CardTitle>
+                <Badge variant="secondary">{data?.total || 0}</Badge>
+              </div>
+              <CardDescription className="mt-1">Manage invoices and billing</CardDescription>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative">
+                <RiSearchLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search invoices..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 w-full sm:w-56"
+                  aria-label="Search invoices"
+                />
+              </div>
               <Select
-                selectedKey={statusFilter || 'all'}
-                onSelectionChange={(key) => setStatusFilter(key === 'all' ? '' : String(key))}
-                placeholder="Status"
-                aria-label="Filter by status"
-                className="w-full sm:w-36"
+                value={statusFilter || 'all'}
+                onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}
               >
-                <SelectItem id="all">All Status</SelectItem>
-                <SelectItem id="paid">Paid</SelectItem>
-                <SelectItem id="partial">Partial</SelectItem>
-                <SelectItem id="pending">Pending</SelectItem>
-                <SelectItem id="overdue">Overdue</SelectItem>
+                <SelectTrigger className="w-full sm:w-36" aria-label="Filter by status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
               </Select>
               <Select
-                selectedKey={String(pageSize)}
-                onSelectionChange={handlePageSizeChange}
-                placeholder="Rows"
-                aria-label="Rows per page"
-                className="w-full sm:w-28"
+                value={String(pageSize)}
+                onValueChange={(value) => { setPageSize(Number(value)); setPage(1) }}
               >
-                <SelectItem id="10">10 rows</SelectItem>
-                <SelectItem id="25">25 rows</SelectItem>
-                <SelectItem id="50">50 rows</SelectItem>
+                <SelectTrigger className="w-full sm:w-28" aria-label="Rows per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="25">25 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                </SelectContent>
               </Select>
-              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
+              <Button size="sm" onClick={handleAdd}>
+                <RiAddLine className="size-4" />
                 Create Invoice
               </Button>
             </div>
-          }
-        />
-
-        {isLoading ? (
-          <div className="p-12">
-            <Loading />
           </div>
-        ) : (
-          <>
-            <Table aria-label="Invoices table" selectionMode="multiple" selectionBehavior="toggle">
-              <Table.Header>
-                <Table.Head label="Invoice #" isRowHeader />
-                <Table.Head label="Patient" />
-                <Table.Head label="Date" />
-                <Table.Head label="Amount" />
-                <Table.Head label="Paid" />
-                <Table.Head label="Balance" />
-                <Table.Head label="Status" />
-                <Table.Head />
-              </Table.Header>
-              <Table.Body items={data?.data || []}>
-                {(invoice) => (
-                  <Table.Row id={invoice.invoice_id}>
-                    <Table.Cell>
-                      <span className="font-medium text-brand-600">{invoice.invoice_number}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-foreground">{invoice.patient_name}</span>
-                    </Table.Cell>
-                    <Table.Cell>{formatDate(invoice.invoice_date)}</Table.Cell>
-                    <Table.Cell>
-                      <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-success-600">{formatCurrency(invoice.paid_amount)}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-error-600">{formatCurrency(invoice.balance_due)}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <BadgeWithDot size="md" color={getStatusBadgeColor(invoice.payment_status)}>
-                        {invoice.payment_status}
-                      </BadgeWithDot>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Tooltip title="View invoice">
-                          <Button
-                            color="link-gray"
-                            onClick={() => handleView(invoice)}
-                            iconLeading={Eye}
-                            aria-label="View"
-                            size="sm"
-                          />
-                        </Tooltip>
-                        {invoice.prescription_id && invoice.prescription_id !== 'string' && (
-                          <Tooltip title="View prescription">
-                            <Button
-                              color="link-gray"
-                              onClick={() => handleViewPrescription(invoice.prescription_id!)}
-                              iconLeading={File06}
-                              aria-label="View Prescription"
-                              size="sm"
-                            />
-                          </Tooltip>
-                        )}
-                        <Tooltip title="Download PDF">
-                          <Button
-                            color="link-gray"
-                            onClick={() => handleDownloadPDF(invoice.invoice_id)}
-                            iconLeading={Download01}
-                            aria-label="Download PDF"
-                            size="sm"
-                          />
-                        </Tooltip>
-                        {invoice.balance_due > 0 && (
-                          <Tooltip title="Record payment">
-                            <Button
-                              color="link-gray"
-                              onClick={() => handlePayment(invoice)}
-                              iconLeading={CurrencyDollar}
-                              aria-label="Payment"
-                              size="sm"
-                            />
-                          </Tooltip>
-                        )}
-                      </div>
-                    </Table.Cell>
-                  </Table.Row>
-                )}
-              </Table.Body>
-            </Table>
-            {data && (
-              <PaginationPageDefault
-                page={page}
-                total={data.total_pages}
-                onPageChange={setPage}
-                className="border-t border-border px-6 py-4"
-              />
-            )}
-          </>
-        )}
-      </TableCard.Root>
+        </CardHeader>
 
-      {/* Create/Edit Modal */}
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-12"><Loading /></div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.data || []).map((invoice) => (
+                      <TableRow key={invoice.invoice_id}>
+                        <TableCell>
+                          <span className="font-medium text-primary">{invoice.invoice_number}</span>
+                        </TableCell>
+                        <TableCell>{invoice.patient_name}</TableCell>
+                        <TableCell>{formatDate(invoice.invoice_date)}</TableCell>
+                        <TableCell className="font-medium">{formatCurrency(invoice.total_amount)}</TableCell>
+                        <TableCell className="text-green-600">{formatCurrency(invoice.paid_amount)}</TableCell>
+                        <TableCell className="text-destructive">{formatCurrency(invoice.balance_due)}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant[invoice.payment_status] ?? 'outline'} className="capitalize">
+                            {invoice.payment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <TooltipProvider>
+                            <div className="flex items-center justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon-sm" onClick={() => handleView(invoice)} aria-label="View">
+                                    <RiEyeLine className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View invoice</TooltipContent>
+                              </Tooltip>
+
+                              {invoice.prescription_id && invoice.prescription_id !== 'string' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon-sm" onClick={() => handleViewPrescription(invoice.prescription_id!)} aria-label="View Prescription">
+                                      <RiFileTextLine className="size-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>View prescription</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon-sm" onClick={() => handleDownloadPDF(invoice.invoice_id)} aria-label="Download PDF">
+                                    <RiDownloadLine className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download PDF</TooltipContent>
+                              </Tooltip>
+
+                              {invoice.balance_due > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon-sm" onClick={() => handlePayment(invoice)} aria-label="Record payment">
+                                      <RiMoneyDollarCircleLine className="size-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Record payment</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TooltipProvider>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(data?.data || []).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                          No invoices found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {data && data.total_pages > 1 && (
+                <div className="flex items-center justify-between border-t border-border px-6 py-4">
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} of {data.total_pages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page === data.total_pages} onClick={() => setPage((p) => p + 1)}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <InvoiceModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setSelectedInvoice(null)
-        }}
+        onClose={() => { setIsModalOpen(false); setSelectedInvoice(null) }}
         invoice={selectedInvoice}
         onSuccess={() => refetch()}
       />
 
-      {/* Payment Modal */}
       {selectedInvoice && (
         <PaymentModal
           isOpen={isPaymentModalOpen}
-          onClose={() => {
-            setIsPaymentModalOpen(false)
-            setSelectedInvoice(null)
-          }}
+          onClose={() => { setIsPaymentModalOpen(false); setSelectedInvoice(null) }}
           invoice={selectedInvoice}
-          onSuccess={() => {
-            refetch()
-            setIsDetailOpen(false)
-          }}
+          onSuccess={() => { refetch(); setIsDetailOpen(false) }}
         />
       )}
 
-      {/* Detail Modal */}
       <Modal
         isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false)
-          setSelectedInvoice(null)
-          setSearchParams({}, { replace: true })
-        }}
+        onClose={() => { setIsDetailOpen(false); setSelectedInvoice(null); setSearchParams({}, { replace: true }) }}
         title="Invoice Details"
         size="xl"
       >
         {selectedInvoice && (
           <InvoiceDetail
             invoice={selectedInvoice}
-            onPayment={() => {
-              setIsDetailOpen(false)
-              handlePayment(selectedInvoice)
-            }}
+            onPayment={() => { setIsDetailOpen(false); handlePayment(selectedInvoice) }}
             onDownloadPDF={() => handleDownloadPDF(selectedInvoice.invoice_id)}
           />
         )}
       </Modal>
 
-      {/* Prescription Modal */}
       <PrescriptionModal
         isOpen={isPrescriptionModalOpen}
-        onClose={() => {
-          setIsPrescriptionModalOpen(false)
-          setSelectedPrescription(null)
-        }}
+        onClose={() => { setIsPrescriptionModalOpen(false); setSelectedPrescription(null) }}
         prescription={selectedPrescription}
-        onSuccess={() => { }}
+        onSuccess={() => {}}
         readOnly={true}
       />
     </div>
@@ -334,4 +343,3 @@ const Invoices = () => {
 }
 
 export default Invoices
-

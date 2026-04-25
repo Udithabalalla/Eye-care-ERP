@@ -1,13 +1,27 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { appointmentsApi } from '@/api/appointments.api'
-import { Plus, Calendar } from '@untitledui/icons'
-import { Button, Select, SelectItem, TableCard } from '@/components/ui'
+import { RiAddLine, RiCalendarLine } from '@remixicon/react'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import Loading from '@/components/common/Loading'
 import { Appointment } from '@/types/appointment.types'
-import { Key } from 'react-aria-components'
 
 const Appointments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -34,11 +48,6 @@ const Appointments = () => {
     setSelectedAppointment(null)
   }
 
-  const handleStatusFilterChange = (key: Key | null) => {
-    setStatusFilter(key === 'all' ? '' : String(key || ''))
-  }
-
-  // Group appointments by date
   const groupedAppointments = data?.data.reduce((acc, apt) => {
     const date = apt.appointment_date.split('T')[0]
     if (!acc[date]) acc[date] = []
@@ -48,37 +57,42 @@ const Appointments = () => {
 
   return (
     <div className="space-y-6">
-      {/* Card Header with Untitled UI Structure */}
-      <TableCard.Root>
-        <TableCard.Header
-          title="Appointments"
-          badge={data?.data.length || 0}
-          description="Manage and schedule appointments"
-          contentTrailing={
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+      <Card className="border-border/60">
+        <CardHeader className="border-b border-border">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-2xl">Appointments</CardTitle>
+                <Badge variant="secondary">{data?.data.length || 0}</Badge>
+              </div>
+              <CardDescription className="mt-1">Manage and schedule appointments</CardDescription>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select
-                selectedKey={statusFilter || 'all'}
-                onSelectionChange={handleStatusFilterChange}
-                placeholder="Status"
-                aria-label="Filter by status"
-                className="w-full sm:w-40"
+                value={statusFilter || 'all'}
+                onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}
               >
-                <SelectItem id="all">All Statuses</SelectItem>
-                <SelectItem id="scheduled">Scheduled</SelectItem>
-                <SelectItem id="confirmed">Confirmed</SelectItem>
-                <SelectItem id="in-progress">In Progress</SelectItem>
-                <SelectItem id="completed">Completed</SelectItem>
-                <SelectItem id="cancelled">Cancelled</SelectItem>
+                <SelectTrigger className="w-full sm:w-40" aria-label="Filter by status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
               </Select>
-              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
+              <Button onClick={handleAdd} size="sm" className="w-full sm:w-auto">
+                <RiAddLine className="size-4" />
                 New Appointment
               </Button>
             </div>
-          }
-        />
+          </div>
+        </CardHeader>
 
-        {/* Appointments List */}
-        <div className="p-6">
+        <CardContent className="p-6">
           {isLoading ? (
             <Loading />
           ) : (
@@ -86,8 +100,8 @@ const Appointments = () => {
               {groupedAppointments &&
                 Object.entries(groupedAppointments).map(([date, appointments]) => (
                   <div key={date}>
-                    <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center">
-                      <Calendar className="w-5 h-5 mr-2" />
+                    <h2 className="mb-3 flex items-center text-lg font-semibold text-foreground">
+                      <RiCalendarLine className="mr-2 h-5 w-5" />
                       {new Date(date).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
@@ -95,7 +109,7 @@ const Appointments = () => {
                         day: 'numeric',
                       })}
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {appointments.map((apt) => (
                         <AppointmentCard
                           key={apt.appointment_id}
@@ -108,20 +122,20 @@ const Appointments = () => {
                 ))}
 
               {(!groupedAppointments || Object.keys(groupedAppointments).length === 0) && (
-                <div className="text-center py-12">
-                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">No appointments found</p>
-                  <Button onClick={handleAdd} iconLeading={Plus}>
+                <div className="py-12 text-center">
+                  <RiCalendarLine className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <p className="mb-4 text-muted-foreground">No appointments found</p>
+                  <Button onClick={handleAdd}>
+                    <RiAddLine className="size-4" />
                     Schedule First Appointment
                   </Button>
                 </div>
               )}
             </div>
           )}
-        </div>
-      </TableCard.Root>
+        </CardContent>
+      </Card>
 
-      {/* Modal */}
       <AppointmentModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
@@ -133,4 +147,3 @@ const Appointments = () => {
 }
 
 export default Appointments
-

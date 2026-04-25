@@ -1,55 +1,87 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import {
+  RiMailLine,
+  RiKeyLine,
+  RiLockLine,
+  RiEyeLine,
+  RiEyeOffLine,
+} from '@remixicon/react'
 import { useAuthStore } from '@/store/authStore'
-import { Eye, EyeOff, Key01, Lock01, Mail01 } from '@untitledui/icons'
-import toast from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Separator } from '@/components/ui/separator'
+
+const emailSchema = z.object({
+  email: z.string().email('Enter a valid email address'),
+})
+
+const resetSchema = z
+  .object({
+    otp: z.string().length(6, 'OTP must be 6 digits'),
+    newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+
+type EmailFormValues = z.infer<typeof emailSchema>
+type ResetFormValues = z.infer<typeof resetSchema>
 
 const ForgotPassword = () => {
   const navigate = useNavigate()
   const { requestPasswordReset, confirmPasswordReset, isLoading } = useAuthStore()
-  const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [isOtpSent, setIsOtpSent] = useState(false)
+  const [email, setEmail] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const emailForm = useForm<EmailFormValues>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: '' },
+  })
 
-    if (!email) {
-      toast.error('Enter your registered email address')
-      return
-    }
+  const resetForm = useForm<ResetFormValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { otp: '', newPassword: '', confirmPassword: '' },
+  })
 
+  const onRequestOtp = async (values: EmailFormValues) => {
     try {
-      await requestPasswordReset({ email })
+      await requestPasswordReset({ email: values.email })
+      setEmail(values.email)
       setIsOtpSent(true)
     } catch (error) {
       console.error('OTP request failed:', error)
     }
   }
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!email || !otp || !newPassword) {
-      toast.error('Fill in the OTP and new password fields')
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-
+  const onResetPassword = async (values: ResetFormValues) => {
     try {
       await confirmPasswordReset({
         email,
-        otp,
-        new_password: newPassword,
+        otp: values.otp,
+        new_password: values.newPassword,
       })
-
       navigate('/login')
     } catch (error) {
       console.error('Password reset failed:', error)
@@ -57,151 +89,178 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
-            <span className="text-white font-bold text-2xl">EC</span>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Vision Optical</h1>
-          <p className="text-muted-foreground mt-2">Reset your account password</p>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,hsl(var(--primary)/0.12),transparent_35%),radial-gradient(circle_at_85%_20%,hsl(var(--accent)/0.16),transparent_28%)]" />
 
-        <div className="card space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Password Recovery</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md items-center justify-center p-4 md:p-8">
+        <Card className="w-full border-border/60 bg-card/95 backdrop-blur">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm">
+                <span className="text-lg font-bold text-primary-foreground">EC</span>
+              </div>
+            </div>
+            <CardTitle className="text-xl">Password recovery</CardTitle>
+            <CardDescription>
               {isOtpSent
                 ? 'Enter the OTP from your registered email and set a new password.'
                 : 'We will send a one-time password to your registered email address.'}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {!isOtpSent ? (
+              <Form {...emailForm}>
+                <form onSubmit={emailForm.handleSubmit(onRequestOtp)} className="space-y-4">
+                  <FormField
+                    control={emailForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Registered email address</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <RiMailLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              type="email"
+                              placeholder="admin@eyecare.com"
+                              className="pl-8"
+                              disabled={isLoading}
+                              autoComplete="email"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                  </Button>
+                </form>
+              </Form>
+            ) : (
+              <Form {...resetForm}>
+                <form onSubmit={resetForm.handleSubmit(onResetPassword)} className="space-y-4">
+                  <FormField
+                    control={resetForm.control}
+                    name="otp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>One-time password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <RiKeyLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter 6-digit code"
+                              className="pl-8 tracking-[0.35em]"
+                              disabled={isLoading}
+                              inputMode="numeric"
+                              autoComplete="one-time-code"
+                              maxLength={6}
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))
+                              }
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={resetForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <RiLockLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              type={showPassword ? 'text' : 'password'}
+                              placeholder="New password"
+                              className="pl-8 pr-8"
+                              disabled={isLoading}
+                              autoComplete="new-password"
+                              {...field}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                              aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                              {showPassword ? <RiEyeOffLine className="size-4" /> : <RiEyeLine className="size-4" />}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={resetForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm new password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <RiLockLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              type={showPassword ? 'text' : 'password'}
+                              placeholder="Confirm password"
+                              className="pl-8"
+                              disabled={isLoading}
+                              autoComplete="new-password"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      disabled={isLoading}
+                      onClick={() => {
+                        setIsOtpSent(false)
+                        resetForm.reset()
+                      }}
+                    >
+                      Back
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={isLoading}>
+                      {isLoading ? 'Resetting...' : 'Reset password'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
+
+            <Separator className="my-5" />
+
+            <p className="text-center text-xs text-muted-foreground">
+              Remembered your password?{' '}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/login">Sign in</Link>
+              </Button>
             </p>
-          </div>
-
-          {!isOtpSent ? (
-            <form onSubmit={handleRequestOtp} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Registered Email Address
-                </label>
-                <div className="relative">
-                  <Mail01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@eyecare.com"
-                    className="input pl-10"
-                    disabled={isLoading}
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button type="submit" disabled={isLoading} className="btn-primary w-full">
-                {isLoading ? 'Sending OTP...' : 'Send OTP'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-muted-foreground mb-2">
-                  OTP
-                </label>
-                <div className="relative">
-                  <Key01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
-                  <input
-                    id="otp"
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit code"
-                    className="input pl-10 tracking-[0.35em]"
-                    disabled={isLoading}
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-muted-foreground mb-2">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Lock01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
-                  <input
-                    id="newPassword"
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password"
-                    className="input pl-10 pr-10"
-                    disabled={isLoading}
-                    autoComplete="new-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-fg-quaternary hover:text-fg-secondary"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-muted-foreground mb-2">
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <Lock01 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fg-quaternary" />
-                  <input
-                    id="confirmPassword"
-                    type={showPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm password"
-                    className="input pl-10 pr-10"
-                    disabled={isLoading}
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOtpSent(false)
-                    setOtp('')
-                    setNewPassword('')
-                    setConfirmPassword('')
-                  }}
-                  className="btn-secondary flex-1"
-                  disabled={isLoading}
-                >
-                  Back
-                </button>
-                <button type="submit" disabled={isLoading} className="btn-primary flex-1">
-                  {isLoading ? 'Resetting...' : 'Reset Password'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          <p className="text-center text-sm text-muted-foreground">
-            Remembered your password?{' '}
-            <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-500">
-              Sign in
-            </Link>
-          </p>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

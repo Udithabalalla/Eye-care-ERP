@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  CalendarDays,
-  DollarSign,
-  FileBarChart,
-  FileText,
-  Package,
-  TrendingUp,
-  Users,
-  UserRoundPlus,
-  WalletCards,
-} from 'lucide-react'
+  RiCalendarLine,
+  RiMoneyDollarCircleLine,
+  RiFileChartLine,
+  RiFileTextLine,
+  RiBox3Line,
+  RiLineChartLine,
+  RiTeamLine,
+  RiUserAddLine,
+  RiWallet3Line,
+} from '@remixicon/react'
 import {
   Area,
   AreaChart,
@@ -70,28 +70,28 @@ const Dashboard = () => {
     {
       title: "Today's Appointments",
       value: String(stats?.today_appointments || 0),
-      icon: CalendarDays,
+      icon: RiCalendarLine,
       tone: 'secondary',
       chip: 'Today',
     },
     {
       title: 'Low Stock Items',
       value: String(stats?.low_stock_items || 0),
-      icon: Package,
+      icon: RiBox3Line,
       tone: 'destructive',
       chip: 'Stock',
     },
     {
       title: 'Total Patients',
       value: String(stats?.total_patients || 0),
-      icon: Users,
+      icon: RiTeamLine,
       tone: 'default',
       chip: 'Active',
     },
     {
       title: 'Pending Payments',
       value: formatCurrency(stats?.pending_payments || 0),
-      icon: WalletCards,
+      icon: RiWallet3Line,
       tone: 'outline',
       chip: 'Pending',
     },
@@ -138,7 +138,7 @@ const Dashboard = () => {
             View schedule
           </Button>
           <Button onClick={() => navigate('/patients')}>
-            <UserRoundPlus className="size-4" />
+            <RiUserAddLine className="size-4" />
             New patient
           </Button>
         </div>
@@ -149,7 +149,7 @@ const Dashboard = () => {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,hsl(var(--primary)/0.2),transparent_45%),radial-gradient(circle_at_85%_10%,hsl(var(--accent)/0.16),transparent_35%)]" />
           <CardHeader className="relative">
             <CardDescription className="flex items-center gap-1.5">
-              <TrendingUp className="size-3.5" />
+              <RiLineChartLine className="size-3.5" />
               Revenue this month
             </CardDescription>
             <CardTitle className="text-3xl">
@@ -161,7 +161,7 @@ const Dashboard = () => {
             <div className="flex gap-2">
               <Button onClick={() => navigate('/invoices')}>New invoice</Button>
               <Button variant="outline" onClick={() => navigate('/reports')}>
-                <FileBarChart className="size-4" />
+                <RiFileChartLine className="size-4" />
                 Reports
               </Button>
             </div>
@@ -177,7 +177,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="flex items-center justify-between">
             <Badge variant="outline">Live</Badge>
-            <DollarSign className="size-5 text-muted-foreground" />
+            <RiMoneyDollarCircleLine className="size-5 text-muted-foreground" />
           </CardContent>
         </Card>
       </section>
@@ -270,7 +270,7 @@ const Dashboard = () => {
                   <TableRow key={row.item}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <FileText className="size-3.5 text-muted-foreground" />
+                        <RiFileTextLine className="size-3.5 text-muted-foreground" />
                         <span>{row.item}</span>
                       </div>
                     </TableCell>

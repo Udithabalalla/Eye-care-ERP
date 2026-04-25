@@ -1,4 +1,5 @@
-import { Loading01 } from '@untitledui/icons'
+import { RiLoader4Line } from '@remixicon/react'
+import { cn } from '@/utils/helpers'
 
 interface LoadingProps {
   size?: 'sm' | 'md' | 'lg'
@@ -15,7 +16,7 @@ const Loading = ({ size = 'md', text, fullScreen = false }: LoadingProps) => {
 
   const content = (
     <div className="flex flex-col items-center justify-center space-y-3">
-      <Loading01 className={`${sizeClasses[size]} animate-spin text-primary`} />
+      <RiLoader4Line className={cn(sizeClasses[size], 'animate-spin text-primary')} />
       {text && <p className="text-sm text-muted-foreground">{text}</p>}
     </div>
   )
@@ -32,5 +33,3 @@ const Loading = ({ size = 'md', text, fullScreen = false }: LoadingProps) => {
 }
 
 export default Loading
-
-

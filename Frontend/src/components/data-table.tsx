@@ -8,7 +8,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronDown } from '@untitledui/icons'
+import { RiArrowDownSLine } from '@remixicon/react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -80,7 +80,7 @@ export function DataTable<TData, TValue>({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
-              Columns <ChevronDown className="size-4" />
+              Columns <RiArrowDownSLine className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

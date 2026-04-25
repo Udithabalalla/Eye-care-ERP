@@ -1,176 +1,135 @@
-import { useState, useRef, useEffect } from 'react'
-import { SearchLg, XClose, ChevronDown } from '@untitledui/icons'
+import { useState } from 'react'
+import { RiArrowDownSLine, RiCloseLine, RiCheckLine } from '@remixicon/react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 
 export interface LOVOption {
-    value: string
-    label: string
-    subtitle?: string
+  value: string
+  label: string
+  subtitle?: string
 }
 
 interface SearchableLOVProps {
-    options: LOVOption[]
-    value: string
-    onChange: (value: string) => void
-    placeholder?: string
-    label?: string
-    error?: string
-    disabled?: boolean
-    required?: boolean
+  options: LOVOption[]
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  label?: string
+  error?: string
+  disabled?: boolean
+  required?: boolean
 }
 
 const SearchableLOV = ({
-    options,
-    value,
-    onChange,
-    placeholder = 'Select...',
-    label,
-    error,
-    disabled = false,
-    required = false,
+  options,
+  value,
+  onChange,
+  placeholder = 'Select...',
+  label,
+  error,
+  disabled = false,
+  required = false,
 }: SearchableLOVProps) => {
-    const [isOpen, setIsOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('')
-    const dropdownRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-                setSearchTerm('')
-            }
-        }
+  const selectedOption = options.find((opt) => opt.value === value)
 
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+  const handleSelect = (optionValue: string) => {
+    onChange(optionValue === value ? '' : optionValue)
+    setOpen(false)
+  }
 
-    // Filter options based on search term
-    const filteredOptions = options.filter((option) => {
-        const searchLower = searchTerm.toLowerCase()
-        return (
-            option.label.toLowerCase().includes(searchLower) ||
-            option.value.toLowerCase().includes(searchLower) ||
-            option.subtitle?.toLowerCase().includes(searchLower)
-        )
-    })
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onChange('')
+  }
 
-    // Get selected option
-    const selectedOption = options.find((opt) => opt.value === value)
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && (
+        <label className="text-xs font-medium text-foreground">
+          {label}
+          {required && <span className="text-destructive ml-1">*</span>}
+        </label>
+      )}
 
-    const handleSelect = (optionValue: string) => {
-        onChange(optionValue)
-        setIsOpen(false)
-        setSearchTerm('')
-    }
-
-    const handleClear = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        onChange('')
-        setSearchTerm('')
-    }
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            {label && (
-                <label className="label">
-                    {label}
-                    {required && <span className="text-error-600 ml-1">*</span>}
-                </label>
+      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className={cn(
+              'w-full justify-between font-normal h-auto py-2',
+              error && 'border-destructive ring-destructive/20',
+              !selectedOption && 'text-muted-foreground'
             )}
+          >
+            <span className="flex-1 truncate text-left">
+              {selectedOption ? (
+                <span className="flex flex-col">
+                  <span className="font-medium text-foreground">{selectedOption.label}</span>
+                  {selectedOption.subtitle && (
+                    <span className="text-xs text-muted-foreground">{selectedOption.subtitle}</span>
+                  )}
+                </span>
+              ) : (
+                placeholder
+              )}
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              {value && !disabled && (
+                <RiCloseLine
+                  className="size-4 text-muted-foreground hover:text-foreground"
+                  onClick={handleClear}
+                />
+              )}
+              <RiArrowDownSLine className={cn('size-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
+            </span>
+          </Button>
+        </PopoverTrigger>
 
-            {/* Trigger Button */}
-            <div
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`
-          w-full px-4 py-2.5 text-left bg-background border rounded-lg
-          flex items-center justify-between transition-all
-          ${disabled ? 'bg-tertiary cursor-not-allowed opacity-60' : 'hover:border-border cursor-pointer'}
-          ${error ? 'border-error-500' : 'border-border'}
-          ${isOpen ? 'ring-2 ring-brand-500/20 border-brand-500' : ''}
-        `}
-            >
-                <div className="flex-1 truncate">
-                    {selectedOption ? (
-                        <div>
-                            <div className="text-foreground font-medium">{selectedOption.label}</div>
-                            {selectedOption.subtitle && (
-                                <div className="text-sm text-muted-foreground">{selectedOption.subtitle}</div>
-                            )}
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground">{placeholder}</span>
-                    )}
-                </div>
-                <div className="flex items-center space-x-2">
-                    {value && !disabled && (
-                        <XClose
-                            className="w-4 h-4 text-muted-foreground hover:text-muted-foreground"
-                            onClick={handleClear}
-                        />
-                    )}
-                    <ChevronDown
-                        className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'transform rotate-180' : ''
-                            }`}
-                    />
-                </div>
-            </div>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search..." />
+            <CommandList>
+              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    onSelect={handleSelect}
+                    className="flex items-center gap-2"
+                  >
+                    <RiCheckLine className={cn('size-4 shrink-0', value === option.value ? 'opacity-100' : 'opacity-0')} />
+                    <span className="flex flex-col">
+                      <span className="font-medium">{option.label}</span>
+                      {option.subtitle && (
+                        <span className="text-xs text-muted-foreground">{option.subtitle}</span>
+                      )}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
-            {/* Dropdown */}
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-background border border-border rounded-xl shadow-lg max-h-80 overflow-hidden">
-                    {/* Search Input */}
-                    <div className="p-3 border-b border-border sticky top-0 bg-background">
-                        <div className="relative">
-                            <SearchLg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 border border-border bg-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-foreground placeholder:text-muted-foreground"
-                                autoFocus
-                            />
-                        </div>
-                    </div>
-
-                    {/* Options List */}
-                    <div className="overflow-y-auto max-h-64">
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => handleSelect(option.value)}
-                                    className={`
-                    w-full px-4 py-3 text-left hover:bg-tertiary transition-colors
-                    ${value === option.value ? 'bg-brand-500/10 border-l-2 border-brand-500' : ''}
-                  `}
-                                >
-                                    <div className="font-medium text-foreground">{option.label}</div>
-                                    {option.subtitle && (
-                                        <div className="text-sm text-muted-foreground">{option.subtitle}</div>
-                                    )}
-                                </button>
-                            ))
-                        ) : (
-                            <div className="px-4 py-8 text-center text-muted-foreground">
-                                No results found
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Error Message */}
-            {error && <p className="text-sm text-error-600 mt-1">{error}</p>}
-        </div>
-    )
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  )
 }
 
 export default SearchableLOV
-
-
-
-
-
