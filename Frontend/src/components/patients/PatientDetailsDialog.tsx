@@ -128,7 +128,7 @@ const PatientDetailsDialog = ({ isOpen, patientId, initialPatient, onClose }: Pa
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[740px] max-h-[calc(100dvh-48px)] overflow-y-auto">
+      <DialogContent className="sm:max-w-[50rem] max-h-[calc(100dvh-48px)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{patient?.name || 'Patient Details'}</DialogTitle>
           {error && <p className="text-sm text-destructive">{error}</p>}
