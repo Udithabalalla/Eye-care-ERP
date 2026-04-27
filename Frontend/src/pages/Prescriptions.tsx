@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
-import { RiAddLine, RiSearchLine, RiFileTextLine, RiCalendarLine, RiEyeLine, RiDownloadLine } from '@remixicon/react'
+import { RiAddLine, RiSearchLine, RiFileTextLine, RiCalendarLine, RiEyeLine, RiMore2Line } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import Loading from '@/components/common/Loading'
 import Pagination from '@/components/common/Pagination'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
@@ -98,51 +103,55 @@ const Prescriptions = () => {
     )
   })
 
+  const summaryStats = useMemo(() => {
+    const rows = data?.data || []
+    return {
+      total: data?.total || 0,
+      eyePrescriptions: rows.filter((p) => p.eye_prescription).length,
+      withMedications: rows.filter((p) => p.medications && p.medications.length > 0).length,
+      expired: rows.filter((p) => new Date(p.valid_until) < new Date()).length,
+    }
+  }, [data])
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Total Prescriptions</p>
-              <p className="text-2xl font-bold text-foreground">{data?.total || 0}</p>
+              <p className="text-2xl font-bold text-foreground">{summaryStats.total}</p>
             </div>
-            <RiFileTextLine className="w-8 h-8 text-brand-600" />
-          </div>
-        </div>
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+            <RiFileTextLine className="size-8 text-primary" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Eye Prescriptions</p>
-              <p className="text-2xl font-bold text-brand-600">
-                {data?.data.filter((p) => p.eye_prescription).length || 0}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{summaryStats.eyePrescriptions}</p>
             </div>
-            <RiEyeLine className="w-8 h-8 text-brand-600" />
-          </div>
-        </div>
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+            <RiEyeLine className="size-8 text-primary" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">With Medications</p>
-              <p className="text-2xl font-bold text-success-600">
-                {data?.data.filter((p) => p.medications && p.medications.length > 0).length || 0}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{summaryStats.withMedications}</p>
             </div>
-            <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-lg">💊</div>
-          </div>
-        </div>
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+            <RiFileTextLine className="size-8 text-primary" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Expired</p>
-              <p className="text-2xl font-bold text-error-600">
-                {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{summaryStats.expired}</p>
             </div>
-            <RiCalendarLine className="w-8 h-8 text-error-600" />
-          </div>
-        </div>
+            <RiCalendarLine className="size-8 text-destructive" />
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border-border/60">
@@ -207,7 +216,7 @@ const Prescriptions = () => {
                     <TableHead>Diagnosis</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Valid Until</TableHead>
-                    <TableHead />
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -234,17 +243,17 @@ const Prescriptions = () => {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {prescription.eye_prescription && (
-                            <Badge variant="outline" className="border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-400">
+                            <Badge variant="secondary">
                               {prescription.eye_prescription.prescription_type}
                             </Badge>
                           )}
                           {prescription.medications && prescription.medications.length > 0 && (
-                            <Badge variant="outline" className="border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400">
+                            <Badge variant="secondary">
                               {prescription.medications.length} Med{prescription.medications.length > 1 ? 's' : ''}
                             </Badge>
                           )}
                           {prescription.contact_lenses && (
-                            <Badge variant="outline" className="border-warning-200 bg-warning-50 text-warning-700 dark:bg-warning-950 dark:text-warning-400">
+                            <Badge variant="secondary">
                               Contact Lenses
                             </Badge>
                           )}
@@ -255,38 +264,43 @@ const Prescriptions = () => {
                           const validDate = new Date(prescription.valid_until)
                           const isExpired = validDate < new Date()
                           return (
-                            <span className={isExpired ? 'text-error-600 font-medium' : 'text-foreground'}>
+                            <span className={isExpired ? 'text-destructive font-medium' : 'text-foreground'}>
                               {formatDate(prescription.valid_until)}
                             </span>
                           )
                         })()}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleEdit(prescription)} aria-label="View">
-                                  <RiEyeLine className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>View prescription</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(prescription.prescription_id)} aria-label="Download PDF">
-                                  <RiDownloadLine className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Download PDF</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="data-[state=open]:bg-muted"
+                              aria-label="Open prescription actions"
+                            >
+                              <RiMore2Line className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem onClick={() => handleEdit(prescription)}>
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadPDF(prescription.prescription_id)}>
+                              Download PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {(filteredData || []).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                        No prescriptions found.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
               {data && (

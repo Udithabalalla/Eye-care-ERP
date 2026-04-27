@@ -9,6 +9,7 @@ import {
   RiFileTextLine,
   RiDownloadLine,
   RiMoneyDollarCircleLine,
+  RiMore2Line,
 } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +36,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import Loading from '@/components/common/Loading'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
 import PaymentModal from '@/components/invoices/PaymentModal'
@@ -223,49 +230,39 @@ const Invoices = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <TooltipProvider>
-                            <div className="flex items-center justify-end gap-1">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon-sm" onClick={() => handleView(invoice)} aria-label="View">
-                                    <RiEyeLine className="size-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>View invoice</TooltipContent>
-                              </Tooltip>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="data-[state=open]:bg-muted"
+                                aria-label="Open invoice actions"
+                              >
+                                <RiMore2Line className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuItem onClick={() => handleView(invoice)}>
+                                View Details
+                              </DropdownMenuItem>
 
                               {invoice.prescription_id && invoice.prescription_id !== 'string' && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon-sm" onClick={() => handleViewPrescription(invoice.prescription_id!)} aria-label="View Prescription">
-                                      <RiFileTextLine className="size-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>View prescription</TooltipContent>
-                                </Tooltip>
+                                <DropdownMenuItem onClick={() => handleViewPrescription(invoice.prescription_id!)}>
+                                  View Prescription
+                                </DropdownMenuItem>
                               )}
 
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon-sm" onClick={() => handleDownloadPDF(invoice.invoice_id)} aria-label="Download PDF">
-                                    <RiDownloadLine className="size-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Download PDF</TooltipContent>
-                              </Tooltip>
+                              <DropdownMenuItem onClick={() => handleDownloadPDF(invoice.invoice_id)}>
+                                Download PDF
+                              </DropdownMenuItem>
 
                               {invoice.balance_due > 0 && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon-sm" onClick={() => handlePayment(invoice)} aria-label="Record payment">
-                                      <RiMoneyDollarCircleLine className="size-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Record payment</TooltipContent>
-                                </Tooltip>
+                                <DropdownMenuItem onClick={() => handlePayment(invoice)}>
+                                  Record Payment
+                                </DropdownMenuItem>
                               )}
-                            </div>
-                          </TooltipProvider>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}

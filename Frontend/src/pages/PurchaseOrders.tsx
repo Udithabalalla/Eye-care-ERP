@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RiAddLine, RiSearchLine } from '@remixicon/react'
+import { RiAddLine, RiSearchLine, RiMore2Line } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import Loading from '@/components/common/Loading'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder } from '@/types/supplier.types'
@@ -115,20 +121,43 @@ const PurchaseOrders = () => {
                     </TableCell>
                     <TableCell>{formatCurrency(order.total_amount)}</TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        {order.status === 'Draft' ? (
-                          <Button size="sm" onClick={() => changeStatus(order, 'Approved')}>Approve</Button>
-                        ) : order.status === 'Approved' ? (
-                          <Button size="sm" onClick={() => changeStatus(order, 'Ordered')}>Mark Ordered</Button>
-                        ) : order.status === 'Ordered' ? (
-                          <Button size="sm" onClick={() => { setSelectedOrder(order); setIsReceiveOpen(true) }}>Receive Goods</Button>
-                        ) : order.status === 'Received' ? (
-                          <Button size="sm" onClick={() => { setSelectedOrder(order); setIsInvoiceOpen(true) }}>Create Supplier Invoice</Button>
-                        ) : (
-                          <Button size="sm" disabled>{order.status}</Button>
-                        )}
-                        <Button variant="outline" size="sm" onClick={() => downloadPdf(order)}>Download PDF</Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="data-[state=open]:bg-muted"
+                            aria-label="Open purchase order actions"
+                          >
+                            <RiMore2Line className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          {order.status === 'Draft' && (
+                            <DropdownMenuItem onClick={() => changeStatus(order, 'Approved')}>
+                              Approve Order
+                            </DropdownMenuItem>
+                          )}
+                          {order.status === 'Approved' && (
+                            <DropdownMenuItem onClick={() => changeStatus(order, 'Ordered')}>
+                              Mark as Ordered
+                            </DropdownMenuItem>
+                          )}
+                          {order.status === 'Ordered' && (
+                            <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsReceiveOpen(true) }}>
+                              Receive Goods
+                            </DropdownMenuItem>
+                          )}
+                          {order.status === 'Received' && (
+                            <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsInvoiceOpen(true) }}>
+                              Create Supplier Invoice
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => downloadPdf(order)}>
+                            Download PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

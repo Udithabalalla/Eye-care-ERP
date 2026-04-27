@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RiAddLine, RiSearchLine, RiEditLine } from '@remixicon/react'
+import { RiAddLine, RiSearchLine, RiEditLine, RiMore2Line } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import Modal from '@/components/common/Modal'
 import Loading from '@/components/common/Loading'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -164,26 +170,33 @@ const Lenses = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedLens(lens)
-                            setIsModalOpen(true)
-                          }}
-                        >
-                          <RiEditLine className="size-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant={lens.is_active ? 'outline' : 'default'}
-                          size="sm"
-                          onClick={() => statusMutation.mutate({ id: lens.id, is_active: !lens.is_active })}
-                        >
-                          {lens.is_active ? 'Deactivate' : 'Activate'}
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="data-[state=open]:bg-muted"
+                            aria-label="Open lens actions"
+                          >
+                            <RiMore2Line className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedLens(lens)
+                              setIsModalOpen(true)
+                            }}
+                          >
+                            Edit Lens
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => statusMutation.mutate({ id: lens.id, is_active: !lens.is_active })}
+                          >
+                            {lens.is_active ? 'Deactivate Lens' : 'Activate Lens'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

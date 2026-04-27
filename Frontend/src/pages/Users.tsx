@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RiAddLine, RiEditLine, RiSearchLine, RiLockLine, RiLockUnlockLine } from '@remixicon/react'
+import { RiAddLine, RiEditLine, RiSearchLine, RiLockLine, RiLockUnlockLine, RiMore2Line } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import Loading from '@/components/common/Loading'
 import Modal from '@/components/common/Modal'
 import toast from 'react-hot-toast'
@@ -165,39 +171,36 @@ const Users = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="p-2 hover:bg-secondary rounded transition-colors"
-                          title="Edit"
-                        >
-                          <RiEditLine className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedUser(user); setResetPasswordOpen(true) }}
-                          className="p-2 hover:bg-secondary rounded transition-colors"
-                          title="Reset Password"
-                        >
-                          <RiLockLine className="w-4 h-4" />
-                        </button>
-                        {user.is_active ? (
-                          <button
-                            onClick={() => { if (window.confirm('Deactivate this user?')) deactivateUserMutation.mutate(user.user_id) }}
-                            className="p-2 hover:bg-error-100 rounded transition-colors text-error-600"
-                            title="Deactivate"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="data-[state=open]:bg-muted"
+                            aria-label="Open user actions"
                           >
-                            <RiLockUnlockLine className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => activateUserMutation.mutate(user.user_id)}
-                            className="p-2 hover:bg-success-100 rounded transition-colors text-success-600"
-                            title="Activate"
-                          >
-                            <RiLockUnlockLine className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                            <RiMore2Line className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setSelectedUser(user); setResetPasswordOpen(true) }}>
+                            Reset Password
+                          </DropdownMenuItem>
+                          {user.is_active ? (
+                            <DropdownMenuItem onClick={() => { if (window.confirm('Deactivate this user?')) deactivateUserMutation.mutate(user.user_id) }}>
+                              Deactivate User
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => activateUserMutation.mutate(user.user_id)}>
+                              Activate User
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                     </TableCell>
                   </TableRow>
                 ))}
