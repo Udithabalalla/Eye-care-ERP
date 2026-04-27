@@ -1,5 +1,4 @@
-
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import PatientForm from './PatientForm'
 import { Patient } from '@/types/patient.types'
 
@@ -12,21 +11,21 @@ interface PatientModalProps {
 
 const PatientModal = ({ isOpen, onClose, patient, onSuccess }: PatientModalProps) => {
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={patient ? 'Edit Patient' : 'Add New Patient'}
-      size="lg"
-    >
-      <PatientForm
-        patient={patient}
-        onSuccess={() => {
-          onSuccess()
-          onClose()
-        }}
-        onCancel={onClose}
-      />
-    </Modal>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{patient ? 'Edit Patient' : 'Add New Patient'}</DialogTitle>
+        </DialogHeader>
+        <PatientForm
+          patient={patient}
+          onSuccess={() => {
+            onSuccess()
+            onClose()
+          }}
+          onCancel={onClose}
+        />
+      </DialogContent>
+    </Dialog>
   )
 }
 

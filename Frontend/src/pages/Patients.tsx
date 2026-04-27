@@ -5,10 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
 import { RiAddLine, RiMore2Line } from '@remixicon/react'
-import {
-  PaginationPageDefault,
-  Avatar,
-} from '@/components/ui'
+import Pagination from '@/components/common/Pagination'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import PatientModal from '@/components/patients/PatientModal'
 import PatientDetailsDialog from '@/components/patients/PatientDetailsDialog'
 import { formatDate, formatPhone } from '@/utils/formatters'
@@ -223,7 +221,10 @@ const Patients = () => {
         ),
         cell: ({ row }) => (
           <div className="relative z-0 flex items-center gap-3">
-            <Avatar src={`https://ui-avatars.com/api/?name=${row.original.name}&background=random`} alt={row.original.name} size="md" />
+            <Avatar className="size-9">
+              <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(row.original.name)}&background=random`} alt={row.original.name} />
+              <AvatarFallback>{row.original.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">{row.original.name}</p>
               <p className="truncate text-sm text-muted-foreground">{row.original.email}</p>
@@ -384,11 +385,13 @@ const Patients = () => {
             className="px-6"
           />
           {data && (
-            <PaginationPageDefault
-              page={page}
-              total={data.total_pages}
+            <Pagination
+              currentPage={page}
+              totalPages={data.total_pages}
               onPageChange={setPage}
-              className="border-t border-border px-6 py-4"
+              pageSize={pageSize}
+              onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+              totalItems={data.total}
             />
           )}
         </CardContent>
