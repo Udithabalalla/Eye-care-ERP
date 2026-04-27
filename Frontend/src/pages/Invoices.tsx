@@ -5,10 +5,6 @@ import { invoicesApi } from '@/api/invoices.api'
 import {
   RiAddLine,
   RiSearchLine,
-  RiEyeLine,
-  RiFileTextLine,
-  RiDownloadLine,
-  RiMoneyDollarCircleLine,
   RiMore2Line,
 } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
@@ -30,12 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,

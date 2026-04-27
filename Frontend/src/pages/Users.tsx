@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RiAddLine, RiEditLine, RiSearchLine, RiLockLine, RiLockUnlockLine, RiMore2Line } from '@remixicon/react'
+import { RiAddLine, RiSearchLine, RiMore2Line } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -200,7 +200,6 @@ const Users = () => {
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
                     </TableCell>
                   </TableRow>
                 ))}

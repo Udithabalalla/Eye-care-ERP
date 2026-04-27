@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RiAddLine, RiSearchLine, RiEditLine, RiMore2Line } from '@remixicon/react'
+import { RiAddLine, RiSearchLine, RiMore2Line } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
