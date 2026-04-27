@@ -9,8 +9,8 @@ import toast from 'react-hot-toast'
 import { safeDate } from '@/utils/formatters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Form,
   FormControl,
@@ -31,7 +31,7 @@ import {
 const patientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  gender: z.nativeEnum(Gender, { required_error: 'Gender is required' }),
+  gender: z.nativeEnum(Gender),
   phone: z.string().min(10, 'Phone must be at least 10 digits'),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.object({
@@ -42,9 +42,9 @@ const patientSchema = z.object({
     country: z.string().default('USA'),
   }).optional(),
   emergency_contact: z.object({
-    name: z.string(),
-    relationship: z.string(),
-    phone: z.string(),
+    name: z.string().optional(),
+    relationship: z.string().optional(),
+    phone: z.string().optional(),
   }).optional(),
   notes: z.string().optional(),
 })
@@ -75,8 +75,8 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
         }
       : {
           email: '',
-          address: { country: 'USA' },
           notes: '',
+          address: { country: 'USA' },
         },
   })
 
@@ -107,16 +107,13 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     if (!cleaned.email) delete cleaned.email
 
     if (cleaned.address) {
-      const { country, ...addrFields } = cleaned.address
-      if (!Object.values(addrFields).some((v) => v && String(v).trim())) {
-        delete cleaned.address
-      }
+      const { country, ...rest } = cleaned.address
+      if (!Object.values(rest).some((v) => v && String(v).trim())) delete cleaned.address
     }
 
     if (cleaned.emergency_contact) {
-      if (!Object.values(cleaned.emergency_contact).some((v) => v && String(v).trim())) {
+      if (!Object.values(cleaned.emergency_contact).some((v) => v && String(v).trim()))
         delete cleaned.emergency_contact
-      }
     }
 
     if (!cleaned.notes?.trim()) delete cleaned.notes
@@ -128,15 +125,17 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     }
   }
 
+  const isPending = createMutation.isPending || updateMutation.isPending
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 
-        {/* ── Basic Information ───────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* Basic Information */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Core patient details used across the system.</p>
+            <p className="text-base font-semibold text-foreground">Basic Information</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Core patient details used across the system.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -174,9 +173,9 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gender <span className="text-destructive">*</span></FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full h-9 text-sm">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                     </FormControl>
@@ -209,7 +208,7 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="md:col-span-2">
+                <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="patient@example.com" {...field} />
@@ -221,13 +220,11 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
           </div>
         </div>
 
-        <Separator />
-
-        {/* ── Address ─────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* Address */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Address</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Optional location details for correspondence and records.</p>
+            <p className="text-base font-semibold text-foreground">Address</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Optional location details for correspondence and records.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -240,7 +237,6 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="Street address" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -254,7 +250,6 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="City" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -268,7 +263,6 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="State" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -282,20 +276,17 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="ZIP code" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
           </div>
         </div>
 
-        <Separator />
-
-        {/* ── Emergency Contact ────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* Emergency Contact */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Emergency Contact</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Used when a quick alternate contact is needed.</p>
+            <p className="text-base font-semibold text-foreground">Emergency Contact</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Used when a quick alternate contact is needed.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -308,7 +299,6 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="Contact name" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -322,7 +312,6 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="e.g. Spouse, Parent" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -336,20 +325,17 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
                   <FormControl>
                     <Input placeholder="Contact phone" {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
           </div>
         </div>
 
-        <Separator />
-
-        {/* ── Notes ───────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* Notes */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Notes</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Add any clinical or administrative notes here.</p>
+            <p className="text-base font-semibold text-foreground">Notes</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Add any clinical or administrative notes here.</p>
           </div>
 
           <FormField
@@ -359,24 +345,23 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
               <FormItem>
                 <FormLabel>Notes</FormLabel>
                 <FormControl>
-                  <Textarea rows={3} placeholder="Optional notes..." {...field} />
+                  <Textarea rows={4} placeholder="Optional notes about this patient..." {...field} />
                 </FormControl>
-                <FormDescription>This information is visible to staff only.</FormDescription>
+                <FormDescription>Visible to clinical staff only.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        {/* ── Actions ─────────────────────────────────────────────── */}
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <Separator />
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting
-              ? 'Saving...'
-              : patient ? 'Update Patient' : 'Create Patient'}
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Saving...' : patient ? 'Update Patient' : 'Create Patient'}
           </Button>
         </div>
       </form>
