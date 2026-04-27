@@ -1,21 +1,19 @@
-import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 const Layout = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
-      <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-      <div className="pl-0 md:pl-64 pt-20 transition-all duration-300">
-        <main className="p-4 md:p-8 max-w-[1600px] mx-auto animate-fade-in-up">
+    <SidebarProvider>
+      <Sidebar />
+      <SidebarInset>
+        <Header />
+        <main className="flex-1 p-4 md:p-8 max-w-[1600px] mx-auto animate-fade-in-up">
           <Outlet />
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 

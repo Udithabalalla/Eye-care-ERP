@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import './styles/globals.css'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { TooltipProvider } from './components/ui/tooltip'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
         <BrowserRouter>
           <App />
           <Toaster
@@ -55,6 +57,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }}
           />
         </BrowserRouter>
+        </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </React.StrictMode>,
