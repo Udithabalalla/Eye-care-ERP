@@ -6,7 +6,9 @@ import { productsApi } from '@/api/products.api'
 import { Product } from '@/types/product.types'
 import Modal from '@/components/common/Modal'
 import toast from 'react-hot-toast'
-import { Package } from '@untitledui/icons'
+import { RiBox3Line } from '@remixicon/react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const stockSchema = z.object({
   quantity: z.number().int(),
@@ -79,10 +81,9 @@ const StockAdjustmentModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Adjust Stock" size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Product Info */}
         <div className="bg-secondary p-4 rounded-lg">
           <div className="flex items-center space-x-3 mb-3">
-            <Package className="w-8 h-8 text-primary" />
+            <RiBox3Line className="w-8 h-8 text-primary" />
             <div>
               <h3 className="font-semibold text-foreground">{product.name}</h3>
               <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
@@ -94,15 +95,13 @@ const StockAdjustmentModal = ({
           </div>
         </div>
 
-        {/* Quantity Adjustment */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Quantity Change *
           </label>
-          <input
+          <Input
             type="number"
             {...register('quantity', { valueAsNumber: true })}
-            className="input"
             placeholder="Use negative for reduction (e.g., -5)"
           />
           {errors.quantity && (
@@ -113,23 +112,18 @@ const StockAdjustmentModal = ({
           </p>
         </div>
 
-        {/* Reason */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Reason *
           </label>
-          <select {...register('reason')} className="input">
+          <select {...register('reason')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">Select reason</option>
-            <option value="Purchase - New stock received">
-              Purchase - New stock received
-            </option>
+            <option value="Purchase - New stock received">Purchase - New stock received</option>
             <option value="Sale - Product sold">Sale - Product sold</option>
             <option value="Return - Customer return">Return - Customer return</option>
             <option value="Damaged - Product damaged">Damaged - Product damaged</option>
             <option value="Expired - Product expired">Expired - Product expired</option>
-            <option value="Adjustment - Stock correction">
-              Adjustment - Stock correction
-            </option>
+            <option value="Adjustment - Stock correction">Adjustment - Stock correction</option>
             <option value="Other - See notes">Other - See notes</option>
           </select>
           {errors.reason && (
@@ -137,15 +131,17 @@ const StockAdjustmentModal = ({
           )}
         </div>
 
-        {/* Notes */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Additional Notes
           </label>
-          <textarea {...register('notes')} rows={2} className="input" />
+          <textarea
+            {...register('notes')}
+            rows={2}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+          />
         </div>
 
-        {/* Preview */}
         <div
           className={`p-4 rounded-lg border-2 ${newStock < 0
             ? 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-error-800'
@@ -178,18 +174,13 @@ const StockAdjustmentModal = ({
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting || newStock < 0}
-            className="btn-primary"
-          >
+          </Button>
+          <Button type="submit" disabled={isSubmitting || newStock < 0}>
             {isSubmitting ? 'Adjusting...' : 'Adjust Stock'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -197,9 +188,3 @@ const StockAdjustmentModal = ({
 }
 
 export default StockAdjustmentModal
-
-
-
-
-
-

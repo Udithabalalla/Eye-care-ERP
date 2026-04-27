@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
-import { Plus } from '@untitledui/icons'
+import { RiAddLine } from '@remixicon/react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import CommonButton from '@/components/common/Button'
@@ -103,7 +103,7 @@ const Suppliers = () => {
                   setIsOpen(true)
                 }}
               >
-                <Plus className="size-4" />
+                <RiAddLine className="size-4" />
                 Add Supplier
               </CommonButton>
             </div>

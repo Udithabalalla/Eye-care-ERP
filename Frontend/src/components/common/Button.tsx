@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { Loader2 } from 'lucide-react'
+import { RiLoader4Line } from '@remixicon/react'
 import { cn } from '@/utils/helpers'
 import { Button as ShadButton } from '@/components/ui/button'
 
@@ -36,7 +36,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 )}
                 {...props}
             >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />}
                 {children}
             </ShadButton>
         )

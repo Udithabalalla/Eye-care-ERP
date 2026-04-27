@@ -1,6 +1,6 @@
-import { ArrowLeft } from '@untitledui/icons'
+import { RiArrowLeftSLine } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui'
+import { Button } from '@/components/ui/button'
 import SalesOrderIntakeForm from '@/components/sales-orders/SalesOrderIntakeForm'
 
 const SalesOrderAssistant = () => {
@@ -14,7 +14,8 @@ const SalesOrderAssistant = () => {
             <h1 className="text-xl font-semibold text-foreground">Sales Order Assistant</h1>
             <p className="text-sm text-muted-foreground">Use the guided assistant to create a new sales order.</p>
           </div>
-          <Button size="sm" color="secondary" iconLeading={ArrowLeft} onClick={() => navigate('/sales-orders')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/sales-orders')}>
+            <RiArrowLeftSLine className="size-4 mr-1" />
             Back to Sales Orders
           </Button>
         </div>
@@ -26,4 +27,3 @@ const SalesOrderAssistant = () => {
 }
 
 export default SalesOrderAssistant
-

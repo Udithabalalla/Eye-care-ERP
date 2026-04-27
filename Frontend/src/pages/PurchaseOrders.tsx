@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, SearchLg } from '@untitledui/icons'
+import { RiAddLine, RiSearchLine } from '@remixicon/react'
 import toast from 'react-hot-toast'
-import { TableCard, Table, Input, BadgeWithDot } from '@/components/ui'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import Loading from '@/components/common/Loading'
-import CommonButton from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder } from '@/types/supplier.types'
 import CreatePurchaseOrderAssistant from '@/components/purchase-orders/CreatePurchaseOrderAssistant'
@@ -12,44 +15,35 @@ import ReceiveGoodsDialog from '@/components/purchase-orders/ReceiveGoodsDialog'
 import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
 import { formatCurrency } from '@/utils/formatters'
 
+const statusBadgeClass = (status: PurchaseOrder['status']) => {
+  switch (status) {
+    case 'Approved': return 'border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400'
+    case 'Draft': return 'border-border bg-secondary text-muted-foreground'
+    case 'Ordered': return 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-400'
+    case 'Received': return 'border-warning-200 bg-warning-50 text-warning-700 dark:bg-warning-950 dark:text-warning-400'
+    case 'Closed': return 'border-error-200 bg-error-50 text-error-700 dark:bg-error-950 dark:text-error-400'
+    default: return 'border-border bg-secondary text-muted-foreground'
+  }
+}
+
 const PurchaseOrders = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isReceiveOpen, setIsReceiveOpen] = useState(false)
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
   const [search, setSearch] = useState('')
-  const { data, isLoading, refetch } = useQuery({ queryKey: ['purchase-orders', search], queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }) })
-
-  const getStatusColor = (status: PurchaseOrder['status']) => {
-    switch (status) {
-      case 'Approved':
-        return 'success'
-      case 'Draft':
-        return 'gray'
-      case 'Ordered':
-        return 'brand'
-      case 'Received':
-        return 'warning'
-      case 'Closed':
-        return 'error'
-      default:
-        return 'gray'
-    }
-  }
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['purchase-orders', search],
+    queryFn: () => suppliersApi.getPurchaseOrders({ page: 1, page_size: 100 }),
+  })
 
   const changeStatus = async (order: PurchaseOrder, status: 'Approved' | 'Ordered') => {
     try {
       await suppliersApi.updatePurchaseOrderStatus(order.id, status)
-      const successMessage = status === 'Approved'
-        ? 'Purchase order approved'
-        : 'Purchase order marked as ordered'
-      toast.success(successMessage)
+      toast.success(status === 'Approved' ? 'Purchase order approved' : 'Purchase order marked as ordered')
       refetch()
     } catch {
-      const errorMessage = status === 'Approved'
-        ? 'Failed to approve purchase order'
-        : 'Failed to mark purchase order as ordered'
-      toast.error(errorMessage)
+      toast.error(status === 'Approved' ? 'Failed to approve purchase order' : 'Failed to mark purchase order as ordered')
     }
   }
 
@@ -72,55 +66,77 @@ const PurchaseOrders = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header title="Purchase Orders" badge={data?.total || 0} description="Create and track supplier purchase orders" contentTrailing={(
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <Input placeholder="Search purchase orders..." value={search} onChange={setSearch} iconLeading={SearchLg} className="w-full sm:w-72" />
-            <CommonButton onClick={() => { setSelectedOrder(null); setIsCreateOpen(true) }}><Plus className="w-4 h-4 mr-2" />Create PO</CommonButton>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Purchase Orders</CardTitle>
+              <Badge variant="secondary">{data?.total || 0}</Badge>
+            </div>
+            <CardDescription>Create and track supplier purchase orders</CardDescription>
           </div>
-        )} />
-        {isLoading ? <div className="p-8"><Loading /></div> : (
-          <Table>
-            <Table.Header>
-              <Table.Head label="Order ID" isRowHeader />
-              <Table.Head label="Supplier" />
-              <Table.Head label="Status" />
-              <Table.Head label="Total" />
-              <Table.Head label="Actions" />
-            </Table.Header>
-            <Table.Body>
-              {(data?.data || []).map((order) => (
-                <Table.Row key={order.id}>
-                  <Table.Cell>{order.id}</Table.Cell>
-                  <Table.Cell>{order.supplier_information?.supplier_name || order.supplier_id}</Table.Cell>
-                  <Table.Cell>
-                    <BadgeWithDot size="sm" color={getStatusColor(order.status)}>
-                      {order.status}
-                    </BadgeWithDot>
-                  </Table.Cell>
-                  <Table.Cell>{formatCurrency(order.total_amount)}</Table.Cell>
-                  <Table.Cell>
-                    <div className="flex gap-2">
-                      {order.status === 'Draft' ? (
-                        <CommonButton size="sm" onClick={() => changeStatus(order, 'Approved')}>Approve</CommonButton>
-                      ) : order.status === 'Approved' ? (
-                        <CommonButton size="sm" onClick={() => changeStatus(order, 'Ordered')}>Mark Ordered</CommonButton>
-                      ) : order.status === 'Ordered' ? (
-                        <CommonButton size="sm" onClick={() => { setSelectedOrder(order); setIsReceiveOpen(true) }}>Receive Goods</CommonButton>
-                      ) : order.status === 'Received' ? (
-                        <CommonButton size="sm" onClick={() => { setSelectedOrder(order); setIsInvoiceOpen(true) }}>Create Supplier Invoice</CommonButton>
-                      ) : (
-                        <CommonButton size="sm" disabled>{order.status}</CommonButton>
-                      )}
-                      <CommonButton variant="secondary" size="sm" onClick={() => downloadPdf(order)}>Download PDF</CommonButton>
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-72">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search purchase orders..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button onClick={() => { setSelectedOrder(null); setIsCreateOpen(true) }}>
+              <RiAddLine className="size-4 mr-1" />
+              Create PO
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? <div className="p-8"><Loading /></div> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(data?.data || []).map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>{order.id}</TableCell>
+                    <TableCell>{order.supplier_information?.supplier_name || order.supplier_id}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusBadgeClass(order.status)}>
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatCurrency(order.total_amount)}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {order.status === 'Draft' ? (
+                          <Button size="sm" onClick={() => changeStatus(order, 'Approved')}>Approve</Button>
+                        ) : order.status === 'Approved' ? (
+                          <Button size="sm" onClick={() => changeStatus(order, 'Ordered')}>Mark Ordered</Button>
+                        ) : order.status === 'Ordered' ? (
+                          <Button size="sm" onClick={() => { setSelectedOrder(order); setIsReceiveOpen(true) }}>Receive Goods</Button>
+                        ) : order.status === 'Received' ? (
+                          <Button size="sm" onClick={() => { setSelectedOrder(order); setIsInvoiceOpen(true) }}>Create Supplier Invoice</Button>
+                        ) : (
+                          <Button size="sm" disabled>{order.status}</Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => downloadPdf(order)}>Download PDF</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
       {isCreateOpen && <CreatePurchaseOrderAssistant isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={() => { setIsCreateOpen(false); refetch() }} />}
       {selectedOrder && isReceiveOpen && <ReceiveGoodsDialog isOpen={isReceiveOpen} order={selectedOrder} onClose={() => setIsReceiveOpen(false)} onSuccess={(updatedOrder) => { setSelectedOrder(updatedOrder); setIsReceiveOpen(false); setIsInvoiceOpen(true); refetch() }} />}
       {selectedOrder && isInvoiceOpen && <CreateSupplierInvoiceDialog isOpen={isInvoiceOpen} order={selectedOrder} onClose={() => setIsInvoiceOpen(false)} onSuccess={() => { setIsInvoiceOpen(false); setSelectedOrder(null); refetch() }} />}

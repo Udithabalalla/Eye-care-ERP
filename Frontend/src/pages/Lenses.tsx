@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, SearchLg, Edit01 } from '@untitledui/icons'
+import { RiAddLine, RiSearchLine, RiEditLine } from '@remixicon/react'
 import toast from 'react-hot-toast'
-import { Table, TableCard, Input, BadgeWithDot, Button } from '@/components/ui'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import Modal from '@/components/common/Modal'
 import Loading from '@/components/common/Loading'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -88,95 +92,106 @@ const Lenses = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Lenses"
-          badge={data?.total || 0}
-          description="Configure lens master data and pricing"
-          contentTrailing={(
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Lenses</CardTitle>
+              <Badge variant="secondary">{data?.total || 0}</Badge>
+            </div>
+            <CardDescription>Configure lens master data and pricing</CardDescription>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <div className="relative w-full sm:w-72">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search lenses..."
                 value={search}
-                onChange={setSearch}
-                iconLeading={SearchLg}
-                className="w-full sm:w-72"
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
-              <Button
-                onClick={() => {
-                  setSelectedLens(null)
-                  setForm(emptyForm)
-                  setIsModalOpen(true)
-                }}
-                iconLeading={Plus}
-              >
-                Add Lens
-              </Button>
             </div>
-          )}
-        />
-
-        {isLoading ? (
-          <div className="p-8">
-            <Loading />
+            <Button
+              onClick={() => {
+                setSelectedLens(null)
+                setForm(emptyForm)
+                setIsModalOpen(true)
+              }}
+            >
+              <RiAddLine className="size-4 mr-1" />
+              Add Lens
+            </Button>
           </div>
-        ) : (
-          <Table aria-label="Lenses table">
-            <Table.Header>
-              <Table.Head label="Lens Type" isRowHeader />
-              <Table.Head label="Color" />
-              <Table.Head label="Size" />
-              <Table.Head label="Price" />
-              <Table.Head label="Code" />
-              <Table.Head label="Status" />
-              <Table.Head label="Actions" />
-            </Table.Header>
-            <Table.Body items={data?.data || []}>
-              {(lens) => (
-                <Table.Row id={lens.id}>
-                  <Table.Cell>
-                    <div>
-                      <p className="font-medium text-foreground">{lens.lens_type}</p>
-                      <p className="text-xs text-muted-foreground">{lens.id}</p>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>{lens.color}</Table.Cell>
-                  <Table.Cell>{lens.size}</Table.Cell>
-                  <Table.Cell>{formatCurrency(lens.price)}</Table.Cell>
-                  <Table.Cell>{lens.lens_code}</Table.Cell>
-                  <Table.Cell>
-                    <BadgeWithDot size="sm" color={lens.is_active ? 'success' : 'error'}>
-                      {lens.is_active ? 'Active' : 'Inactive'}
-                    </BadgeWithDot>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        color="link-gray"
-                        size="sm"
-                        iconLeading={Edit01}
-                        onClick={() => {
-                          setSelectedLens(lens)
-                          setIsModalOpen(true)
-                        }}
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8"><Loading /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lens Type</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(data?.data || []).map((lens) => (
+                  <TableRow key={lens.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{lens.lens_type}</p>
+                        <p className="text-xs text-muted-foreground">{lens.id}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{lens.color}</TableCell>
+                    <TableCell>{lens.size}</TableCell>
+                    <TableCell>{formatCurrency(lens.price)}</TableCell>
+                    <TableCell>{lens.lens_code}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={lens.is_active
+                          ? 'border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400'
+                          : 'border-error-200 bg-error-50 text-error-700 dark:bg-error-950 dark:text-error-400'}
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        color={lens.is_active ? 'secondary' : 'primary'}
-                        size="sm"
-                        onClick={() => statusMutation.mutate({ id: lens.id, is_active: !lens.is_active })}
-                      >
-                        {lens.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
+                        {lens.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedLens(lens)
+                            setIsModalOpen(true)
+                          }}
+                        >
+                          <RiEditLine className="size-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant={lens.is_active ? 'outline' : 'default'}
+                          size="sm"
+                          onClick={() => statusMutation.mutate({ id: lens.id, is_active: !lens.is_active })}
+                        >
+                          {lens.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Modal
         isOpen={isModalOpen}
@@ -188,45 +203,54 @@ const Lenses = () => {
         title={selectedLens ? 'Edit Lens' : 'Add New Lens'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Lens Type"
-            value={form.lens_type}
-            onChange={(value) => setForm((current) => ({ ...current, lens_type: value }))}
-            placeholder="Single Vision"
-            isRequired
-          />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Lens Type *</label>
             <Input
-              label="Color"
-              value={form.color}
-              onChange={(value) => setForm((current) => ({ ...current, color: value }))}
-              placeholder="Clear"
-              isRequired
-            />
-            <Input
-              label="Size"
-              value={form.size}
-              onChange={(value) => setForm((current) => ({ ...current, size: value }))}
-              placeholder="1.50"
-              isRequired
+              value={form.lens_type}
+              onChange={(e) => setForm((current) => ({ ...current, lens_type: e.target.value }))}
+              placeholder="Single Vision"
+              required
             />
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Price"
-              type="number"
-              
-              value={String(form.price)}
-              onChange={(value) => setForm((current) => ({ ...current, price: Number(value) }))}
-              isRequired
-            />
-            <Input
-              label="Lens Code"
-              value={form.lens_code}
-              onChange={(value) => setForm((current) => ({ ...current, lens_code: value }))}
-              placeholder="LN-001"
-              isRequired
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Color *</label>
+              <Input
+                value={form.color}
+                onChange={(e) => setForm((current) => ({ ...current, color: e.target.value }))}
+                placeholder="Clear"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Size *</label>
+              <Input
+                value={form.size}
+                onChange={(e) => setForm((current) => ({ ...current, size: e.target.value }))}
+                placeholder="1.50"
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Price *</label>
+              <Input
+                type="number"
+                value={String(form.price)}
+                onChange={(e) => setForm((current) => ({ ...current, price: Number(e.target.value) }))}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Lens Code *</label>
+              <Input
+                value={form.lens_code}
+                onChange={(e) => setForm((current) => ({ ...current, lens_code: e.target.value }))}
+                placeholder="LN-001"
+                required
+              />
+            </div>
           </div>
           <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
             <input
@@ -239,7 +263,7 @@ const Lenses = () => {
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
-              color="secondary"
+              variant="outline"
               onClick={() => {
                 setIsModalOpen(false)
                 setSelectedLens(null)
@@ -248,7 +272,8 @@ const Lenses = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={saveMutation.isPending}>
+            <Button type="submit" disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <span className="mr-2 h-4 w-4 animate-spin">⟳</span>}
               {selectedLens ? 'Update Lens' : 'Create Lens'}
             </Button>
           </div>
@@ -259,8 +284,3 @@ const Lenses = () => {
 }
 
 export default Lenses
-
-
-
-
-

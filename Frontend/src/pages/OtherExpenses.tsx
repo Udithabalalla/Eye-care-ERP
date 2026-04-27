@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, SearchLg, Edit01 } from '@untitledui/icons'
+import { RiAddLine, RiSearchLine, RiEditLine } from '@remixicon/react'
 import toast from 'react-hot-toast'
-import { Table, TableCard, Input, BadgeWithDot, Button } from '@/components/ui'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import Modal from '@/components/common/Modal'
 import Loading from '@/components/common/Loading'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -79,89 +83,100 @@ const OtherExpenses = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Other Expenses"
-          badge={data?.total || 0}
-          description="Configure reusable expense types for sales orders"
-          contentTrailing={(
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Other Expenses</CardTitle>
+              <Badge variant="secondary">{data?.total || 0}</Badge>
+            </div>
+            <CardDescription>Configure reusable expense types for sales orders</CardDescription>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <div className="relative w-full sm:w-72">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search expenses..."
                 value={search}
-                onChange={setSearch}
-                iconLeading={SearchLg}
-                className="w-full sm:w-72"
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
-              <Button
-                onClick={() => {
-                  setSelectedExpense(null)
-                  setForm(emptyForm)
-                  setIsModalOpen(true)
-                }}
-                iconLeading={Plus}
-              >
-                Add New Expense
-              </Button>
             </div>
-          )}
-        />
-
-        {isLoading ? (
-          <div className="p-8">
-            <Loading />
+            <Button
+              onClick={() => {
+                setSelectedExpense(null)
+                setForm(emptyForm)
+                setIsModalOpen(true)
+              }}
+            >
+              <RiAddLine className="size-4 mr-1" />
+              Add New Expense
+            </Button>
           </div>
-        ) : (
-          <Table aria-label="Other expenses table">
-            <Table.Header>
-              <Table.Head label="Name" isRowHeader />
-              <Table.Head label="Default Cost" />
-              <Table.Head label="Status" />
-              <Table.Head label="Actions" />
-            </Table.Header>
-            <Table.Body items={data?.data || []}>
-              {(expense) => (
-                <Table.Row id={expense.id}>
-                  <Table.Cell>
-                    <div>
-                      <p className="font-medium text-foreground">{expense.name}</p>
-                      <p className="text-xs text-muted-foreground">{expense.id}</p>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>{formatCurrency(expense.default_cost)}</Table.Cell>
-                  <Table.Cell>
-                    <BadgeWithDot size="sm" color={expense.is_active ? 'success' : 'error'}>
-                      {expense.is_active ? 'Active' : 'Inactive'}
-                    </BadgeWithDot>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        color="link-gray"
-                        size="sm"
-                        iconLeading={Edit01}
-                        onClick={() => {
-                          setSelectedExpense(expense)
-                          setIsModalOpen(true)
-                        }}
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8"><Loading /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Default Cost</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(data?.data || []).map((expense) => (
+                  <TableRow key={expense.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{expense.name}</p>
+                        <p className="text-xs text-muted-foreground">{expense.id}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(expense.default_cost)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={expense.is_active
+                          ? 'border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400'
+                          : 'border-error-200 bg-error-50 text-error-700 dark:bg-error-950 dark:text-error-400'}
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        color={expense.is_active ? 'secondary' : 'primary'}
-                        size="sm"
-                        onClick={() => statusMutation.mutate({ id: expense.id, is_active: !expense.is_active })}
-                      >
-                        {expense.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
+                        {expense.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedExpense(expense)
+                            setIsModalOpen(true)
+                          }}
+                        >
+                          <RiEditLine className="size-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant={expense.is_active ? 'outline' : 'default'}
+                          size="sm"
+                          onClick={() => statusMutation.mutate({ id: expense.id, is_active: !expense.is_active })}
+                        >
+                          {expense.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Modal
         isOpen={isModalOpen}
@@ -173,21 +188,24 @@ const OtherExpenses = () => {
         title={selectedExpense ? 'Edit Expense' : 'Add New Expense'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Name"
-            value={form.name}
-            onChange={(value) => setForm((current) => ({ ...current, name: value }))}
-            placeholder="Soldering"
-            isRequired
-          />
-          <Input
-            label="Default Cost"
-            type="number"
-            
-            value={String(form.default_cost)}
-            onChange={(value) => setForm((current) => ({ ...current, default_cost: Number(value) }))}
-            isRequired
-          />
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Name *</label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+              placeholder="Soldering"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Default Cost *</label>
+            <Input
+              type="number"
+              value={String(form.default_cost)}
+              onChange={(e) => setForm((current) => ({ ...current, default_cost: Number(e.target.value) }))}
+              required
+            />
+          </div>
           <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
             <input
               type="checkbox"
@@ -199,7 +217,7 @@ const OtherExpenses = () => {
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
-              color="secondary"
+              variant="outline"
               onClick={() => {
                 setIsModalOpen(false)
                 setSelectedExpense(null)
@@ -208,7 +226,8 @@ const OtherExpenses = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={saveMutation.isPending}>
+            <Button type="submit" disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <span className="mr-2 h-4 w-4 animate-spin">⟳</span>}
               {selectedExpense ? 'Update Expense' : 'Create Expense'}
             </Button>
           </div>
@@ -219,8 +238,3 @@ const OtherExpenses = () => {
 }
 
 export default OtherExpenses
-
-
-
-
-

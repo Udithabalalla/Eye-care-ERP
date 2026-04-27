@@ -1,7 +1,10 @@
 import { Invoice } from '@/types/invoice.types'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import { getStatusColor } from '@/utils/helpers'
-import { Download01, CurrencyDollar } from '@untitledui/icons'
+import { RiDownloadLine, RiMoneyDollarCircleLine } from '@remixicon/react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 
 interface InvoiceDetailProps {
   invoice: Invoice
@@ -12,7 +15,6 @@ interface InvoiceDetailProps {
 const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps) => {
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">{invoice.invoice_number}</h2>
@@ -21,24 +23,23 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <span className={`badge ${getStatusColor(invoice.payment_status)}`}>
+          <Badge variant="outline" className={getStatusColor(invoice.payment_status)}>
             {invoice.payment_status}
-          </span>
-          <button onClick={onDownloadPDF} className="btn-secondary">
-            <Download01 className="w-4 h-4 mr-2" />
+          </Badge>
+          <Button variant="outline" onClick={onDownloadPDF}>
+            <RiDownloadLine className="w-4 h-4 mr-2" />
             PDF
-          </button>
+          </Button>
           {invoice.balance_due > 0 && (
-            <button onClick={onPayment} className="btn-primary">
-              <CurrencyDollar className="w-4 h-4 mr-2" />
+            <Button onClick={onPayment}>
+              <RiMoneyDollarCircleLine className="w-4 h-4 mr-2" />
               Record Payment
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Patient Info */}
-      <div className="card">
+      <div className="rounded-xl border border-border/60 bg-background p-4">
         <h3 className="text-lg font-semibold mb-3">Patient Information</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -58,41 +59,39 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
         </div>
       </div>
 
-      {/* Line Items */}
-      <div className="card">
+      <div className="rounded-xl border border-border/60 bg-background p-4">
         <h3 className="text-lg font-semibold mb-3">Items</h3>
         <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Discount</th>
-                <th>Tax</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Qty</TableHead>
+                <TableHead>Unit Price</TableHead>
+                <TableHead>Discount</TableHead>
+                <TableHead>Tax</TableHead>
+                <TableHead>Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {invoice.items.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.product_name}</td>
-                  <td>{item.sku}</td>
-                  <td>{item.quantity}</td>
-                  <td>{formatCurrency(item.unit_price)}</td>
-                  <td>{formatCurrency(item.discount)}</td>
-                  <td>{formatCurrency(item.tax)}</td>
-                  <td className="font-semibold">{formatCurrency(item.total)}</td>
-                </tr>
+                <TableRow key={index}>
+                  <TableCell>{item.product_name}</TableCell>
+                  <TableCell>{item.sku}</TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                  <TableCell>{formatCurrency(item.discount)}</TableCell>
+                  <TableCell>{formatCurrency(item.tax)}</TableCell>
+                  <TableCell className="font-semibold">{formatCurrency(item.total)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* Totals */}
-      <div className="card bg-secondary">
+      <div className="rounded-xl border border-border/60 bg-secondary p-4">
         <div className="max-w-md ml-auto space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal:</span>
@@ -125,9 +124,8 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
         </div>
       </div>
 
-      {/* Payment Info */}
       {invoice.payment_method && (
-        <div className="card">
+        <div className="rounded-xl border border-border/60 bg-background p-4">
           <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -154,9 +152,3 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
 }
 
 export default InvoiceDetail
-
-
-
-
-
-

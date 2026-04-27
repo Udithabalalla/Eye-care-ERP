@@ -3,11 +3,13 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Prescription, PrescriptionFormData, Medication } from '@/types/prescription.types'
 import { toast } from 'react-hot-toast'
-import { Plus, Trash02 } from '@untitledui/icons'
+import { RiAddLine, RiDeleteBinLine } from '@remixicon/react'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { patientsApi } from '@/api/patients.api'
 import { doctorsApi } from '@/api/doctors.api'
 import { safeDate } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface PrescriptionFormProps {
     prescription?: Prescription | null
@@ -16,6 +18,9 @@ interface PrescriptionFormProps {
     readOnly?: boolean
     onSwitchToEdit?: (prescription: Prescription) => void
 }
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
+const labelClass = 'block text-sm font-medium text-muted-foreground mb-2'
 
 const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false, onSwitchToEdit }: PrescriptionFormProps) => {
     const { data: patients } = useQuery({
@@ -29,7 +34,6 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
     })
 
     console.log('Doctors LOV data:', doctors)
-
     console.log('PrescriptionForm mounting with:', prescription)
 
     const [formData, setFormData] = useState<PrescriptionFormData>(() => {
@@ -64,7 +68,6 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
     const [showEyePrescription, setShowEyePrescription] = useState(!!prescription?.eye_prescription)
     const [existingPrescription, setExistingPrescription] = useState<Prescription | null>(null)
 
-    // Check for existing prescription when patient changes (only in create mode)
     useEffect(() => {
         const checkExistingPrescription = async () => {
             if (!prescription && formData.patient_id) {
@@ -179,27 +182,27 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                 This patient already has a prescription from {new Date(existingPrescription.prescription_date).toLocaleDateString()}.
                             </p>
                         </div>
-                        <div className="space-x-3">
-                            <button
+                        <div className="flex items-center gap-3">
+                            <Button
                                 type="button"
+                                size="sm"
                                 onClick={() => onSwitchToEdit?.(existingPrescription)}
-                                className="px-3 py-1.5 bg-brand-600 text-white text-sm font-medium rounded hover:bg-brand-700 transition-colors"
                             >
                                 Edit Existing
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={() => setExistingPrescription(null)}
-                                className="px-3 py-1.5 bg-background text-brand-600 text-sm font-medium rounded border border-brand-200 hover:bg-brand-50 dark:hover:bg-brand-900 transition-colors"
                             >
                                 Create New
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
             <fieldset disabled={readOnly} className="space-y-6">
-                {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                     <SearchableLOV
                         label="Patient"
@@ -232,59 +235,56 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                         disabled={readOnly}
                     />
                     <div>
-                        <label className="label">Prescription Date *</label>
-                        <input
+                        <label className={labelClass}>Prescription Date *</label>
+                        <Input
                             type="date"
                             value={formData.prescription_date}
                             onChange={(e) => setFormData({ ...formData, prescription_date: e.target.value })}
-                            className="input"
                             required
                         />
                     </div>
                     <div>
-                        <label className="label">Valid Until *</label>
-                        <input
+                        <label className={labelClass}>Valid Until *</label>
+                        <Input
                             type="date"
                             value={formData.valid_until}
                             onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
-                            className="input"
                             required
                         />
                     </div>
                 </div>
 
-                {/* Diagnosis */}
                 <div>
-                    <label className="label">Diagnosis *</label>
+                    <label className={labelClass}>Diagnosis *</label>
                     <textarea
                         value={formData.diagnosis}
                         onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                        className="input"
+                        className={inputClass}
                         rows={2}
                         required
                         placeholder="Enter diagnosis..."
                     />
                 </div>
 
-                {/* Eye Prescription Section */}
                 <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Eye Prescription</h3>
                         {!showEyePrescription && !readOnly && (
-                            <button
+                            <Button
                                 type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={initializeEyePrescription}
-                                className="btn-secondary text-sm"
                             >
-                                <Plus className="w-4 h-4 mr-1" /> Add Eye Prescription
-                            </button>
+                                <RiAddLine className="w-4 h-4 mr-1" /> Add Eye Prescription
+                            </Button>
                         )}
                     </div>
 
                     {showEyePrescription && formData.eye_prescription && (
                         <div className="space-y-4 bg-secondary p-4 rounded-lg">
                             <div>
-                                <label className="label">Prescription Type</label>
+                                <label className={labelClass}>Prescription Type</label>
                                 <select
                                     value={formData.eye_prescription.prescription_type}
                                     onChange={(e) =>
@@ -296,7 +296,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                             },
                                         })
                                     }
-                                    className="input"
+                                    className={inputClass}
                                 >
                                     <option value="single-vision">Single Vision</option>
                                     <option value="bifocal">Bifocal</option>
@@ -304,98 +304,37 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                 </select>
                             </div>
 
-                            {/* Right Eye */}
                             <div>
                                 <h4 className="font-medium mb-2">Right Eye (OD)</h4>
                                 <div className="grid grid-cols-5 gap-2">
-                                    <div>
-                                        <label className="label text-xs">Sphere</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.right_eye.sphere}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        right_eye: {
-                                                            ...formData.eye_prescription!.right_eye,
-                                                            sphere: parseFloat(e.target.value),
+                                    {(['sphere', 'cylinder', 'axis', 'add'] as const).map((field) => (
+                                        <div key={field}>
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1 capitalize">{field}</label>
+                                            <Input
+                                                type="number"
+                                                step={field === 'axis' ? '1' : '0.25'}
+                                                min={field === 'axis' ? '0' : undefined}
+                                                max={field === 'axis' ? '180' : undefined}
+                                                value={formData.eye_prescription!.right_eye[field]}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        eye_prescription: {
+                                                            ...formData.eye_prescription!,
+                                                            right_eye: {
+                                                                ...formData.eye_prescription!.right_eye,
+                                                                [field]: field === 'axis' ? parseInt(e.target.value) : parseFloat(e.target.value),
+                                                            },
                                                         },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
+                                                    })
+                                                }
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                    ))}
                                     <div>
-                                        <label className="label text-xs">Cylinder</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.right_eye.cylinder}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        right_eye: {
-                                                            ...formData.eye_prescription!.right_eye,
-                                                            cylinder: parseFloat(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">Axis</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="180"
-                                            value={formData.eye_prescription.right_eye.axis}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        right_eye: {
-                                                            ...formData.eye_prescription!.right_eye,
-                                                            axis: parseInt(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">Add</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.right_eye.add}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        right_eye: {
-                                                            ...formData.eye_prescription!.right_eye,
-                                                            add: parseFloat(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">PD</label>
-                                        <input
+                                        <label className="block text-xs font-medium text-muted-foreground mb-1">PD</label>
+                                        <Input
                                             type="number"
                                             step="0.5"
                                             value={formData.eye_prescription.right_eye.pupillary_distance}
@@ -411,104 +350,43 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                                     },
                                                 })
                                             }
-                                            className="input text-sm"
+                                            className="text-sm"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Left Eye */}
                             <div>
                                 <h4 className="font-medium mb-2">Left Eye (OS)</h4>
                                 <div className="grid grid-cols-5 gap-2">
-                                    <div>
-                                        <label className="label text-xs">Sphere</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.left_eye.sphere}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        left_eye: {
-                                                            ...formData.eye_prescription!.left_eye,
-                                                            sphere: parseFloat(e.target.value),
+                                    {(['sphere', 'cylinder', 'axis', 'add'] as const).map((field) => (
+                                        <div key={field}>
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1 capitalize">{field}</label>
+                                            <Input
+                                                type="number"
+                                                step={field === 'axis' ? '1' : '0.25'}
+                                                min={field === 'axis' ? '0' : undefined}
+                                                max={field === 'axis' ? '180' : undefined}
+                                                value={formData.eye_prescription!.left_eye[field]}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        eye_prescription: {
+                                                            ...formData.eye_prescription!,
+                                                            left_eye: {
+                                                                ...formData.eye_prescription!.left_eye,
+                                                                [field]: field === 'axis' ? parseInt(e.target.value) : parseFloat(e.target.value),
+                                                            },
                                                         },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
+                                                    })
+                                                }
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                    ))}
                                     <div>
-                                        <label className="label text-xs">Cylinder</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.left_eye.cylinder}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        left_eye: {
-                                                            ...formData.eye_prescription!.left_eye,
-                                                            cylinder: parseFloat(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">Axis</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="180"
-                                            value={formData.eye_prescription.left_eye.axis}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        left_eye: {
-                                                            ...formData.eye_prescription!.left_eye,
-                                                            axis: parseInt(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">Add</label>
-                                        <input
-                                            type="number"
-                                            step="0.25"
-                                            value={formData.eye_prescription.left_eye.add}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    eye_prescription: {
-                                                        ...formData.eye_prescription!,
-                                                        left_eye: {
-                                                            ...formData.eye_prescription!.left_eye,
-                                                            add: parseFloat(e.target.value),
-                                                        },
-                                                    },
-                                                })
-                                            }
-                                            className="input text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">PD</label>
-                                        <input
+                                        <label className="block text-xs font-medium text-muted-foreground mb-1">PD</label>
+                                        <Input
                                             type="number"
                                             step="0.5"
                                             value={formData.eye_prescription.left_eye.pupillary_distance}
@@ -524,7 +402,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                                     },
                                                 })
                                             }
-                                            className="input text-sm"
+                                            className="text-sm"
                                         />
                                     </div>
                                 </div>
@@ -533,14 +411,13 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     )}
                 </div>
 
-                {/* Medications Section */}
                 <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Medications</h3>
                         {!readOnly && (
-                            <button type="button" onClick={addMedication} className="btn-secondary text-sm">
-                                <Plus className="w-4 h-4 mr-1" /> Add Medication
-                            </button>
+                            <Button type="button" variant="outline" size="sm" onClick={addMedication}>
+                                <RiAddLine className="w-4 h-4 mr-1" /> Add Medication
+                            </Button>
                         )}
                     </div>
 
@@ -554,67 +431,67 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                                             onClick={() => removeMedication(index)}
                                             className="absolute top-2 right-2 text-error-600 hover:text-error-800"
                                         >
-                                            <Trash02 className="w-4 h-4" />
+                                            <RiDeleteBinLine className="w-4 h-4" />
                                         </button>
                                     )}
                                     <div className="grid grid-cols-3 gap-3">
                                         <div>
-                                            <label className="label text-xs">Medication Name</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Medication Name</label>
+                                            <Input
                                                 type="text"
                                                 value={med.medication_name}
                                                 onChange={(e) => updateMedication(index, 'medication_name', e.target.value)}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 placeholder="e.g., Eye Drops"
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-xs">Dosage</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Dosage</label>
+                                            <Input
                                                 type="text"
                                                 value={med.dosage}
                                                 onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 placeholder="e.g., 1 drop"
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-xs">Frequency</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Frequency</label>
+                                            <Input
                                                 type="text"
                                                 value={med.frequency}
                                                 onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 placeholder="e.g., 3 times daily"
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-xs">Duration</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Duration</label>
+                                            <Input
                                                 type="text"
                                                 value={med.duration}
                                                 onChange={(e) => updateMedication(index, 'duration', e.target.value)}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 placeholder="e.g., 7 days"
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-xs">Quantity</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Quantity</label>
+                                            <Input
                                                 type="number"
                                                 value={med.quantity}
                                                 onChange={(e) => updateMedication(index, 'quantity', parseInt(e.target.value))}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 min="1"
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-xs">Instructions</label>
-                                            <input
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Instructions</label>
+                                            <Input
                                                 type="text"
                                                 value={med.instructions}
                                                 onChange={(e) => updateMedication(index, 'instructions', e.target.value)}
-                                                className="input text-sm"
+                                                className="text-sm"
                                                 placeholder="Special instructions"
                                             />
                                         </div>
@@ -625,28 +502,25 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                     )}
                 </div>
 
-                {/* Notes */}
                 <div>
-                    <label className="label">Additional Notes</label>
+                    <label className={labelClass}>Additional Notes</label>
                     <textarea
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        className="input"
+                        className={inputClass}
                         rows={3}
                         placeholder="Any additional notes or instructions..."
                     />
                 </div>
             </fieldset>
 
-            {/* Actions */}
             {!readOnly && (
                 <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <button type="button" onClick={onCancel} className="btn-secondary">
+                    <Button type="button" variant="outline" onClick={onCancel}>
                         Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="submit"
-                        className="btn-primary"
                         disabled={createMutation.isPending || updateMutation.isPending}
                     >
                         {createMutation.isPending || updateMutation.isPending
@@ -654,14 +528,14 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                             : prescription
                                 ? 'Update Prescription'
                                 : 'Create Prescription'}
-                    </button>
+                    </Button>
                 </div>
             )}
             {readOnly && (
                 <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <button type="button" onClick={onCancel} className="btn-secondary">
+                    <Button type="button" variant="outline" onClick={onCancel}>
                         Close
-                    </button>
+                    </Button>
                 </div>
             )}
         </form>
@@ -669,8 +543,3 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
 }
 
 export default PrescriptionForm
-
-
-
-
-

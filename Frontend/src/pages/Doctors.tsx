@@ -1,7 +1,7 @@
 import { formatCurrency } from '@/utils/formatters'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, SearchLg, Edit02, Trash02, Phone01, Mail01, Clock, CurrencyDollar } from '@untitledui/icons'
+import { RiAddLine, RiSearchLine, RiEditLine, RiDeleteBinLine, RiPhoneLine, RiMailLine, RiTimeLine, RiMoneyDollarCircleLine } from '@remixicon/react'
 import { toast } from 'react-hot-toast'
 import { doctorsApi } from '@/api/doctors.api'
 import { Doctor, DoctorFormData } from '@/types/doctor.types'
@@ -70,11 +70,9 @@ const Doctors = () => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
 
-        // Helper to get available days from checkboxes
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         const selectedDays = days.filter(day => formData.get(`day_${day}`) === 'on')
 
-        // Get raw values
         const emailVal = (formData.get('email') as string)?.trim()
         const qualificationVal = (formData.get('qualification') as string)?.trim()
         const contactVal = (formData.get('contact_number') as string)?.trim()
@@ -113,13 +111,13 @@ const Doctors = () => {
                     <p className="text-muted-foreground">Manage medical staff and specialists</p>
                 </div>
                 <Button onClick={() => { setSelectedDoctor(null); setIsModalOpen(true); }}>
-                    <Plus className="w-4 h-4 mr-2" />
+                    <RiAddLine className="w-4 h-4 mr-2" />
                     Add Doctor
                 </Button>
             </div>
 
             <div className="flex items-center space-x-4 bg-secondary p-4 rounded-xl border border-border">
-                <SearchLg className="w-5 h-5 text-muted-foreground" />
+                <RiSearchLine className="w-5 h-5 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder="Search doctors by name or specialization..."
@@ -145,7 +143,7 @@ const Doctors = () => {
                                         onClick={() => { setSelectedDoctor(doctor); setIsModalOpen(true); }}
                                         className="p-2 hover:bg-tertiary rounded-lg text-muted-foreground hover:text-brand-500 transition-colors"
                                     >
-                                        <Edit02 className="w-4 h-4" />
+                                        <RiEditLine className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => {
@@ -155,7 +153,7 @@ const Doctors = () => {
                                         }}
                                         className="p-2 hover:bg-tertiary rounded-lg text-muted-foreground hover:text-error-500 transition-colors"
                                     >
-                                        <Trash02 className="w-4 h-4" />
+                                        <RiDeleteBinLine className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -166,20 +164,20 @@ const Doctors = () => {
                                     <span>{doctor.qualification}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Phone01 className="w-4 h-4 mr-2 text-muted-foreground" />
+                                    <RiPhoneLine className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{doctor.contact_number}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Mail01 className="w-4 h-4 mr-2 text-muted-foreground" />
+                                    <RiMailLine className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{doctor.email}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <CurrencyDollar className="w-4 h-4 mr-2 text-muted-foreground" />
+                                    <RiMoneyDollarCircleLine className="w-4 h-4 mr-2 text-muted-foreground" />
                                     <span>{formatCurrency(doctor.consultation_fee)} / visit</span>
                                 </div>
                                 <div className="pt-3 border-t border-border mt-3">
                                     <div className="flex items-center mb-2">
-                                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                                        <RiTimeLine className="w-4 h-4 mr-2 text-muted-foreground" />
                                         <span>{doctor.available_time_start} - {doctor.available_time_end}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
@@ -324,8 +322,3 @@ const Doctors = () => {
 }
 
 export default Doctors
-
-
-
-
-

@@ -9,9 +9,11 @@ import { productsApi } from '@/api/products.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice, InvoiceFormData } from '@/types/invoice.types'
 import toast from 'react-hot-toast'
-import { Plus, Trash02 } from '@untitledui/icons'
+import { RiAddLine, RiDeleteBinLine } from '@remixicon/react'
 import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { formatCurrency, safeDate } from '@/utils/formatters'
 import PrescriptionSelectionModal from './PrescriptionSelectionModal'
 import QRScanner from '@/components/common/QRScanner'
@@ -43,6 +45,8 @@ interface InvoiceFormProps {
   onSuccess: () => void
   onCancel: () => void
 }
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
 
 const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
   const queryClient = useQueryClient()
@@ -96,22 +100,18 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     enabled: !!patientId,
   })
 
-  // Handle auto-selection or modal trigger
   useEffect(() => {
     if (prescriptionsData?.data && !invoice && !selectedPrescription) {
       if (prescriptionsData.data.length === 1) {
-        // Auto-select if only one
         const p = prescriptionsData.data[0]
         setSelectedPrescription(p)
         setValue('prescription_id', p.prescription_id)
       } else if (prescriptionsData.data.length > 1) {
-        // Show modal if multiple
         setShowPrescriptionModal(true)
       }
     }
   }, [prescriptionsData, setValue, invoice, selectedPrescription])
 
-  // Handle manual selection from modal
   const handlePrescriptionSelect = (prescription: any) => {
     setSelectedPrescription(prescription)
     setValue('prescription_id', prescription.prescription_id)
@@ -125,7 +125,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
   const items = watch('items')
 
-  // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0)
   const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0)
   const totalTax = items.reduce((sum, item) => sum + (item.tax || 0), 0)
@@ -180,7 +179,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       setValue(`items.${index}.product_name`, product.name)
       setValue(`items.${index}.sku`, product.sku)
       setValue(`items.${index}.unit_price`, product.selling_price)
-      // Trigger recalculation
       setTimeout(() => calculateItemTotal(index), 0)
     }
   }
@@ -196,7 +194,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     }
   }
 
-  // Watch for changes in items and recalculate totals
   useEffect(() => {
     items.forEach((item, index) => {
       if (item.quantity && item.unit_price) {
@@ -206,7 +203,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         const total = subtotal - discountAmount + taxAmount
         const calculatedTotal = parseFloat(total.toFixed(2))
 
-        // Only update if the calculated total is different from current total
         if (item.total !== calculatedTotal) {
           setValue(`items.${index}.total`, calculatedTotal)
         }
@@ -249,7 +245,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Invoice Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SearchableLOV
           label="Patient"
@@ -267,7 +262,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           error={errors.patient_id?.message}
         />
 
-        {/* Linked Prescription Display */}
         {selectedPrescription && (
           <div className="col-span-1 md:col-span-3 bg-brand-50 dark:bg-brand-950 p-3 rounded-md flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -296,7 +290,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Invoice Date *
           </label>
-          <input type="date" {...register('invoice_date')} className="input" />
+          <Input type="date" {...register('invoice_date')} />
           {errors.invoice_date && (
             <p className="text-sm text-error-600 mt-1">{errors.invoice_date.message}</p>
           )}
@@ -306,29 +300,24 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Due Date *
           </label>
-          <input type="date" {...register('due_date')} className="input" />
+          <Input type="date" {...register('due_date')} />
           {errors.due_date && (
             <p className="text-sm text-error-600 mt-1">{errors.due_date.message}</p>
           )}
         </div>
       </div>
 
-      {/* Line Items */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Items</h3>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowBarcodeScanner(true)}
-              className="btn-secondary"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowBarcodeScanner(true)}>
               Scan Barcode
-            </button>
-            <button type="button" onClick={addItem} className="btn-secondary">
-              <Plus className="w-4 h-4 mr-2" />
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addItem}>
+              <RiAddLine className="w-4 h-4 mr-2" />
               Add Item
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -343,7 +332,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <select
                     {...register(`items.${index}.product_id`)}
                     onChange={(e) => handleProductChange(index, e.target.value)}
-                    className="input text-sm"
+                    className={`${inputClass} text-sm`}
                   >
                     <option value="">Select product</option>
                     {products?.data?.map((product: any) => (
@@ -358,10 +347,10 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Quantity
                   </label>
-                  <input
+                  <Input
                     type="number"
                     {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                    className="input text-sm"
+                    className="text-sm"
                     min="1"
                   />
                 </div>
@@ -370,11 +359,11 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Unit Price
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
                     {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                    className="input text-sm"
+                    className="text-sm"
                   />
                 </div>
 
@@ -382,11 +371,11 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Discount
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
                     {...register(`items.${index}.discount`, { valueAsNumber: true })}
-                    className="input text-sm"
+                    className="text-sm"
                   />
                 </div>
 
@@ -394,22 +383,24 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Total
                   </label>
-                  <input
+                  <Input
                     type="number"
                     {...register(`items.${index}.total`)}
-                    className="input text-sm bg-secondary"
+                    className="text-sm bg-secondary"
                     readOnly
                   />
                 </div>
 
                 <div className="col-span-1 flex items-end">
-                  <button
+                  <Button
                     type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="p-2"
                     onClick={() => remove(index)}
-                    className="btn-danger p-2"
                   >
-                    <Trash02 className="w-4 h-4" />
-                  </button>
+                    <RiDeleteBinLine className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -421,7 +412,6 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         )}
       </div>
 
-      {/* Totals */}
       <div className="bg-secondary p-4 rounded-lg">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -443,20 +433,18 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         </div>
       </div>
 
-      {/* Notes */}
       <div>
         <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
-        <input {...register('notes')} className="input" />
+        <Input {...register('notes')} />
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : invoice ? 'Update Invoice' : 'Create Invoice'}
-        </button>
+        </Button>
       </div>
 
       <PrescriptionSelectionModal
@@ -477,9 +465,3 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
 }
 
 export default InvoiceForm
-
-
-
-
-
-

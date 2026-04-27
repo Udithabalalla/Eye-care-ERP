@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { prescriptionsApi } from '@/api/prescriptions.api'
-import { Plus, SearchLg, File06, Calendar, Eye, Download01 } from '@untitledui/icons'
-import { Table, TableCard, PaginationPageDefault, Button, Input, BadgeWithDot, Select, SelectItem, Tooltip } from '@/components/ui'
+import { RiAddLine, RiSearchLine, RiFileTextLine, RiCalendarLine, RiEyeLine, RiDownloadLine } from '@remixicon/react'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Loading from '@/components/common/Loading'
+import Pagination from '@/components/common/Pagination'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { Prescription } from '@/types/prescription.types'
 import { formatDate } from '@/utils/formatters'
-import { Key } from 'react-aria-components'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
@@ -47,7 +53,6 @@ const Prescriptions = () => {
       try {
         const prescription = await prescriptionsApi.getById(detailId)
         if (!isActive) return
-
         setSelectedPrescription(prescription)
         setIsModalOpen(true)
       } catch (error) {
@@ -58,10 +63,7 @@ const Prescriptions = () => {
     }
 
     openDetail()
-
-    return () => {
-      isActive = false
-    }
+    return () => { isActive = false }
   }, [searchParams, setSearchParams])
 
   const handleAdd = () => {
@@ -85,7 +87,6 @@ const Prescriptions = () => {
     }
   }
 
-  // Filter data based on search
   const filteredData = data?.data.filter((prescription) => {
     if (!search) return true
     const searchLower = search.toLowerCase()
@@ -97,16 +98,8 @@ const Prescriptions = () => {
     )
   })
 
-  const handlePageSizeChange = (key: Key | null) => {
-    if (key) {
-      setPageSize(Number(key))
-      setPage(1)
-    }
-  }
-
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
           <div className="flex items-center justify-between">
@@ -114,7 +107,7 @@ const Prescriptions = () => {
               <p className="text-sm text-muted-foreground">Total Prescriptions</p>
               <p className="text-2xl font-bold text-foreground">{data?.total || 0}</p>
             </div>
-            <File06 className="w-8 h-8 text-brand-600" />
+            <RiFileTextLine className="w-8 h-8 text-brand-600" />
           </div>
         </div>
         <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
@@ -125,7 +118,7 @@ const Prescriptions = () => {
                 {data?.data.filter((p) => p.eye_prescription).length || 0}
               </p>
             </div>
-            <Eye className="w-8 h-8 text-brand-600" />
+            <RiEyeLine className="w-8 h-8 text-brand-600" />
           </div>
         </div>
         <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
@@ -147,165 +140,170 @@ const Prescriptions = () => {
                 {data?.data.filter((p) => new Date(p.valid_until) < new Date()).length || 0}
               </p>
             </div>
-            <Calendar className="w-8 h-8 text-error-600" />
+            <RiCalendarLine className="w-8 h-8 text-error-600" />
           </div>
         </div>
       </div>
 
-      {/* Table Card with Untitled UI Structure */}
-      <TableCard.Root>
-        <TableCard.Header
-          title="Prescriptions"
-          badge={data?.total || 0}
-          description="Manage patient prescriptions"
-          contentTrailing={
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Prescriptions</CardTitle>
+              <Badge variant="secondary">{data?.total || 0}</Badge>
+            </div>
+            <CardDescription>Manage patient prescriptions</CardDescription>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-48">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search prescriptions..."
                 value={search}
-                onChange={setSearch}
-                iconLeading={SearchLg}
-                aria-label="Search prescriptions"
-                className="w-full sm:w-48"
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
-              <Input
-                placeholder="Filter by Patient ID"
-                value={patientFilter}
-                onChange={setPatientFilter}
-                aria-label="Filter by patient"
-                className="w-full sm:w-36"
-              />
-              <Input
-                placeholder="Filter by Doctor ID"
-                value={doctorFilter}
-                onChange={setDoctorFilter}
-                aria-label="Filter by doctor"
-                className="w-full sm:w-36"
-              />
-              <Select
-                selectedKey={String(pageSize)}
-                onSelectionChange={handlePageSizeChange}
-                placeholder="Rows"
-                aria-label="Rows per page"
-                className="w-full sm:w-28"
-              >
-                <SelectItem id="10">10 rows</SelectItem>
-                <SelectItem id="25">25 rows</SelectItem>
-                <SelectItem id="50">50 rows</SelectItem>
-              </Select>
-              <Button onClick={handleAdd} iconLeading={Plus} size="sm">
-                New Prescription
-              </Button>
             </div>
-          }
-        />
-
-        {isLoading ? (
-          <div className="p-12">
-            <Loading />
+            <Input
+              placeholder="Filter by Patient ID"
+              value={patientFilter}
+              onChange={(e) => setPatientFilter(e.target.value)}
+              className="w-full sm:w-36"
+            />
+            <Input
+              placeholder="Filter by Doctor ID"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+              className="w-full sm:w-36"
+            />
+            <Select value={String(pageSize)} onValueChange={(val) => { setPageSize(Number(val)); setPage(1) }}>
+              <SelectTrigger className="w-full sm:w-28">
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 rows</SelectItem>
+                <SelectItem value="25">25 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAdd} size="sm">
+              <RiAddLine className="size-4 mr-1" />
+              New Prescription
+            </Button>
           </div>
-        ) : (
-          <>
-            <Table aria-label="Prescriptions table" selectionMode="multiple" selectionBehavior="toggle">
-              <Table.Header>
-                <Table.Head label="Prescription ID" isRowHeader />
-                <Table.Head label="Patient" />
-                <Table.Head label="Doctor" />
-                <Table.Head label="Diagnosis" />
-                <Table.Head label="Type" />
-                <Table.Head label="Valid Until" />
-                <Table.Head />
-              </Table.Header>
-              <Table.Body items={filteredData || []}>
-                {(prescription) => (
-                  <Table.Row id={prescription.prescription_id}>
-                    <Table.Cell>
-                      <div>
-                        <p className="font-medium text-foreground">{prescription.prescription_id}</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(prescription.prescription_date)}</p>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div>
-                        <p className="font-medium text-foreground">{prescription.patient_name}</p>
-                        <p className="text-sm text-muted-foreground">{prescription.patient_id}</p>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-foreground">{prescription.doctor_name}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="text-foreground">{prescription.diagnosis}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-wrap gap-1">
-                        {prescription.eye_prescription && (
-                          <BadgeWithDot size="sm" color="brand">
-                            {prescription.eye_prescription.prescription_type}
-                          </BadgeWithDot>
-                        )}
-                        {prescription.medications && prescription.medications.length > 0 && (
-                          <BadgeWithDot size="sm" color="success">
-                            {prescription.medications.length} Med{prescription.medications.length > 1 ? 's' : ''}
-                          </BadgeWithDot>
-                        )}
-                        {prescription.contact_lenses && (
-                          <BadgeWithDot size="sm" color="warning">
-                            Contact Lenses
-                          </BadgeWithDot>
-                        )}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {(() => {
-                        const validDate = new Date(prescription.valid_until)
-                        const isExpired = validDate < new Date()
-                        return (
-                          <span className={isExpired ? 'text-error-600 font-medium' : 'text-foreground'}>
-                            {formatDate(prescription.valid_until)}
-                          </span>
-                        )
-                      })()}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Tooltip title="View prescription">
-                          <Button
-                            color="link-gray"
-                            onClick={() => handleEdit(prescription)}
-                            iconLeading={Eye}
-                            aria-label="View"
-                            size="sm"
-                          />
-                        </Tooltip>
-                        <Tooltip title="Download PDF">
-                          <Button
-                            color="link-gray"
-                            onClick={() => handleDownloadPDF(prescription.prescription_id)}
-                            iconLeading={Download01}
-                            aria-label="Download PDF"
-                            size="sm"
-                          />
-                        </Tooltip>
-                      </div>
-                    </Table.Cell>
-                  </Table.Row>
-                )}
-              </Table.Body>
-            </Table>
-            {data && (
-              <PaginationPageDefault
-                page={page}
-                total={data.total_pages}
-                onPageChange={setPage}
-                className="border-t border-border px-6 py-4"
-              />
-            )}
-          </>
-        )}
-      </TableCard.Root>
+        </CardHeader>
 
-      {/* Prescription Modal */}
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-12"><Loading /></div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Prescription ID</TableHead>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead>Diagnosis</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Valid Until</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(filteredData || []).map((prescription) => (
+                    <TableRow key={prescription.prescription_id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-foreground">{prescription.prescription_id}</p>
+                          <p className="text-sm text-muted-foreground">{formatDate(prescription.prescription_date)}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-foreground">{prescription.patient_name}</p>
+                          <p className="text-sm text-muted-foreground">{prescription.patient_id}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-foreground">{prescription.doctor_name}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-foreground">{prescription.diagnosis}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {prescription.eye_prescription && (
+                            <Badge variant="outline" className="border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-400">
+                              {prescription.eye_prescription.prescription_type}
+                            </Badge>
+                          )}
+                          {prescription.medications && prescription.medications.length > 0 && (
+                            <Badge variant="outline" className="border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400">
+                              {prescription.medications.length} Med{prescription.medications.length > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                          {prescription.contact_lenses && (
+                            <Badge variant="outline" className="border-warning-200 bg-warning-50 text-warning-700 dark:bg-warning-950 dark:text-warning-400">
+                              Contact Lenses
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const validDate = new Date(prescription.valid_until)
+                          const isExpired = validDate < new Date()
+                          return (
+                            <span className={isExpired ? 'text-error-600 font-medium' : 'text-foreground'}>
+                              {formatDate(prescription.valid_until)}
+                            </span>
+                          )
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(prescription)} aria-label="View">
+                                  <RiEyeLine className="size-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View prescription</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(prescription.prescription_id)} aria-label="Download PDF">
+                                  <RiDownloadLine className="size-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Download PDF</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {data && (
+                <Pagination
+                  currentPage={page}
+                  totalPages={data.total_pages}
+                  onPageChange={setPage}
+                  pageSize={pageSize}
+                  onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+                  totalItems={data.total}
+                />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <PrescriptionModal
         isOpen={isModalOpen}
         onClose={() => {
@@ -322,4 +320,3 @@ const Prescriptions = () => {
 }
 
 export default Prescriptions
-

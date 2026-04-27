@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, SearchLg } from '@untitledui/icons'
-import { Table, TableCard, Input, Select, SelectItem, Button } from '@/components/ui'
+import { RiAddLine, RiSearchLine } from '@remixicon/react'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Loading from '@/components/common/Loading'
-import Modal from '@/components/common/Modal'
 import { paymentsApi } from '@/api/payments.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { PaymentMethod } from '@/types/common.types'
@@ -36,13 +41,8 @@ const Payments = () => {
   const createMutation = useMutation({
     mutationFn: async () => {
       const numericAmount = Number(form.amount)
-      if (!form.reference_id) {
-        throw new Error('Invoice is required')
-      }
-      if (!numericAmount || numericAmount <= 0) {
-        throw new Error('Payment amount must be greater than 0')
-      }
-
+      if (!form.reference_id) throw new Error('Invoice is required')
+      if (!numericAmount || numericAmount <= 0) throw new Error('Payment amount must be greater than 0')
       return paymentsApi.create({
         amount: numericAmount,
         payment_method: form.payment_method,
@@ -56,12 +56,7 @@ const Payments = () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
       toast.success('Payment recorded successfully')
       setIsModalOpen(false)
-      setForm({
-        reference_id: '',
-        amount: '',
-        payment_method: PaymentMethod.CASH,
-        payment_date: new Date().toISOString().split('T')[0],
-      })
+      setForm({ reference_id: '', amount: '', payment_method: PaymentMethod.CASH, payment_date: new Date().toISOString().split('T')[0] })
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Failed to record payment')
@@ -81,137 +76,157 @@ const Payments = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Payments"
-          badge={rows.length}
-          description="Unified customer and supplier payments"
-          contentTrailing={(
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Input placeholder="Search payments..." value={search} onChange={setSearch} iconLeading={SearchLg} className="w-full sm:w-72" />
-              <Select selectedKey={referenceType || 'all'} onSelectionChange={(key) => setReferenceType(key === 'all' ? '' : String(key) as LedgerReferenceType)} placeholder="Reference Type">
-                <SelectItem id="all">All References</SelectItem>
-                <SelectItem id="INVOICE">Invoice</SelectItem>
-                <SelectItem id="SALES_ORDER">Sales Order</SelectItem>
-                <SelectItem id="PURCHASE_ORDER">Purchase Order</SelectItem>
-                <SelectItem id="SUPPLIER_INVOICE">Supplier Invoice</SelectItem>
-              </Select>
-              <Button onClick={() => setIsModalOpen(true)} iconLeading={Plus} size="sm">
-                Record Payment
-              </Button>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Payments</CardTitle>
+              <Badge variant="secondary">{rows.length}</Badge>
             </div>
-          )}
-        />
-        {isLoading ? <div className="p-8"><Loading /></div> : (
-          <Table aria-label="Payments table">
-            <Table.Header>
-              <Table.Head label="Date" isRowHeader />
-              <Table.Head label="Payment ID" />
-              <Table.Head label="Reference" />
-              <Table.Head label="Amount" />
-              <Table.Head label="Method" />
-              <Table.Head label="Transaction" />
-            </Table.Header>
-            <Table.Body items={rows as Payment[]}>
-              {(payment) => (
-                <Table.Row id={payment.payment_id}>
-                  <Table.Cell>{formatDate(payment.payment_date)}</Table.Cell>
-                  <Table.Cell>{payment.payment_id}</Table.Cell>
-                  <Table.Cell>{payment.reference_type} / {payment.reference_id}</Table.Cell>
-                  <Table.Cell>{formatCurrency(payment.amount)}</Table.Cell>
-                  <Table.Cell>{payment.payment_method}</Table.Cell>
-                  <Table.Cell>{payment.transaction_id || '-'}</Table.Cell>
-                </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Record Payment"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Invoice *</label>
-            <select
-              className="input w-full"
-              value={form.reference_id}
-              onChange={(event) => {
-                const invoiceId = event.target.value
-                const invoice = (invoicesData?.data || []).find((item) => item.invoice_id === invoiceId)
-                setForm((current) => ({
-                  ...current,
-                  reference_id: invoiceId,
-                  amount: invoice ? String(invoice.balance_due || '') : current.amount,
-                }))
-              }}
-              disabled={isInvoicesLoading}
+            <CardDescription>Unified customer and supplier payments</CardDescription>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-72">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search payments..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select
+              value={referenceType || 'all'}
+              onValueChange={(val) => setReferenceType(val === 'all' ? '' : val as LedgerReferenceType)}
             >
-              <option value="">Select invoice</option>
-              {(invoicesData?.data || []).map((invoice) => (
-                <option key={invoice.invoice_id} value={invoice.invoice_id}>
-                  {invoice.invoice_number} - {invoice.patient_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Amount *</label>
-            <input
-              type="number"
-              min={0.01}
-              step="0.01"
-              className="input w-full"
-              value={form.amount}
-              onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
-            />
-            {selectedInvoice && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Balance due: {formatCurrency(selectedInvoice.balance_due)}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Method *</label>
-            <select
-              className="input w-full"
-              value={form.payment_method}
-              onChange={(event) => setForm((current) => ({ ...current, payment_method: event.target.value as PaymentMethod }))}
-            >
-              <option value={PaymentMethod.CASH}>Cash</option>
-              <option value={PaymentMethod.CARD}>Card</option>
-              <option value={PaymentMethod.UPI}>UPI</option>
-              <option value={PaymentMethod.NETBANKING}>Net Banking</option>
-              <option value={PaymentMethod.INSURANCE}>Insurance</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Date *</label>
-            <input
-              type="date"
-              className="input w-full"
-              value={form.payment_date}
-              onChange={(event) => setForm((current) => ({ ...current, payment_date: event.target.value }))}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button color="secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => createMutation.mutate()} isLoading={createMutation.isPending}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Reference Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All References</SelectItem>
+                <SelectItem value="INVOICE">Invoice</SelectItem>
+                <SelectItem value="SALES_ORDER">Sales Order</SelectItem>
+                <SelectItem value="PURCHASE_ORDER">Purchase Order</SelectItem>
+                <SelectItem value="SUPPLIER_INVOICE">Supplier Invoice</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setIsModalOpen(true)} size="sm">
+              <RiAddLine className="size-4 mr-1" />
               Record Payment
             </Button>
           </div>
-        </div>
-      </Modal>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? <div className="p-8"><Loading /></div> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Payment ID</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Transaction</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((payment: Payment) => (
+                  <TableRow key={payment.payment_id}>
+                    <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                    <TableCell>{payment.payment_id}</TableCell>
+                    <TableCell>{payment.reference_type} / {payment.reference_id}</TableCell>
+                    <TableCell>{formatCurrency(payment.amount)}</TableCell>
+                    <TableCell>{payment.payment_method}</TableCell>
+                    <TableCell>{payment.transaction_id || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Invoice *</label>
+              <select
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.reference_id}
+                onChange={(event) => {
+                  const invoiceId = event.target.value
+                  const invoice = (invoicesData?.data || []).find((item) => item.invoice_id === invoiceId)
+                  setForm((current) => ({
+                    ...current,
+                    reference_id: invoiceId,
+                    amount: invoice ? String(invoice.balance_due || '') : current.amount,
+                  }))
+                }}
+                disabled={isInvoicesLoading}
+              >
+                <option value="">Select invoice</option>
+                {(invoicesData?.data || []).map((invoice) => (
+                  <option key={invoice.invoice_id} value={invoice.invoice_id}>
+                    {invoice.invoice_number} - {invoice.patient_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Amount *</label>
+              <Input
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={form.amount}
+                onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
+              />
+              {selectedInvoice && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Balance due: {formatCurrency(selectedInvoice.balance_due)}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Method *</label>
+              <select
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.payment_method}
+                onChange={(event) => setForm((current) => ({ ...current, payment_method: event.target.value as PaymentMethod }))}
+              >
+                <option value={PaymentMethod.CASH}>Cash</option>
+                <option value={PaymentMethod.CARD}>Card</option>
+                <option value={PaymentMethod.UPI}>UPI</option>
+                <option value={PaymentMethod.NETBANKING}>Net Banking</option>
+                <option value={PaymentMethod.INSURANCE}>Insurance</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Payment Date *</label>
+              <Input
+                type="date"
+                value={form.payment_date}
+                onChange={(event) => setForm((current) => ({ ...current, payment_date: event.target.value }))}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+                {createMutation.isPending && <span className="mr-2 animate-spin">⟳</span>}
+                Record Payment
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

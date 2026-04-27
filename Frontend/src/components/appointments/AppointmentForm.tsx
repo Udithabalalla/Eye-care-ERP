@@ -11,6 +11,8 @@ import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { doctorsApi } from '@/api/doctors.api'
 import { safeDate } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
@@ -31,6 +33,8 @@ interface AppointmentFormProps {
   onSuccess: () => void
   onCancel: () => void
 }
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
 
 const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }: AppointmentFormProps) => {
   const queryClient = useQueryClient()
@@ -110,7 +114,6 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Patient Selection */}
         <SearchableLOV
           label="Patient"
           required
@@ -127,7 +130,6 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
           error={errors.patient_id?.message}
         />
 
-        {/* Doctor Selection */}
         <SearchableLOV
           label="Doctor"
           required
@@ -144,34 +146,31 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
           error={errors.doctor_id?.message}
         />
 
-        {/* Date */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Date *
           </label>
-          <input type="date" {...register('appointment_date')} className="input" />
+          <Input type="date" {...register('appointment_date')} />
           {errors.appointment_date && (
             <p className="text-sm text-error-600 mt-1">{errors.appointment_date.message}</p>
           )}
         </div>
 
-        {/* Time */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Time *
           </label>
-          <input type="time" {...register('appointment_time')} className="input" />
+          <Input type="time" {...register('appointment_time')} />
           {errors.appointment_time && (
             <p className="text-sm text-error-600 mt-1">{errors.appointment_time.message}</p>
           )}
         </div>
 
-        {/* Duration */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Duration (minutes) *
           </label>
-          <select {...register('duration_minutes', { valueAsNumber: true })} className="input">
+          <select {...register('duration_minutes', { valueAsNumber: true })} className={inputClass}>
             <option value={15}>15 minutes</option>
             <option value={30}>30 minutes</option>
             <option value={45}>45 minutes</option>
@@ -182,12 +181,11 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
           )}
         </div>
 
-        {/* Type */}
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
             Appointment Type *
           </label>
-          <select {...register('type')} className="input">
+          <select {...register('type')} className={inputClass}>
             <option value="consultation">Consultation</option>
             <option value="follow-up">Follow-up</option>
             <option value="emergency">Emergency</option>
@@ -199,41 +197,37 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
         </div>
       </div>
 
-      {/* Reason */}
       <div>
         <label className="block text-sm font-medium text-muted-foreground mb-2">
           Reason for Visit *
         </label>
-        <textarea {...register('reason')} rows={2} className="input" />
+        <textarea {...register('reason')} rows={2} className={inputClass} />
         {errors.reason && (
           <p className="text-sm text-error-600 mt-1">{errors.reason.message}</p>
         )}
       </div>
 
-      {/* Notes */}
       <div>
         <label className="block text-sm font-medium text-muted-foreground mb-2">
           Additional Notes
         </label>
-        <textarea {...register('notes')} rows={2} className="input" />
+        <textarea {...register('notes')} rows={2} className={inputClass} />
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting
             ? 'Saving...'
             : appointment
               ? 'Update Appointment'
               : 'Schedule Appointment'}
-        </button>
+        </Button>
       </div>
     </form>
   )
 }
 
 export default AppointmentForm
-

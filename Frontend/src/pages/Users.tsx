@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit02, SearchLg, Lock01, Lock02 } from '@untitledui/icons'
-import { Table, TableCard, Input } from '@/components/ui'
-import Button from '@/components/common/Button'
+import { RiAddLine, RiEditLine, RiSearchLine, RiLockLine, RiLockUnlockLine } from '@remixicon/react'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import Loading from '@/components/common/Loading'
 import Modal from '@/components/common/Modal'
 import toast from 'react-hot-toast'
@@ -25,13 +28,11 @@ const Users = () => {
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
 
-  // Users Query
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.listUsers(),
   })
 
-  // Create/Update Mutation
   const saveUserMutation = useMutation({
     mutationFn: (data: any) =>
       selectedUser ? usersApi.updateUser(selectedUser.user_id, data) : usersApi.createUser(data),
@@ -45,27 +46,18 @@ const Users = () => {
     onError: () => toast.error('Failed to save user'),
   })
 
-  // Deactivate Mutation
   const deactivateUserMutation = useMutation({
     mutationFn: (userId: string) => usersApi.deactivateUser(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast.success('User deactivated')
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); toast.success('User deactivated') },
     onError: () => toast.error('Failed to deactivate user'),
   })
 
-  // Activate Mutation
   const activateUserMutation = useMutation({
     mutationFn: (userId: string) => usersApi.activateUser(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast.success('User activated')
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); toast.success('User activated') },
     onError: () => toast.error('Failed to activate user'),
   })
 
-  // Reset Password Mutation
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) => usersApi.resetPassword(userId, newPassword),
     onSuccess: () => {
@@ -79,14 +71,8 @@ const Users = () => {
   })
 
   const handleSaveUser = () => {
-    if (!formData.email || !formData.name) {
-      toast.error('Email and name are required')
-      return
-    }
-    if (!selectedUser && !formData.password) {
-      toast.error('Password is required for new users')
-      return
-    }
+    if (!formData.email || !formData.name) { toast.error('Email and name are required'); return }
+    if (!selectedUser && !formData.password) { toast.error('Password is required for new users'); return }
     const data = { ...formData }
     if (!selectedUser) {
       saveUserMutation.mutate(data)
@@ -98,180 +84,161 @@ const Users = () => {
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user)
-    setFormData({
-      email: user.email,
-      password: '',
-      name: user.name,
-      role: user.role,
-      department: user.department || '',
-      phone: user.phone || '',
-    })
+    setFormData({ email: user.email, password: '', name: user.name, role: user.role, department: user.department || '', phone: user.phone || '' })
     setIsModalOpen(true)
   }
 
   const usersDisplay = (usersData?.data || []).filter((user: User) => {
     const query = search.toLowerCase()
-    return (
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.role.toLowerCase().includes(query)
-    )
+    return user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query) || user.role.toLowerCase().includes(query)
   })
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Users"
-          badge={usersDisplay.length}
-          description="Manage system users and their roles"
-          contentTrailing={(
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Users</CardTitle>
+              <Badge variant="secondary">{usersDisplay.length}</Badge>
+            </div>
+            <CardDescription>Manage system users and their roles</CardDescription>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-72">
+              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search users..."
                 value={search}
-                onChange={setSearch}
-                iconLeading={SearchLg}
-                className="w-full sm:w-72"
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
-              <Button
-                onClick={() => {
-                  setSelectedUser(null)
-                  setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' })
-                  setIsModalOpen(true)
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add User
-              </Button>
             </div>
-          )}
-        />
-        {isLoading ? (
-          <div className="p-8">
-            <Loading />
+            <Button
+              onClick={() => {
+                setSelectedUser(null)
+                setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' })
+                setIsModalOpen(true)
+              }}
+            >
+              <RiAddLine className="size-4 mr-1" />
+              Add User
+            </Button>
           </div>
-        ) : (
-          <Table>
-            <Table.Header>
-              <Table.Head label="User" isRowHeader />
-              <Table.Head label="Email" />
-              <Table.Head label="Role" />
-              <Table.Head label="Department" />
-              <Table.Head label="Status" />
-              <Table.Head label="Actions" />
-            </Table.Header>
-            <Table.Body>
-              {usersDisplay.map((user: User) => (
-                <Table.Row key={user.user_id}>
-                  <Table.Cell>
-                    <span className="font-medium text-foreground">{user.name}</span>
-                  </Table.Cell>
-                  <Table.Cell>{user.email}</Table.Cell>
-                  <Table.Cell>
-                    <span className="inline-block bg-brand-100 text-brand-700 px-2 py-1 rounded text-sm font-medium">
-                      {user.role}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>{user.department || '-'}</Table.Cell>
-                  <Table.Cell>
-                    <span className={`inline-block px-2 py-1 rounded text-sm font-medium ${
-                      user.is_active
-                        ? 'bg-success-100 text-success-700'
-                        : 'bg-error-100 text-error-700'
-                    }`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="p-2 hover:bg-secondary rounded transition-colors"
-                        title="Edit"
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8"><Loading /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usersDisplay.map((user: User) => (
+                  <TableRow key={user.user_id}>
+                    <TableCell>
+                      <span className="font-medium text-foreground">{user.name}</span>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <span className="inline-block bg-brand-100 text-brand-700 px-2 py-1 rounded text-sm font-medium">
+                        {user.role}
+                      </span>
+                    </TableCell>
+                    <TableCell>{user.department || '-'}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={user.is_active
+                          ? 'border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400'
+                          : 'border-error-200 bg-error-50 text-error-700 dark:bg-error-950 dark:text-error-400'}
                       >
-                        <Edit02 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user)
-                          setResetPasswordOpen(true)
-                        }}
-                        className="p-2 hover:bg-secondary rounded transition-colors"
-                        title="Reset Password"
-                      >
-                        <Lock01 className="w-4 h-4" />
-                      </button>
-                      {user.is_active ? (
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => {
-                            if (window.confirm('Deactivate this user?')) {
-                              deactivateUserMutation.mutate(user.user_id)
-                            }
-                          }}
-                          className="p-2 hover:bg-error-100 rounded transition-colors text-error-600"
-                          title="Deactivate"
+                          onClick={() => handleEditUser(user)}
+                          className="p-2 hover:bg-secondary rounded transition-colors"
+                          title="Edit"
                         >
-                          <Lock02 className="w-4 h-4" />
+                          <RiEditLine className="w-4 h-4" />
                         </button>
-                      ) : (
                         <button
-                          onClick={() => activateUserMutation.mutate(user.user_id)}
-                          className="p-2 hover:bg-success-100 rounded transition-colors text-success-600"
-                          title="Activate"
+                          onClick={() => { setSelectedUser(user); setResetPasswordOpen(true) }}
+                          className="p-2 hover:bg-secondary rounded transition-colors"
+                          title="Reset Password"
                         >
-                          <Lock02 className="w-4 h-4" />
+                          <RiLockLine className="w-4 h-4" />
                         </button>
-                      )}
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
+                        {user.is_active ? (
+                          <button
+                            onClick={() => { if (window.confirm('Deactivate this user?')) deactivateUserMutation.mutate(user.user_id) }}
+                            className="p-2 hover:bg-error-100 rounded transition-colors text-error-600"
+                            title="Deactivate"
+                          >
+                            <RiLockUnlockLine className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => activateUserMutation.mutate(user.user_id)}
+                            className="p-2 hover:bg-success-100 rounded transition-colors text-success-600"
+                            title="Activate"
+                          >
+                            <RiLockUnlockLine className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* User Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setSelectedUser(null)
-          setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' })
-        }}
+        onClose={() => { setIsModalOpen(false); setSelectedUser(null); setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' }) }}
         title={selectedUser ? 'Edit User' : 'Create User'}
       >
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
-            <input
+            <Input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               disabled={!!selectedUser}
-              className="input w-full"
               placeholder="user@example.com"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Full Name</label>
-            <input
+            <Input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="input w-full"
               placeholder="John Doe"
             />
           </div>
           {!selectedUser && (
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Password</label>
-              <input
+              <Input
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="input w-full"
                 placeholder="••••••••"
               />
             </div>
@@ -281,7 +248,7 @@ const Users = () => {
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="input w-full"
+              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="admin">Admin</option>
               <option value="manager">Manager</option>
@@ -292,92 +259,70 @@ const Users = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Department</label>
-            <input
+            <Input
               type="text"
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="input w-full"
               placeholder="e.g., Clinical, Operations"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Phone</label>
-            <input
+            <Input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="input w-full"
               placeholder="+1 (555) 000-0000"
             />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              onClick={() => {
-                setIsModalOpen(false)
-                setSelectedUser(null)
-                setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' })
-              }}
-              className="btn-secondary"
+            <Button
+              variant="outline"
+              onClick={() => { setIsModalOpen(false); setSelectedUser(null); setFormData({ email: '', password: '', name: '', role: 'staff', department: '', phone: '' }) }}
             >
               Cancel
-            </button>
-            <button onClick={handleSaveUser} disabled={saveUserMutation.isPending} className="btn-primary">
+            </Button>
+            <Button onClick={handleSaveUser} disabled={saveUserMutation.isPending}>
               {saveUserMutation.isPending ? 'Saving...' : 'Save User'}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Reset Password Modal */}
       <Modal
         isOpen={resetPasswordOpen}
-        onClose={() => {
-          setResetPasswordOpen(false)
-          setNewPassword('')
-          setSelectedUser(null)
-        }}
+        onClose={() => { setResetPasswordOpen(false); setNewPassword(''); setSelectedUser(null) }}
         title="Reset Password"
       >
         <div className="space-y-4">
           <p className="text-muted-foreground">Set a new password for {selectedUser?.name}</p>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">New Password</label>
-            <input
+            <Input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="input w-full"
               placeholder="••••••••"
               minLength={8}
             />
             <p className="text-xs text-muted-foreground mt-1">Minimum 8 characters</p>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              onClick={() => {
-                setResetPasswordOpen(false)
-                setNewPassword('')
-                setSelectedUser(null)
-              }}
-              className="btn-secondary"
+            <Button
+              variant="outline"
+              onClick={() => { setResetPasswordOpen(false); setNewPassword(''); setSelectedUser(null) }}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => {
-                if (!newPassword || newPassword.length < 8) {
-                  toast.error('Password must be at least 8 characters')
-                  return
-                }
-                if (selectedUser) {
-                  resetPasswordMutation.mutate(selectedUser.user_id)
-                }
+                if (!newPassword || newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return }
+                if (selectedUser) resetPasswordMutation.mutate(selectedUser.user_id)
               }}
               disabled={resetPasswordMutation.isPending}
-              className="btn-primary"
             >
               {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -386,7 +331,3 @@ const Users = () => {
 }
 
 export default Users
-
-
-
-

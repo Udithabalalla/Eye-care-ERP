@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SearchLg } from '@untitledui/icons'
-import { Table, TableCard, Input } from '@/components/ui'
+import { RiSearchLine } from '@remixicon/react'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import Loading from '@/components/common/Loading'
 import { auditLogsApi } from '@/api/erp.api'
 import { AuditLog } from '@/types/erp.types'
@@ -23,38 +26,52 @@ const ActivityLogs = () => {
 
   return (
     <div className="space-y-6">
-      <TableCard.Root>
-        <TableCard.Header
-          title="Activity Logs"
-          badge={rows.length}
-          description="Audit trail for business actions"
-          contentTrailing={(
-            <Input placeholder="Search logs..." value={search} onChange={setSearch} iconLeading={SearchLg} className="w-full sm:w-72" />
+      <Card className="border-border/60">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>Activity Logs</CardTitle>
+              <Badge variant="secondary">{rows.length}</Badge>
+            </div>
+            <CardDescription>Audit trail for business actions</CardDescription>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search logs..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? <div className="p-8"><Loading /></div> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Entity ID</TableHead>
+                  <TableHead>User</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((log: AuditLog) => (
+                  <TableRow key={log.log_id}>
+                    <TableCell>{formatDate(log.timestamp, 'MMM dd, yyyy HH:mm')}</TableCell>
+                    <TableCell>{log.action}</TableCell>
+                    <TableCell>{log.entity_type}</TableCell>
+                    <TableCell>{log.entity_id}</TableCell>
+                    <TableCell>{log.user_id}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        />
-        {isLoading ? <div className="p-8"><Loading /></div> : (
-          <Table aria-label="Audit logs table">
-            <Table.Header>
-              <Table.Head label="Timestamp" isRowHeader />
-              <Table.Head label="Action" />
-              <Table.Head label="Entity" />
-              <Table.Head label="Entity ID" />
-              <Table.Head label="User" />
-            </Table.Header>
-            <Table.Body items={rows as AuditLog[]}>
-              {(log) => (
-                <Table.Row id={log.log_id}>
-                  <Table.Cell>{formatDate(log.timestamp, 'MMM dd, yyyy HH:mm')}</Table.Cell>
-                  <Table.Cell>{log.action}</Table.Cell>
-                  <Table.Cell>{log.entity_type}</Table.Cell>
-                  <Table.Cell>{log.entity_id}</Table.Cell>
-                  <Table.Cell>{log.user_id}</Table.Cell>
-                </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
-        )}
-      </TableCard.Root>
+        </CardContent>
+      </Card>
     </div>
   )
 }
