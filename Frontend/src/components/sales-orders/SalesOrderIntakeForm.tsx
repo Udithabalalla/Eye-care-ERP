@@ -5,20 +5,31 @@ import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
-  AlertCircle,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  Scan,
-  Trash02,
-  Clock,
-} from '@untitledui/icons'
+  RiAlertLine,
+  RiArrowRightSLine,
+  RiArrowLeftSLine,
+  RiEyeLine,
+  RiScanLine,
+  RiDeleteBin6Line,
+  RiTimeLine,
+  RiCheckLine,
+  RiUserLine,
+  RiFileTextLine,
+  RiBox3Line,
+  RiSparklingLine,
+  RiReceiptLine,
+  RiShieldCheckLine,
+  RiAddLine,
+  RiLoader4Line,
+} from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import Input from '@/components/common/Input'
-import Button from '@/components/common/Button'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
 import SearchableLOV from '@/components/common/SearchableLOV'
@@ -40,21 +51,22 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { usePatientSearch } from '@/hooks/usePatientSearch'
 import { usePrescriptionFetch } from '@/hooks/usePrescriptionFetch'
 
-const phoneDigits = (value: string) => value.replace(/\D/g, '')
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
+const phoneDigits = (value: string) => value.replace(/\D/g, '')
 const safeText = (value: unknown) => (typeof value === 'string' ? value : '')
 
 const optionalNumber = () =>
   z.preprocess((value) => {
     if (value === '' || value === null || value === undefined) return undefined
-    const numericValue = Number(value)
-    return Number.isNaN(numericValue) ? undefined : numericValue
+    const n = Number(value)
+    return Number.isNaN(n) ? undefined : n
   }, z.number().min(0).optional())
 
 const requiredMoney = z.preprocess((value) => {
   if (value === '' || value === null || value === undefined) return 0
-  const numericValue = Number(value)
-  return Number.isNaN(numericValue) ? 0 : numericValue
+  const n = Number(value)
+  return Number.isNaN(n) ? 0 : n
 }, z.number().min(0))
 
 const eyeMeasurementSchema = z.object({
@@ -131,19 +143,18 @@ const salesOrderIntakeSchema = z
     remarks: z.string().optional().default(''),
   })
   .superRefine((value, ctx) => {
-    if (!value.patient.existingId) {
-      if (!value.patient.newData.gender) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Gender is required for new patients', path: ['patient', 'newData', 'gender'] })
-      }
+    if (!value.patient.existingId && !value.patient.newData.gender) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Gender is required for new patients',
+        path: ['patient', 'newData', 'gender'],
+      })
     }
-
     if (!value.salesOrder.isOld) {
-      const hasFrame = value.frame.selectionId || value.frame.model.trim()
-      const hasLens = value.lens.selectionId || value.lens.lensType.trim()
-      if (!hasFrame) {
+      if (!value.frame.selectionId && !value.frame.model.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Frame selection is required', path: ['frame', 'selectionId'] })
       }
-      if (!hasLens) {
+      if (!value.lens.selectionId && !value.lens.lensType.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lens selection is required', path: ['lens', 'selectionId'] })
       }
     }
@@ -151,216 +162,189 @@ const salesOrderIntakeSchema = z
 
 type SalesOrderIntakeValues = z.infer<typeof salesOrderIntakeSchema>
 
-interface SectionProps {
-  title: string
-  subtitle?: string
-  isOpen: boolean
-  onToggle: () => void
-  children: React.ReactNode
-  className?: string
-  icon?: React.ReactNode
-  variant?: 'default' | 'success' | 'warning' | 'info'
-}
-
 interface LookupOption {
   label: string
   subtitle: string
   value: string
 }
 
-const SectionCard = ({ title, subtitle, isOpen, onToggle, children, className = '', icon, variant = 'default' }: SectionProps) => {
-  const variantStyles = {
-    default: 'border-border bg-card hover:bg-card/80',
-    success: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
-    warning: 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30',
-    info: 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30',
-  }
+// ─── Step config ──────────────────────────────────────────────────────────────
 
-  return (
-    <Card className={`${variantStyles[variant]} transition-all duration-200 ${className}`}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 p-6 text-left transition-colors hover:bg-muted/40"
-      >
-        <div className="flex items-start gap-3">
-          {icon && <div className="mt-1 flex-shrink-0">{icon}</div>}
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-          </div>
-        </div>
-        <div className="flex-shrink-0">
-          {isOpen ? 
-            <ChevronUp className="h-5 w-5 text-muted-foreground transition-transform" /> : 
-            <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform" />
-          }
-        </div>
-      </button>
-      <Separator className="m-0" />
-      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="space-y-5 p-6">{children}</div>
-      </div>
-    </Card>
-  )
-}
+const STEPS = [
+  { id: 0, label: 'Patient',      icon: RiUserLine },
+  { id: 1, label: 'Prescription', icon: RiEyeLine },
+  { id: 2, label: 'Order Info',   icon: RiFileTextLine },
+  { id: 3, label: 'Frame',        icon: RiBox3Line },
+  { id: 4, label: 'Lens',         icon: RiSparklingLine },
+  { id: 5, label: 'Expenses',     icon: RiReceiptLine },
+  { id: 6, label: 'Review',       icon: RiShieldCheckLine },
+] as const
 
-// Alert wrapper component
-const FormAlert = ({ type, title, description }: { type: 'info' | 'warning' | 'error' | 'success'; title: string; description: string }) => {
-  const variantConfig = {
-    info: { icon: AlertCircle, className: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30' },
-    warning: { icon: AlertCircle, className: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30' },
-    error: { icon: AlertCircle, className: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/30' },
-    success: { icon: AlertCircle, className: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30' },
-  }
+// ─── Small UI helpers ─────────────────────────────────────────────────────────
 
-  const config = variantConfig[type]
-  const Icon = config.icon || AlertCircle
-
-  return (
-    <div className={`rounded-lg border p-4 ${config.className}`}>
-      <div className="flex items-start gap-3">
-        <Icon className="h-4 w-4 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-semibold">{title}</p>
-          <p className="text-sm mt-1 opacity-90">{description}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Field group wrapper for better organization
-const FieldGroup = ({ 
-  children, 
+const Field = ({
   label,
-  cols = 1 
-}: { 
-  children: React.ReactNode
+  required,
+  error,
+  className,
+  children,
+}: {
   label?: string
-  cols?: 1 | 2 | 3 | 4 | 5
-}) => {
-  const gridCols = {
-    1: 'grid-cols-1',
-    2: 'md:grid-cols-2',
-    3: 'md:grid-cols-3',
-    4: 'lg:grid-cols-4',
-    5: 'lg:grid-cols-5',
-  }
+  required?: boolean
+  error?: string
+  className?: string
+  children: React.ReactNode
+}) => (
+  <div className={`space-y-1.5 ${className ?? ''}`}>
+    {label && (
+      <label className="text-sm font-medium leading-none text-foreground">
+        {label}
+        {required && <span className="text-destructive ml-0.5"> *</span>}
+      </label>
+    )}
+    {children}
+    {error && <p className="text-xs text-destructive">{error}</p>}
+  </div>
+)
 
+const InlineAlert = ({
+  type,
+  title,
+  description,
+}: {
+  type: 'info' | 'warning' | 'success'
+  title: string
+  description?: string
+}) => {
+  const styles = {
+    info: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200',
+    warning: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200',
+    success: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200',
+  }
   return (
-    <div>
-      {label && <h3 className="mb-4 text-sm font-semibold text-foreground/80">{label}</h3>}
-      <div className={`grid grid-cols-1 gap-4 ${gridCols[cols]}`}>
-        {children}
+    <div className={`flex items-start gap-3 rounded-lg border p-4 ${styles[type]}`}>
+      <RiAlertLine className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        {description && <p className="text-sm mt-1 opacity-90">{description}</p>}
       </div>
     </div>
   )
 }
+
+const SummaryRow = ({ label, value }: { label: string; value: number }) => (
+  <div className="flex items-center justify-between py-2.5">
+    <span className="text-sm text-muted-foreground">{label}</span>
+    <span className="text-sm font-semibold tabular-nums">{formatCurrency(roundCurrency(value))}</span>
+  </div>
+)
+
+const StepIndicator = ({ currentStep }: { currentStep: number }) => (
+  <div className="flex items-center">
+    {STEPS.map((step, index) => {
+      const isPast = step.id < currentStep
+      const isCurrent = step.id === currentStep
+      return (
+        <div key={step.id} className="flex flex-1 items-center">
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <div
+              className={[
+                'flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200',
+                isCurrent
+                  ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
+                  : isPast
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background text-muted-foreground',
+              ].join(' ')}
+            >
+              {isPast ? (
+                <RiCheckLine className="h-4 w-4" />
+              ) : (
+                <span className="text-xs font-bold">{step.id + 1}</span>
+              )}
+            </div>
+            <span
+              className={[
+                'hidden sm:block text-xs font-medium whitespace-nowrap',
+                isCurrent ? 'text-primary' : isPast ? 'text-foreground' : 'text-muted-foreground',
+              ].join(' ')}
+            >
+              {step.label}
+            </span>
+          </div>
+          {index < STEPS.length - 1 && (
+            <div className={`h-0.5 w-full mx-2 mb-4 transition-all duration-300 ${step.id < currentStep ? 'bg-primary' : 'bg-border'}`} />
+          )}
+        </div>
+      )
+    })}
+  </div>
+)
+
+// ─── Static defaults ──────────────────────────────────────────────────────────
 
 const today = new Date().toISOString().split('T')[0]
 
 const defaultValues: SalesOrderIntakeValues = {
-  patient: {
-    existingId: '',
-    newData: {
-      fullName: '',
-      phone: '',
-      age: undefined,
-      gender: undefined,
-      address: '',
-    },
-  },
+  patient: { existingId: '', newData: { fullName: '', phone: '', age: undefined, gender: undefined, address: '' } },
   prescription: {
     existingId: '',
     newData: {
-      prescriptionDate: today,
-      validUntil: today,
-      diagnosis: '',
-      notes: '',
+      prescriptionDate: today, validUntil: today, diagnosis: '', notes: '',
       rightEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, pd: 0 },
       leftEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, pd: 0 },
     },
   },
-  salesOrder: {
-    isOld: false,
-    deliveryDate: today,
-    orderNumber: '',
-    testedBy: '',
-    orderDate: today,
-  },
-  frame: {
-    selectionId: '',
-    barcode: '',
-    model: '',
-    color: '',
-    size: '',
-    frameId: '',
-    total: 0,
-  },
-  lens: {
-    selectionId: '',
-    lensType: '',
-    color: '',
-    size: '',
-    lensId: '',
-    total: 0,
-  },
+  salesOrder: { isOld: false, deliveryDate: today, orderNumber: '', testedBy: '', orderDate: today },
+  frame: { selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
+  lens: { selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
-  totals: {
-    discount: 0,
-    advancedPayment: 0,
-    fullPaymentDate: '',
-    invoiceNumber: '',
-  },
+  totals: { discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
 }
 
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+
 const normalizeText = (value: string) => value.trim().toLowerCase()
 
-const formatAddress = (patient: Patient) => {
-  const address = patient.address
-  if (!address) return ''
-  return [address.street, address.city, address.state, address.zip_code, address.country]
-    .filter(Boolean)
-    .join(', ')
+const formatAddress = (p: Patient) => {
+  const a = p.address
+  if (!a) return ''
+  return [a.street, a.city, a.state, a.zip_code, a.country].filter(Boolean).join(', ')
 }
 
-const mapPrescriptionToForm = (prescription: Prescription) => ({
-  prescriptionDate: prescription.prescription_date ? String(prescription.prescription_date).split('T')[0] : today,
-  validUntil: prescription.valid_until ? String(prescription.valid_until).split('T')[0] : today,
-  diagnosis: prescription.diagnosis || '',
-  notes: prescription.notes || '',
+const mapPrescriptionToForm = (rx: Prescription) => ({
+  prescriptionDate: rx.prescription_date ? String(rx.prescription_date).split('T')[0] : today,
+  validUntil: rx.valid_until ? String(rx.valid_until).split('T')[0] : today,
+  diagnosis: rx.diagnosis || '',
+  notes: rx.notes || '',
   rightEye: {
-    sphere: prescription.eye_prescription?.right_eye.sphere ?? 0,
-    cylinder: prescription.eye_prescription?.right_eye.cylinder ?? 0,
-    axis: prescription.eye_prescription?.right_eye.axis ?? 0,
-    add: prescription.eye_prescription?.right_eye.add ?? 0,
-    pd: prescription.eye_prescription?.right_eye.pupillary_distance ?? 0,
+    sphere: rx.eye_prescription?.right_eye.sphere ?? 0,
+    cylinder: rx.eye_prescription?.right_eye.cylinder ?? 0,
+    axis: rx.eye_prescription?.right_eye.axis ?? 0,
+    add: rx.eye_prescription?.right_eye.add ?? 0,
+    pd: rx.eye_prescription?.right_eye.pupillary_distance ?? 0,
   },
   leftEye: {
-    sphere: prescription.eye_prescription?.left_eye.sphere ?? 0,
-    cylinder: prescription.eye_prescription?.left_eye.cylinder ?? 0,
-    axis: prescription.eye_prescription?.left_eye.axis ?? 0,
-    add: prescription.eye_prescription?.left_eye.add ?? 0,
-    pd: prescription.eye_prescription?.left_eye.pupillary_distance ?? 0,
+    sphere: rx.eye_prescription?.left_eye.sphere ?? 0,
+    cylinder: rx.eye_prescription?.left_eye.cylinder ?? 0,
+    axis: rx.eye_prescription?.left_eye.axis ?? 0,
+    add: rx.eye_prescription?.left_eye.add ?? 0,
+    pd: rx.eye_prescription?.left_eye.pupillary_distance ?? 0,
   },
 })
 
 const buildPatientPayload = (values: SalesOrderIntakeValues['patient']) => ({
   name: values.newData.fullName,
-  date_of_birth: values.newData.age ? new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)).toISOString().split('T')[0] : today,
+  date_of_birth: values.newData.age
+    ? new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)).toISOString().split('T')[0]
+    : today,
   gender: values.newData.gender || Gender.OTHER,
   phone: values.newData.phone,
-  address: values.newData.address
-    ? { street: values.newData.address }
-    : undefined,
+  address: values.newData.address ? { street: values.newData.address } : undefined,
 })
 
-const buildPrescriptionPayload = (
-  patientId: string,
-  values: SalesOrderIntakeValues['prescription']
-) => ({
+const buildPrescriptionPayload = (patientId: string, values: SalesOrderIntakeValues['prescription']) => ({
   patient_id: patientId,
   doctor_id: 'UNKNOWN',
   prescription_date: values.newData.prescriptionDate || today,
@@ -396,72 +380,36 @@ const mapProductToFrame = (product: Product) => ({
   total: product.selling_price,
 })
 
-const SummaryRow = ({ label, value, isCurrency = true }: { label: string; value: number; isCurrency?: boolean }) => {
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold text-foreground">{isCurrency ? formatCurrency(roundCurrency(value)) : value}</span>
-    </div>
-  )
-}
+// ─── Main component ───────────────────────────────────────────────────────────
 
 const SalesOrderIntakeForm = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [currentStep, setCurrentStep] = useState(0)
   const [savedOrderNumber, setSavedOrderNumber] = useState('')
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    patient: true,
-    prescription: true,
-    salesOrder: true,
-    frame: true,
-    lens: true,
-    expenses: true,
-    remarks: false,
-    summary: true,
-    totals: true,
-  })
 
+  // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['sales-order-products-master'],
     queryFn: async () => {
       const firstPage = await productsApi.getAll({ page: 1, page_size: 100 })
-      if (firstPage.total_pages <= 1) {
-        return firstPage
-      }
-
+      if (firstPage.total_pages <= 1) return firstPage
       const allItems = [...firstPage.data]
       for (let page = 2; page <= firstPage.total_pages; page += 1) {
         const nextPage = await productsApi.getAll({ page, page_size: 100 })
         allItems.push(...nextPage.data)
       }
-
-      return {
-        ...firstPage,
-        data: allItems,
-        page: 1,
-        page_size: allItems.length,
-      }
+      return { ...firstPage, data: allItems, page: 1, page_size: allItems.length }
     },
   })
 
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    setValue,
-    getValues,
-    reset,
-    clearErrors,
-    formState: { errors },
-  } = useForm<SalesOrderIntakeValues>({
-    resolver: zodResolver(salesOrderIntakeSchema),
-    defaultValues,
-    mode: 'onSubmit',
-  })
+  // Form
+  const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors } } =
+    useForm<SalesOrderIntakeValues>({ resolver: zodResolver(salesOrderIntakeSchema), defaultValues, mode: 'onSubmit' })
 
   const expenses = useWatch({ control, name: 'expenses' })
   const frame = useWatch({ control, name: 'frame' })
@@ -471,60 +419,35 @@ const SalesOrderIntakeForm = () => {
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
 
-  const { data: matchingPatients } = usePatientSearch(
-    `${patient.newData.phone || ''} ${patient.newData.fullName || ''}`
-  )
-
+  const { data: matchingPatients } = usePatientSearch(`${patient.newData.phone || ''} ${patient.newData.fullName || ''}`)
   const { data: patientPrescriptions } = usePrescriptionFetch(patient.existingId || undefined)
   const { isScannerOpen: barcodeScannerOpen, openScanner, closeScanner, scanBarcode, isScanningProduct } = useBarcodeScanner()
+  const { fields: expenseFields, append, remove } = useFieldArray({ control, name: 'expenses' })
 
-  const { fields: expenseFields, append, remove } = useFieldArray({
-    control,
-    name: 'expenses',
-  })
-
+  // Derived options
   const frameOptions = useMemo<LookupOption[]>(() => {
-    const frameCategories = new Set<ProductCategory>([
-      ProductCategory.FRAMES,
-      ProductCategory.SUNGLASSES,
-    ])
-
+    const cats = new Set<ProductCategory>([ProductCategory.FRAMES, ProductCategory.SUNGLASSES])
     return (productData?.data || [])
-      .filter((product) => frameCategories.has(product.category) && product.current_stock > 0)
-      .map((product) => ({
-        value: product.product_id,
-        label: product.name,
-        subtitle: `${product.sku} ${product.barcode ? `• ${product.barcode}` : ''} • ${formatCurrency(product.selling_price)}`,
-      }))
+      .filter((p) => cats.has(p.category) && p.current_stock > 0)
+      .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku}${p.barcode ? ` • ${p.barcode}` : ''} • ${formatCurrency(p.selling_price)}` }))
   }, [productData])
 
-  const lensOptions = useMemo<LookupOption[]>(() => {
-    return (lensMasterData?.data || [])
-      .map((product) => ({
-        value: product.id,
-        label: product.lens_type,
-        subtitle: `${product.color} • ${product.size} • ${product.lens_code} • ${formatCurrency(product.price)}`,
-      }))
-  }, [lensMasterData])
+  const lensOptions = useMemo<LookupOption[]>(() =>
+    (lensMasterData?.data || []).map((l) => ({ value: l.id, label: l.lens_type, subtitle: `${l.color} • ${l.size} • ${l.lens_code} • ${formatCurrency(l.price)}` }))
+  , [lensMasterData])
 
-  const expenseOptions = useMemo<LookupOption[]>(() => {
-    return (expenseMasterData?.data || []).map((expense) => ({
-      value: expense.id,
-      label: expense.name,
-      subtitle: formatCurrency(expense.default_cost),
-    }))
-  }, [expenseMasterData])
+  const expenseOptions = useMemo<LookupOption[]>(() =>
+    (expenseMasterData?.data || []).map((e) => ({ value: e.id, label: e.name, subtitle: formatCurrency(e.default_cost) }))
+  , [expenseMasterData])
 
   const matchedPatient = useMemo(() => {
     const results = (matchingPatients?.data || []).filter(Boolean)
     const phone = phoneDigits(patient.newData.phone || '')
     if (!phone && !patient.newData.fullName.trim()) return results[0] || null
-
     return (
       results.find((item) => phoneDigits(safeText(item?.phone)) === phone) ||
       results.find((item) => normalizeText(safeText(item?.name)).includes(normalizeText(patient.newData.fullName))) ||
-      results[0] ||
-      null
+      results[0] || null
     )
   }, [matchingPatients, patient.newData.fullName, patient.newData.phone])
 
@@ -537,158 +460,42 @@ const SalesOrderIntakeForm = () => {
     if (selected) return selected
     const manualValue = normalizeText(frame.model || frame.frameId || frame.barcode)
     if (!manualValue) return null
-    return (
-      productData?.data?.find((item) =>
-        [item.name, item.sku, item.barcode, item.product_id]
-          .filter(Boolean)
-          .some((candidate) => normalizeText(String(candidate)).includes(manualValue))
-      ) || null
-    )
+    return productData?.data?.find((item) =>
+      [item.name, item.sku, item.barcode, item.product_id].filter(Boolean).some((c) => normalizeText(String(c)).includes(manualValue))
+    ) || null
   }, [frame.barcode, frame.frameId, frame.model, frame.selectionId, productData])
 
-  const resolvedLens = useMemo(() => {
-    return lensMasterData?.data?.find((item) => item.id === lens.selectionId) || null
-  }, [lens.selectionId, lensMasterData])
+  const resolvedLens = useMemo(
+    () => lensMasterData?.data?.find((item) => item.id === lens.selectionId) || null,
+    [lens.selectionId, lensMasterData]
+  )
 
-  const derivedTotals = useMemo(() => {
-    return calculateOrderTotals({
+  const derivedTotals = useMemo(() =>
+    calculateOrderTotals({
       frameTotal: frame.total || 0,
       lensTotal: lens.total || 0,
-      expenses: (expenses || []).map((item) => ({
-        qty: Number(item.qty || 0),
-        unitCost: Number(item.unitCost || 0),
-        discount: Number(item.discount || 0),
-      })),
+      expenses: (expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
       discount: Number(totals.discount || 0),
       advancedPayment: Number(totals.advancedPayment || 0),
       isOldOrder: salesOrder.isOld,
     })
-  }, [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount])
+  , [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount])
 
+  // Effects
   useEffect(() => {
     setValue('totals.advancedPayment', derivedTotals.advancedPayment, { shouldDirty: false, shouldValidate: false })
     setValue('totals.fullPaymentDate', derivedTotals.fullPaymentDate, { shouldDirty: false, shouldValidate: false })
-    if (salesOrder.isOld) {
-      setValue('totals.invoiceNumber', '', { shouldDirty: false, shouldValidate: false })
-    }
+    if (salesOrder.isOld) setValue('totals.invoiceNumber', '', { shouldDirty: false, shouldValidate: false })
   }, [derivedTotals.advancedPayment, derivedTotals.fullPaymentDate, salesOrder.isOld, setValue])
 
   useEffect(() => {
-    if (!salesOrder.isOld) {
-      return
-    }
-    if (!getValues('totals.fullPaymentDate')) {
-      setValue('totals.fullPaymentDate', today, { shouldDirty: false, shouldValidate: false })
-    }
+    if (!salesOrder.isOld) return
+    if (!getValues('totals.fullPaymentDate')) setValue('totals.fullPaymentDate', today, { shouldDirty: false, shouldValidate: false })
   }, [getValues, salesOrder.isOld, setValue])
 
   useEffect(() => {
-    if (prescription.existingId || prescription.newData.diagnosis || prescription.newData.notes) {
-      clearErrors('prescription')
-    }
+    if (prescription.existingId || prescription.newData.diagnosis || prescription.newData.notes) clearErrors('prescription')
   }, [clearErrors, prescription.existingId, prescription.newData.diagnosis, prescription.newData.notes])
-
-  const createPatientMutation = useMutation({
-    mutationFn: (payload: Parameters<typeof patientsApi.create>[0]) => patientsApi.create(payload),
-  })
-
-  const createPrescriptionMutation = useMutation({
-    mutationFn: (payload: Parameters<typeof prescriptionsApi.create>[0]) => prescriptionsApi.create(payload),
-  })
-
-  const createSalesOrderMutation = useMutation({
-    mutationFn: (payload: Parameters<typeof salesOrdersApi.create>[0]) => salesOrdersApi.create(payload),
-  })
-
-  const generateInvoiceMutation = useMutation({
-    mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId),
-  })
-
-  const setSectionOpen = (section: string) => {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }))
-  }
-
-  const applyFrameSelection = (product: Product) => {
-    const mapped = mapProductToFrame(product)
-    setValue('frame', mapped, { shouldDirty: true, shouldValidate: true })
-  }
-
-  const applyLensSelection = (lensType: NonNullable<typeof lensMasterData>['data'][number]) => {
-    setValue('lens.selectionId', lensType.id, { shouldDirty: true, shouldValidate: true })
-    setValue('lens.lensType', lensType.lens_type, { shouldDirty: true, shouldValidate: true })
-    setValue('lens.color', lensType.color, { shouldDirty: true, shouldValidate: true })
-    setValue('lens.size', lensType.size, { shouldDirty: true, shouldValidate: true })
-    setValue('lens.lensId', lensType.lens_code, { shouldDirty: true, shouldValidate: true })
-    setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
-  }
-
-  const handlePatientAction = (patientRecord: Patient) => {
-    setValue('patient.existingId', patientRecord.patient_id, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.fullName', patientRecord.name, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.phone', patientRecord.phone, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.age', patientRecord.age, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.gender', patientRecord.gender, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.address', formatAddress(patientRecord), { shouldDirty: true, shouldValidate: true })
-    toast.success(`Linked to ${patientRecord.name}`)
-  }
-
-  const continueAsNew = () => {
-    const phone = phoneDigits(patient.newData.phone || '')
-    const matchedPhone = phoneDigits(safeText(matchedPatient?.phone))
-    if (matchedPhone && phone === matchedPhone) {
-      toast.error('Phone number already exists. Please use a different number.')
-      return
-    }
-    setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
-    toast.success('Continuing as a new patient')
-  }
-
-  const addExpenseRow = () => {
-    append({
-      expenseTypeId: '',
-      expenseTypeName: '',
-      qty: 1,
-      unitCost: 0,
-      discount: 0,
-      total: 0,
-    })
-  }
-
-  const updateExpenseRow = (index: number, field: keyof SalesOrderIntakeValues['expenses'][number], value: string | number) => {
-    const current = getValues('expenses')
-    const next = [...current]
-    const row = { ...next[index] }
-    ;(row as any)[field] = value
-
-    if (field === 'expenseTypeId') {
-      const expenseType = expenseMasterData?.data.find((item) => item.id === value)
-      if (expenseType) {
-        row.expenseTypeName = expenseType.name
-        if (!row.unitCost) row.unitCost = expenseType.default_cost
-      } else if (!value) {
-        row.expenseTypeName = ''
-      }
-    }
-
-    row.total = calculateLineTotal({ qty: Number(row.qty || 0), unitCost: Number(row.unitCost || 0), discount: Number(row.discount || 0) })
-    next[index] = row
-    setValue('expenses', next, { shouldDirty: true, shouldValidate: true })
-  }
-
-  useEffect(() => {
-    const nextExpenses = (expenses || []).map((row) => ({
-      ...row,
-      total: calculateLineTotal({
-        qty: Number(row.qty || 0),
-        unitCost: Number(row.unitCost || 0),
-        discount: Number(row.discount || 0),
-      }),
-    }))
-    const hasDifference = nextExpenses.some((row, index) => row.total !== expenses[index]?.total)
-    if (hasDifference) {
-      setValue('expenses', nextExpenses, { shouldDirty: true, shouldValidate: false })
-    }
-  }, [expenses, setValue])
 
   useEffect(() => {
     if (frame.selectionId && resolvedFrame) {
@@ -711,131 +518,142 @@ const SalesOrderIntakeForm = () => {
     }
   }, [lens.selectionId, resolvedLens, setValue])
 
+  useEffect(() => {
+    const next = (expenses || []).map((row) => ({
+      ...row,
+      total: calculateLineTotal({ qty: Number(row.qty || 0), unitCost: Number(row.unitCost || 0), discount: Number(row.discount || 0) }),
+    }))
+    if (next.some((row, i) => row.total !== expenses[i]?.total)) {
+      setValue('expenses', next, { shouldDirty: true, shouldValidate: false })
+    }
+  }, [expenses, setValue])
+
+  // Mutations
+  const createPatientMutation = useMutation({ mutationFn: (p: Parameters<typeof patientsApi.create>[0]) => patientsApi.create(p) })
+  const createPrescriptionMutation = useMutation({ mutationFn: (p: Parameters<typeof prescriptionsApi.create>[0]) => prescriptionsApi.create(p) })
+  const createSalesOrderMutation = useMutation({ mutationFn: (p: Parameters<typeof salesOrdersApi.create>[0]) => salesOrdersApi.create(p) })
+  const generateInvoiceMutation = useMutation({ mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId) })
+
+  // Handlers
+  const applyFrameSelection = (product: Product) => setValue('frame', mapProductToFrame(product), { shouldDirty: true, shouldValidate: true })
+
+  const applyLensSelection = (lensType: NonNullable<typeof lensMasterData>['data'][number]) => {
+    setValue('lens.selectionId', lensType.id, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.lensType', lensType.lens_type, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.color', lensType.color, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.size', lensType.size, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.lensId', lensType.lens_code, { shouldDirty: true, shouldValidate: true })
+    setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handlePatientAction = (rec: Patient) => {
+    setValue('patient.existingId', rec.patient_id, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.fullName', rec.name, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.phone', rec.phone, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.age', rec.age, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.gender', rec.gender, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.address', formatAddress(rec), { shouldDirty: true, shouldValidate: true })
+    toast.success(`Linked to ${rec.name}`)
+  }
+
+  const continueAsNew = () => {
+    const phone = phoneDigits(patient.newData.phone || '')
+    const matchedPhone = phoneDigits(safeText(matchedPatient?.phone))
+    if (matchedPhone && phone === matchedPhone) { toast.error('Phone number already exists.'); return }
+    setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
+    toast.success('Continuing as a new patient')
+  }
+
+  const addExpenseRow = () => append({ expenseTypeId: '', expenseTypeName: '', qty: 1, unitCost: 0, discount: 0, total: 0 })
+
+  const updateExpenseRow = (index: number, field: keyof SalesOrderIntakeValues['expenses'][number], value: string | number) => {
+    const current = getValues('expenses')
+    const next = [...current]
+    const row = { ...next[index] }
+    ;(row as any)[field] = value
+    if (field === 'expenseTypeId') {
+      const exp = expenseMasterData?.data.find((item) => item.id === value)
+      if (exp) { row.expenseTypeName = exp.name; if (!row.unitCost) row.unitCost = exp.default_cost }
+      else if (!value) row.expenseTypeName = ''
+    }
+    row.total = calculateLineTotal({ qty: Number(row.qty || 0), unitCost: Number(row.unitCost || 0), discount: Number(row.discount || 0) })
+    next[index] = row
+    setValue('expenses', next, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handleBarcodeScan = async (barcode: string) => {
+    try {
+      const product = await scanBarcode(barcode)
+      if (!product) { toast.error('Frame not found for this barcode'); return }
+      applyFrameSelection(product)
+      toast.success(`Frame loaded: ${product.name}`)
+      closeScanner()
+    } catch {
+      toast.error('Frame not found for this barcode')
+    }
+  }
+
+  const handleNext = async () => {
+    let fields: string[] = []
+    if (currentStep === 0) fields = ['patient.newData.fullName', 'patient.newData.phone']
+    else if (currentStep === 2) fields = ['salesOrder.orderDate', 'salesOrder.deliveryDate', 'salesOrder.testedBy']
+    if (fields.length > 0) {
+      const valid = await trigger(fields as any)
+      if (!valid) return
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1))
+  }
+
+  const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
+
+  const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0) }
+
   const onSubmit = async (values: SalesOrderIntakeValues) => {
     try {
       const phone = phoneDigits(values.patient.newData.phone)
-      const exactDuplicate = phone
-        ? (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item?.phone)) === phone)
-        : null
+      const exactDuplicate = phone ? (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item?.phone)) === phone) : null
+      if (!values.patient.existingId && exactDuplicate) { toast.error('Phone number already exists.'); return }
 
-      if (!values.patient.existingId && exactDuplicate) {
-        toast.error('Phone number already exists. Please use a different number.')
-        return
-      }
+      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
 
-      const patientId = values.patient.existingId || (
-        await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))
-      ).patient_id
-
-      const shouldCreatePrescription =
-        !values.prescription.existingId &&
-        Boolean(
-          values.prescription.newData.diagnosis.trim() ||
-          values.prescription.newData.notes.trim() ||
-          values.prescription.newData.rightEye.sphere !== 0 ||
-          values.prescription.newData.rightEye.cylinder !== 0 ||
-          values.prescription.newData.leftEye.sphere !== 0 ||
-          values.prescription.newData.leftEye.cylinder !== 0
-        )
-
+      const shouldCreateRx = !values.prescription.existingId && Boolean(
+        values.prescription.newData.diagnosis.trim() || values.prescription.newData.notes.trim() ||
+        values.prescription.newData.rightEye.sphere !== 0 || values.prescription.newData.rightEye.cylinder !== 0 ||
+        values.prescription.newData.leftEye.sphere !== 0 || values.prescription.newData.leftEye.cylinder !== 0
+      )
       let prescriptionId = values.prescription.existingId || ''
-
-      if (shouldCreatePrescription) {
-        const createdPrescription = await createPrescriptionMutation.mutateAsync(
-          buildPrescriptionPayload(patientId, values.prescription)
-        )
-        prescriptionId = createdPrescription.prescription_id
+      if (shouldCreateRx) {
+        const createdRx = await createPrescriptionMutation.mutateAsync(buildPrescriptionPayload(patientId, values.prescription))
+        prescriptionId = createdRx.prescription_id
       }
 
       const frameItem = values.frame.selectionId ? resolvedFrame : null
-      if (!frameItem) {
-        toast.error('Frame selection is required')
-        return
-      }
-
+      if (!frameItem) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
-      if (!values.salesOrder.isOld && !lensItem) {
-        toast.error('Lens selection is required')
-        return
-      }
-
+      if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
       if (!values.salesOrder.isOld) {
-        const invalidExpense = (values.expenses || []).some((expense) => !expense.expenseTypeId || !expenseMasterData?.data.some((item) => item.id === expense.expenseTypeId))
-        if (invalidExpense) {
-          toast.error('Expense type must come from master data')
-          return
-        }
+        const invalidExpense = (values.expenses || []).some((e) => !e.expenseTypeId || !expenseMasterData?.data.some((item) => item.id === e.expenseTypeId))
+        if (invalidExpense) { toast.error('Expense type must come from master data'); return }
       }
 
       const itemPayload: SalesOrderItem[] = [
-        {
-          product_id: frameItem.product_id,
-          product_name: values.frame.model || frameItem.name,
-          sku: values.frame.frameId || frameItem.sku,
-          quantity: 1,
-          unit_price: Number(values.frame.total || frameItem.selling_price),
-          total: Number(values.frame.total || frameItem.selling_price),
-          master_data_id: frameItem.product_id,
-          line_type: 'product' as const,
-          track_stock: true,
-        },
+        { product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true },
       ]
-
       if (lensItem || values.salesOrder.isOld) {
-        itemPayload.push({
-          product_id: lensItem?.id || values.lens.lensId || 'LENS',
-          product_name: values.lens.lensType || lensItem?.lens_type || 'Lens',
-          sku: values.lens.lensId || lensItem?.lens_code || 'LENS',
-          quantity: 1,
-          unit_price: Number(values.lens.total || lensItem?.price || 0),
-          total: Number(values.lens.total || lensItem?.price || 0),
-          master_data_id: lensItem?.id,
-          line_type: 'lens' as const,
-          track_stock: false,
-        })
+        itemPayload.push({ product_id: lensItem?.id || values.lens.lensId || 'LENS', product_name: values.lens.lensType || lensItem?.lens_type || 'Lens', sku: values.lens.lensId || lensItem?.lens_code || 'LENS', quantity: 1, unit_price: Number(values.lens.total || lensItem?.price || 0), total: Number(values.lens.total || lensItem?.price || 0), master_data_id: lensItem?.id, line_type: 'lens' as const, track_stock: false })
       }
-
-      itemPayload.push(
-        ...values.expenses.map((expense) => {
-          const selectedExpense = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
-          return {
-            product_id: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
-            product_name: expense.expenseTypeName || selectedExpense?.name || 'Expense',
-            sku: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE',
-            quantity: Number(expense.qty || 0),
-            unit_price: Number(expense.unitCost || 0),
-            total: calculateLineTotal({
-              qty: Number(expense.qty || 0),
-              unitCost: Number(expense.unitCost || 0),
-              discount: Number(expense.discount || 0),
-            }),
-            master_data_id: selectedExpense?.id || expense.expenseTypeId || undefined,
-            line_type: 'expense' as const,
-            track_stock: false,
-          }
-        })
-      )
+      itemPayload.push(...values.expenses.map((expense) => {
+        const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
+        return { product_id: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
+      }))
 
       const orderPayload = {
         patient_id: patientId,
         prescription_id: prescriptionId || undefined,
         tested_by: values.salesOrder.testedBy,
         expected_delivery_date: values.salesOrder.deliveryDate,
-        notes: [
-          values.remarks.trim(),
-          values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n'),
-        measurements: {
-          order_date: values.salesOrder.orderDate,
-          order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER',
-          frame_total: values.frame.total,
-          lens_total: values.lens.total,
-          other_expenses_total: derivedTotals.expenseTotal,
-          discount: values.totals.discount,
-          advance_payment: values.totals.advancedPayment,
-        },
+        notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
+        measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: values.totals.discount, advance_payment: values.totals.advancedPayment },
         status: 'confirmed' as const,
         items: itemPayload,
       }
@@ -843,7 +661,6 @@ const SalesOrderIntakeForm = () => {
       const createdOrder = await createSalesOrderMutation.mutateAsync(orderPayload)
       setSavedOrderNumber(createdOrder.order_number)
       setValue('salesOrder.orderNumber', createdOrder.order_number, { shouldDirty: false, shouldValidate: false })
-
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
       queryClient.invalidateQueries({ queryKey: ['patients'] })
       queryClient.invalidateQueries({ queryKey: ['patient-prescriptions', patientId] })
@@ -856,32 +673,10 @@ const SalesOrderIntakeForm = () => {
         toast.success(`Invoice ${invoice.invoice_number} generated`)
       } else {
         setSavedInvoice(null)
-        toast.success(`Historical sales order saved as ${createdOrder.order_number}`)
+        toast.success(`Historical SO saved as ${createdOrder.order_number}`)
       }
     } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to save sales order'
-      toast.error(message)
-    }
-  }
-
-  const handleReset = () => {
-    reset(defaultValues)
-    setSavedOrderNumber('')
-    setSavedInvoice(null)
-  }
-
-  const handleBarcodeScan = async (barcode: string) => {
-    try {
-      const product = await scanBarcode(barcode)
-      if (!product) {
-        toast.error('Frame not found for this barcode')
-        return
-      }
-      applyFrameSelection(product)
-      toast.success(`Frame loaded: ${product.name}`)
-      closeScanner()
-    } catch {
-      toast.error('Frame not found for this barcode')
+      toast.error(error?.response?.data?.detail || 'Failed to save sales order')
     }
   }
 
@@ -893,601 +688,545 @@ const SalesOrderIntakeForm = () => {
     )
   }
 
+  const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending
+
   return (
     <>
       <QRScanner isOpen={barcodeScannerOpen} onScan={handleBarcodeScan} onClose={closeScanner} />
 
-      <div className="space-y-6">
-        {/* Header Card */}
-        <Card className="border-0 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm overflow-hidden">
-          <CardHeader>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex-1">
-                <div className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-3">
-                  Sales Order Intake
-                </div>
-                <CardTitle className="text-3xl sm:text-4xl">Create a guided order</CardTitle>
-                <CardDescription className="mt-3 max-w-2xl text-base">
-                  Streamlined workflow for patient lookup, prescriptions, frame/lens selection, and invoice generation. All in one place.
-                </CardDescription>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2">
-                  <div className="h-2 w-2 rounded-full bg-primary"></div>
-                  <span className="text-xs font-medium text-foreground">
-                    {isFullOrder ? 'FULL ORDER' : 'PARTIAL ORDER'}
-                  </span>
-                </div>
-                <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 ${
-                  salesOrder.isOld 
-                    ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30' 
-                    : 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
-                }`}>
-                  <div className={`h-2 w-2 rounded-full ${salesOrder.isOld ? 'bg-yellow-600' : 'bg-green-600'}`}></div>
-                  <span className={`text-xs font-medium ${salesOrder.isOld ? 'text-yellow-900' : 'text-green-900'}`}>
-                    {salesOrder.isOld ? 'Historical' : 'Invoice Eligible'}
-                  </span>
-                </div>
-                {savedOrderNumber && (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-xs font-semibold text-foreground">SO {savedOrderNumber}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardHeader>
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Progress stepper */}
+        <Card className="px-6 py-5">
+          <StepIndicator currentStep={currentStep} />
         </Card>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Section 1: Patient Information */}
-          <SectionCard
-            title="Patient Information"
-            subtitle="Create new or link existing patient record"
-            isOpen={openSections.patient}
-            onToggle={() => setSectionOpen('patient')}
-            variant={patientIsLinked ? 'success' : 'default'}
-          >
-            <div className="space-y-5">
-              <FieldGroup label="Patient Details" cols={2}>
-                <Input
-                  label="Full Name *"
-                  placeholder="John Doe"
-                  error={errors.patient?.newData?.fullName?.message}
-                  {...register('patient.newData.fullName')}
-                  disabled={patientIsLinked}
-                />
-                <Input
-                  label="Phone Number *"
-                  placeholder="0771234567"
-                  error={errors.patient?.newData?.phone?.message}
-                  {...register('patient.newData.phone')}
-                  disabled={patientIsLinked}
-                />
-                <Input
-                  label="Age"
-                  type="number"
-                  min={0}
-                  placeholder="34"
-                  error={errors.patient?.newData?.age?.message as string | undefined}
-                  {...register('patient.newData.age')}
-                  disabled={patientIsLinked}
-                />
+
+          {/* ── Step 0: Patient ─────────────────────────────────────────────── */}
+          {currentStep === 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiUserLine className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Patient Information</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Search for an existing patient or register a new one</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label="Full Name" required error={errors.patient?.newData?.fullName?.message}>
+                    <Input placeholder="John Doe" {...register('patient.newData.fullName')} disabled={patientIsLinked} />
+                  </Field>
+                  <Field label="Phone Number" required error={errors.patient?.newData?.phone?.message}>
+                    <Input placeholder="0771234567" {...register('patient.newData.phone')} disabled={patientIsLinked} />
+                  </Field>
+                  <Field label="Age" error={errors.patient?.newData?.age?.message as string | undefined}>
+                    <Input type="number" min={0} placeholder="34" {...register('patient.newData.age')} disabled={patientIsLinked} />
+                  </Field>
+                  <Field label="Gender" required={!patientIsLinked} error={errors.patient?.newData?.gender?.message}>
+                    <Select
+                      value={patient.newData.gender || ''}
+                      onValueChange={(val) => setValue('patient.newData.gender', val as Gender, { shouldDirty: true, shouldValidate: true })}
+                      disabled={patientIsLinked}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={Gender.MALE}>Male</SelectItem>
+                        <SelectItem value={Gender.FEMALE}>Female</SelectItem>
+                        <SelectItem value={Gender.OTHER}>Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                <Field label="Address">
+                  <Input placeholder="Street address or delivery note" {...register('patient.newData.address')} disabled={patientIsLinked} />
+                </Field>
+
+                {matchedPatient && !patientIsLinked && (
+                  <div className="space-y-3">
+                    <InlineAlert type="warning" title="Existing patient found" description={`${safeText(matchedPatient.name)} — ${safeText(matchedPatient.phone)}`} />
+                    <div className="flex flex-wrap gap-3">
+                      <Button type="button" onClick={() => handlePatientAction(matchedPatient)}>Use Existing Patient</Button>
+                      <Button type="button" variant="outline" onClick={continueAsNew}>Continue as New</Button>
+                    </div>
+                  </div>
+                )}
+
+                {patientIsLinked && (
+                  <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <RiCheckLine className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                        Patient linked: {patient.newData.fullName}
+                      </span>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={continueAsNew}>Unlink</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Step 1: Prescription ────────────────────────────────────────── */}
+          {currentStep === 1 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiEyeLine className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Prescription & Eye Measurements</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Link an existing prescription or enter new measurements</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-6">
+                {patient.existingId && (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <Field label="Load Existing Prescription" className="flex-1">
+                      <Select
+                        value={prescription.existingId || ''}
+                        onValueChange={(selectedId) => {
+                          setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
+                          const rx = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
+                          if (rx) setValue('prescription.newData', mapPrescriptionToForm(rx), { shouldDirty: true, shouldValidate: false })
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select a prescription" /></SelectTrigger>
+                        <SelectContent>
+                          {(patientPrescriptions?.data || []).map((item) => (
+                            <SelectItem key={item.prescription_id} value={item.prescription_id}>
+                              {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Button type="button" variant="outline" onClick={() => { setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true }); setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false }) }}>
+                      + New Prescription
+                    </Button>
+                  </div>
+                )}
+
+                {prescriptionIsLinked && (
+                  <InlineAlert type="info" title="Prescription loaded" description="Fields are read-only. Click '+ New Prescription' to enter custom values." />
+                )}
+
+                <Tabs defaultValue="right">
+                  <TabsList className="w-full">
+                    <TabsTrigger value="right" className="flex-1">
+                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">OD</span>
+                      Right Eye
+                    </TabsTrigger>
+                    <TabsTrigger value="left" className="flex-1">
+                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">OS</span>
+                      Left Eye
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="right" className="mt-4">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <Field label="Sphere"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Cylinder"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Axis"><Input type="number" step="1" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Add"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="PD"><Input type="number" step="0.1" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="left" className="mt-4">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <Field label="Sphere"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Cylinder"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Axis"><Input type="number" step="1" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="Add"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                      <Field label="PD"><Input type="number" step="0.1" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label="Diagnosis">
+                    <Input {...register('prescription.newData.diagnosis')} disabled={prescriptionIsLinked} placeholder="e.g. Myopia" />
+                  </Field>
+                  <Field label="Notes">
+                    <Input {...register('prescription.newData.notes')} disabled={prescriptionIsLinked} placeholder="Any clinical notes" />
+                  </Field>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Step 2: Order Info ──────────────────────────────────────────── */}
+          {currentStep === 2 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiFileTextLine className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Order Details</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Dates, tested by, and order type</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Field label="Order Date" required error={errors.salesOrder?.orderDate?.message}>
+                    <Input type="date" {...register('salesOrder.orderDate')} />
+                  </Field>
+                  <Field label="Delivery Date" required error={errors.salesOrder?.deliveryDate?.message}>
+                    <Input type="date" {...register('salesOrder.deliveryDate')} />
+                  </Field>
+                  <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
+                    <Input placeholder="Optometrist name" {...register('salesOrder.testedBy')} />
+                  </Field>
+                </div>
+
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-muted-foreground">Gender {!patientIsLinked && '*'}</label>
-                  <select
-                    className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/20 ${errors.patient?.newData?.gender ? 'border-red-500' : 'border-input'}`}
-                    {...register('patient.newData.gender')}
-                    disabled={patientIsLinked}
-                  >
-                    <option value="">Select gender</option>
-                    <option value={Gender.MALE}>Male</option>
-                    <option value={Gender.FEMALE}>Female</option>
-                    <option value={Gender.OTHER}>Other</option>
-                  </select>
-                  {errors.patient?.newData?.gender && <p className="mt-1 text-xs text-red-600">{errors.patient.newData.gender.message}</p>}
+                  <p className="mb-3 text-sm font-medium text-foreground">Order Type</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${!salesOrder.isOld ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}>
+                      <input type="radio" className="mt-1" checked={!salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })} />
+                      <div>
+                        <p className="font-semibold text-foreground">New Sales Order</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Auto-generates SO# and invoice</p>
+                      </div>
+                    </label>
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${salesOrder.isOld ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30' : 'border-border hover:bg-muted/50'}`}>
+                      <input type="radio" className="mt-1" checked={salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })} />
+                      <div>
+                        <p className="font-semibold text-foreground">Historical Entry</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Legacy paper order, no invoice</p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
-              </FieldGroup>
 
-              <FieldGroup label="Delivery Address">
-                <Input
-                  label="Address"
-                  placeholder="Street address or delivery note"
-                  {...register('patient.newData.address')}
-                  disabled={patientIsLinked}
-                />
-              </FieldGroup>
+                {salesOrder.isOld && (
+                  <Field label="Legacy SO Number">
+                    <Input placeholder="Original order number" {...register('salesOrder.orderNumber')} />
+                  </Field>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-              {matchedPatient && !patientIsLinked && (
-                <FormAlert
-                  type="warning"
-                  title="Existing Patient Found"
-                  description={`${safeText(matchedPatient.name)} (${safeText(matchedPatient.phone)})`}
-                />
-              )}
-
-              {matchedPatient && !patientIsLinked && (
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <Button 
-                    type="button" 
-                    onClick={() => handlePatientAction(matchedPatient)}
-                    className="flex-1 sm:flex-auto"
-                  >
-                    Use Existing Patient
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={continueAsNew}
-                    className="flex-1 sm:flex-auto"
-                  >
-                    Continue as New
-                  </Button>
+          {/* ── Step 3: Frame ───────────────────────────────────────────────── */}
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiBox3Line className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Frame Selection</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Scan a barcode or search from inventory</p>
+                  </div>
                 </div>
-              )}
-
-              {patientIsLinked && (
-                <FormAlert
-                  type="info"
-                  title="Patient Linked"
-                  description="Fields are locked. Click 'Continue as New' to unlock and edit."
-                />
-              )}
-            </div>
-          </SectionCard>
-
-          {/* Section 2: Prescription */}
-          <SectionCard
-            title="Prescription & Eye Measurements"
-            subtitle="Link existing or create new prescription"
-            isOpen={openSections.prescription}
-            onToggle={() => setSectionOpen('prescription')}
-          >
-            <div className="space-y-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <label className="mb-2 block text-sm font-medium text-muted-foreground">Select Prescription</label>
-                  <select
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    value={prescription.existingId || ''}
-                    onChange={(event) => {
-                      const selectedId = event.target.value
-                      setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
-                      const selectedPrescription = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
-                      if (selectedPrescription) {
-                        setValue('prescription.newData', mapPrescriptionToForm(selectedPrescription), { shouldDirty: true, shouldValidate: false })
-                      }
-                    }}
-                    disabled={!patient.existingId}
-                  >
-                    <option value="">{patient.existingId ? 'Select linked prescription' : 'Link a patient first'}</option>
-                    {(patientPrescriptions?.data || []).map((item) => (
-                      <option key={item.prescription_id} value={item.prescription_id}>
-                        {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true })
-                    setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
-                  }}
-                >
-                  + New Prescription
-                </Button>
-              </div>
-
-              <div className="rounded-lg border border-input bg-muted/40 p-4">
-                <h3 className="mb-4 text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">OD</span>
-                  Right Eye
-                </h3>
-                <FieldGroup cols={5}>
-                  <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Axis" type="number" step="1" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Add" type="number" step="0.25" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="PD" type="number" step="0.1" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                </FieldGroup>
-              </div>
-
-              <div className="rounded-lg border border-input bg-muted/40 p-4">
-                <h3 className="mb-4 text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">OS</span>
-                  Left Eye
-                </h3>
-                <FieldGroup cols={5}>
-                  <Input label="Sphere" type="number" step="0.25" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Cylinder" type="number" step="0.25" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Axis" type="number" step="1" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="Add" type="number" step="0.25" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                  <Input label="PD" type="number" step="0.1" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} />
-                </FieldGroup>
-              </div>
-
-              <FieldGroup label="Prescription Details" cols={2}>
-                <Input label="Diagnosis" {...register('prescription.newData.diagnosis')} disabled={prescriptionIsLinked} />
-                <Input label="Notes" {...register('prescription.newData.notes')} disabled={prescriptionIsLinked} />
-              </FieldGroup>
-            </div>
-          </SectionCard>
-
-          {/* Section 3: Sales Order Information */}
-          <SectionCard
-            title="Sales Order Details"
-            subtitle="Order dates, delivery info, and order type selection"
-            isOpen={openSections.salesOrder}
-            onToggle={() => setSectionOpen('salesOrder')}
-          >
-            <div className="space-y-5">
-              <FieldGroup label="Order Dates & Person" cols={4}>
-                <Input label="Order Date *" type="date" error={errors.salesOrder?.orderDate?.message} {...register('salesOrder.orderDate')} />
-                <Input label="Delivery Date *" type="date" error={errors.salesOrder?.deliveryDate?.message} {...register('salesOrder.deliveryDate')} />
-                <Input label="Tested By *" placeholder="Optometrist name" error={errors.salesOrder?.testedBy?.message} {...register('salesOrder.testedBy')} />
-                <Input 
-                  label="SO Number" 
-                  placeholder={salesOrder.isOld ? 'Legacy #' : 'Auto-generated'} 
-                  {...register('salesOrder.orderNumber')}
-                  disabled={!salesOrder.isOld}
-                />
-              </FieldGroup>
-
-              <div className="space-y-3 pt-2">
-                <h3 className="text-sm font-semibold text-foreground">Order Type</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition ${
-                    !salesOrder.isOld 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:bg-muted/50'
-                  }`}>
-                    <input
-                      type="radio"
-                      className="mt-1"
-                      checked={!salesOrder.isOld}
-                      onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })}
-                    />
-                    <div>
-                      <p className="font-semibold text-foreground">New Sales Order</p>
-                      <p className="text-sm text-muted-foreground">Auto-generate SO# and invoice</p>
-                    </div>
-                  </label>
-                  <label className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition ${
-                    salesOrder.isOld 
-                      ? 'border-yellow-600 bg-yellow-50 dark:bg-yellow-950/30' 
-                      : 'border-border hover:bg-muted/50'
-                  }`}>
-                    <input
-                      type="radio"
-                      className="mt-1"
-                      checked={salesOrder.isOld}
-                      onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })}
-                    />
-                    <div>
-                      <p className="font-semibold text-foreground">Historical Entry</p>
-                      <p className="text-sm text-muted-foreground">Legacy paper order entry</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* Section 4 & 5: Frame & Lens (Side by Side) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <SectionCard
-              title="Frame Selection"
-              subtitle="Scan or browse from inventory"
-              isOpen={openSections.frame}
-              onToggle={() => setSectionOpen('frame')}
-            >
-              <div className="space-y-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={openScanner}
-                  isLoading={isScanningProduct}
-                  className="w-full"
-                >
-                  <Scan className="mr-2 h-4 w-4" /> Scan Barcode
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-5">
+                <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="w-full h-12 text-base gap-2">
+                  <RiScanLine className="h-5 w-5" />
+                  {isScanningProduct ? 'Scanning...' : 'Scan Barcode'}
                 </Button>
 
-                <Separator />
+                <div className="relative flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-medium text-muted-foreground">or search</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
 
-                <FieldGroup label="Frame Details" cols={2}>
+                <Field label="Frame" error={errors.frame?.selectionId?.message}>
                   <SearchableLOV
-                    label="Frame List"
-                    placeholder="Select frame"
+                    placeholder="Search by name, SKU, or barcode"
                     value={frame.selectionId || ''}
                     onChange={(value) => {
                       const product = productData?.data.find((item) => String(item.product_id) === String(value))
-                      if (product) {
-                        applyFrameSelection(product)
-                        return
-                      }
+                      if (product) { applyFrameSelection(product); return }
                       setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
                     }}
                     options={frameOptions}
                   />
-                  <Input label="Price" type="number" step="0.01" {...register('frame.total', { valueAsNumber: true })} />
-                  <Input label="Model" {...register('frame.model')} />
-                  <Input label="Color" {...register('frame.color')} />
-                  <Input label="Size" {...register('frame.size')} />
-                  <Input label="Barcode/SKU" {...register('frame.barcode')} />
-                </FieldGroup>
-              </div>
-            </SectionCard>
+                </Field>
 
-            <SectionCard
-              title="Lens Selection"
-              subtitle="From basic data master"
-              isOpen={openSections.lens}
-              onToggle={() => setSectionOpen('lens')}
-            >
-              <div className="space-y-4">
-                <FieldGroup label="Lens Details" cols={2}>
+                <div className={`rounded-xl border p-4 ${frame.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                    {frame.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
+                    <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                    <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                    <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
+                    <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Step 4: Lens ────────────────────────────────────────────────── */}
+          {currentStep === 4 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiSparklingLine className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Lens Selection</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Select from the lens master catalog</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-5">
+                <Field label="Lens" error={errors.lens?.selectionId?.message}>
                   <SearchableLOV
-                    label="Lens List"
-                    placeholder="Select lens"
+                    placeholder="Search lens type, color, size..."
                     value={lens.selectionId || ''}
                     onChange={(value) => {
                       const lensType = lensMasterData?.data.find((item) => String(item.id) === String(value))
-                      if (lensType) {
-                        applyLensSelection(lensType)
-                        return
-                      }
+                      if (lensType) { applyLensSelection(lensType); return }
                       setValue('lens.selectionId', value, { shouldDirty: true, shouldValidate: true })
                     }}
                     options={lensOptions}
                   />
-                  <Input label="Price" type="number" step="0.01" {...register('lens.total', { valueAsNumber: true })} />
-                  <Input label="Lens Type" {...register('lens.lensType')} />
-                  <Input label="Color" {...register('lens.color')} />
-                  <Input label="Size" {...register('lens.size')} />
-                  <Input label="Code" {...register('lens.lensId')} />
-                </FieldGroup>
-              </div>
-            </SectionCard>
-          </div>
+                </Field>
 
-          {/* Section 6: Expenses */}
-          <SectionCard
-            title="Other Expenses"
-            subtitle="Additional charges and services"
-            isOpen={openSections.expenses}
-            onToggle={() => setSectionOpen('expenses')}
-          >
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => addExpenseRow()}
-                >
-                  + Add Expense
-                </Button>
-              </div>
-
-              {expenseFields.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                  No expenses added yet
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-input">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-input bg-muted/50">
-                        <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Expense Type</th>
-                        <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Qty</th>
-                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Unit Cost</th>
-                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Discount</th>
-                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Total</th>
-                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {expenseFields.map((field, index) => (
-                        <tr key={field.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3">
-                            <SearchableLOV
-                              placeholder="Select expense"
-                              value={expenses?.[index]?.expenseTypeId || ''}
-                              onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)}
-                              options={expenseOptions}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Input 
-                              type="number" 
-                              min={0} 
-                              step="1" 
-                              value={expenses?.[index]?.qty || 0} 
-                              onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))}
-                              className="text-center"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Input 
-                              type="number" 
-                              min={0} 
-                              step="0.01" 
-                              value={expenses?.[index]?.unitCost || 0} 
-                              onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))}
-                              className="text-right"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Input 
-                              type="number" 
-                              min={0} 
-                              step="0.01" 
-                              value={expenses?.[index]?.discount || 0} 
-                              onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))}
-                              className="text-right"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold">
-                            {formatCurrency(expenses?.[index]?.total || 0)}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => remove(index)}
-                            >
-                              <Trash02 className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </SectionCard>
-
-          {/* Section 7: Remarks */}
-          <SectionCard
-            title="Remarks & Notes"
-            subtitle="Additional information for the order"
-            isOpen={openSections.remarks}
-            onToggle={() => setSectionOpen('remarks')}
-          >
-            <textarea
-              {...register('remarks')}
-              rows={4}
-              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Add any notes or special instructions..."
-            />
-          </SectionCard>
-
-          {/* Section 8 & 9: Summary & Totals (Side by Side) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <SectionCard
-              title="Order Summary"
-              subtitle="Commercial components breakdown"
-              isOpen={openSections.summary}
-              onToggle={() => setSectionOpen('summary')}
-            >
-              <div className="space-y-3">
-                <SummaryRow label="Frame Total" value={derivedTotals.frameTotal} />
-                <SummaryRow label="Lens Total" value={derivedTotals.lensTotal} />
-                <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
-                <Separator />
-                <SummaryRow label="Subtotal" value={derivedTotals.subtotal} isCurrency />
-                <div className="rounded-lg border-2 border-primary bg-primary/5 px-4 py-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Type</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {isFullOrder ? '✓ Full Order' : '○ Partial Order'}
+                <div className={`rounded-xl border p-4 ${lens.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                    {lens.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
                   </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
+                    <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
+                    <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
+                    <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
+                    <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('lens.total', { valueAsNumber: true })} /></Field>
+                  </div>
                 </div>
-              </div>
-            </SectionCard>
+              </CardContent>
+            </Card>
+          )}
 
-            <SectionCard
-              title="Financial Summary"
-              subtitle="Payment and invoice details"
-              isOpen={openSections.totals}
-              onToggle={() => setSectionOpen('totals')}
-            >
-              <div className="space-y-4">
-                <div className="rounded-lg border border-input bg-muted/30 p-4">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Balance Due</p>
-                  <p className="mt-2 text-3xl font-bold text-foreground">
-                    {formatCurrency(roundCurrency(derivedTotals.subtotal))}
-                  </p>
-                </div>
-
-                <FieldGroup label="Payment Info" cols={1}>
-                  <Input
-                    label="Advanced/Partial Payment"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={totals.advancedPayment || 0}
-                    onChange={(e) => setValue('totals.advancedPayment', Number(e.target.value), { shouldDirty: true })}
-                    disabled={salesOrder.isOld}
-                  />
-                </FieldGroup>
-
-                <div className="rounded-lg border border-input bg-muted/30 p-4">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Outstanding Balance</p>
-                  <p className="mt-2 text-2xl font-bold text-foreground">
-                    {formatCurrency(roundCurrency(derivedTotals.balancePayment))}
-                  </p>
-                </div>
-
-                <FieldGroup label="Payment Schedule" cols={1}>
-                  <Input
-                    label="Date of Full Payment"
-                    type="date"
-                    value={totals.fullPaymentDate || ''}
-                    onChange={(e) => setValue('totals.fullPaymentDate', e.target.value, { shouldDirty: true })}
-                    disabled={salesOrder.isOld}
-                  />
-                </FieldGroup>
-
-                {!salesOrder.isOld && (
-                  <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
-                    <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          {/* ── Step 5: Expenses ────────────────────────────────────────────── */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <RiReceiptLine className="h-5 w-5 text-primary" />
+                      </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">Invoice Status</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {totals.invoiceNumber || savedInvoice?.invoice_number 
-                            ? `Invoice ${totals.invoiceNumber || savedInvoice?.invoice_number}` 
-                            : 'Generated after save'
-                          }
-                        </p>
+                        <CardTitle>Other Expenses</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
                       </div>
                     </div>
-                    {(savedInvoice || totals.invoiceNumber) && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 w-full"
-                        onClick={() => navigate(`/invoices?detail=${savedInvoice?.invoice_id || totals.invoiceNumber}`)}
-                      >
-                        <Eye className="mr-2 h-4 w-4" /> View Invoice
-                      </Button>
-                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
+                      <RiAddLine className="mr-1.5 h-4 w-4" />
+                      Add Expense
+                    </Button>
                   </div>
-                )}
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-6">
+                  {expenseFields.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
+                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/50">
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
+                            <th className="w-12" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {expenseFields.map((field, index) => (
+                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3">
+                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                  <RiDeleteBin6Line className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                {salesOrder.isOld && (
-                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30 p-4">
-                    <p className="text-sm font-semibold text-yellow-900">Historical Entry</p>
-                    <p className="text-sm text-yellow-700 mt-1">No invoice will be generated</p>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Remarks & Notes</CardTitle></CardHeader>
+                <Separator />
+                <CardContent className="pt-4">
+                  <Textarea {...register('remarks')} rows={4} placeholder="Add any special instructions or notes about this order..." className="resize-none" />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* ── Step 6: Review & Payment ────────────────────────────────────── */}
+          {currentStep === 6 && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiShieldCheckLine className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>Order Summary</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {patient.newData.fullName && `${patient.newData.fullName} · `}
+                        {isFullOrder ? 'Full Order' : 'Partial Order'}
+                        {salesOrder.isOld ? ' · Historical' : ' · Invoice Eligible'}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-            </SectionCard>
-          </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-6">
+                  <div className="divide-y divide-border">
+                    <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
+                    <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
+                    <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
+                  </div>
+                  <Separator className="my-4" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-semibold">Subtotal</span>
+                    <span className="text-2xl font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.subtotal))}</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Action Buttons */}
-          <Separator className="my-6" />
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={handleReset}
-            >
-              Reset Draft
-            </Button>
-            <Button 
-              type="submit"
-              isLoading={createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending}
-            >
-              Save Sales Order
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Payment</CardTitle></CardHeader>
+                <Separator />
+                <CardContent className="pt-6 space-y-5">
+                  <div className="rounded-xl border border-border bg-muted/30 px-5 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Due</p>
+                    <p className="mt-1 text-4xl font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.subtotal))}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Advance / Partial Payment">
+                      <Input type="number" min={0} step="0.01" placeholder="0.00" value={totals.advancedPayment || 0} onChange={(e) => setValue('totals.advancedPayment', Number(e.target.value), { shouldDirty: true })} disabled={salesOrder.isOld} />
+                    </Field>
+                    <Field label="Overall Discount">
+                      <Input type="number" min={0} step="0.01" placeholder="0.00" value={totals.discount || 0} onChange={(e) => setValue('totals.discount', Number(e.target.value), { shouldDirty: true })} />
+                    </Field>
+                  </div>
+
+                  <div className="rounded-xl border-2 border-primary bg-primary/5 px-5 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Outstanding Balance</p>
+                    <p className="mt-1 text-3xl font-bold tabular-nums text-primary">{formatCurrency(roundCurrency(derivedTotals.balancePayment))}</p>
+                  </div>
+
+                  {!salesOrder.isOld && (
+                    <Field label="Date of Full Payment">
+                      <Input type="date" value={totals.fullPaymentDate || ''} onChange={(e) => setValue('totals.fullPaymentDate', e.target.value, { shouldDirty: true })} />
+                    </Field>
+                  )}
+
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <RiTimeLine className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Invoice</span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {totals.invoiceNumber || savedInvoice?.invoice_number
+                        ? (totals.invoiceNumber || savedInvoice?.invoice_number)
+                        : salesOrder.isOld ? 'None (historical)' : 'Generated after save'}
+                    </span>
+                  </div>
+
+                  {(savedInvoice || totals.invoiceNumber) && !salesOrder.isOld && (
+                    <Button type="button" variant="outline" className="w-full" onClick={() => navigate(`/invoices?detail=${savedInvoice?.invoice_id || totals.invoiceNumber}`)}>
+                      <RiEyeLine className="mr-2 h-4 w-4" />
+                      View Invoice
+                    </Button>
+                  )}
+
+                  {salesOrder.isOld && (
+                    <InlineAlert type="warning" title="Historical entry" description="No invoice will be generated for this order." />
+                  )}
+                </CardContent>
+              </Card>
+
+              {savedOrderNumber && (
+                <InlineAlert type="success" title={`Order saved: ${savedOrderNumber}`} description={savedInvoice ? `Invoice ${savedInvoice.invoice_number} generated.` : undefined} />
+              )}
+            </div>
+          )}
+
+          {/* ── Navigation ──────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              {currentStep > 0 && !savedOrderNumber && (
+                <Button type="button" variant="outline" onClick={handleBack}>
+                  <RiArrowLeftSLine className="mr-1.5 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {savedOrderNumber ? (
+                <Button type="button" variant="outline" onClick={handleReset}>Create Another Order</Button>
+              ) : currentStep < STEPS.length - 1 ? (
+                <Button type="button" onClick={handleNext}>
+                  Next Step
+                  <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
+                    <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
+                  ) : (
+                    <>Create Sales Order<RiArrowRightSLine className="ml-1.5 h-4 w-4" /></>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </div>
