@@ -28,8 +28,17 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
 import SearchableLOV from '@/components/common/SearchableLOV'
@@ -169,14 +178,15 @@ interface LookupOption {
 }
 
 // ─── Step config ──────────────────────────────────────────────────────────────
+// Order: Patient → Prescription → Frame → Lens → Expenses → Order Info → Review
 
 const STEPS = [
   { id: 0, label: 'Patient',      icon: RiUserLine },
   { id: 1, label: 'Prescription', icon: RiEyeLine },
-  { id: 2, label: 'Order Info',   icon: RiFileTextLine },
-  { id: 3, label: 'Frame',        icon: RiBox3Line },
-  { id: 4, label: 'Lens',         icon: RiSparklingLine },
-  { id: 5, label: 'Expenses',     icon: RiReceiptLine },
+  { id: 2, label: 'Frame',        icon: RiBox3Line },
+  { id: 3, label: 'Lens',         icon: RiSparklingLine },
+  { id: 4, label: 'Expenses',     icon: RiReceiptLine },
+  { id: 5, label: 'Order Info',   icon: RiFileTextLine },
   { id: 6, label: 'Review',       icon: RiShieldCheckLine },
 ] as const
 
@@ -239,7 +249,35 @@ const SummaryRow = ({ label, value }: { label: string; value: number }) => (
   </div>
 )
 
-const StepIndicator = ({ currentStep }: { currentStep: number }) => (
+// Compact pricing panel shown from Frame step through Order Info step
+const PricingPanel = ({ derivedTotals }: { derivedTotals: ReturnType<typeof calculateOrderTotals> }) => (
+  <Card className="border-dashed bg-muted/20">
+    <CardContent className="px-5 py-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Live Pricing</p>
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Frame</span>
+          <span className="tabular-nums font-medium">{formatCurrency(roundCurrency(derivedTotals.frameTotal))}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Lens</span>
+          <span className="tabular-nums font-medium">{formatCurrency(roundCurrency(derivedTotals.lensTotal))}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Expenses</span>
+          <span className="tabular-nums font-medium">{formatCurrency(roundCurrency(derivedTotals.expenseTotal))}</span>
+        </div>
+        <Separator className="my-2" />
+        <div className="flex justify-between">
+          <span className="text-sm font-semibold">Subtotal</span>
+          <span className="text-base font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.subtotal))}</span>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
+const StepIndicator = ({ currentStep, onStepClick }: { currentStep: number; onStepClick: (step: number) => void }) => (
   <div className="flex items-center">
     {STEPS.map((step, index) => {
       const isPast = step.id < currentStep
@@ -248,12 +286,13 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => (
         <div key={step.id} className="flex flex-1 items-center">
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <div
+              onClick={() => isPast && onStepClick(step.id)}
               className={[
                 'flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200',
                 isCurrent
                   ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
                   : isPast
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-primary bg-primary text-primary-foreground cursor-pointer hover:opacity-75'
                     : 'border-border bg-background text-muted-foreground',
               ].join(' ')}
             >
@@ -264,9 +303,10 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => (
               )}
             </div>
             <span
+              onClick={() => isPast && onStepClick(step.id)}
               className={[
                 'hidden sm:block text-xs font-medium whitespace-nowrap',
-                isCurrent ? 'text-primary' : isPast ? 'text-foreground' : 'text-muted-foreground',
+                isCurrent ? 'text-primary' : isPast ? 'text-foreground cursor-pointer hover:text-primary' : 'text-muted-foreground',
               ].join(' ')}
             >
               {step.label}
@@ -388,6 +428,7 @@ const SalesOrderIntakeForm = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const [savedOrderNumber, setSavedOrderNumber] = useState('')
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
 
   // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
@@ -556,12 +597,8 @@ const SalesOrderIntakeForm = () => {
     toast.success(`Linked to ${rec.name}`)
   }
 
-  const continueAsNew = () => {
-    const phone = phoneDigits(patient.newData.phone || '')
-    const matchedPhone = phoneDigits(safeText(matchedPatient?.phone))
-    if (matchedPhone && phone === matchedPhone) { toast.error('Phone number already exists.'); return }
+  const unlinkPatient = () => {
     setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
-    toast.success('Continuing as a new patient')
   }
 
   const addExpenseRow = () => append({ expenseTypeId: '', expenseTypeName: '', qty: 1, unitCost: 0, discount: 0, total: 0 })
@@ -594,11 +631,18 @@ const SalesOrderIntakeForm = () => {
   }
 
   const handleNext = async () => {
-    let fields: string[] = []
-    if (currentStep === 0) fields = ['patient.newData.fullName', 'patient.newData.phone']
-    else if (currentStep === 2) fields = ['salesOrder.orderDate', 'salesOrder.deliveryDate', 'salesOrder.testedBy']
-    if (fields.length > 0) {
-      const valid = await trigger(fields as any)
+    // Step 0: Patient — validate required fields, then check for duplicates
+    if (currentStep === 0) {
+      const valid = await trigger(['patient.newData.fullName', 'patient.newData.phone'] as any)
+      if (!valid) return
+      if (matchedPatient && !patientIsLinked) {
+        setShowDuplicateDialog(true)
+        return
+      }
+    }
+    // Step 5: Order Info — validate required fields
+    if (currentStep === 5) {
+      const valid = await trigger(['salesOrder.orderDate', 'salesOrder.deliveryDate', 'salesOrder.testedBy'] as any)
       if (!valid) return
     }
     setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1))
@@ -689,18 +733,60 @@ const SalesOrderIntakeForm = () => {
   }
 
   const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending
+  const showPricingPanel = currentStep >= 2 && currentStep <= 5
 
   return (
     <>
       <QRScanner isOpen={barcodeScannerOpen} onScan={handleBarcodeScan} onClose={closeScanner} />
 
+      {/* Duplicate patient dialog */}
+      <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Existing patient found</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>A patient record already exists matching this information:</p>
+                <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
+                  <p className="font-semibold text-foreground">{safeText(matchedPatient?.name)}</p>
+                  <p className="text-muted-foreground">{safeText(matchedPatient?.phone)}</p>
+                </div>
+                <p>Would you like to use this existing patient, or continue creating a new record with a different phone number?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel>Stay &amp; Edit</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
+                setShowDuplicateDialog(false)
+                setCurrentStep(1)
+              }}
+            >
+              Create New Patient
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                if (matchedPatient) handlePatientAction(matchedPatient)
+                setShowDuplicateDialog(false)
+                setCurrentStep(1)
+              }}
+            >
+              Use Existing Patient
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Progress stepper */}
         <Card className="px-6 py-5">
-          <StepIndicator currentStep={currentStep} />
+          <StepIndicator currentStep={currentStep} onStepClick={setCurrentStep} />
         </Card>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           {/* ── Step 0: Patient ─────────────────────────────────────────────── */}
           {currentStep === 0 && (
@@ -748,16 +834,6 @@ const SalesOrderIntakeForm = () => {
                   <Input placeholder="Street address or delivery note" {...register('patient.newData.address')} disabled={patientIsLinked} />
                 </Field>
 
-                {matchedPatient && !patientIsLinked && (
-                  <div className="space-y-3">
-                    <InlineAlert type="warning" title="Existing patient found" description={`${safeText(matchedPatient.name)} — ${safeText(matchedPatient.phone)}`} />
-                    <div className="flex flex-wrap gap-3">
-                      <Button type="button" onClick={() => handlePatientAction(matchedPatient)}>Use Existing Patient</Button>
-                      <Button type="button" variant="outline" onClick={continueAsNew}>Continue as New</Button>
-                    </div>
-                  </div>
-                )}
-
                 {patientIsLinked && (
                   <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -766,7 +842,7 @@ const SalesOrderIntakeForm = () => {
                         Patient linked: {patient.newData.fullName}
                       </span>
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={continueAsNew}>Unlink</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={unlinkPatient}>Unlink</Button>
                   </div>
                 )}
               </CardContent>
@@ -820,38 +896,51 @@ const SalesOrderIntakeForm = () => {
                   <InlineAlert type="info" title="Prescription loaded" description="Fields are read-only. Click '+ New Prescription' to enter custom values." />
                 )}
 
-                <Tabs defaultValue="right">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="right" className="flex-1">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">OD</span>
-                      Right Eye
-                    </TabsTrigger>
-                    <TabsTrigger value="left" className="flex-1">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">OS</span>
-                      Left Eye
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="right" className="mt-4">
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                      <Field label="Sphere"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Cylinder"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Axis"><Input type="number" step="1" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Add"><Input type="number" step="0.25" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="PD"><Input type="number" step="0.1" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="left" className="mt-4">
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                      <Field label="Sphere"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Cylinder"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Axis"><Input type="number" step="1" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="Add"><Input type="number" step="0.25" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                      <Field label="PD"><Input type="number" step="0.1" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></Field>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                {/* Side-by-side OD / OS table layout */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="w-20 pb-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground" />
+                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sphere</th>
+                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cylinder</th>
+                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Axis</th>
+                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add</th>
+                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">PD</th>
+                      </tr>
+                    </thead>
+                    <tbody className="space-y-2">
+                      {/* Right Eye — OD */}
+                      <tr>
+                        <td className="pr-3 pb-3 align-middle">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-6 w-9 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">OD</span>
+                            <span className="text-xs text-muted-foreground">Right</span>
+                          </div>
+                        </td>
+                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-3"><Input type="number" step="1" className="text-center" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-3"><Input type="number" step="0.1" className="text-center" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                      </tr>
+                      {/* Left Eye — OS */}
+                      <tr>
+                        <td className="pr-3 pb-1 align-middle">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-6 w-9 items-center justify-center rounded bg-blue-100 text-[10px] font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300">OS</span>
+                            <span className="text-xs text-muted-foreground">Left</span>
+                          </div>
+                        </td>
+                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-1"><Input type="number" step="1" className="text-center" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                        <td className="px-1 pb-1"><Input type="number" step="0.1" className="text-center" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label="Diagnosis">
@@ -865,65 +954,8 @@ const SalesOrderIntakeForm = () => {
             </Card>
           )}
 
-          {/* ── Step 2: Order Info ──────────────────────────────────────────── */}
+          {/* ── Step 2: Frame ───────────────────────────────────────────────── */}
           {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <RiFileTextLine className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>Order Details</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Dates, tested by, and order type</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <Separator />
-              <CardContent className="pt-6 space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <Field label="Order Date" required error={errors.salesOrder?.orderDate?.message}>
-                    <Input type="date" {...register('salesOrder.orderDate')} />
-                  </Field>
-                  <Field label="Delivery Date" required error={errors.salesOrder?.deliveryDate?.message}>
-                    <Input type="date" {...register('salesOrder.deliveryDate')} />
-                  </Field>
-                  <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
-                    <Input placeholder="Optometrist name" {...register('salesOrder.testedBy')} />
-                  </Field>
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-foreground">Order Type</p>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${!salesOrder.isOld ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}>
-                      <input type="radio" className="mt-1" checked={!salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })} />
-                      <div>
-                        <p className="font-semibold text-foreground">New Sales Order</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">Auto-generates SO# and invoice</p>
-                      </div>
-                    </label>
-                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${salesOrder.isOld ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30' : 'border-border hover:bg-muted/50'}`}>
-                      <input type="radio" className="mt-1" checked={salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })} />
-                      <div>
-                        <p className="font-semibold text-foreground">Historical Entry</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">Legacy paper order, no invoice</p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {salesOrder.isOld && (
-                  <Field label="Legacy SO Number">
-                    <Input placeholder="Original order number" {...register('salesOrder.orderNumber')} />
-                  </Field>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* ── Step 3: Frame ───────────────────────────────────────────────── */}
-          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -978,8 +1010,8 @@ const SalesOrderIntakeForm = () => {
             </Card>
           )}
 
-          {/* ── Step 4: Lens ────────────────────────────────────────────────── */}
-          {currentStep === 4 && (
+          {/* ── Step 3: Lens ────────────────────────────────────────────────── */}
+          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -1023,9 +1055,9 @@ const SalesOrderIntakeForm = () => {
             </Card>
           )}
 
-          {/* ── Step 5: Expenses ────────────────────────────────────────────── */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
+          {/* ── Step 4: Expenses ────────────────────────────────────────────── */}
+          {currentStep === 4 && (
+            <div className="space-y-4">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -1104,6 +1136,66 @@ const SalesOrderIntakeForm = () => {
               </Card>
             </div>
           )}
+
+          {/* ── Step 5: Order Info ──────────────────────────────────────────── */}
+          {currentStep === 5 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <RiFileTextLine className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Order Details</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Dates, tested by, and order type</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Field label="Order Date" required error={errors.salesOrder?.orderDate?.message}>
+                    <Input type="date" {...register('salesOrder.orderDate')} />
+                  </Field>
+                  <Field label="Delivery Date" required error={errors.salesOrder?.deliveryDate?.message}>
+                    <Input type="date" {...register('salesOrder.deliveryDate')} />
+                  </Field>
+                  <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
+                    <Input placeholder="Optometrist name" {...register('salesOrder.testedBy')} />
+                  </Field>
+                </div>
+
+                <div>
+                  <p className="mb-3 text-sm font-medium text-foreground">Order Type</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${!salesOrder.isOld ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}>
+                      <input type="radio" className="mt-1" checked={!salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', false, { shouldDirty: true, shouldValidate: true })} />
+                      <div>
+                        <p className="font-semibold text-foreground">New Sales Order</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Auto-generates SO# and invoice</p>
+                      </div>
+                    </label>
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${salesOrder.isOld ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30' : 'border-border hover:bg-muted/50'}`}>
+                      <input type="radio" className="mt-1" checked={salesOrder.isOld} onChange={() => setValue('salesOrder.isOld', true, { shouldDirty: true, shouldValidate: true })} />
+                      <div>
+                        <p className="font-semibold text-foreground">Historical Entry</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Legacy paper order, no invoice</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {salesOrder.isOld && (
+                  <Field label="Legacy SO Number">
+                    <Input placeholder="Original order number" {...register('salesOrder.orderNumber')} />
+                  </Field>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pricing panel — visible from Frame through Order Info */}
+          {showPricingPanel && <PricingPanel derivedTotals={derivedTotals} />}
 
           {/* ── Step 6: Review & Payment ────────────────────────────────────── */}
           {currentStep === 6 && (
