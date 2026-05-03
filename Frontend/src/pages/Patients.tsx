@@ -4,7 +4,14 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
-import { RiAddLine, RiMore2Line } from '@remixicon/react'
+import {
+  RiAddLine,
+  RiCalendarLine,
+  RiEyeLine,
+  RiFileTextLine,
+  RiMore2Line,
+  RiReceiptLine,
+} from '@remixicon/react'
 import Pagination from '@/components/common/Pagination'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import PatientModal from '@/components/patients/PatientModal'
@@ -28,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DataTable } from '@/components/data-table'
+import { DataTable, type RowAction } from '@/components/data-table'
 import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice } from '@/types/invoice.types'
@@ -65,12 +72,22 @@ const Patients = () => {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['patients', page, pageSize, search, sortBy, sortOrder],
-    queryFn: () => patientsApi.getAll({ page, page_size: pageSize, search, sort_by: sortBy, sort_order: sortOrder }),
+    queryFn: () =>
+      patientsApi.getAll({ page, page_size: pageSize, search, sort_by: sortBy, sort_order: sortOrder }),
   })
 
   const patients = data?.data || []
-  const isAllSelected = patients.length > 0 && patients.every((patient) => selectedPatientIds.includes(patient.patient_id))
-  const isIndeterminate = selectedPatientIds.some((patientId) => patients.some((patient) => patient.patient_id === patientId)) && !isAllSelected
+  const isAllSelected =
+    patients.length > 0 && patients.every((patient) => selectedPatientIds.includes(patient.patient_id))
+  const isIndeterminate =
+    selectedPatientIds.some((patientId) =>
+      patients.some((patient) => patient.patient_id === patientId),
+    ) && !isAllSelected
+
+  const selectedRows = useMemo(
+    () => patients.filter((p) => selectedPatientIds.includes(p.patient_id)),
+    [patients, selectedPatientIds],
+  )
 
   const handleAdd = () => {
     setSelectedPatient(null)
@@ -85,7 +102,6 @@ const Patients = () => {
 
   const getLatestByDate = <T,>(items: T[], getDate: (item: T) => string | undefined): T | null => {
     if (!items.length) return null
-
     return [...items].sort((left, right) => {
       const leftValue = new Date(getDate(left) || '').getTime()
       const rightValue = new Date(getDate(right) || '').getTime()
@@ -102,15 +118,13 @@ const Patients = () => {
     try {
       const response = await prescriptionsApi.getByPatientId(patient.patient_id, { page_size: 100 })
       const latestPrescription = getLatestByDate(response.data, (item) => item.prescription_date)
-
       if (!latestPrescription) {
         toast.error('No prescriptions found for this patient')
         return
       }
-
       setSelectedPrescription(latestPrescription)
       setIsPrescriptionModalOpen(true)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load latest prescription')
     }
   }
@@ -119,15 +133,13 @@ const Patients = () => {
     try {
       const response = await invoicesApi.getByPatientId(patient.patient_id, { page_size: 100 })
       const latestInvoice = getLatestByDate(response.data, (item) => item.invoice_date)
-
       if (!latestInvoice) {
         toast.error('No invoices found for this patient')
         return
       }
-
       setSelectedInvoice(latestInvoice)
       setIsInvoiceDetailOpen(true)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load latest invoice')
     }
   }
@@ -137,7 +149,7 @@ const Patients = () => {
       const blob = await invoicesApi.downloadPDF(invoiceId)
       downloadFile(blob, `invoice-${invoiceId}.pdf`)
       toast.success('Invoice PDF downloaded')
-    } catch (error) {
+    } catch {
       toast.error('Failed to download invoice PDF')
     }
   }
@@ -156,18 +168,16 @@ const Patients = () => {
   const handlePageSizeChange = (value: string) => {
     if (value) {
       setPageSize(Number(value))
-      setPage(1) // Reset to first page when changing page size
+      setPage(1)
     }
   }
 
   const toggleAllVisiblePatients = (isSelected: boolean) => {
     const visibleIds = patients.map((patient) => patient.patient_id)
-
     if (isSelected) {
       setSelectedPatientIds((current) => Array.from(new Set([...current, ...visibleIds])))
       return
     }
-
     setSelectedPatientIds((current) => current.filter((patientId) => !visibleIds.includes(patientId)))
   }
 
@@ -177,6 +187,15 @@ const Patients = () => {
     )
   }
 
+  const handleRowClick = (patient: Patient) => {
+    togglePatientSelection(
+      patient.patient_id,
+      !selectedPatientIds.includes(patient.patient_id),
+    )
+  }
+
+  const handleClearSelection = () => setSelectedPatientIds([])
+
   const handleSortingChange = (updaterOrValue: Updater<SortingState>) => {
     setSorting((current) => {
       const nextSorting =
@@ -185,6 +204,41 @@ const Patients = () => {
       return nextSorting
     })
   }
+
+  // Actions shown in the contextual button group when one or more rows are selected.
+  // primary: true → shows as a top-level button; all actions appear in the ⋯ dropdown.
+  const rowActions: RowAction<Patient>[] = [
+    {
+      id: 'view-history',
+      label: 'Customer History',
+      icon: RiFileTextLine,
+      onClick: (rows) => handleShowDetails(rows[0]),
+      showWhen: 'single',
+      primary: true,
+    },
+    {
+      id: 'new-appointment',
+      label: 'New Appointment',
+      icon: RiCalendarLine,
+      onClick: (rows) => handleOpenAppointment(rows[0]),
+      showWhen: 'single',
+      primary: true,
+    },
+    {
+      id: 'view-prescription',
+      label: 'View Latest Prescription',
+      icon: RiEyeLine,
+      onClick: (rows) => handleViewLatestPrescription(rows[0]),
+      showWhen: 'single',
+    },
+    {
+      id: 'view-invoice',
+      label: 'View Latest Invoice',
+      icon: RiReceiptLine,
+      onClick: (rows) => handleViewLatestInvoice(rows[0]),
+      showWhen: 'single',
+    },
+  ]
 
   const columns = useMemo<ColumnDef<Patient>[]>(
     () => [
@@ -201,7 +255,9 @@ const Patients = () => {
           <Checkbox
             aria-label={`Select ${row.original.name}`}
             checked={selectedPatientIds.includes(row.original.patient_id)}
-            onCheckedChange={(checked) => togglePatientSelection(row.original.patient_id, checked === true)}
+            onCheckedChange={(checked) =>
+              togglePatientSelection(row.original.patient_id, checked === true)
+            }
           />
         ),
         enableSorting: false,
@@ -216,13 +272,21 @@ const Patients = () => {
             className="-ml-2"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Name {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+            Name{' '}
+            {column.getIsSorted() === 'asc'
+              ? '↑'
+              : column.getIsSorted() === 'desc'
+                ? '↓'
+                : ''}
           </Button>
         ),
         cell: ({ row }) => (
           <div className="relative z-0 flex items-center gap-3">
             <Avatar className="size-9">
-              <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(row.original.name)}&background=random`} alt={row.original.name} />
+              <AvatarImage
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(row.original.name)}&background=random`}
+                alt={row.original.name}
+              />
               <AvatarFallback>{row.original.name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
@@ -241,7 +305,12 @@ const Patients = () => {
             className="-ml-2"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Phone {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+            Phone{' '}
+            {column.getIsSorted() === 'asc'
+              ? '↑'
+              : column.getIsSorted() === 'desc'
+                ? '↓'
+                : ''}
           </Button>
         ),
         cell: ({ row }) => formatPhone(row.original.phone),
@@ -249,7 +318,11 @@ const Patients = () => {
       {
         id: 'age_gender',
         header: 'Age/Gender',
-        cell: ({ row }) => <span className="capitalize">{row.original.age} / {row.original.gender}</span>,
+        cell: ({ row }) => (
+          <span className="capitalize">
+            {row.original.age} / {row.original.gender}
+          </span>
+        ),
         enableSorting: false,
       },
       {
@@ -261,10 +334,16 @@ const Patients = () => {
             className="-ml-2"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Last Visit {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+            Last Visit{' '}
+            {column.getIsSorted() === 'asc'
+              ? '↑'
+              : column.getIsSorted() === 'desc'
+                ? '↓'
+                : ''}
           </Button>
         ),
-        cell: ({ row }) => (row.original.last_visit ? formatDate(row.original.last_visit) : 'Never'),
+        cell: ({ row }) =>
+          row.original.last_visit ? formatDate(row.original.last_visit) : 'Never',
       },
       {
         accessorKey: 'total_visits',
@@ -275,7 +354,12 @@ const Patients = () => {
             className="-ml-2"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Visits {column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''}
+            Visits{' '}
+            {column.getIsSorted() === 'asc'
+              ? '↑'
+              : column.getIsSorted() === 'desc'
+                ? '↓'
+                : ''}
           </Button>
         ),
       },
@@ -307,15 +391,19 @@ const Patients = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={() => handleShowDetails(row.original)}>
+                <RiFileTextLine className="size-4" />
                 Customer History
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleOpenAppointment(row.original)}>
+                <RiCalendarLine className="size-4" />
                 New Appointment
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleViewLatestPrescription(row.original)}>
+                <RiEyeLine className="size-4" />
                 View Latest Prescription
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleViewLatestInvoice(row.original)}>
+                <RiReceiptLine className="size-4" />
                 View Latest Invoice
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -352,10 +440,7 @@ const Patients = () => {
           </div>
 
           <div className="w-full md:w-auto md:self-end">
-            <Select
-              value={String(pageSize)}
-              onValueChange={handlePageSizeChange}
-            >
+            <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
               <SelectTrigger aria-label="Rows per page" className="w-full sm:w-32">
                 <SelectValue placeholder="Rows" />
               </SelectTrigger>
@@ -383,6 +468,10 @@ const Patients = () => {
             loading={isLoading}
             searchPlaceholder="Search patients..."
             className="px-6"
+            selectedRows={selectedRows}
+            rowActions={rowActions}
+            onRowClick={handleRowClick}
+            onClearSelection={handleClearSelection}
           />
           {data && (
             <Pagination
@@ -390,14 +479,16 @@ const Patients = () => {
               totalPages={data.total_pages}
               onPageChange={setPage}
               pageSize={pageSize}
-              onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+              onPageSizeChange={(size) => {
+                setPageSize(size)
+                setPage(1)
+              }}
               totalItems={data.total}
             />
           )}
         </CardContent>
       </Card>
 
-      {/* Modal */}
       <PatientModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
@@ -467,8 +558,3 @@ const Patients = () => {
 }
 
 export default Patients
-
-
-
-
-

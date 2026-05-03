@@ -28,6 +28,11 @@ export const dashboardApi = {
     return response.data.data
   },
 
+  getOrderTypesSummary: async (): Promise<any> => {
+    const response = await axiosInstance.get<ApiResponse>('/dashboard/order-types')
+    return response.data.data
+  },
+
   getInventoryAlerts: async (): Promise<any> => {
     const response = await axiosInstance.get<ApiResponse>('/dashboard/inventory-alerts')
     return response.data.data
