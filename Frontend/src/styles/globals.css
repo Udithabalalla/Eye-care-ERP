@@ -190,6 +190,26 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: var(--ring);
   }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .custom-scrollbar:hover {
+    scrollbar-color: var(--ring) transparent;
+  }
+
+  /* Utility: hide scrollbars while preserving scroll */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE/Edge Legacy */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Safari/Chrome */
+  }
 }
 
 

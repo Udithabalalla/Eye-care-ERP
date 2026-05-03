@@ -12,7 +12,7 @@ interface PatientModalProps {
 const PatientModal = ({ isOpen, onClose, patient, onSuccess }: PatientModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[50rem] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[50rem] sm:max-w-[50rem] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">{patient ? 'Edit Patient' : 'Add New Patient'}</DialogTitle>
         </DialogHeader>
