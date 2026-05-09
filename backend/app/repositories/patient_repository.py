@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
 from datetime import datetime, timezone
+import re
 from app.repositories.base import BaseRepository
 from app.models.patient import PatientModel
 
@@ -34,11 +35,12 @@ class PatientRepository(BaseRepository):
         filter_query = {"is_active": True}
         
         if search:
+            escaped_search = re.escape(search)
             filter_query["$or"] = [
-                {"name": {"$regex": search, "$options": "i"}},
-                {"patient_id": {"$regex": search, "$options": "i"}},
-                {"phone": {"$regex": search, "$options": "i"}},
-                {"email": {"$regex": search, "$options": "i"}}
+                {"name": {"$regex": escaped_search, "$options": "i"}},
+                {"patient_id": {"$regex": escaped_search, "$options": "i"}},
+                {"phone": {"$regex": escaped_search, "$options": "i"}},
+                {"email": {"$regex": escaped_search, "$options": "i"}}
             ]
         
         patients_dict = await self.get_many(

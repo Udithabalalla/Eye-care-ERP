@@ -1,0 +1,172 @@
+[33mae36ce11[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mstaging[m[33m, [m[1;31morigin/staging[m[33m)[m HEAD@{0}: commit: fix: add type annotation for useQuery DashboardStats
+[33mb6ebfbbb[m HEAD@{1}: reset: moving to b6ebfbbbd34df757a6efbe9f684e90cfb830bd29
+[33m9a0daa93[m HEAD@{2}: checkout: moving from staging to staging
+[33m9a0daa93[m HEAD@{3}: commit: fix(dashboard): surface dashboard fetch errors with toast and retry
+[33mc3550280[m HEAD@{4}: commit: fix(sales-orders): reactive duplicate patient toast + inline warning
+[33m90325901[m HEAD@{5}: commit: fix(sales-orders): datetime crash, duplicate toast, order type on step 1, frame/lens edit rules
+[33mf5c82430[m HEAD@{6}: commit: feat(sales-orders): free back/forward navigation between visited steps
+[33mac5f3b16[m HEAD@{7}: commit: feat(sales-orders): UX improvements to intake wizard
+[33m63833bea[m HEAD@{8}: commit: feat(sales-orders): redesign intake form as 7-step guided wizard
+[33m48f8c0a2[m HEAD@{9}: commit: Fix main layout className
+[33m3dbd2184[m HEAD@{10}: commit: fix(sidebar): patch sidebar.tsx for Tailwind v3 compatibility
+[33mc26976ac[m HEAD@{11}: commit: feat(ui): redesign sidebar with shadcn sidebar-08 collapsible pattern
+[33mffc72857[m HEAD@{12}: commit: fix(patients): widen patient modal to 50rem, fix select sizing and heading scale
+[33m27b1095b[m HEAD@{13}: commit: feat(patients): migrate patient form to shadcn Form + react-hook-form pattern
+[33me9647f4a[m HEAD@{14}: commit: fix(ui): remove duplicate TableCell tag and unused icon imports
+[33mf7823edb[m HEAD@{15}: commit: fix(ui): resolve line ending inconsistencies across modified pages
+[33mae8a3aa3[m HEAD@{16}: commit: feat(ui): complete shadcn-first alignment across all pages and components
+[33m7d4c5d9c[m HEAD@{17}: commit: fix(patients): widen customer history dialog to 50rem on desktop
+[33mc60eb679[m HEAD@{18}: commit: chore(deps): add @radix-ui/react-dropdown-menu dependency
+[33m4f01f36d[m HEAD@{19}: commit: fix(patients): fix dark mode token mismatches in customer history dialog
+[33mbc6ed453[m HEAD@{20}: commit: fix(sidebar): replace non-existent RiUserCheckLine with RiUserFollowLine
+[33maf7056ec[m HEAD@{21}: commit: feat(ui): align P1-P4 components to shadcn-first system with RemixIcon
+[33mb2609c65[m HEAD@{22}: commit: fix(button): add React.forwardRef to enable asChild ref forwarding
+[33m155eaed9[m HEAD@{23}: commit: fix(patients): use canonical shadcn dropdown patterns
+[33m36827cf8[m HEAD@{24}: commit: fix(table): resolve dropdown menu interaction layering
+[33m31adae82[m HEAD@{25}: commit: fix(dropdown): use canonical shadcn radix menu implementation
+[33mc0cc9542[m HEAD@{26}: commit: fix(patients): restore row actions dropdown behavior
+[33m3365fbb0[m HEAD@{27}: commit: fix(table): prevent action menus from clipping in data tables
+[33m4c9f72e7[m HEAD@{28}: commit: fix(patients): align dropdown actions with radix event model
+[33m81cfce49[m HEAD@{29}: commit: fix(patients): prevent row interactions from blocking actions menu
+[33m3a392344[m HEAD@{30}: commit: fix(patients): stabilize row action dropdown rendering
+[33m397d841c[m HEAD@{31}: commit: fix(patients): wire latest-invoice detail actions
+[33m8f028052[m HEAD@{32}: commit: feat(patients): add ellipsis action menu with in-page quick views
+[33m2e2e8736[m HEAD@{33}: commit: fix(forms): restore RHF refs after shadcn migration
+[33m959b37f7[m HEAD@{34}: commit: refactor(table): add reusable server-driven DataTable and migrate list pages
+[33m77bbccd2[m HEAD@{35}: commit: fix(so): harden duplicate checks and restore LOV autofill
+[33m2530d6fd[m HEAD@{36}: commit: fix(patients): reduce name column width and left-align actions
+[33mb0aa5eb5[m HEAD@{37}: commit: refactor(patients): align patient table controls with shadcn ui
+[33m1750d27e[m HEAD@{38}: checkout: moving from staging to staging
+[33m1750d27e[m HEAD@{39}: commit: fix(sales-orders): remove unused SalesOrder import
+[33me618b6ab[m HEAD@{40}: reset: moving to e618b6ab95737c780b19bee636d5f2fa197ece0c
+[33m1eaa8a54[m HEAD@{41}: commit: fix(layout): align content beside sidebar
+[33me0757b59[m HEAD@{42}: commit: fix(layout): prevent content from clipping under header
+[33mc0cdebd3[m HEAD@{43}: commit: fix(frontend): remove unused symbols causing TS build errors
+[33m82a32bd4[m HEAD@{44}: commit: feat(ui): replace app sidebar with shadcn sidebar primitives
+[33me618b6ab[m HEAD@{45}: commit: fix(so): restore autofill and align list table with shadcn
+[33m3d26f12a[m HEAD@{46}: commit: fix(so): prevent duplicate-patient alert runtime crash
+[33mf015a7a8[m HEAD@{47}: commit: refactor(so): revamp sales order form with shadcn components and tokens
+[33maf01601e[m HEAD@{48}: checkout: moving from staging to staging
+[33maf01601e[m HEAD@{49}: reset: moving to af01601
+[33maf01601e[m HEAD@{50}: checkout: moving from staging to staging
+[33maf01601e[m HEAD@{51}: reset: moving to af01601e66953d1fabccbebd649a376403b8504a
+[33m34cea442[m HEAD@{52}: checkout: moving from staging to staging
+[33m34cea442[m HEAD@{53}: commit: fix(build): restore UI compatibility layer and resolve TS errors for Vercel
+[33m10d26994[m HEAD@{54}: commit: feat(migration): fix table API and export issues - migrate Users.tsx, Invoices.tsx to shadcn Table; fix index.ts exports
+[33m3780f0ad[m HEAD@{55}: commit: feat(appointments): migrate to shadcn components - table, badge, dropdown, card
+[33maf01601e[m HEAD@{56}: commit: style(nav): align header and sidebar to strict shadcn tokens
+[33m7d5affaf[m[33m ([m[1;32mfeature/shadcn-revamp-login-dashboard-patients-root[m[33m)[m HEAD@{57}: checkout: moving from staging to staging
+[33m7d5affaf[m[33m ([m[1;32mfeature/shadcn-revamp-login-dashboard-patients-root[m[33m)[m HEAD@{58}: checkout: moving from feature/shadcn-revamp-login-dashboard-patients-root to staging
+[33m7d5affaf[m[33m ([m[1;32mfeature/shadcn-revamp-login-dashboard-patients-root[m[33m)[m HEAD@{59}: checkout: moving from staging to feature/shadcn-revamp-login-dashboard-patients-root
+[33m7d5affaf[m[33m ([m[1;32mfeature/shadcn-revamp-login-dashboard-patients-root[m[33m)[m HEAD@{60}: commit: feat(ui): migrate login dashboard and patient flows to shadcn tokens/components
+[33m7a3b1a21[m[33m ([m[1;32mfeat/shadcn-preset-rewrap[m[33m)[m HEAD@{61}: checkout: moving from feat/shadcn-preset-rewrap to staging
+[33m7a3b1a21[m[33m ([m[1;32mfeat/shadcn-preset-rewrap[m[33m)[m HEAD@{62}: checkout: moving from staging to feat/shadcn-preset-rewrap
+[33m7a3b1a21[m[33m ([m[1;32mfeat/shadcn-preset-rewrap[m[33m)[m HEAD@{63}: commit: Split Sales Order creation into dedicated assistant route
+[33m71c23519[m HEAD@{64}: commit: Make SO numbering collision-safe and restore Sales Orders list view
+[33m095cfb42[m HEAD@{65}: commit: fix(sales-order): include sunglasses frames and load all stock products
+[33m1de5753e[m HEAD@{66}: commit: fix(sales-orders): cap basic-data page size to backend limit
+[33m266b373a[m HEAD@{67}: commit: Build and update files
+[33me68733c4[m HEAD@{68}: commit: fix(nav): add fallback redirect for basic data submenu links
+[33m17f60cbd[m HEAD@{69}: commit: feat(nav): nest basic data under system with 3-level menu
+[33m9f9d0948[m HEAD@{70}: commit: Implement guided sales order intake
+[33m44987c00[m HEAD@{71}: commit: Simplify sales order workflow
+[33m8a9bf841[m HEAD@{72}: commit: Harden staging config and enable backend async tests
+[33ma037c542[m[33m ([m[1;32mbackup/staging-unpushed-a037c54[m[33m)[m HEAD@{73}: commit: Refactor SO-Invoice flow and align payments endpoint
+[33m1fb91df7[m HEAD@{74}: checkout: moving from apple-ui-changes to staging
+[33madce36c9[m[33m ([m[1;31morigin/apple-ui-changes[m[33m, [m[1;32mapple-ui-changes[m[33m)[m HEAD@{75}: reset: moving to HEAD
+[33madce36c9[m[33m ([m[1;31morigin/apple-ui-changes[m[33m, [m[1;32mapple-ui-changes[m[33m)[m HEAD@{76}: commit: Apple UI changes
+[33m1fb91df7[m HEAD@{77}: checkout: moving from staging to apple-ui-changes
+[33m1fb91df7[m HEAD@{78}: commit: Remap Sales Orders to invoice workflow and remove dedicated SO route
+[33ma60729bd[m HEAD@{79}: commit: Fix sales order page_size validation spam and add barcode product lookup
+[33mafe17b54[m HEAD@{80}: commit: Add one-click sales order to invoice conversion flow
+[33mb641d081[m HEAD@{81}: commit: Implement end-to-end sales order flow across backend and frontend
+[33m162dabea[m HEAD@{82}: commit: Implement Roles & Permissions, Users Management, and Ledger system
+[33m0629832a[m HEAD@{83}: commit: Improve ERP live table refresh and sidebar icon clarity
+[33ma7592b84[m HEAD@{84}: commit: Implement ERP transactional traceability flow
+[33md2eba92a[m HEAD@{85}: commit: Fix purchase order forward ref resolution on startup
+[33m212c78ca[m HEAD@{86}: commit: Fix purchase order schema forward reference for Railway boot
+[33mcb5e2e53[m HEAD@{87}: commit: Implement PO receipt, supplier invoice generation, and 3-way matching workflow
+[33mc05e5405[m HEAD@{88}: commit: Auto-fill PO shipping from company profile defaults
+[33m024e02da[m HEAD@{89}: commit: Align PO and Add Product mandatory fields and supplier lock
+[33m7259214e[m HEAD@{90}: commit: Implement purchase order assistant flow
+[33md2a4c115[m HEAD@{91}: commit: Add outside-click dismissal to patient details dialog
+[33mf038b565[m HEAD@{92}: commit: Fix invoice history badge variant
+[33mb1bb895c[m HEAD@{93}: commit: Add patient details deep links
+[33m9478cf44[m HEAD@{94}: commit: chore: update OTP email retry behavior
+[33m25777ed9[m HEAD@{95}: commit: fix: harden Gmail SMTP reset mail config
+[33m2cbe0e5e[m HEAD@{96}: commit: fix: use Gmail SMTP only for password reset, remove Resend fallback
+[33m4653a435[m HEAD@{97}: commit: feat: add Resend fallback for OTP delivery
+[33m40b1f91b[m HEAD@{98}: commit: fix: add SMTP SSL fallback for OTP delivery
+[33m7893d8db[m HEAD@{99}: commit: fix: support fallback SMTP password env keys
+[33m38f57537[m HEAD@{100}: pull --rebase origin staging (finish): returning to refs/heads/staging
+[33m38f57537[m HEAD@{101}: pull --rebase origin staging (pick): chore: log OTP send failures for staging diagnostics
+[33m1ba69596[m HEAD@{102}: pull --rebase origin staging (start): checkout 1ba695966edff8ee87c0900c57a9f87089bfe1dc
+[33mfdf3ab46[m HEAD@{103}: commit: chore: log OTP send failures for staging diagnostics
+[33m9be18010[m HEAD@{104}: commit: fix: show reset OTP backend error details
+[33ma8b40e2f[m HEAD@{105}: commit: fix: fail fast on OTP email timeout
+[33m11bf7a9b[m HEAD@{106}: commit: fix: avoid localhost API base on hosted frontend
+[33m965de440[m HEAD@{107}: commit: feat: add password reset OTP flow
+[33m8518e7d8[m HEAD@{108}: commit: Implement full purchase order lifecycle transitions
+[33m0dae8a73[m HEAD@{109}: commit: Fix purchase orders table column mismatch crash
+[33mfd7ba268[m HEAD@{110}: commit: Add Approved to Sent purchase order transition
+[33me1de9340[m HEAD@{111}: commit: Add hover progress bar for purchase order completion
+[33m8e102297[m HEAD@{112}: commit: Add compact purchase order summary badges
+[33mb8cbce7a[m HEAD@{113}: commit: Show full purchase order details in modal
+[33m584879c3[m HEAD@{114}: commit: Integrate full purchase order model fields in frontend
+[33m51a8cf6b[m HEAD@{115}: commit: Fix purchase order response serialization for nested models
+[33m6c062230[m HEAD@{116}: commit: Harden backend CORS origins for staging and production Vercel
+[33m482d35e8[m HEAD@{117}: commit: Harden hosted auth recovery for PO network failures
+[33m92547448[m HEAD@{118}: commit: Fix hosted API base URL fallback for production deployments
+[33m13d8e840[m HEAD@{119}: commit: Fix purchase order approval endpoint - add Query() annotation to status parameter
+[33m66e629a1[m HEAD@{120}: commit: Refactor purchase order approval and company profile
+[33m68f5e0b4[m HEAD@{121}: commit: Add PO PDF export and clinic header settings
+[33m01717bcc[m HEAD@{122}: commit: fix: expected_delivery_date datetime validation error
+[33mb6ebfbbb[m HEAD@{123}: commit: hotfix: NameError in SupplierInvoiceUpdate - date not defined
+[33m06eb5fd7[m HEAD@{124}: commit: fix: resolve supplier workflow bugs in staging branch
+[33m00062222[m HEAD@{125}: commit: Fix supplier create payload compatibility
+[33mf9801fa0[m HEAD@{126}: pull --ff-only origin staging: Fast-forward
+[33me6dde74d[m HEAD@{127}: checkout: moving from main to staging
+[33m169bd599[m[33m ([m[1;32mmain[m[33m)[m HEAD@{128}: revert: Revert "Add supplier management MVP"
+[33m088a90f0[m HEAD@{129}: revert: Revert "Allow Vercel preview origins in CORS"
+[33me5abe407[m HEAD@{130}: revert: Revert "Fix supplier timestamp response bug"
+[33mf9801fa0[m HEAD@{131}: commit: Fix supplier timestamp response bug
+[33m2f9589c7[m HEAD@{132}: commit: Allow Vercel preview origins in CORS
+[33md7500127[m HEAD@{133}: commit: Add supplier management MVP
+[33m43332630[m HEAD@{134}: commit: Auto-generate product barcodes
+[33m858529f9[m HEAD@{135}: commit: Remove unused doctors import
+[33m510724e5[m HEAD@{136}: commit: Switch currency display to LKR
+[33me6dde74d[m HEAD@{137}: merge staging: Fast-forward
+[33md61de409[m HEAD@{138}: checkout: moving from main to main
+[33md61de409[m HEAD@{139}: reset: moving to d61de409123154c1a05c11ad766f4eb03bebb656
+[33md61de409[m HEAD@{140}: checkout: moving from staging to main
+[33me6dde74d[m HEAD@{141}: commit: Fix invoice service indentation boot error
+[33m72d293c7[m HEAD@{142}: commit: Add invoice stock deduction and barcode scan workflows
+[33ma3b8a907[m HEAD@{143}: commit: Fix Vercel SPA refresh 404 with route rewrite
+[33m7486dd5c[m HEAD@{144}: commit: Fix stale doctor list after create by disabling doctors caching
+[33mfbe0fe37[m HEAD@{145}: commit: Fix CORS for staging and production Vercel origins
+[33md61de409[m HEAD@{146}: reset: moving to main
+[33m1da42bbf[m HEAD@{147}: checkout: moving from staging to staging
+[33m1da42bbf[m HEAD@{148}: commit: feat: unify UI consistency across all ERP pages
+[33m0ae859bb[m HEAD@{149}: commit: fix: resolve CORS wildcard+credentials conflict, use explicit origins via env var
+[33m7d54a675[m HEAD@{150}: commit: fix: add staging Vercel URL to CORS allowed origins
+[33m0fa7c307[m HEAD@{151}: commit: fix: run npm audit fix to patch security vulnerabilities
+[33m1d104a9e[m HEAD@{152}: checkout: moving from staging to staging
+[33m1d104a9e[m HEAD@{153}: commit: fix: resolve TS build errors and tailwind styling issues
+[33m47314738[m HEAD@{154}: commit: chore: migrate ui components to shadcn/ui
+[33mc17e8624[m HEAD@{155}: checkout: moving from staging to staging
+[33mc17e8624[m HEAD@{156}: checkout: moving from main to staging
+[33md61de409[m HEAD@{157}: merge staging: Merge made by the 'ort' strategy.
+[33m4faea74d[m HEAD@{158}: pull origin main: Fast-forward
+[33m60dc3cf9[m[33m ([m[1;31morigin/additional-features[m[33m, [m[1;32madditional-features[m[33m)[m HEAD@{159}: checkout: moving from staging to main
+[33mc17e8624[m HEAD@{160}: commit: Fix syntax error: Remove unmatched parenthesis
+[33m526c7c37[m HEAD@{161}: pull: Fast-forward
+[33m27af17b5[m HEAD@{162}: commit: cors update
+[33mc1d28593[m HEAD@{163}: pull --tags origin staging: Merge made by the 'ort' strategy.
+[33m9ec830c5[m HEAD@{164}: commit: feat: Implement core UI layout components including Header, Sidebar, and a main Layout structure.mobile
+[33m7f27c4d3[m HEAD@{165}: checkout: moving from staging to staging
+[33m7f27c4d3[m HEAD@{166}: checkout: moving from main to staging
+[33m60dc3cf9[m[33m ([m[1;31morigin/additional-features[m[33m, [m[1;32madditional-features[m[33m)[m HEAD@{167}: checkout: moving from staging to main
+[33m7f27c4d3[m HEAD@{168}: commit: feat: initialize FastAPI application with core configuration, middleware, database connection, and API routing
+[33m60dc3cf9[m[33m ([m[1;31morigin/additional-features[m[33m, [m[1;32madditional-features[m[33m)[m HEAD@{169}: checkout: moving from main to staging
+[33m60dc3cf9[m[33m ([m[1;31morigin/additional-features[m[33m, [m[1;32madditional-features[m[33m)[m HEAD@{170}: checkout: moving from main to main
+[33m60dc3cf9[m[33m ([m[1;31morigin/additional-features[m[33m, [m[1;32madditional-features[m[33m)[m HEAD@{171}: reset: moving to additional-features

@@ -23,6 +23,7 @@ import {
   RiLoader4Line,
 } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
+import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,7 @@ import {
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
 import SearchableLOV from '@/components/common/SearchableLOV'
+import SaveRecordDialog from '@/components/common/SaveRecordDialog'
 import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
@@ -53,7 +55,7 @@ import { Gender, ProductCategory } from '@/types/common.types'
 import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
-import { SalesOrderItem } from '@/types/erp.types'
+import { SalesOrder, SalesOrderItem } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -78,9 +80,16 @@ const requiredMoney = z.preprocess((value) => {
   return Number.isNaN(n) ? 0 : n
 }, z.number().min(0))
 
+// Sphere and cylinder can be negative (myopia/hyperopia values like -2.50, +1.25)
+const signedNumber = z.preprocess((value) => {
+  if (value === '' || value === null || value === undefined) return 0
+  const n = Number(value)
+  return Number.isNaN(n) ? 0 : n
+}, z.number())
+
 const eyeMeasurementSchema = z.object({
-  sphere: requiredMoney,
-  cylinder: requiredMoney,
+  sphere: signedNumber,
+  cylinder: signedNumber,
   axis: requiredMoney,
   add: requiredMoney,
   pd: requiredMoney,
@@ -121,6 +130,7 @@ const salesOrderIntakeSchema = z
     salesOrder: z.object({
       isOld: z.boolean().default(false),
       deliveryDate: z.string().min(1, 'Delivery date is required'),
+      dateOfFullPayment: z.string().min(1, 'Date of full payment is required'),
       orderNumber: z.string().optional().default(''),
       testedBy: z.string().min(1, 'Tested by is required'),
       orderDate: z.string().min(1, 'Order date is required'),
@@ -335,7 +345,7 @@ const defaultValues: SalesOrderIntakeValues = {
       leftEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, pd: 0 },
     },
   },
-  salesOrder: { isOld: false, deliveryDate: today, orderNumber: '', testedBy: '', orderDate: today },
+  salesOrder: { isOld: false, deliveryDate: today, dateOfFullPayment: today, orderNumber: '', testedBy: '', orderDate: today },
   frame: { selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
   lens: { selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
@@ -420,15 +430,88 @@ const mapProductToFrame = (product: Product) => ({
   total: product.selling_price,
 })
 
+// ─── Draft → form mapper ──────────────────────────────────────────────────────
+
+const mapDraftToFormValues = (
+  order: SalesOrder,
+  patient: Patient | null,
+  prescription: import('@/types/prescription.types').Prescription | null,
+): SalesOrderIntakeValues => {
+  const frameItem = order.items.find((i) => i.line_type === 'product')
+  const lensItem  = order.items.find((i) => i.line_type === 'lens')
+  const expItems  = order.items.filter((i) => i.line_type === 'expense')
+  const meas = (order.measurements || {}) as Record<string, any>
+
+  return {
+    patient: {
+      existingId: order.patient_id,
+      newData: {
+        fullName:  patient?.name    || '',
+        phone:     patient?.phone   || '',
+        age:       patient?.age,
+        gender:    patient?.gender  as Gender | undefined,
+        address:   patient ? formatAddress(patient) : '',
+      },
+    },
+    prescription: {
+      existingId: order.prescription_id || '',
+      newData: prescription ? mapPrescriptionToForm(prescription) : defaultValues.prescription.newData,
+    },
+    frame: frameItem ? {
+      selectionId: frameItem.product_id,
+      barcode:     frameItem.sku || '',
+      model:       frameItem.product_name || '',
+      color:       '',
+      size:        '',
+      frameId:     frameItem.sku || '',
+      total:       frameItem.unit_price,
+    } : defaultValues.frame,
+    lens: lensItem ? {
+      selectionId: lensItem.master_data_id || lensItem.product_id,
+      lensType:    lensItem.product_name || '',
+      color:       '',
+      size:        '',
+      lensId:      lensItem.sku || '',
+      total:       lensItem.unit_price,
+    } : defaultValues.lens,
+    expenses: expItems.map((e) => ({
+      expenseTypeId:   e.master_data_id || e.product_id || '',
+      expenseTypeName: e.product_name || '',
+      qty:             e.quantity,
+      unitCost:        e.unit_price,
+      discount:        0,
+      total:           e.total,
+    })),
+    salesOrder: {
+      isOld:        false,
+      deliveryDate: order.expected_delivery_date ? String(order.expected_delivery_date).split('T')[0] : today,
+      dateOfFullPayment: order.date_of_full_payment ? String(order.date_of_full_payment).split('T')[0] : today,
+      orderNumber:  order.order_number,
+      testedBy:     order.tested_by || '',
+      orderDate:    meas.order_date ? String(meas.order_date) : today,
+    },
+    totals: {
+      discount:        Number(meas.discount        || 0),
+      advancedPayment: Number(meas.advance_payment || 0),
+      fullPaymentDate: '',
+      invoiceNumber:   '',
+    },
+    remarks: order.notes || '',
+  }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const SalesOrderIntakeForm = () => {
+const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
   const [savedOrderNumber, setSavedOrderNumber] = useState('')
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [freshMatchedPatient, setFreshMatchedPatient] = useState<Patient | null>(null)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
@@ -449,7 +532,7 @@ const SalesOrderIntakeForm = () => {
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
   // Form
-  const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors } } =
+  const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
     useForm<SalesOrderIntakeValues>({ resolver: zodResolver(salesOrderIntakeSchema), defaultValues, mode: 'onSubmit' })
 
   const expenses = useWatch({ control, name: 'expenses' })
@@ -460,7 +543,51 @@ const SalesOrderIntakeForm = () => {
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
 
-  const { data: matchingPatients } = usePatientSearch(`${patient.newData.phone || ''} ${patient.newData.fullName || ''}`)
+  const isFormDirty = isDirty && !savedOrderNumber
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+  const [pendingNavPath, setPendingNavPath] = useState<string | null>(null)
+
+  // Intercept in-app navigation when form is dirty using history.listen
+  useEffect(() => {
+    if (!isFormDirty) return
+    // history.pushState / replaceState monkey-patch to intercept SPA navigation
+    const originalPush = window.history.pushState.bind(window.history)
+    window.history.pushState = (state, title, url) => {
+      if (url && url !== window.location.pathname + window.location.search) {
+        setPendingNavPath(String(url))
+        setShowLeaveDialog(true)
+        return
+      }
+      originalPush(state, title, url)
+    }
+    return () => { window.history.pushState = originalPush }
+  }, [isFormDirty])
+
+  // Block browser tab close / refresh
+  useEffect(() => {
+    if (!isFormDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isFormDirty])
+
+  const handleLeaveConfirm = () => {
+    setShowLeaveDialog(false)
+    if (pendingNavPath) {
+      // reset form dirty state so the pushState override won't re-trigger
+      reset(getValues(), { keepValues: true })
+      navigate(pendingNavPath)
+    }
+    setPendingNavPath(null)
+  }
+
+  const handleLeaveDiscard = () => {
+    setShowLeaveDialog(false)
+    setPendingNavPath(null)
+  }
+
+  const patientSearchTerm = patient.newData.phone?.trim() || patient.newData.fullName?.trim() || ''
+  usePatientSearch(patientSearchTerm)
   const { data: patientPrescriptions } = usePrescriptionFetch(patient.existingId || undefined)
   const { isScannerOpen: barcodeScannerOpen, openScanner, closeScanner, scanBarcode, isScanningProduct } = useBarcodeScanner()
   const { fields: expenseFields, append, remove } = useFieldArray({ control, name: 'expenses' })
@@ -480,17 +607,6 @@ const SalesOrderIntakeForm = () => {
   const expenseOptions = useMemo<LookupOption[]>(() =>
     (expenseMasterData?.data || []).map((e) => ({ value: e.id, label: e.name, subtitle: formatCurrency(e.default_cost) }))
   , [expenseMasterData])
-
-  const matchedPatient = useMemo(() => {
-    const results = (matchingPatients?.data || []).filter(Boolean)
-    const phone = phoneDigits(patient.newData.phone || '')
-    if (!phone && !patient.newData.fullName.trim()) return results[0] || null
-    return (
-      results.find((item) => phoneDigits(safeText(item?.phone)) === phone) ||
-      results.find((item) => normalizeText(safeText(item?.name)).includes(normalizeText(patient.newData.fullName))) ||
-      results[0] || null
-    )
-  }, [matchingPatients, patient.newData.fullName, patient.newData.phone])
 
   const patientIsLinked = !!patient.existingId
   const prescriptionIsLinked = !!prescription.existingId
@@ -535,6 +651,12 @@ const SalesOrderIntakeForm = () => {
   }, [getValues, salesOrder.isOld, setValue])
 
   useEffect(() => {
+    if (salesOrder.deliveryDate) {
+      setValue('salesOrder.dateOfFullPayment', salesOrder.deliveryDate, { shouldDirty: false, shouldValidate: false })
+    }
+  }, [salesOrder.deliveryDate, setValue])
+
+  useEffect(() => {
     if (prescription.existingId || prescription.newData.diagnosis || prescription.newData.notes) clearErrors('prescription')
   }, [clearErrors, prescription.existingId, prescription.newData.diagnosis, prescription.newData.notes])
 
@@ -569,10 +691,42 @@ const SalesOrderIntakeForm = () => {
     }
   }, [expenses, setValue])
 
+  // Draft loading
+  const { data: draftOrder, isLoading: isLoadingDraft } = useQuery({
+    queryKey: ['sales-order-draft', draftOrderId],
+    queryFn: () => salesOrdersApi.getById(draftOrderId!),
+    enabled: !!draftOrderId,
+    staleTime: Infinity,
+  })
+
+  const { data: draftPatient } = useQuery({
+    queryKey: ['patient', draftOrder?.patient_id],
+    queryFn: () => patientsApi.getById(draftOrder!.patient_id),
+    enabled: !!draftOrder?.patient_id,
+    staleTime: Infinity,
+  })
+
+  const { data: draftPrescription } = useQuery({
+    queryKey: ['prescription', draftOrder?.prescription_id],
+    queryFn: () => prescriptionsApi.getById(draftOrder!.prescription_id!),
+    enabled: !!draftOrder?.prescription_id,
+    staleTime: Infinity,
+  })
+
+  // Pre-fill form once draft + patient data are loaded
+  const draftLoaded = !!draftOrder && (draftOrder.prescription_id ? !!draftPrescription : true) && !!draftPatient
+  useEffect(() => {
+    if (!draftLoaded) return
+    const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null)
+    reset(mapped, { keepDirty: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftLoaded])
+
   // Mutations
   const createPatientMutation = useMutation({ mutationFn: (p: Parameters<typeof patientsApi.create>[0]) => patientsApi.create(p) })
   const createPrescriptionMutation = useMutation({ mutationFn: (p: Parameters<typeof prescriptionsApi.create>[0]) => prescriptionsApi.create(p) })
   const createSalesOrderMutation = useMutation({ mutationFn: (p: Parameters<typeof salesOrdersApi.create>[0]) => salesOrdersApi.create(p) })
+  const updateSalesOrderMutation = useMutation({ mutationFn: ({ id, data }: { id: string; data: Parameters<typeof salesOrdersApi.update>[1] }) => salesOrdersApi.update(id, data) })
   const generateInvoiceMutation = useMutation({ mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId) })
 
   // Handlers
@@ -635,9 +789,34 @@ const SalesOrderIntakeForm = () => {
     if (currentStep === 0) {
       const valid = await trigger(['patient.newData.fullName', 'patient.newData.phone'] as any)
       if (!valid) return
-      if (matchedPatient && !patientIsLinked) {
-        setShowDuplicateDialog(true)
-        return
+      if (!patientIsLinked) {
+        const phone = patient.newData.phone?.trim() || ''
+        const name = patient.newData.fullName?.trim() || ''
+        const searchTerm = phone || name
+        if (searchTerm) {
+          try {
+            // Use queryClient.fetchQuery with the same key as usePatientSearch so react-query
+            // deduplicates at its own level — avoids the axios AbortController race where the
+            // debounce fires and cancels this in-flight request before we can read the result.
+            const result = await queryClient.fetchQuery({
+              queryKey: ['patients', 'search', searchTerm],
+              queryFn: () => patientsApi.getAll({ page: 1, page_size: 25, search: searchTerm }),
+              staleTime: 10_000,
+            })
+            const results = result.data || []
+            const match =
+              results.find((item) => phoneDigits(safeText(item?.phone)) === phoneDigits(phone)) ||
+              results.find((item) => name && normalizeText(safeText(item?.name)).includes(normalizeText(name))) ||
+              null
+            if (match) {
+              setFreshMatchedPatient(match)
+              setShowDuplicateDialog(true)
+              return
+            }
+          } catch {
+            // ignore — let the form proceed if search fails
+          }
+        }
       }
     }
     // Step 5: Order Info — validate required fields
@@ -652,11 +831,87 @@ const SalesOrderIntakeForm = () => {
 
   const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0) }
 
+  const handleSubmitClick = async () => {
+    const isValid = await trigger()
+    if (!isValid) {
+      toast.error('Some required fields are missing or invalid. Please review each step before submitting.')
+      return
+    }
+    setShowSaveDialog(true)
+  }
+
+  const handleSaveDraft = async () => {
+    const isValid = await trigger()
+    if (!isValid) {
+      setShowSaveDialog(false)
+      return
+    }
+    setShowSaveDialog(false)
+    handleSubmit(onSubmit)()
+  }
+
+  const saveDraftAndLeave = async () => {
+    const values = getValues()
+    const patientName = values.patient.newData.fullName?.trim()
+    const patientPhone = values.patient.newData.phone?.trim()
+    const hasPatient = !!(values.patient.existingId || (patientName && patientPhone))
+
+    if (!hasPatient) {
+      toast.error('Please enter at least a patient name and phone number before saving a draft.')
+      return
+    }
+
+    const draftItems: SalesOrderItem[] = []
+    if (resolvedFrame) {
+      draftItems.push({ product_id: resolvedFrame.product_id, product_name: values.frame.model || resolvedFrame.name, sku: values.frame.frameId || resolvedFrame.sku, quantity: 1, unit_price: Number(values.frame.total || resolvedFrame.selling_price), total: Number(values.frame.total || resolvedFrame.selling_price), master_data_id: resolvedFrame.product_id, line_type: 'product', track_stock: true })
+    }
+    if (resolvedLens) {
+      draftItems.push({ product_id: resolvedLens.id, product_name: values.lens.lensType || resolvedLens.lens_type, sku: values.lens.lensId || resolvedLens.lens_code, quantity: 1, unit_price: Number(values.lens.total || resolvedLens.price), total: Number(values.lens.total || resolvedLens.price), master_data_id: resolvedLens.id, line_type: 'lens', track_stock: false })
+    }
+    values.expenses.forEach((expense) => {
+      if (!expense.expenseTypeId && !expense.expenseTypeName) return
+      if (Number(expense.qty || 0) <= 0) return
+      const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
+      draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
+    })
+
+    if (draftItems.length === 0) {
+      // Nothing selectable yet — just discard and navigate
+      handleLeaveConfirm()
+      return
+    }
+
+    setIsSavingDraft(true)
+    try {
+      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
+
+      const createdOrder = await createSalesOrderMutation.mutateAsync({
+        patient_id: patientId,
+        prescription_id: values.prescription.existingId || undefined,
+        tested_by: values.salesOrder.testedBy || undefined,
+        expected_delivery_date: `${values.salesOrder.deliveryDate}T00:00:00Z`,
+        date_of_full_payment: `${values.salesOrder.dateOfFullPayment}T00:00:00Z`,
+        notes: values.remarks.trim() || undefined,
+        measurements: { order_date: values.salesOrder.orderDate, frame_total: values.frame.total, lens_total: values.lens.total },
+        status: 'draft' as const,
+        items: draftItems,
+      })
+
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      toast.success(`Draft saved as ${createdOrder.order_number}`)
+      handleLeaveConfirm()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to save draft')
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   const onSubmit = async (values: SalesOrderIntakeValues) => {
     try {
       const phone = phoneDigits(values.patient.newData.phone)
-      const exactDuplicate = phone ? (matchingPatients?.data || []).find((item) => phoneDigits(safeText(item?.phone)) === phone) : null
-      if (!values.patient.existingId && exactDuplicate) { toast.error('Phone number already exists.'); return }
+      const exactDuplicate = !values.patient.existingId && freshMatchedPatient && phoneDigits(safeText(freshMatchedPatient.phone)) === phone
+      if (exactDuplicate) { toast.error('Phone number already exists. Please link the existing patient or use a different number.'); return }
 
       const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
 
@@ -671,8 +926,8 @@ const SalesOrderIntakeForm = () => {
         prescriptionId = createdRx.prescription_id
       }
 
-      const frameItem = values.frame.selectionId ? resolvedFrame : null
-      if (!frameItem) { toast.error('Frame selection is required'); return }
+      const frameItem = resolvedFrame
+      if (!values.salesOrder.isOld && !frameItem) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
       if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
       if (!values.salesOrder.isOld) {
@@ -680,64 +935,112 @@ const SalesOrderIntakeForm = () => {
         if (invalidExpense) { toast.error('Expense type must come from master data'); return }
       }
 
-      const itemPayload: SalesOrderItem[] = [
-        { product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true },
-      ]
-      if (lensItem || values.salesOrder.isOld) {
-        itemPayload.push({ product_id: lensItem?.id || values.lens.lensId || 'LENS', product_name: values.lens.lensType || lensItem?.lens_type || 'Lens', sku: values.lens.lensId || lensItem?.lens_code || 'LENS', quantity: 1, unit_price: Number(values.lens.total || lensItem?.price || 0), total: Number(values.lens.total || lensItem?.price || 0), master_data_id: lensItem?.id, line_type: 'lens' as const, track_stock: false })
+      const itemPayload: SalesOrderItem[] = []
+      if (frameItem) {
+        itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
       }
-      itemPayload.push(...values.expenses.map((expense) => {
+      if (lensItem) {
+        itemPayload.push({ product_id: lensItem.id, product_name: values.lens.lensType || lensItem.lens_type, sku: values.lens.lensId || lensItem.lens_code, quantity: 1, unit_price: Number(values.lens.total || lensItem.price), total: Number(values.lens.total || lensItem.price), master_data_id: lensItem.id, line_type: 'lens' as const, track_stock: false })
+      }
+      itemPayload.push(...(values.expenses || []).filter((expense) => Number(expense.qty || 0) > 0).map((expense) => {
         const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
-        return { product_id: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || expense.expenseTypeName || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
+        return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
       }))
+
+      if (itemPayload.length === 0) {
+        toast.error('At least one item (frame, lens, or expense) is required to create a sales order.')
+        return
+      }
+
+      const convertDateToISO = (dateStr: string) => dateStr ? `${dateStr}T00:00:00Z` : undefined
 
       const orderPayload = {
         patient_id: patientId,
         prescription_id: prescriptionId || undefined,
         tested_by: values.salesOrder.testedBy,
-        expected_delivery_date: values.salesOrder.deliveryDate,
+        expected_delivery_date: convertDateToISO(values.salesOrder.deliveryDate),
+        date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
         measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: values.totals.discount, advance_payment: values.totals.advancedPayment },
         status: 'confirmed' as const,
         items: itemPayload,
       }
 
-      const createdOrder = await createSalesOrderMutation.mutateAsync(orderPayload)
-      setSavedOrderNumber(createdOrder.order_number)
-      setValue('salesOrder.orderNumber', createdOrder.order_number, { shouldDirty: false, shouldValidate: false })
+      const savedOrder = draftOrderId
+        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'confirmed' } })
+        : await createSalesOrderMutation.mutateAsync(orderPayload)
+      setSavedOrderNumber(savedOrder.order_number)
+      setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
       queryClient.invalidateQueries({ queryKey: ['patients'] })
       queryClient.invalidateQueries({ queryKey: ['patient-prescriptions', patientId] })
 
       if (!values.salesOrder.isOld) {
-        const invoice = await generateInvoiceMutation.mutateAsync(createdOrder.order_id)
+        const invoice = await generateInvoiceMutation.mutateAsync(savedOrder.order_id)
         setSavedInvoice(invoice)
         setValue('totals.invoiceNumber', invoice.invoice_number, { shouldDirty: false, shouldValidate: false })
         queryClient.invalidateQueries({ queryKey: ['invoices'] })
         toast.success(`Invoice ${invoice.invoice_number} generated`)
       } else {
         setSavedInvoice(null)
-        toast.success(`Historical SO saved as ${createdOrder.order_number}`)
+        toast.success(`Historical SO saved as ${savedOrder.order_number}`)
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.detail || 'Failed to save sales order')
     }
   }
 
-  if (isLoadingProducts) {
+  if (isLoadingProducts || (draftOrderId && isLoadingDraft)) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center rounded-lg border border-border bg-card">
-        <Loading text="Loading sales order masters..." />
+        <Loading text={isLoadingDraft ? 'Loading draft order...' : 'Loading sales order masters...'} />
       </div>
     )
   }
 
-  const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || generateInvoiceMutation.isPending
+  const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || updateSalesOrderMutation.isPending || generateInvoiceMutation.isPending
   const showPricingPanel = currentStep >= 2 && currentStep <= 5
 
   return (
     <>
       <QRScanner isOpen={barcodeScannerOpen} onScan={handleBarcodeScan} onClose={closeScanner} />
+
+      <SaveRecordDialog
+        isOpen={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        recordName="sales order"
+        isCreating={true}
+        confirmLabel="Create Order"
+        onSaveDraft={handleSaveDraft}
+        onCancel={() => setShowSaveDialog(false)}
+      />
+
+      {/* Navigate-away guard dialog */}
+      <AlertDialog open={showLeaveDialog} onOpenChange={(open) => { if (!open) handleLeaveDiscard() }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RiSaveLine className="h-5 w-5 text-primary" />
+              Unsaved sales order
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Would you like to save this order as a draft before leaving, or discard your progress?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel onClick={handleLeaveDiscard}>Stay</AlertDialogCancel>
+            <Button variant="outline" onClick={handleLeaveConfirm}>
+              Discard &amp; Leave
+            </Button>
+            <AlertDialogAction disabled={isSavingDraft} onClick={saveDraftAndLeave}>
+              {isSavingDraft
+                ? <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving Draft...</>
+                : 'Save as Draft'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Duplicate patient dialog */}
       <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
@@ -748,8 +1051,8 @@ const SalesOrderIntakeForm = () => {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>A patient record already exists matching this information:</p>
                 <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
-                  <p className="font-semibold text-foreground">{safeText(matchedPatient?.name)}</p>
-                  <p className="text-muted-foreground">{safeText(matchedPatient?.phone)}</p>
+                  <p className="font-semibold text-foreground">{safeText(freshMatchedPatient?.name)}</p>
+                  <p className="text-muted-foreground">{safeText(freshMatchedPatient?.phone)}</p>
                 </div>
                 <p>Would you like to use this existing patient, or continue creating a new record with a different phone number?</p>
               </div>
@@ -769,7 +1072,7 @@ const SalesOrderIntakeForm = () => {
             </Button>
             <AlertDialogAction
               onClick={() => {
-                if (matchedPatient) handlePatientAction(matchedPatient)
+                if (freshMatchedPatient) handlePatientAction(freshMatchedPatient)
                 setShowDuplicateDialog(false)
                 setCurrentStep(1)
               }}
@@ -781,13 +1084,27 @@ const SalesOrderIntakeForm = () => {
       </AlertDialog>
 
       <div className="mx-auto max-w-3xl space-y-6">
+        {/* Draft edit banner */}
+        {draftOrderId && draftOrder && !savedOrderNumber && (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+            <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Editing draft — {draftOrder.order_number}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Complete all steps and click "Create Order" to confirm this order and generate an invoice.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Progress stepper */}
         <Card className="px-6 py-5">
           <StepIndicator currentStep={currentStep} onStepClick={setCurrentStep} />
         </Card>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
+        <form className="space-y-4">
           {/* ── Step 0: Patient ─────────────────────────────────────────────── */}
           {currentStep === 0 && (
             <Card>
@@ -1153,12 +1470,15 @@ const SalesOrderIntakeForm = () => {
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                   <Field label="Order Date" required error={errors.salesOrder?.orderDate?.message}>
                     <Input type="date" {...register('salesOrder.orderDate')} />
                   </Field>
                   <Field label="Delivery Date" required error={errors.salesOrder?.deliveryDate?.message}>
                     <Input type="date" {...register('salesOrder.deliveryDate')} />
+                  </Field>
+                  <Field label="Date of Full Payment" required error={errors.salesOrder?.dateOfFullPayment?.message}>
+                    <Input type="date" {...register('salesOrder.dateOfFullPayment')} />
                   </Field>
                   <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
                     <Input placeholder="Optometrist name" {...register('salesOrder.testedBy')} />
@@ -1254,10 +1574,14 @@ const SalesOrderIntakeForm = () => {
                     <p className="mt-1 text-3xl font-bold tabular-nums text-primary">{formatCurrency(roundCurrency(derivedTotals.balancePayment))}</p>
                   </div>
 
-                  {!salesOrder.isOld && (
-                    <Field label="Date of Full Payment">
-                      <Input type="date" value={totals.fullPaymentDate || ''} onChange={(e) => setValue('totals.fullPaymentDate', e.target.value, { shouldDirty: true })} />
-                    </Field>
+                  {!salesOrder.isOld && salesOrder.dateOfFullPayment && (
+                    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <RiTimeLine className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Full Payment Due</span>
+                      </div>
+                      <span className="text-sm font-semibold">{salesOrder.dateOfFullPayment}</span>
+                    </div>
                   )}
 
                   <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
@@ -1310,7 +1634,7 @@ const SalesOrderIntakeForm = () => {
                   <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="submit" disabled={isSaving}>
+                <Button type="button" disabled={isSaving} onClick={handleSubmitClick}>
                   {isSaving ? (
                     <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
                   ) : (

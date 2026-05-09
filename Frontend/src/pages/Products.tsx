@@ -1,8 +1,24 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
-import { RiAddLine, RiSearchLine, RiAlertLine, RiBox3Line, RiQrCodeLine, RiEditLine, RiPrinterLine, RiSettings4Line } from '@remixicon/react'
-import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import {
+  RiAddLine,
+  RiAlertLine,
+  RiBox3Line,
+  RiEditLine,
+  RiPrinterLine,
+  RiQrCodeLine,
+  RiSearchLine,
+  RiSettings4Line,
+} from '@remixicon/react'
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -66,59 +82,72 @@ const Products = () => {
       setPage(1)
       toast.success(`Found product: ${product.name}`)
       setBarcodeInput('')
-    } catch (error) {
-      console.error('Product not found:', error)
+    } catch {
       alert('Product not found. Please add it manually.')
       setBarcodeInput('')
     }
   }
 
+  const lowStockCount = data?.data.filter((p) => p.current_stock <= p.min_stock_level).length || 0
+  const inventoryValue = data?.data.reduce((sum, p) => sum + p.current_stock * p.cost_price, 0) || 0
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+      <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Products & Inventory</h1>
+          <p className="text-sm text-muted-foreground">Manage products and stock levels.</p>
+        </div>
+        <Button size="sm" className="w-full md:w-auto" onClick={handleAdd}>
+          <RiAddLine className="size-4" />
+          Add Product
+        </Button>
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Total Products</p>
               <p className="text-2xl font-bold text-foreground">{data?.total || 0}</p>
             </div>
-            <RiBox3Line className="w-8 h-8 text-brand-600" />
-          </div>
-        </div>
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+            <RiBox3Line className="w-8 h-8 text-primary" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Low Stock Items</p>
-              <p className="text-2xl font-bold text-error-600">
-                {data?.data.filter((p) => p.current_stock <= p.min_stock_level).length || 0}
-              </p>
+              <p className="text-2xl font-bold text-destructive">{lowStockCount}</p>
             </div>
-            <RiAlertLine className="w-8 h-8 text-error-600" />
-          </div>
-        </div>
-        <div className="rounded-xl bg-background shadow-xs ring-1 ring-secondary p-5">
-          <div className="flex items-center justify-between">
+            <RiAlertLine className="w-8 h-8 text-destructive" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60">
+          <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Total Inventory Value</p>
-              <p className="text-2xl font-bold text-success-600">
-                {formatCurrency(
-                  data?.data.reduce((sum, p) => sum + p.current_stock * p.cost_price, 0) || 0
-                )}
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(inventoryValue)}
               </p>
             </div>
-            <div className="w-8 h-8 bg-success-100 rounded-full flex items-center justify-center text-success-600 text-xs font-semibold">LKR</div>
-          </div>
-        </div>
+            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-xs font-semibold">
+              LKR
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border-border/60">
         <CardHeader className="space-y-4">
           <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
-            <div className="flex items-center gap-3">
-              <CardTitle>Products & Inventory</CardTitle>
-              <Badge variant="secondary">{data?.total || 0}</Badge>
+            <div>
+              <CardTitle className="text-xl">Product Records</CardTitle>
+              <CardDescription>Search, filter, and manage all products.</CardDescription>
             </div>
-            <CardDescription>Manage products and stock levels</CardDescription>
+            <Badge variant="secondary" className="w-fit">
+              {data?.total || 0} total
+            </Badge>
           </div>
           <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
             <div className="relative w-full lg:w-40">
@@ -145,13 +174,16 @@ const Products = () => {
               <Input
                 placeholder="Search products..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 aria-label="Search products"
                 className="pl-9"
               />
             </div>
-            <Select value={categoryFilter || 'all'} onValueChange={(val) => setCategoryFilter(val === 'all' ? '' : val)}>
-              <SelectTrigger className="w-full lg:w-40">
+            <Select
+              value={categoryFilter || 'all'}
+              onValueChange={(val) => { setCategoryFilter(val === 'all' ? '' : val); setPage(1) }}
+            >
+              <SelectTrigger className="w-full lg:w-44">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -164,7 +196,10 @@ const Products = () => {
                 <SelectItem value="accessories">Accessories</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={String(pageSize)} onValueChange={(val) => { setPageSize(Number(val)); setPage(1) }}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(val) => { setPageSize(Number(val)); setPage(1) }}
+            >
               <SelectTrigger className="w-full lg:w-28">
                 <SelectValue placeholder="Rows" />
               </SelectTrigger>
@@ -174,120 +209,129 @@ const Products = () => {
                 <SelectItem value="50">50 rows</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleAdd} size="sm">
-              <RiAddLine className="size-4 mr-1" />
-              Add Product
-            </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent className="px-0 pb-0">
           {isLoading ? (
             <div className="p-12"><Loading /></div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Min Level</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data?.data || []).map((product) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">{product.sku}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-400">
-                          {product.category.replace('-', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{product.brand || '-'}</TableCell>
-                      <TableCell>{formatCurrency(product.selling_price)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-semibold ${product.current_stock <= product.min_stock_level ? 'text-error-600' : 'text-success-600'}`}>
-                            {product.current_stock}
-                          </span>
-                          {product.current_stock <= product.min_stock_level && (
-                            <RiAlertLine className="w-4 h-4 text-error-600" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{product.min_stock_level}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={product.is_active
-                            ? 'border-success-200 bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-400'
-                            : 'border-error-200 bg-error-50 text-error-700 dark:bg-error-950 dark:text-error-400'}
-                        >
-                          {product.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleEdit(product)} aria-label="Edit">
-                                  <RiEditLine className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit product</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleStockAdjustment(product)} aria-label="Adjust Stock">
-                                  <RiSettings4Line className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Adjust stock</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  aria-label="Print Label"
-                                  onClick={async () => {
-                                    try {
-                                      const response = await productsApi.getLabel(product.product_id)
-                                      const url = URL.createObjectURL(response)
-                                      window.open(url, '_blank')
-                                      setTimeout(() => URL.revokeObjectURL(url), 100)
-                                    } catch (error) {
-                                      console.error('Error fetching label:', error)
-                                    }
-                                  }}
-                                >
-                                  <RiPrinterLine className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Print label</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto px-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Brand</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Min Level</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.data || []).map((product) => (
+                      <TableRow key={product.product_id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-foreground">{product.name}</p>
+                            <p className="text-sm text-muted-foreground">{product.sku}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">
+                            {product.category.replace('-', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{product.brand || '-'}</TableCell>
+                        <TableCell>{formatCurrency(product.selling_price)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-semibold ${
+                                product.current_stock <= product.min_stock_level
+                                  ? 'text-destructive'
+                                  : 'text-green-600 dark:text-green-400'
+                              }`}
+                            >
+                              {product.current_stock}
+                            </span>
+                            {product.current_stock <= product.min_stock_level && (
+                              <RiAlertLine className="w-4 h-4 text-destructive" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{product.min_stock_level}</TableCell>
+                        <TableCell>
+                          <Badge variant={product.is_active ? 'default' : 'outline'}>
+                            {product.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEdit(product)}
+                                    aria-label="Edit"
+                                  >
+                                    <RiEditLine className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit product</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStockAdjustment(product)}
+                                    aria-label="Adjust Stock"
+                                  >
+                                    <RiSettings4Line className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Adjust stock</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Print Label"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await productsApi.getLabel(product.product_id)
+                                        const url = URL.createObjectURL(response)
+                                        window.open(url, '_blank')
+                                        setTimeout(() => URL.revokeObjectURL(url), 100)
+                                      } catch {
+                                        toast.error('Failed to fetch label')
+                                      }
+                                    }}
+                                  >
+                                    <RiPrinterLine className="size-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Print label</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               {data && (
                 <Pagination
                   currentPage={page}
@@ -305,10 +349,7 @@ const Products = () => {
 
       <ProductModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setSelectedProduct(null)
-        }}
+        onClose={() => { setIsModalOpen(false); setSelectedProduct(null) }}
         product={selectedProduct}
         onSuccess={() => refetch()}
       />
@@ -316,17 +357,10 @@ const Products = () => {
       {selectedProduct && (
         <StockAdjustmentModal
           isOpen={isStockModalOpen}
-          onClose={() => {
-            setIsStockModalOpen(false)
-            setSelectedProduct(null)
-            setIsFromQRScan(false)
-          }}
+          onClose={() => { setIsStockModalOpen(false); setSelectedProduct(null); setIsFromQRScan(false) }}
           product={selectedProduct}
           onSuccess={() => refetch()}
-          defaultValues={isFromQRScan ? {
-            quantity: 1,
-            reason: 'Purchase - New stock received'
-          } : undefined}
+          defaultValues={isFromQRScan ? { quantity: 1, reason: 'Purchase - New stock received' } : undefined}
         />
       )}
 

@@ -66,6 +66,56 @@ class SalesOrderService:
             SalesOrderStatus.CANCELLED: set(),
         }
 
+    async def _resolve_product_by_identifier(self, identifier: str):
+        """Resolve a product by business product_id first, then Mongo _id for legacy payloads."""
+        if not identifier:
+            return None
+
+        by_product_id = await self.product_repo.get_by_product_id(identifier)
+        if by_product_id:
+            return by_product_id
+
+        by_mongo_id = await self.product_repo.get_by_id(identifier)
+        if not by_mongo_id:
+            return None
+        return await self.product_repo.get_by_product_id(by_mongo_id.get("product_id"))
+
+    @staticmethod
+    def _extract_advance_payment(measurements: Optional[dict]) -> float:
+        if not isinstance(measurements, dict):
+            return 0.0
+        try:
+            amount = float(measurements.get("advance_payment") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        return round(amount, 2) if amount > 0 else 0.0
+
+    async def _record_advance_payment_transaction(self, order_id: str, measurements: Optional[dict], created_by: str):
+        amount = self._extract_advance_payment(measurements)
+        if amount <= 0:
+            return
+
+        existing_payment_count = await self.db["transactions"].count_documents(
+            {
+                "reference_type": LedgerReferenceType.SALES_ORDER.value,
+                "reference_id": order_id,
+                "transaction_type": LedgerTransactionType.CUSTOMER_PAYMENT.value,
+            }
+        )
+        if existing_payment_count > 0:
+            return
+
+        await self.transaction_service.create_transaction(
+            TransactionCreate(
+                transaction_type=LedgerTransactionType.CUSTOMER_PAYMENT,
+                reference_type=LedgerReferenceType.SALES_ORDER,
+                reference_id=order_id,
+                amount=amount,
+                status="completed",
+            ),
+            created_by=created_by,
+        )
+
     async def _build_validated_items(self, items):
         item_models = []
         subtotal = 0.0
@@ -97,14 +147,24 @@ class SalesOrderService:
                 raise BadRequestException("Item unit price cannot be negative")
 
             if line_type == "product":
-                product = await self.product_repo.get_by_product_id(product_id)
-                if not product:
-                    raise NotFoundException(f"Product with ID {product_id} not found")
-                resolved_name = product_name or product.name
-                resolved_sku = sku or product.sku
-                resolved_unit_price = unit_price if unit_price >= 0 else product.selling_price
-                resolved_master_id = master_data_id or product.product_id
-                resolved_track_stock = True
+                product = await self._resolve_product_by_identifier(product_id)
+                if product:
+                    resolved_product_id = product.product_id
+                    resolved_name = product_name or product.name
+                    resolved_sku = sku or product.sku
+                    resolved_unit_price = unit_price if unit_price >= 0 else product.selling_price
+                    resolved_master_id = master_data_id or product.product_id
+                    resolved_track_stock = True
+                else:
+                    if not product_name:
+                        raise NotFoundException(f"Product with ID {product_id} not found")
+                    resolved_product_id = product_id
+                    resolved_name = product_name
+                    resolved_sku = sku or product_id
+                    resolved_unit_price = unit_price
+                    resolved_master_id = master_data_id or product_id
+                    # Manual/legacy lines should not touch stock if no inventory product was found.
+                    resolved_track_stock = False
             elif line_type == "lens":
                 lens = await self.lens_master_repo.get_by_id(master_data_id or product_id)
                 if lens:
@@ -143,7 +203,7 @@ class SalesOrderService:
 
             item_models.append(
                 SalesOrderItemModel(
-                    product_id=product_id,
+                    product_id=resolved_product_id if line_type == "product" else product_id,
                     product_name=resolved_name,
                     sku=resolved_sku,
                     quantity=quantity,
@@ -151,7 +211,7 @@ class SalesOrderService:
                     total=line_total,
                     master_data_id=resolved_master_id,
                     line_type=line_type,
-                    track_stock=resolved_track_stock if line_type != "product" else track_stock,
+                    track_stock=resolved_track_stock if line_type == "product" else resolved_track_stock,
                 )
             )
 
@@ -161,7 +221,7 @@ class SalesOrderService:
         for item in items:
             if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
                 continue
-            product = await self.product_repo.get_by_product_id(item.product_id)
+            product = await self._resolve_product_by_identifier(item.product_id)
             if not product:
                 raise NotFoundException(f"Product with ID {item.product_id} not found")
             if product.current_stock < item.quantity:
@@ -215,6 +275,9 @@ class SalesOrderService:
         order_id = generate_id("SO", next_number)
         order_number = f"SO-{datetime.utcnow().year}-{str(next_number).zfill(6)}"
         item_models, subtotal = await self._build_validated_items(data.items)
+        initial_status = data.status or SalesOrderStatus.CONFIRMED
+        if initial_status != SalesOrderStatus.DRAFT:
+            await self._ensure_stock_available(item_models)
         order_model = SalesOrderModel(
             order_id=order_id,
             order_number=order_number,
@@ -227,12 +290,14 @@ class SalesOrderService:
             tested_by=data.tested_by,
             expected_delivery_date=data.expected_delivery_date,
             notes=data.notes,
-            status=data.status or SalesOrderStatus.CONFIRMED,
+            status=initial_status,
             created_by=created_by,
         )
         created = await self.repo.create(order_model.dict())
         await self.audit_service.log(created_by, "sales_order_created", "SalesOrder", order_id, new_value=created)
         created_model = SalesOrderModel(**created)
+        if created_model.status != SalesOrderStatus.DRAFT:
+            await self._record_advance_payment_transaction(created_model.order_id, created_model.measurements, created_by)
         return await self._to_response(created_model)
 
     async def update_sales_order(self, order_id: str, data: SalesOrderUpdate, created_by: str) -> SalesOrderResponse:
@@ -258,6 +323,8 @@ class SalesOrderService:
             if old_status in {SalesOrderStatus.COMPLETED, SalesOrderStatus.CANCELLED}:
                 raise BadRequestException("Cannot modify items of completed/cancelled sales orders")
             item_models, subtotal = await self._build_validated_items(update_dict["items"])
+            if target_status != SalesOrderStatus.DRAFT:
+                await self._ensure_stock_available(item_models)
             update_dict["items"] = [item.dict() for item in item_models]
             update_dict["subtotal"] = subtotal
             update_dict["total_amount"] = subtotal
@@ -273,9 +340,12 @@ class SalesOrderService:
             for item in updated.items:
                 if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
                     continue
+                product = await self._resolve_product_by_identifier(item.product_id)
+                if not product:
+                    raise NotFoundException(f"Product with ID {item.product_id} not found")
                 await self.inventory_movement_service.create_movement(
                     InventoryMovementCreate(
-                        product_id=item.product_id,
+                        product_id=product.product_id,
                         movement_type=InventoryMovementType.SALE_OUT,
                         quantity=item.quantity,
                         reference_type=LedgerReferenceType.SALES_ORDER,
@@ -295,6 +365,9 @@ class SalesOrderService:
                 ),
                 created_by=created_by,
             )
+
+        if updated.status != SalesOrderStatus.DRAFT:
+            await self._record_advance_payment_transaction(updated.order_id, updated.measurements, created_by)
 
         await self.audit_service.log(created_by, "sales_order_updated", "SalesOrder", order_id, old_value=existing.dict(), new_value=updated.dict())
         return await self._to_response(updated)
@@ -337,15 +410,20 @@ class SalesOrderService:
                 discount=0,
                 tax=0,
                 total=item.total,
+                master_data_id=getattr(item, "master_data_id", None),
+                line_type=getattr(item, "line_type", "product"),
+                track_stock=getattr(item, "track_stock", True),
             )
             for item in order.items
         ]
+
+        due_date = order.date_of_full_payment.date() if order.date_of_full_payment else date.today()
 
         invoice = await self.invoice_service.create_invoice(
             InvoiceCreate(
                 patient_id=order.patient_id,
                 invoice_date=date.today(),
-                due_date=date.today(),
+                due_date=due_date,
                 items=invoice_items,
                 prescription_id=order.prescription_id,
                 sales_order_id=order.order_id,
@@ -354,6 +432,23 @@ class SalesOrderService:
             current_user_id=created_by,
             deduct_stock=False,
         )
+
+        advance = self._extract_advance_payment(order.measurements)
+        if advance > 0 and advance <= invoice.total_amount:
+            new_paid = round(advance, 2)
+            new_balance = round(invoice.total_amount - new_paid, 2)
+            payment_status = "paid" if new_balance == 0 else "partial"
+            await self.invoice_repo.update_invoice(
+                invoice.invoice_id,
+                {
+                    "paid_amount": new_paid,
+                    "balance_due": new_balance,
+                    "payment_status": payment_status,
+                },
+            )
+            invoice.paid_amount = new_paid
+            invoice.balance_due = new_balance
+            invoice.payment_status = payment_status
 
         await self.repo.update({"order_id": order_id}, {"invoice_id": invoice.invoice_id})
         await self.audit_service.log(

@@ -25,6 +25,7 @@ class SalesOrderCreate(BaseModel):
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
+    date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     status: SalesOrderStatus = SalesOrderStatus.CONFIRMED
 
@@ -35,6 +36,7 @@ class SalesOrderUpdate(BaseModel):
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
+    date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     status: Optional[SalesOrderStatus] = None
 
@@ -56,6 +58,7 @@ class SalesOrderResponse(BaseModel):
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
+    date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
     status: SalesOrderStatus

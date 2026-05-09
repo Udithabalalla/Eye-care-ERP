@@ -42,7 +42,7 @@ import { Invoice } from '@/types/invoice.types'
 import { Prescription } from '@/types/prescription.types'
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import InvoiceDetail from '@/components/invoices/InvoiceDetail'
 import PaymentModal from '@/components/invoices/PaymentModal'
 import { downloadFile } from '@/utils/helpers'
@@ -524,23 +524,23 @@ const Patients = () => {
         readOnly={true}
       />
 
-      <Modal
-        isOpen={isInvoiceDetailOpen}
-        onClose={() => {
-          setIsInvoiceDetailOpen(false)
-          setSelectedInvoice(null)
-        }}
-        title="Invoice Details"
-        size="xl"
+      <Dialog
+        open={isInvoiceDetailOpen}
+        onOpenChange={(open) => { if (!open) { setIsInvoiceDetailOpen(false); setSelectedInvoice(null) } }}
       >
-        {selectedInvoice && (
-          <InvoiceDetail
-            invoice={selectedInvoice}
-            onPayment={() => setIsPaymentModalOpen(true)}
-            onDownloadPDF={() => handleDownloadInvoicePDF(selectedInvoice.invoice_id)}
-          />
-        )}
-      </Modal>
+        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice Details</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <InvoiceDetail
+              invoice={selectedInvoice}
+              onPayment={() => setIsPaymentModalOpen(true)}
+              onDownloadPDF={() => handleDownloadInvoicePDF(selectedInvoice.invoice_id)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {selectedInvoice && (
         <PaymentModal

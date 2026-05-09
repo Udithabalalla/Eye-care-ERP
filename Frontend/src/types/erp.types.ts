@@ -26,6 +26,7 @@ export interface SalesOrderCreatePayload {
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string
   expected_delivery_date?: string
+  date_of_full_payment?: string
   notes?: string
   status?: SalesOrderStatus
   items: SalesOrderItem[]
@@ -36,6 +37,7 @@ export interface SalesOrderUpdatePayload {
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string
   expected_delivery_date?: string
+  date_of_full_payment?: string
   notes?: string
   status?: SalesOrderStatus
   items?: SalesOrderItem[]
@@ -53,6 +55,7 @@ export interface SalesOrder {
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string
   expected_delivery_date?: string
+  date_of_full_payment?: string
   notes?: string
   invoice_id?: string
   status: SalesOrderStatus

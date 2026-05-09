@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { patientsApi } from '@/api/patients.api'
 import { Patient, PatientFormData } from '@/types/patient.types'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import SaveRecordDialog from '@/components/common/SaveRecordDialog'
 import {
   Form,
   FormControl,
@@ -59,6 +61,7 @@ interface PatientFormProps {
 
 const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
   const queryClient = useQueryClient()
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
@@ -125,11 +128,29 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     }
   }
 
+  const handleSubmitClick = () => {
+    setShowSaveDialog(true)
+  }
+
+  const handleSaveDraft = () => {
+    setShowSaveDialog(false)
+    form.handleSubmit(onSubmit)()
+  }
+
   const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+    <>
+      <SaveRecordDialog
+        isOpen={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        recordName="patient"
+        isCreating={!patient}
+        onSaveDraft={handleSaveDraft}
+        onCancel={() => setShowSaveDialog(false)}
+      />
+      <Form {...form}>
+        <form className="space-y-5">
 
         {/* Basic Information */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -360,12 +381,13 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
           <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="button" disabled={isPending} onClick={handleSubmitClick}>
             {isPending ? 'Saving...' : patient ? 'Update Patient' : 'Create Patient'}
           </Button>
         </div>
       </form>
     </Form>
+    </>
   )
 }
 
