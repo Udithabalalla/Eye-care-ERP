@@ -6,7 +6,6 @@ import {
   RiAddLine,
   RiArrowRightSLine,
   RiFileEditLine,
-  RiFileTextLine,
   RiReceiptLine,
 } from '@remixicon/react'
 import { salesOrdersApi } from '@/api/erp.api'
