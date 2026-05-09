@@ -1,6 +1,10 @@
-import { useEffect } from 'react'
-import { X } from 'lucide-react'
 import { cn } from '@/utils/helpers'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface ModalProps {
   isOpen: boolean
@@ -9,6 +13,14 @@ interface ModalProps {
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   footer?: React.ReactNode
+  className?: string
+}
+
+const sizeClasses = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-2xl',
+  lg: 'sm:max-w-4xl',
+  xl: 'sm:max-w-6xl',
 }
 
 const Modal = ({
@@ -18,67 +30,31 @@ const Modal = ({
   children,
   size = 'md',
   footer,
+  className,
 }: ModalProps) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-2xl',
-    lg: 'max-w-4xl',
-    xl: 'max-w-6xl',
-  }
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className={cn(
+          'max-h-[90vh] overflow-y-auto p-0',
+          sizeClasses[size],
+          className
+        )}
+        showCloseButton={false}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between border-b border-border px-6 py-5">
+          <DialogTitle className="text-xl font-bold text-foreground">{title}</DialogTitle>
+        </DialogHeader>
 
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className={cn(
-            'relative w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl transition-all',
-            sizeClasses[size]
-          )}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-xl font-bold text-text-primary">{title}</h3>
-            <button
-              onClick={onClose}
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <div className="p-6">{children}</div>
+
+        {footer && (
+          <div className="flex items-center justify-end space-x-3 rounded-b-xl border-t border-border bg-muted/30 px-6 py-4">
+            {footer}
           </div>
-
-          {/* Content */}
-          <div className="p-6">{children}</div>
-
-          {/* Footer */}
-          {footer && (
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
-              {footer}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 

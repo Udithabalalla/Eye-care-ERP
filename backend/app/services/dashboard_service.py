@@ -405,3 +405,27 @@ class DashboardService:
             {"month": item["_id"], "new_patients": item["count"]}
             for item in growth
         ]
+
+    async def get_order_type_summary(self) -> Dict[str, Any]:
+        """Get counts of sales orders and invoices grouped by order type (FULL_ORDER / PARTIAL_ORDER)"""
+        # Sales orders by type
+        so_pipeline = [
+            {"$group": {"_id": "$measurements.order_type", "count": {"$sum": 1}}}
+        ]
+        so_results = await self.db.sales_orders.aggregate(so_pipeline).to_list(length=None)
+        so_counts = {item["_id"] or "UNKNOWN": item["count"] for item in so_results}
+
+        # Invoices referencing sales orders -> lookup order type
+        inv_pipeline = [
+            {"$match": {"sales_order_id": {"$exists": True, "$ne": None}}},
+            {"$lookup": {"from": "sales_orders", "localField": "sales_order_id", "foreignField": "order_id", "as": "so"}},
+            {"$unwind": {"path": "$so", "preserveNullAndEmptyArrays": False}},
+            {"$group": {"_id": "$so.measurements.order_type", "count": {"$sum": 1}}}
+        ]
+        inv_results = await self.db.invoices.aggregate(inv_pipeline).to_list(length=None)
+        inv_counts = {item["_id"] or "UNKNOWN": item["count"] for item in inv_results}
+
+        return {
+            "sales_orders": so_counts,
+            "invoices": inv_counts,
+        }

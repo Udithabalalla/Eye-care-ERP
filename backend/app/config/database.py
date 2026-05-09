@@ -54,6 +54,10 @@ async def create_indexes():
     await safe_create_index(db.db.users, "email", unique=True)
     await safe_create_index(db.db.users, "user_id", unique=True)
     await safe_create_index(db.db.users, "is_active")
+
+    # Password reset OTPs
+    await safe_create_index(db.db.password_reset_otps, "email", unique=True)
+    await safe_create_index(db.db.password_reset_otps, "expires_at", expireAfterSeconds=0)
     
     # Patients - search and filtering
     await safe_create_index(db.db.patients, "patient_id", unique=True)
@@ -115,6 +119,13 @@ async def create_indexes():
     await safe_create_index(db.db.prescriptions, "prescription_id", unique=True)
     await safe_create_index(db.db.prescriptions, "patient_id")
     await safe_create_index(db.db.prescriptions, [("patient_id", 1), ("created_at", -1)])
+
+    # Sales Orders - unique identifiers and list filters
+    await safe_create_index(db.db.sales_orders, "order_id", unique=True)
+    await safe_create_index(db.db.sales_orders, "order_number", unique=True)
+    await safe_create_index(db.db.sales_orders, "patient_id")
+    await safe_create_index(db.db.sales_orders, "status")
+    await safe_create_index(db.db.sales_orders, [("created_at", -1)], name="sales_order_created_at_index")
     
     # Doctors - lookup
     await safe_create_index(db.db.doctors, "doctor_id", unique=True)

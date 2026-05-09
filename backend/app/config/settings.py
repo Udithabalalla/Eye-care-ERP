@@ -1,8 +1,12 @@
-from pydantic_settings import BaseSettings
-from typing import Optional, List
 import json
+from typing import List, Optional
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+
     # Application
     APP_NAME: str = "Vision Optical"
     APP_VERSION: str = "1.0.0"
@@ -25,7 +29,26 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: str = '["http://localhost:3000","http://localhost:5173","https://eye-care-erp.vercel.app","https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app"]'
-    
+    CORS_ORIGIN_REGEX: Optional[str] = r"^https://.*\.vercel\.app$"
+
+    @field_validator("DEBUG", "RELOAD", mode="before")
+    @classmethod
+    def normalize_boolean_flags(cls, value):
+        if isinstance(value, bool) or value is None:
+            return value
+
+        if isinstance(value, (int, float)):
+            return bool(value)
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "y", "on", "debug", "development", "dev", "local"}:
+                return True
+            if normalized in {"0", "false", "no", "n", "off", "release", "prod", "production", "staging"}:
+                return False
+
+        return value
+
     @property
     def cors_origins_list(self) -> List[str]:
         if isinstance(self.CORS_ORIGINS, str):
@@ -40,13 +63,17 @@ class Settings(BaseSettings):
         return self.CORS_ORIGINS
     
     # Email (optional)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: Optional[str] = None
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "vision.opticals.lk@gmail.com"
     SMTP_PASSWORD: Optional[str] = None
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    SMTP_FROM_EMAIL: str = "vision.opticals.lk@gmail.com"
+    SMTP_TIMEOUT_SECONDS: int = 10
+    SMTP_SSL_PORT: int = 465
+
+
+    # Password reset
+    PASSWORD_RESET_OTP_EXPIRE_MINUTES: int = 10
+    PASSWORD_RESET_OTP_MAX_ATTEMPTS: int = 5
 
 settings = Settings()

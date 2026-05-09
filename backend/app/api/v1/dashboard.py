@@ -97,3 +97,17 @@ async def get_patient_growth(
         message="Patient growth data retrieved successfully",
         data=growth
     )
+
+
+@router.get("/order-types")
+async def get_order_types_summary(
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Get summary counts for order types (full/partial) across sales orders and invoices"""
+    dashboard_service = DashboardService(db)
+    summary = await dashboard_service.get_order_type_summary()
+    return ResponseModel(
+        message="Order type summary retrieved successfully",
+        data=summary
+    )

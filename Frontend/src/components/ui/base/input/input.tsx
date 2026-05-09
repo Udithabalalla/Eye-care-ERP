@@ -33,7 +33,7 @@ export const InputBase = ({ className, iconLeading, iconTrailing, ...props }: In
                 {...props}
                 className={(state) =>
                     cx(
-                        "w-full rounded-lg bg-primary py-2.5 text-md text-primary shadow-xs ring-1 ring-secondary transition duration-100 ease-linear ring-inset placeholder:text-placeholder autofill:rounded-lg autofill:text-primary focus:outline-hidden",
+                        "w-full rounded-lg bg-background py-2.5 text-md text-foreground shadow-xs ring-1 ring-secondary transition duration-100 ease-linear ring-inset placeholder:text-placeholder autofill:rounded-lg autofill:text-foreground focus:outline-hidden",
 
                         // Padding adjustments for icons
                         (isValidElement(IconLeading) || isReactComponent(IconLeading)) ? "pl-10" : "pl-3.5",
@@ -131,3 +131,4 @@ export const Input = ({
 };
 
 Input.displayName = "Input";
+

@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
 import { Product, ProductFormData } from '@/types/product.types'
 import { ProductCategory } from '@/types/common.types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import toast from 'react-hot-toast'
 
 const productSchema = z.object({
@@ -33,6 +35,8 @@ interface ProductFormProps {
   onSuccess: () => void
   onCancel: () => void
 }
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
 
 const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
   const queryClient = useQueryClient()
@@ -99,32 +103,31 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Basic Information */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Product Information</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Product Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Product Name *
             </label>
-            <input {...register('name')} className="input" />
+            <Input {...register('name')} />
             {errors.name && (
               <p className="text-sm text-error-600 mt-1">{errors.name.message}</p>
             )}
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Description
             </label>
-            <textarea {...register('description')} rows={2} className="input" />
+            <textarea {...register('description')} rows={2} className={inputClass} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Category *
             </label>
-            <select {...register('category')} className="input">
+            <select {...register('category')} className={inputClass}>
               <option value="">Select category</option>
               <option value="contact-lenses">Contact Lenses</option>
               <option value="eyeglasses">Eyeglasses</option>
@@ -139,28 +142,24 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Brand</label>
-            <input {...register('brand')} className="input" />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Brand</label>
+            <Input {...register('brand')} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">SKU *</label>
-            <input {...register('sku')} className="input" placeholder="e.g., CLS-360" />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">SKU *</label>
+            <Input {...register('sku')} placeholder="e.g., CLS-360" />
             {errors.sku && (
               <p className="text-sm text-error-600 mt-1">{errors.sku.message}</p>
             )}
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">Barcode</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Barcode</label>
             {product?.barcode ? (
-              <input
-                value={product.barcode}
-                className="input bg-secondary/60"
-                readOnly
-              />
+              <Input value={product.barcode} className="bg-secondary/60" readOnly />
             ) : (
-              <div className="rounded-lg border border-dashed border-secondary bg-secondary/30 px-4 py-3 text-sm text-tertiary">
+              <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
                 Barcode will be generated automatically when the product is saved.
               </div>
             )}
@@ -168,19 +167,17 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
         </div>
       </div>
 
-      {/* Pricing */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Pricing</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Pricing</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Cost Price *
             </label>
-            <input
+            <Input
               type="number"
               step="0.01"
               {...register('cost_price', { valueAsNumber: true })}
-              className="input"
             />
             {errors.cost_price && (
               <p className="text-sm text-error-600 mt-1">{errors.cost_price.message}</p>
@@ -188,14 +185,13 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Selling Price *
             </label>
-            <input
+            <Input
               type="number"
               step="0.01"
               {...register('selling_price', { valueAsNumber: true })}
-              className="input"
             />
             {errors.selling_price && (
               <p className="text-sm text-error-600 mt-1">{errors.selling_price.message}</p>
@@ -203,12 +199,11 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">MRP *</label>
-            <input
+            <label className="block text-sm font-medium text-muted-foreground mb-2">MRP *</label>
+            <Input
               type="number"
               step="0.01"
               {...register('mrp', { valueAsNumber: true })}
-              className="input"
             />
             {errors.mrp && (
               <p className="text-sm text-error-600 mt-1">{errors.mrp.message}</p>
@@ -217,38 +212,35 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
         </div>
       </div>
 
-      {/* Inventory */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Inventory</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Inventory</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Current Stock *
             </label>
-            <input
+            <Input
               type="number"
               {...register('current_stock', { valueAsNumber: true })}
-              className="input"
               disabled={!!product}
             />
             {errors.current_stock && (
               <p className="text-sm text-error-600 mt-1">{errors.current_stock.message}</p>
             )}
             {product && (
-              <p className="text-xs text-tertiary mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Use stock adjustment to change quantity
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Min Stock Level *
             </label>
-            <input
+            <Input
               type="number"
               {...register('min_stock_level', { valueAsNumber: true })}
-              className="input"
             />
             {errors.min_stock_level && (
               <p className="text-sm text-error-600 mt-1">{errors.min_stock_level.message}</p>
@@ -257,39 +249,37 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
         </div>
       </div>
 
-      {/* Supplier */}
       <div>
-        <h3 className="text-lg font-semibold text-primary mb-4">Supplier Information</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Supplier Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Supplier Name
             </label>
-            <input {...register('supplier.name')} className="input" />
+            <Input {...register('supplier.name')} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Contact
             </label>
-            <input {...register('supplier.contact')} className="input" />
+            <Input {...register('supplier.contact')} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Email</label>
-            <input type="email" {...register('supplier.email')} className="input" />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
+            <Input type="email" {...register('supplier.email')} />
           </div>
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : product ? 'Update Product' : 'Create Product'}
-        </button>
+        </Button>
       </div>
     </form>
   )

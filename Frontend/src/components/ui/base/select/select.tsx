@@ -85,8 +85,8 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
 
                             {state.selectedItem ? (
                                 <section className="flex w-full gap-2 truncate">
-                                    <p className="truncate text-md font-medium text-primary">{state.selectedItem?.label}</p>
-                                    {state.selectedItem?.supportingText && <p className="text-md text-tertiary">{state.selectedItem?.supportingText}</p>}
+                                    <p className="truncate text-md font-medium text-foreground">{state.selectedItem?.label}</p>
+                                    {state.selectedItem?.supportingText && <p className="text-md text-muted-foreground">{state.selectedItem?.supportingText}</p>}
                                 </section>
                             ) : (
                                 <p className={cx("text-md text-placeholder", isDisabled && "text-disabled")}>{placeholder}</p>
@@ -142,3 +142,4 @@ _Select.ComboBox = ComboBox;
 _Select.Item = SelectItem;
 
 export { _Select as Select };
+

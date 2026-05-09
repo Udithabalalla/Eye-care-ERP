@@ -8,12 +8,16 @@ from app.schemas.responses import PaginatedResponse
 from app.models.product import ProductModel
 from app.core.exceptions import NotFoundException, BadRequestException, ConflictException
 from app.utils.helpers import generate_id, date_to_datetime
+from app.services.inventory_movement_service import InventoryMovementService
+from app.schemas.inventory_movement import InventoryMovementCreate
+from app.utils.constants import InventoryMovementType, LedgerReferenceType
 
 class ProductService:
     """Product business logic service"""
     
     def __init__(self, db: AsyncIOMotorDatabase):
         self.product_repo = ProductRepository(db)
+        self.inventory_service = InventoryMovementService(db)
 
     @staticmethod
     def _generate_default_barcode(product_id: str, sku: str) -> str:
@@ -138,6 +142,17 @@ class ProductService:
             raise BadRequestException("Stock cannot be negative")
         
         await self.product_repo.update_stock(product_id, new_stock)
+        await self.inventory_service.create_movement(
+            InventoryMovementCreate(
+                product_id=product_id,
+                movement_type=InventoryMovementType.ADJUSTMENT,
+                quantity=adjustment.quantity,
+                reference_type=LedgerReferenceType.STOCK_ADJUSTMENT,
+                reference_id=product_id,
+            ),
+            "system",
+            apply_stock_change=False,
+        )
     
     async def delete_product(self, product_id: str):
         """Soft delete a product"""

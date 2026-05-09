@@ -2,7 +2,32 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import toast from 'react-hot-toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+const HOSTED_API_BASE_URL = 'https://eye-care-erp-production.up.railway.app/api/v1'
+const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
+
+const resolveApiBaseUrl = (): string => {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+
+    if (configuredBaseUrl) {
+      const configuredIsLocalHost = configuredBaseUrl.includes('localhost') || configuredBaseUrl.includes('127.0.0.1')
+      if (!isLocalHost && configuredIsLocalHost) {
+        return HOSTED_API_BASE_URL
+      }
+      return configuredBaseUrl
+    }
+
+    if (!isLocalHost) return HOSTED_API_BASE_URL
+  }
+
+  if (configuredBaseUrl) return configuredBaseUrl
+
+  return 'http://localhost:8000/api/v1'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 // Request deduplication map
 const pendingRequests = new Map<string, AbortController>()
@@ -102,13 +127,32 @@ axiosInstance.interceptors.response.use(
             })
           }
           break
+        case 400:
+          toast.error(data.detail || data.message || 'Request failed.')
+          break
         case 500:
           toast.error('Server error. Please try again later.')
           break
         default:
-          toast.error(data.message || 'An error occurred')
+          toast.error(data.detail || data.message || 'An error occurred')
       }
     } else if (error.request) {
+      const hasToken = Boolean(localStorage.getItem('token'))
+      const alreadyRecovered = localStorage.getItem(AUTH_RECOVERY_KEY) === '1'
+
+      // In hosted environments, stale/invalid persisted auth state can lead to repeated failed requests.
+      // Attempt one automatic recovery by clearing auth and forcing a clean login.
+      if (hasToken && !alreadyRecovered && !window.location.pathname.includes('/login')) {
+        localStorage.setItem(AUTH_RECOVERY_KEY, '1')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('auth-storage')
+        toast.error('Connection session reset. Please login again.')
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
+      localStorage.removeItem(AUTH_RECOVERY_KEY)
       toast.error('No response from server. Please check your connection.')
     } else {
       toast.error('An error occurred. Please try again.')

@@ -1,172 +1,628 @@
-﻿import { useQuery } from '@tanstack/react-query'
-import { dashboardApi } from '@/api/dashboard.api'
-import Loading from '@/components/common/Loading'
+﻿import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useNavigate } from "react-router-dom"
 import {
-  Users01,
-  Calendar,
-  CurrencyDollar,
-  AlertTriangle,
-  TrendUp01,
-  Package,
-  Plus,
-  Activity,
-} from '@untitledui/icons'
-import { formatCurrency } from '@/utils/formatters'
-import { useNavigate } from 'react-router-dom'
+  RiCalendarLine,
+  RiMoneyDollarCircleLine,
+  RiFileTextLine,
+  RiTeamLine,
+  RiUserAddLine,
+  RiWallet3Line,
+  RiBarChartLine,
+  RiLayout4Line,
+} from "@remixicon/react"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
+import { dashboardApi } from "@/api/dashboard.api"
+import { formatCurrency } from "@/utils/formatters"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { FieldGroup, FieldSet, FieldLegend } from "@/components/ui/field"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+const orderMixChartConfig = {
+  sales_orders: {
+    label: "Sales Orders",
+    color: "var(--chart-1)",
+  },
+  invoices: {
+    label: "Invoices",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig
+
+const visitsChartConfig = {
+  visits: {
+    label: "Visits",
+    color: "var(--chart-3)",
+  },
+} satisfies ChartConfig
+
+const financialChartConfig = {
+  revenue: {
+    label: "Total Revenue",
+    color: "var(--chart-1)",
+  },
+  paid: {
+    label: "Paid",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig
 
 const Dashboard = () => {
   const navigate = useNavigate()
+
+  const [widgets, setWidgets] = React.useState({
+    kpiCards: true,
+    weeklyRevenue: true,
+    performanceNotes: true,
+    orderMix: true,
+    visitsThisWeek: true,
+    financialSnapshot: true,
+    operationsSnapshot: true,
+    actionQueue: true,
+  })
+
+  const toggleWidget = (key: keyof typeof widgets) =>
+    setWidgets((prev) => ({ ...prev, [key]: !prev[key] }))
+
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ["dashboard-stats"],
     queryFn: () => dashboardApi.getStats(),
   })
 
-  if (isLoading) {
-    return <Loading fullScreen text="Loading dashboard..." />
-  }
+  const { data: orderTypes } = useQuery({
+    queryKey: ["dashboard-order-types"],
+    queryFn: () => dashboardApi.getOrderTypesSummary(),
+  })
 
-  const secondaryStats = [
+  const { data: appointmentsSummary } = useQuery({
+    queryKey: ["dashboard-appointments-summary"],
+    queryFn: () => dashboardApi.getAppointmentsSummary(),
+  })
+
+  const { data: revenueData } = useQuery({
+    queryKey: ["dashboard-revenue"],
+    queryFn: () => dashboardApi.getRevenue({}),
+  })
+
+  // Shape order mix chart data: one bar group per order type
+  const orderMixData = [
     {
-      title: "Today's Appointments",
-      value: stats?.today_appointments || 0,
-      icon: Calendar,
-      color: 'text-brand-500',
-      bgColor: 'bg-brand-50 dark:bg-brand-900/20',
+      type: "Full Order",
+      sales_orders: orderTypes?.sales_orders?.FULL_ORDER ?? 0,
+      invoices: orderTypes?.invoices?.FULL_ORDER ?? 0,
     },
     {
-      title: 'Low Stock Items',
-      value: stats?.low_stock_items || 0,
-      icon: Package,
-      color: 'text-error-500',
-      bgColor: 'bg-error-50 dark:bg-error-900/20',
-    },
-    {
-      title: 'Total Patients',
-      value: stats?.total_patients || 0,
-      icon: Users01,
-      color: 'text-brand-600',
-      bgColor: 'bg-brand-50 dark:bg-brand-900/20',
-    },
-    {
-      title: 'Pending Payments',
-      value: formatCurrency(stats?.pending_payments || 0),
-      icon: AlertTriangle,
-      color: 'text-warning-500',
-      bgColor: 'bg-warning-50 dark:bg-warning-900/20',
+      type: "Partial Order",
+      sales_orders: orderTypes?.sales_orders?.PARTIAL_ORDER ?? 0,
+      invoices: orderTypes?.invoices?.PARTIAL_ORDER ?? 0,
     },
   ]
 
+  // Shape visits chart from week summary
+  const visitsData = (appointmentsSummary?.week_summary ?? []).map(
+    (d: { date: string; count: number }) => ({
+      day: new Date(d.date).toLocaleDateString("en-US", { weekday: "short" }),
+      visits: d.count,
+    })
+  )
+
+  // Shape financial chart — last 14 days for readability
+  const financialData = (revenueData?.daily_revenue ?? [])
+    .slice(-14)
+    .map((d: { date: string; revenue: number; paid: number }) => ({
+      date: new Date(d.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      revenue: d.revenue,
+      paid: d.paid,
+    }))
+
+  const overviewStats = [
+    {
+      title: "Total Patients",
+      value: stats?.total_patients || 0,
+      chip: "Active",
+      tone: "secondary",
+      icon: RiTeamLine,
+    },
+    {
+      title: "Today's Appointments",
+      value: stats?.today_appointments || 0,
+      chip: "Scheduled",
+      tone: "secondary",
+      icon: RiCalendarLine,
+    },
+    {
+      title: "Revenue This Month",
+      value: formatCurrency(stats?.revenue_month || 0),
+      chip: "Up 12%",
+      tone: "secondary",
+      icon: RiMoneyDollarCircleLine,
+    },
+    {
+      title: "Pending Payments",
+      value: formatCurrency(stats?.pending_payments || 0),
+      chip: "Follow-up",
+      tone: "destructive",
+      icon: RiWallet3Line,
+    },
+  ]
+
+  const revenueTrend = [
+    { day: "Mon", revenue: 2400 },
+    { day: "Tue", revenue: 1398 },
+    { day: "Wed", revenue: 9800 },
+    { day: "Thu", revenue: 3908 },
+    { day: "Fri", revenue: 4800 },
+    { day: "Sat", revenue: 3800 },
+    { day: "Sun", revenue: 4300 },
+  ]
+
+  const performanceNotes = [
+    { title: "Peak Hours", description: "Most appointments between 2-4 PM" },
+    { title: "Top Product", description: "Contact lenses leading in sales" },
+    { title: "Stock Alert", description: "3 items below minimum threshold" },
+  ]
+
+  const operationsData = [
+    {
+      item: "Appointments",
+      value: stats?.total_appointments || 0,
+      status: "Tracking",
+    },
+    {
+      item: "Low Stock Items",
+      value: stats?.low_stock_items || 0,
+      status: "Needs Action",
+    },
+    {
+      item: "Pending Payments",
+      value: formatCurrency(stats?.pending_payments || 0),
+      status: "Follow-up",
+    },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32" />
+        <div className="grid gap-4 grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-8 fade-in-up">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 fade-in-up">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
-          <p className="text-secondary mt-1">Overview of your practice performance.</p>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Welcome back! Here's your practice overview.
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate('/appointments')}
-            className="px-4 py-2 bg-primary border border-secondary rounded-xl text-sm font-semibold text-primary hover:bg-secondary transition-colors shadow-sm"
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <RiLayout4Line className="mr-2 h-4 w-4" />
+                Customize
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Widgets</DropdownMenuLabel>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.kpiCards}
+                  onCheckedChange={() => toggleWidget("kpiCards")}
+                >
+                  KPI Cards
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.weeklyRevenue}
+                  onCheckedChange={() => toggleWidget("weeklyRevenue")}
+                >
+                  Weekly Revenue
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.performanceNotes}
+                  onCheckedChange={() => toggleWidget("performanceNotes")}
+                >
+                  Performance Notes
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.orderMix}
+                  onCheckedChange={() => toggleWidget("orderMix")}
+                >
+                  Order Mix
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.visitsThisWeek}
+                  onCheckedChange={() => toggleWidget("visitsThisWeek")}
+                >
+                  Visits This Week
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.financialSnapshot}
+                  onCheckedChange={() => toggleWidget("financialSnapshot")}
+                >
+                  Financial Snapshot
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.operationsSnapshot}
+                  onCheckedChange={() => toggleWidget("operationsSnapshot")}
+                >
+                  Operations Snapshot
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={widgets.actionQueue}
+                  onCheckedChange={() => toggleWidget("actionQueue")}
+                >
+                  Action Queue
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/appointments")}
           >
+            <RiCalendarLine className="mr-2 h-4 w-4" />
             View Schedule
-          </button>
-          <button
-            onClick={() => navigate('/patients')}
-            className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors shadow-lg shadow-brand/30 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => navigate("/patients")}>
+            <RiUserAddLine className="mr-2 h-4 w-4" />
             New Patient
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Hero Card */}
-        <div className="lg:col-span-2 relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#003e49] to-[#0f766e] text-white p-8 shadow-xl">
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-teal-400/20 rounded-full blur-3xl pointer-events-none"></div>
-
-          <div className="relative z-10 flex flex-col h-full justify-between">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-teal-100 font-medium mb-1">Total Revenue (This Month)</h2>
-                <div className="flex items-baseline gap-4">
-                  <span className="text-5xl font-bold tracking-tight">{formatCurrency(stats?.revenue_month || 0)}</span>
-                  <div className="flex items-center text-teal-300 bg-white/10 px-2 py-1 rounded-lg text-sm font-medium backdrop-blur-sm">
-                    <TrendUp01 className="w-3 h-3 mr-1" />
-                    <span>+12.5%</span>
-                  </div>
-                </div>
+      {widgets.kpiCards && <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {overviewStats.map((item) => (
+          <Card key={item.title} className="border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardDescription>{item.title}</CardDescription>
+                <item.icon className="size-4 text-muted-foreground" />
               </div>
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm">
-                <CurrencyDollar className="w-8 h-8 text-teal-200" />
-              </div>
-            </div>
+            </CardHeader>
+            <CardContent className="flex items-end justify-between">
+              <CardTitle className="text-2xl">{item.value}</CardTitle>
+              <Badge variant={item.tone as "secondary" | "destructive"}>
+                {item.chip}
+              </Badge>
+            </CardContent>
+          </Card>
+        ))}
+      </section>}
 
-            <div className="mt-8 flex flex-wrap gap-4">
-              <button onClick={() => navigate('/invoices')} className="flex items-center gap-2 bg-white text-teal-900 px-6 py-3 rounded-xl font-bold hover:bg-teal-50 transition-colors shadow-md">
-                <Plus className="w-5 h-5" />
-                New Invoice
-              </button>
-              <button onClick={() => navigate('/reports')} className="flex items-center gap-2 bg-teal-800/50 text-white px-6 py-3 rounded-xl font-semibold hover:bg-teal-800/70 border border-teal-700/50 transition-colors backdrop-blur-sm">
-                <Activity className="w-5 h-5" />
-                View Reports
-              </button>
-            </div>
-          </div>
-        </div>
+      {(widgets.weeklyRevenue || widgets.performanceNotes) && <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {widgets.weeklyRevenue && <Card className="border-border/60 xl:col-span-8">
+          <CardHeader>
+            <CardTitle className="text-base">Weekly Revenue Trend</CardTitle>
+            <CardDescription>
+              Projection from current monthly performance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={revenueTrend}
+                margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor="var(--primary)"
+                      stopOpacity={0.35}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="var(--primary)"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="day"
+                  stroke="var(--muted-foreground)"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--muted-foreground)"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--background)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.5rem",
+                  }}
+                  formatter={(value) => [formatCurrency(value as number), ""]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="var(--primary)"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#revenueFill)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>}
 
-        {/* Right Column - Quick Stats */}
-        <div className="space-y-4">
-          <div className="bg-primary rounded-[2rem] p-6 shadow-sm border border-secondary hover:shadow-md transition-all group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-2xl text-brand-600 dark:text-brand-400 group-hover:scale-110 transition-transform">
-                <Users01 className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 bg-secondary rounded-lg text-secondary">Total</span>
-            </div>
-            <div>
-              <p className="text-secondary text-sm font-medium">Active Patients</p>
-              <p className="text-3xl font-bold text-primary mt-1">{stats?.total_patients || 0}</p>
-            </div>
-          </div>
+        {widgets.performanceNotes && <Card className="border-border/60 xl:col-span-4">
+          <CardHeader>
+            <CardTitle className="text-base">Performance Notes</CardTitle>
+            <CardDescription>Key insights from your practice.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup className="gap-4">
+              {performanceNotes.map((note) => (
+                <FieldSet key={note.title} className="gap-2">
+                  <FieldLegend variant="label">{note.title}</FieldLegend>
+                  <p className="text-sm text-muted-foreground">
+                    {note.description}
+                  </p>
+                </FieldSet>
+              ))}
+            </FieldGroup>
+          </CardContent>
+        </Card>}
+      </section>}
 
-          <div className="bg-primary rounded-[2rem] p-6 shadow-sm border border-secondary hover:shadow-md transition-all group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-2xl text-brand-600 dark:text-brand-400 group-hover:scale-110 transition-transform">
-                <Calendar className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 bg-success-100 text-success-700 dark:bg-success-900/20 dark:text-success-400 rounded-lg">Today</span>
+      {/* Order Mix & Visits */}
+      {(widgets.orderMix || widgets.visitsThisWeek) && <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {widgets.orderMix && <Card className="border-border/60 xl:col-span-7">
+          <CardHeader>
+            <CardTitle className="text-base">Order Mix</CardTitle>
+            <CardDescription>
+              Full vs partial orders — sales orders and invoices
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={orderMixChartConfig} className="h-[240px] w-full">
+              <BarChart accessibilityLayer data={orderMixData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="type"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dashed" />}
+                />
+                <Bar dataKey="sales_orders" fill="var(--color-sales_orders)" radius={4} />
+                <Bar dataKey="invoices" fill="var(--color-invoices)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="flex-col items-start gap-1 text-sm">
+            <div className="flex gap-2 leading-none font-medium">
+              Order breakdown by type
+              <RiBarChartLine className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-secondary text-sm font-medium">Appointments</p>
-              <p className="text-3xl font-bold text-primary mt-1">{stats?.today_appointments || 0}</p>
+            <div className="leading-none text-muted-foreground">
+              Comparing full and partial order volumes
             </div>
-          </div>
-        </div>
-      </div>
+          </CardFooter>
+        </Card>}
 
-      {/* Detailed Stats Grid */}
-      <div>
-        <h3 className="text-xl font-bold text-primary mb-6">Overview</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {secondaryStats.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <div key={index} className="bg-primary rounded-3xl p-6 border border-secondary shadow-sm flex items-center space-x-4 hover:border-brand/50 transition-colors cursor-default">
-                <div className={`p-4 rounded-2xl ${stat.bgColor} ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-secondary">{stat.title}</p>
-                  <p className="text-xl font-bold text-primary mt-1">{stat.value}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+        {widgets.visitsThisWeek && <Card className="border-border/60 xl:col-span-5">
+          <CardHeader>
+            <CardTitle className="text-base">Visits This Week</CardTitle>
+            <CardDescription>Daily appointment count</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={visitsChartConfig} className="h-[240px] w-full">
+              <BarChart accessibilityLayer data={visitsData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dashed" />}
+                />
+                <Bar dataKey="visits" fill="var(--color-visits)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="flex-col items-start gap-1 text-sm">
+            <div className="flex gap-2 leading-none font-medium">
+              {appointmentsSummary?.upcoming_count ?? 0} upcoming in next 7 days
+              <RiCalendarLine className="h-4 w-4" />
+            </div>
+            <div className="leading-none text-muted-foreground">
+              Current week · {appointmentsSummary?.today_count ?? 0} today
+            </div>
+          </CardFooter>
+        </Card>}
+      </section>}
+
+      {/* Financial Snapshot */}
+      {widgets.financialSnapshot && <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <Card className="border-border/60 xl:col-span-12">
+          <CardHeader>
+            <CardTitle className="text-base">Financial Snapshot</CardTitle>
+            <CardDescription>
+              Revenue vs paid — last 14 days
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={financialChartConfig} className="h-[260px] w-full">
+              <BarChart accessibilityLayer data={financialData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dashed" />}
+                />
+                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                <Bar dataKey="paid" fill="var(--color-paid)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="flex-col items-start gap-1 text-sm">
+            <div className="flex gap-2 leading-none font-medium">
+              Total this period:{" "}
+              {formatCurrency(revenueData?.summary?.total_revenue ?? 0)}
+              <RiMoneyDollarCircleLine className="h-4 w-4" />
+            </div>
+            <div className="leading-none text-muted-foreground">
+              Paid: {formatCurrency(revenueData?.summary?.total_paid ?? 0)} ·
+              Pending: {formatCurrency(revenueData?.summary?.total_pending ?? 0)}
+            </div>
+          </CardFooter>
+        </Card>
+      </section>}
+
+      {(widgets.operationsSnapshot || widgets.actionQueue) && <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {widgets.operationsSnapshot && <Card className="border-border/60 xl:col-span-8">
+          <CardHeader>
+            <CardTitle className="text-base">Operations Snapshot</CardTitle>
+            <CardDescription>Current status of your operations.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {operationsData.map((row) => (
+                  <TableRow key={row.item}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <RiFileTextLine className="size-3.5 text-muted-foreground" />
+                        <span>{row.item}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          row.status === "Needs Action"
+                            ? "destructive"
+                            : row.status === "Follow-up"
+                              ? "outline"
+                              : "secondary"
+                        }
+                      >
+                        {row.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.value}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>}
+
+        {widgets.actionQueue && <Card className="border-border/60 xl:col-span-4">
+          <CardHeader>
+            <CardTitle className="text-base">Action Queue</CardTitle>
+            <CardDescription>Fast links for today's priorities.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-full">
+            <FieldGroup className="gap-2">
+              <FieldSet className="gap-2">
+                <FieldLegend variant="label" className="sr-only">
+                  Dashboard quick actions
+                </FieldLegend>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate("/inventory-movements")}
+                >
+                  Review inventory movements
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate("/payments")}
+                >
+                  Follow pending payments
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate("/appointments")}
+                >
+                  Confirm today appointments
+                </Button>
+              </FieldSet>
+            </FieldGroup>
+          </CardContent>
+        </Card>}
+      </section>}
     </div>
   )
 }

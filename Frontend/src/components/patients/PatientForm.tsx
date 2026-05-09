@@ -1,19 +1,41 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { patientsApi } from '@/api/patients.api'
 import { Patient, PatientFormData } from '@/types/patient.types'
 import { Gender } from '@/types/common.types'
 import toast from 'react-hot-toast'
 import { safeDate } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
+import SaveRecordDialog from '@/components/common/SaveRecordDialog'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const patientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  date_of_birth: z.string(),
+  date_of_birth: z.string().min(1, 'Date of birth is required'),
   gender: z.nativeEnum(Gender),
   phone: z.string().min(10, 'Phone must be at least 10 digits'),
-  email: z.string().email().optional().or(z.literal('')),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.object({
     street: z.string().optional(),
     city: z.string().optional(),
@@ -22,9 +44,9 @@ const patientSchema = z.object({
     country: z.string().default('USA'),
   }).optional(),
   emergency_contact: z.object({
-    name: z.string(),
-    relationship: z.string(),
-    phone: z.string(),
+    name: z.string().optional(),
+    relationship: z.string().optional(),
+    phone: z.string().optional(),
   }).optional(),
   notes: z.string().optional(),
 })
@@ -39,25 +61,26 @@ interface PatientFormProps {
 
 const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
   const queryClient = useQueryClient()
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<PatientFormValues>({
+  const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
     defaultValues: patient
       ? {
-        name: patient.name,
-        date_of_birth: safeDate(patient.date_of_birth),
-        gender: patient.gender,
-        phone: patient.phone,
-        email: patient.email || '',
-        address: patient.address,
-        emergency_contact: patient.emergency_contact,
-        notes: patient.notes || '',
-      }
-      : undefined,
+          name: patient.name,
+          date_of_birth: safeDate(patient.date_of_birth),
+          gender: patient.gender,
+          phone: patient.phone,
+          email: patient.email || '',
+          address: patient.address,
+          emergency_contact: patient.emergency_contact,
+          notes: patient.notes || '',
+        }
+      : {
+          email: '',
+          notes: '',
+          address: { country: 'USA' },
+        },
   })
 
   const createMutation = useMutation({
@@ -67,9 +90,7 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
       toast.success('Patient created successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to create patient')
-    },
+    onError: () => toast.error('Failed to create patient'),
   })
 
   const updateMutation = useMutation({
@@ -80,179 +101,293 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
       toast.success('Patient updated successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to update patient')
-    },
+    onError: () => toast.error('Failed to update patient'),
   })
 
   const onSubmit = (data: PatientFormValues) => {
-    // Clean up empty optional fields before sending to API
-    const cleanedData: any = { ...data }
+    const cleaned: any = { ...data }
 
-    // Remove empty email (empty string fails EmailStr validation)
-    if (!cleanedData.email) {
-      delete cleanedData.email
+    if (!cleaned.email) delete cleaned.email
+
+    if (cleaned.address) {
+      const { country, ...rest } = cleaned.address
+      if (!Object.values(rest).some((v) => v && String(v).trim())) delete cleaned.address
     }
 
-    // Remove address if all fields are empty
-    if (cleanedData.address) {
-      const { country, ...addrFields } = cleanedData.address
-      const hasValue = Object.values(addrFields).some((v) => v && String(v).trim())
-      if (!hasValue) {
-        delete cleanedData.address
-      }
+    if (cleaned.emergency_contact) {
+      if (!Object.values(cleaned.emergency_contact).some((v) => v && String(v).trim()))
+        delete cleaned.emergency_contact
     }
 
-    // Remove emergency_contact if all fields are empty
-    if (cleanedData.emergency_contact) {
-      const hasValue = Object.values(cleanedData.emergency_contact).some(
-        (v) => v && String(v).trim()
-      )
-      if (!hasValue) {
-        delete cleanedData.emergency_contact
-      }
-    }
-
-    // Remove empty notes
-    if (!cleanedData.notes?.trim()) {
-      delete cleanedData.notes
-    }
+    if (!cleaned.notes?.trim()) delete cleaned.notes
 
     if (patient) {
-      updateMutation.mutate(cleanedData)
+      updateMutation.mutate(cleaned)
     } else {
-      createMutation.mutate(cleanedData as PatientFormData)
+      createMutation.mutate(cleaned as PatientFormData)
     }
   }
 
+  const handleSubmitClick = () => {
+    setShowSaveDialog(true)
+  }
+
+  const handleSaveDraft = () => {
+    setShowSaveDialog(false)
+    form.handleSubmit(onSubmit)()
+  }
+
+  const isPending = createMutation.isPending || updateMutation.isPending
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Basic Information */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Basic Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <>
+      <SaveRecordDialog
+        isOpen={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        recordName="patient"
+        isCreating={!patient}
+        onSaveDraft={handleSaveDraft}
+        onCancel={() => setShowSaveDialog(false)}
+      />
+      <Form {...form}>
+        <form className="space-y-5">
+
+        {/* Basic Information */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Full Name *
-            </label>
-            <input {...register('name')} className="input" />
-            {errors.name && (
-              <p className="text-sm text-error-600 mt-1">{errors.name.message}</p>
-            )}
+            <p className="text-base font-semibold text-foreground">Basic Information</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Core patient details used across the system.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Date of Birth *
-            </label>
-            <input type="date" {...register('date_of_birth')} className="input" />
-            {errors.date_of_birth && (
-              <p className="text-sm text-error-600 mt-1">{errors.date_of_birth.message}</p>
-            )}
-          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter patient name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Gender *
-            </label>
-            <select {...register('gender')} className="input">
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-            {errors.gender && (
-              <p className="text-sm text-error-600 mt-1">{errors.gender.message}</p>
-            )}
-          </div>
+            <FormField
+              control={form.control}
+              name="date_of_birth"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date of Birth <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Phone *
-            </label>
-            <input {...register('phone')} className="input" placeholder="+1234567890" />
-            {errors.phone && (
-              <p className="text-sm text-error-600 mt-1">{errors.phone.message}</p>
-            )}
-          </div>
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender <span className="text-destructive">*</span></FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                    <FormControl>
+                      <SelectTrigger className="w-full h-9 text-sm">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Email
-            </label>
-            <input type="email" {...register('email')} className="input" />
-            {errors.email && (
-              <p className="text-sm text-error-600 mt-1">{errors.email.message}</p>
-            )}
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="+1234567890" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="patient@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Address */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Address</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-2">Street</label>
-            <input {...register('address.street')} className="input" />
+        {/* Address */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="text-base font-semibold text-foreground">Address</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Optional location details for correspondence and records.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">City</label>
-            <input {...register('address.city')} className="input" />
-          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="address.street"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Street</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Street address" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">State</label>
-            <input {...register('address.state')} className="input" />
-          </div>
+            <FormField
+              control={form.control}
+              name="address.city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">ZIP Code</label>
-            <input {...register('address.zip_code')} className="input" />
+            <FormField
+              control={form.control}
+              name="address.state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State</FormLabel>
+                  <FormControl>
+                    <Input placeholder="State" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address.zip_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ZIP Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="ZIP code" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Emergency Contact */}
-      <div>
-        <h3 className="text-lg font-bold text-primary mb-4">Emergency Contact</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Emergency Contact */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Name</label>
-            <input {...register('emergency_contact.name')} className="input" />
+            <p className="text-base font-semibold text-foreground">Emergency Contact</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Used when a quick alternate contact is needed.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Relationship
-            </label>
-            <input {...register('emergency_contact.relationship')} className="input" />
-          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="emergency_contact.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Contact name" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
-            <input {...register('emergency_contact.phone')} className="input" />
+            <FormField
+              control={form.control}
+              name="emergency_contact.relationship"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Relationship</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Spouse, Parent" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="emergency_contact.phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Contact phone" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
-        <textarea {...register('notes')} rows={3} className="input" />
-      </div>
+        {/* Notes */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="text-base font-semibold text-foreground">Notes</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Add any clinical or administrative notes here.</p>
+          </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
-          Cancel
-        </button>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
-          {isSubmitting ? 'Saving...' : patient ? 'Update Patient' : 'Create Patient'}
-        </button>
-      </div>
-    </form>
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl>
+                  <Textarea rows={4} placeholder="Optional notes about this patient..." {...field} />
+                </FormControl>
+                <FormDescription>Visible to clinical staff only.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={isPending} onClick={handleSubmitClick}>
+            {isPending ? 'Saving...' : patient ? 'Update Patient' : 'Create Patient'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+    </>
   )
 }
 

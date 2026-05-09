@@ -9,6 +9,7 @@ export interface InvoiceItem {
   discount: number
   tax: number
   total: number
+  line_type?: 'product' | 'lens' | 'expense'
 }
 
 export interface Invoice {
@@ -32,6 +33,7 @@ export interface Invoice {
   payment_date?: string
   transaction_id?: string
   prescription_id?: string
+  sales_order_id?: string
   created_by: string
   created_at: string
   updated_at: string
@@ -43,7 +45,6 @@ export interface InvoiceFormData {
   invoice_date: string
   due_date: string
   items: InvoiceItem[]
-  payment_method?: PaymentMethod
   prescription_id?: string
   notes?: string
 }

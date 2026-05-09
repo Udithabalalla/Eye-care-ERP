@@ -48,3 +48,15 @@ export interface ProductFormData {
   min_stock_level: number
   supplier?: Supplier
 }
+
+export interface AddProductAssistantData {
+  name: string
+  description?: string
+  category: ProductCategory
+  brand?: string
+  sku: string
+  cost_price: number
+  selling_price: number
+  min_stock_level: number
+  supplier?: Supplier
+}

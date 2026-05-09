@@ -50,7 +50,7 @@ const TableContext = createContext<{ size: "sm" | "md" }>({ size: "md" });
 const TableCardRoot = ({ children, className, size = "md", ...props }: HTMLAttributes<HTMLDivElement> & { size?: "sm" | "md" }) => {
     return (
         <TableContext.Provider value={{ size }}>
-            <div {...props} className={cx("overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary", className)}>
+            <div {...props} className={cx("overflow-hidden rounded-xl bg-background shadow-xs ring-1 ring-secondary", className)}>
                 {children}
             </div>
         </TableContext.Provider>
@@ -76,14 +76,14 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
     return (
         <div
             className={cx(
-                "relative flex flex-col items-start gap-4 border-b border-secondary bg-primary px-4 md:flex-row",
+                "relative flex flex-col items-start gap-4 border-b border-border bg-background px-4 md:flex-row",
                 size === "sm" ? "py-4 md:px-5" : "py-5 md:px-6",
                 className,
             )}
         >
             <div className="flex flex-1 flex-col gap-0.5">
                 <div className="flex items-center gap-2">
-                    <h2 className={cx("font-semibold text-primary", size === "sm" ? "text-md" : "text-lg")}>{title}</h2>
+                    <h2 className={cx("font-semibold text-foreground", size === "sm" ? "text-md" : "text-lg")}>{title}</h2>
                     {badge ? (
                         isValidElement(badge) ? (
                             badge
@@ -94,7 +94,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
                         )
                     ) : null}
                 </div>
-                {description && <p className="text-sm text-tertiary">{description}</p>}
+                {description && <p className="text-sm text-muted-foreground">{description}</p>}
             </div>
             {contentTrailing}
         </div>
@@ -138,7 +138,7 @@ const TableHeader = <T extends object>({ columns, children, bordered = true, cla
 
                     // Row border—using an "after" pseudo-element to avoid the border taking up space.
                     bordered &&
-                        "[&>tr>th]:after:pointer-events-none [&>tr>th]:after:absolute [&>tr>th]:after:inset-x-0 [&>tr>th]:after:bottom-0 [&>tr>th]:after:h-px [&>tr>th]:after:bg-border-secondary [&>tr>th]:focus-visible:after:bg-transparent",
+                        "[&>tr>th]:after:pointer-events-none [&>tr>th]:after:absolute [&>tr>th]:after:inset-x-0 [&>tr>th]:after:bottom-0 [&>tr>th]:after:h-px [&>tr>th]:after:bg-border [&>tr>th]:focus-visible:after:bg-transparent",
 
                     typeof className === "function" ? className(state) : className,
                 )
@@ -173,7 +173,7 @@ const TableHead = ({ className, tooltip, label, children, ...props }: TableHeadP
             {...props}
             className={(state) =>
                 cx(
-                    "relative p-0 px-6 py-2 outline-hidden focus-visible:z-1 focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-bg-primary focus-visible:ring-inset",
+                    "relative p-0 px-6 py-2 outline-hidden focus-visible:z-1 focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-background focus-visible:ring-inset",
                     selectionBehavior === "toggle" && "nth-2:pl-3",
                     state.allowsSorting && "cursor-pointer",
                     typeof className === "function" ? className(state) : className,
@@ -183,7 +183,7 @@ const TableHead = ({ className, tooltip, label, children, ...props }: TableHeadP
             {(state) => (
                 <AriaGroup className="flex items-center gap-1">
                     <div className="flex items-center gap-1">
-                        {label && <span className="text-xs font-semibold whitespace-nowrap text-quaternary">{label}</span>}
+                        {label && <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">{label}</span>}
                         {typeof children === "function" ? children(state) : children}
                     </div>
 
@@ -228,7 +228,7 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
                     highlightSelectedRow && "selected:bg-secondary",
 
                     // Row border—visible border bottom for all rows
-                    "border-b border-secondary",
+                    "border-b border-border",
 
                     typeof className === "function" ? className(state) : className,
                 )
@@ -261,7 +261,7 @@ const TableCell = ({ className, children, ...props }: TableCellProps) => {
             {...props}
             className={(state) =>
                 cx(
-                    "relative text-sm text-tertiary outline-focus-ring focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2",
+                    "relative text-sm text-muted-foreground outline-focus-ring focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2",
                     size === "sm" && "px-5 py-3",
                     size === "md" && "px-6 py-4",
 
@@ -296,3 +296,9 @@ Table.Header = TableHeader;
 Table.Row = TableRow;
 
 export { Table, TableCard };
+
+
+
+
+
+

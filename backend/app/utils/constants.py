@@ -39,6 +39,7 @@ class PaymentMethod(str, Enum):
     UPI = "upi"
     NETBANKING = "netbanking"
     INSURANCE = "insurance"
+    BANK_TRANSFER = "bank-transfer"
 
 class ProductCategory(str, Enum):
     CONTACT_LENSES = "contact-lenses"
@@ -54,6 +55,38 @@ class TransactionType(str, Enum):
     ADJUSTMENT = "adjustment"
     RETURN = "return"
     DAMAGED = "damaged"
+
+
+class LedgerTransactionType(str, Enum):
+    SALE = "SALE"
+    PURCHASE = "PURCHASE"
+    SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT"
+    CUSTOMER_PAYMENT = "CUSTOMER_PAYMENT"
+    REFUND = "REFUND"
+
+
+class LedgerReferenceType(str, Enum):
+    INVOICE = "INVOICE"
+    SALES_ORDER = "SALES_ORDER"
+    PURCHASE_ORDER = "PURCHASE_ORDER"
+    SUPPLIER_INVOICE = "SUPPLIER_INVOICE"
+    STOCK_ADJUSTMENT = "STOCK_ADJUSTMENT"
+
+
+class InventoryMovementType(str, Enum):
+    PURCHASE_IN = "PURCHASE_IN"
+    SALE_OUT = "SALE_OUT"
+    ADJUSTMENT = "ADJUSTMENT"
+    RETURN = "RETURN"
+
+
+class SalesOrderStatus(str, Enum):
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    IN_PRODUCTION = "in_production"
+    READY = "ready"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
 class PrescriptionType(str, Enum):
     SINGLE_VISION = "single-vision"

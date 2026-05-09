@@ -1,5 +1,7 @@
 import { forwardRef } from 'react'
 import { cn } from '@/utils/helpers'
+import { Input as ShadInput } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string
@@ -11,21 +13,21 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         return (
             <div className="w-full">
                 {label && (
-                    <label className="block text-sm font-medium text-secondary mb-1.5">
+                    <Label className="mb-1.5 block text-sm font-medium text-muted-foreground">
                         {label}
-                    </label>
+                    </Label>
                 )}
-                <input
+                <ShadInput
                     ref={ref}
                     className={cn(
-                        "w-full px-3 py-2 bg-primary border border-secondary rounded-lg text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                        error && "border-error-500 focus:border-error-500 focus:ring-error-500/20",
+                        'h-10 px-3 text-sm',
+                        error && 'border-destructive focus-visible:ring-destructive/30',
                         className
                     )}
                     {...props}
                 />
                 {error && (
-                    <p className="mt-1 text-sm text-error-500">{error}</p>
+                    <p className="mt-1 text-sm text-destructive">{error}</p>
                 )}
             </div>
         )
@@ -35,3 +37,4 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = 'Input'
 
 export default Input
+

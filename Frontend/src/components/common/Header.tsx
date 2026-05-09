@@ -1,57 +1,53 @@
-import { Bell01, SearchLg, Moon01, Sun, Menu01 } from '@untitledui/icons'
+import {
+  RiBellLine,
+  RiMoonLine,
+  RiSearchLine,
+  RiSunLine,
+} from '@remixicon/react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
-
-const Header = ({ onMenuClick }: HeaderProps) => {
+const Header = () => {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 z-40 bg-primary/80 backdrop-blur-md h-20 transition-all duration-300 border-b border-secondary md:border-none">
-      <div className="flex items-center justify-between h-full px-4 md:px-8">
-        {/* Left Section - Mobile Menu & Search */}
-        <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-0">
-          <button
-            onClick={onMenuClick}
-            className="md:hidden p-2 text-secondary hover:text-brand-600 rounded-xl transition-all"
-            aria-label="Open menu"
-          >
-            <Menu01 className="w-6 h-6" />
-          </button>
-
-          <div className="relative group w-full hidden sm:block">
-            <SearchLg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary group-focus-within:text-brand-600 transition-colors" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full bg-primary border border-secondary rounded-2xl py-3 pl-12 pr-4 text-sm text-primary placeholder-tertiary focus:ring-2 focus:ring-brand-500/20 shadow-sm transition-all"
-            />
-          </div>
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/95 backdrop-blur-md px-4 md:px-6">
+      {/* Left */}
+      <div className="flex items-center gap-2 flex-1">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="h-5 hidden md:block" />
+        <div className="relative group w-full max-w-sm hidden sm:block">
+          <RiSearchLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-foreground" />
+          <Input
+            type="text"
+            placeholder="Search..."
+            className="h-9 rounded-md border-border bg-card pl-9 text-sm"
+          />
         </div>
+      </div>
 
-        {/* Right Section */}
-        <div className="flex items-center space-x-4">
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-3 text-secondary hover:text-brand-600 hover:bg-secondary rounded-xl transition-all duration-200 shadow-sm"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon01 className="w-5 h-5" />
-            )}
-          </button>
+      {/* Right */}
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={toggleTheme}
+          variant="ghost"
+          size="icon"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? (
+            <RiSunLine className="h-4 w-4" />
+          ) : (
+            <RiMoonLine className="h-4 w-4" />
+          )}
+        </Button>
 
-          {/* Notifications */}
-          <button className="relative p-3 text-secondary hover:text-brand-600 hover:bg-secondary rounded-xl transition-all duration-200 shadow-sm">
-            <Bell01 className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-error-500 rounded-full ring-2 ring-primary"></span>
-          </button>
-        </div>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+          <RiBellLine className="h-4 w-4" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
+        </Button>
       </div>
     </header>
   )

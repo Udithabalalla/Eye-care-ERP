@@ -2,12 +2,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invoicesApi } from '@/api/invoices.api'
+import { paymentsApi } from '@/api/payments.api'
 import { Invoice } from '@/types/invoice.types'
 import { PaymentMethod } from '@/types/common.types'
+import { LedgerReferenceType } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { RiMoneyDollarCircleLine } from '@remixicon/react'
 import toast from 'react-hot-toast'
-import { CurrencyDollar } from '@untitledui/icons'
 
 const paymentSchema = z.object({
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
@@ -24,6 +27,8 @@ interface PaymentFormProps {
   onSuccess: () => void
   onCancel: () => void
 }
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
 
 const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
   const queryClient = useQueryClient()
@@ -46,9 +51,16 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
   const mutation = useMutation({
     mutationFn: (data: PaymentFormValues) =>
-      invoicesApi.recordPayment(invoice.invoice_id, data),
+      paymentsApi.create({
+        amount: data.amount,
+        payment_method: data.payment_method,
+        payment_date: data.payment_date,
+        reference_type: 'INVOICE' as LedgerReferenceType,
+        reference_id: invoice.invoice_id,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
       toast.success('Payment recorded successfully')
       onSuccess()
     },
@@ -67,22 +79,21 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Invoice Summary */}
       <div className="bg-secondary p-4 rounded-lg space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-secondary">Invoice Number:</span>
+          <span className="text-muted-foreground">Invoice Number:</span>
           <span className="font-medium">{invoice.invoice_number}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Patient:</span>
+          <span className="text-muted-foreground">Patient:</span>
           <span className="font-medium">{invoice.patient_name}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Total Amount:</span>
+          <span className="text-muted-foreground">Total Amount:</span>
           <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-secondary">Already Paid:</span>
+          <span className="text-muted-foreground">Already Paid:</span>
           <span className="font-medium text-success-600">
             {formatCurrency(invoice.paid_amount)}
           </span>
@@ -93,18 +104,17 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
         </div>
       </div>
 
-      {/* Payment Amount */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Amount *
         </label>
         <div className="relative">
-          <CurrencyDollar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tertiary" />
-          <input
+          <RiMoneyDollarCircleLine className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
             type="number"
             step="0.01"
             {...register('amount', { valueAsNumber: true })}
-            className="input pl-10"
+            className="pl-10"
             max={invoice.balance_due}
           />
         </div>
@@ -118,12 +128,11 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
         )}
       </div>
 
-      {/* Payment Method */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Method *
         </label>
-        <select {...register('payment_method')} className="input">
+        <select {...register('payment_method')} className={inputClass}>
           <option value="cash">Cash</option>
           <option value="card">Card</option>
           <option value="upi">UPI</option>
@@ -135,32 +144,28 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
         )}
       </div>
 
-      {/* Payment Date */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Payment Date *
         </label>
-        <input type="date" {...register('payment_date')} className="input" />
+        <Input type="date" {...register('payment_date')} />
         {errors.payment_date && (
           <p className="text-sm text-error-600 mt-1">{errors.payment_date.message}</p>
         )}
       </div>
 
-      {/* Transaction ID */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Transaction ID / Reference Number
         </label>
-        <input {...register('transaction_id')} className="input" placeholder="Optional" />
+        <Input {...register('transaction_id')} placeholder="Optional" />
       </div>
 
-      {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-secondary mb-2">Notes</label>
-        <textarea {...register('notes')} rows={2} className="input" placeholder="Optional" />
+        <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
+        <textarea {...register('notes')} rows={2} className={inputClass} placeholder="Optional" />
       </div>
 
-      {/* Payment Status Preview */}
       <div className="bg-brand-50 dark:bg-brand-950 p-4 rounded-lg border border-brand-200 dark:border-brand-800">
         <p className="text-sm text-brand-900 dark:text-brand-100 font-medium mb-2">After this payment:</p>
         <div className="space-y-1 text-sm text-brand-800 dark:text-brand-200">
@@ -187,18 +192,16 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           disabled={isSubmitting || amount > invoice.balance_due}
-          className="btn-primary"
         >
           {isSubmitting ? 'Recording...' : 'Record Payment'}
-        </button>
+        </Button>
       </div>
     </form>
   )

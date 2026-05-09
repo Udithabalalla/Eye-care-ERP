@@ -22,20 +22,20 @@ const getTabStyles = ({ isFocusVisible, isSelected, isHovered }: AriaTabRenderPr
     ),
     "button-gray": cx(
         "outline-focus-ring",
-        isHovered && "bg-primary_hover text-secondary",
+        isHovered && "bg-muted text-muted-foreground",
         isFocusVisible && "outline-2 -outline-offset-2",
-        isSelected && "bg-active text-secondary",
+        isSelected && "bg-active text-muted-foreground",
     ),
     "button-border": cx(
         "outline-focus-ring",
-        (isSelected || isHovered) && "bg-primary_alt text-secondary shadow-sm",
+        (isSelected || isHovered) && "bg-secondary text-muted-foreground shadow-sm",
         isFocusVisible && "outline-2 -outline-offset-2",
     ),
     "button-minimal": cx(
         "rounded-lg outline-focus-ring",
-        isHovered && "text-secondary",
+        isHovered && "text-muted-foreground",
         isFocusVisible && "outline-2 -outline-offset-2",
-        isSelected && "bg-primary_alt text-secondary shadow-xs ring-1 ring-primary ring-inset",
+        isSelected && "bg-secondary text-muted-foreground shadow-xs ring-1 ring-primary ring-inset",
     ),
     underline: cx(
         "rounded-none border-b-2 border-transparent outline-focus-ring",
@@ -136,7 +136,7 @@ export const TabList = <T extends Orientation>({
                         // Only horizontal tabs with underline type have bottom border
                         orientation === "horizontal" &&
                             type === "underline" &&
-                            "relative before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-secondary",
+                            "relative before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border",
 
                         typeof className === "function" ? className(state) : className,
                     )
@@ -180,7 +180,7 @@ export const Tab = (props: TabComponentProps) => {
             {...otherProps}
             className={(prop) =>
                 cx(
-                    "z-10 flex h-max cursor-pointer items-center justify-center gap-2 rounded-md whitespace-nowrap text-quaternary transition duration-100 ease-linear",
+                    "z-10 flex h-max cursor-pointer items-center justify-center gap-2 rounded-md whitespace-nowrap text-muted-foreground transition duration-100 ease-linear",
                     "group-orientation-vertical:justify-start",
                     fullWidth && "w-full flex-1",
                     sizes[size][type],
@@ -221,3 +221,5 @@ export const Tabs = ({ className, ...props }: ComponentPropsWithRef<typeof AriaT
 Tabs.Panel = TabPanel;
 Tabs.List = TabList;
 Tabs.Item = Tab;
+
+
