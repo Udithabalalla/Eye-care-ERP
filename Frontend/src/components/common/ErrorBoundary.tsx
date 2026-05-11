@@ -2,8 +2,12 @@ import React from 'react'
 
 type State = { hasError: boolean; error?: Error }
 
-class ErrorBoundary extends React.Component<Record<string, unknown>, State> {
-  constructor(props: Record<string, unknown>) {
+type Props = {
+  children?: React.ReactNode
+}
+
+class ErrorBoundary extends React.Component<Props, State> {
+  constructor(props: Props) {
     super(props)
     this.state = { hasError: false }
   }
@@ -19,7 +23,7 @@ class ErrorBoundary extends React.Component<Record<string, unknown>, State> {
     console.error('ErrorBoundary caught error', error, info)
   }
 
-  render() {
+  render(): React.ReactNode {
     if (this.state.hasError) {
       return (
         <div className="p-6 rounded-md border border-destructive bg-destructive/10">
@@ -31,7 +35,6 @@ class ErrorBoundary extends React.Component<Record<string, unknown>, State> {
         </div>
       )
     }
-    // @ts-ignore children
     return this.props.children
   }
 }

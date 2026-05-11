@@ -225,7 +225,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                         value={formData.doctor_id}
                         onChange={(value: string) => setFormData({ ...formData, doctor_id: value })}
                         options={
-                            (Array.isArray(users?.data) ? users.data : []).map((user: any): LOVOption => ({
+                            (users || []).map((user: any): LOVOption => ({
                                 value: user.user_id,
                                 label: user.name,
                                 subtitle: user.department || user.role || '',
