@@ -31,6 +31,10 @@ export const salesOrdersApi = {
     const response = await axiosInstance.put<ApiResponse<SalesOrder>>(`/sales-orders/${id}`, data)
     return response.data.data
   },
+  delete: async (id: string) => {
+    const response = await axiosInstance.delete<ApiResponse>(`/sales-orders/${id}`)
+    return response.data
+  },
   updateStatus: async (id: string, status: SalesOrderStatus) => {
     const response = await axiosInstance.patch<ApiResponse<SalesOrder>>(`/sales-orders/${id}/status`, { status })
     return response.data.data

@@ -103,35 +103,35 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
       {/* Items table */}
       <div>
         <p className="text-sm font-semibold text-foreground mb-2">Items</p>
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <Table>
+        <div className="overflow-x-auto rounded-xl border border-border w-full">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-center">Qty</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="w-auto min-w-[200px]">Item</TableHead>
+                <TableHead className="w-24">Type</TableHead>
+                <TableHead className="w-16 text-center">Qty</TableHead>
+                <TableHead className="w-32 text-right">Unit Price</TableHead>
+                <TableHead className="w-32 text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoice.items.map((item, index) => (
                 <TableRow key={index}>
-                  <TableCell>
+                  <TableCell className="w-auto min-w-[200px]">
                     <div className="flex flex-col">
                       <span className="font-medium text-foreground">{item.product_name}</span>
                       <span className="text-xs text-muted-foreground">{item.sku}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <TableCell className="w-24">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground whitespace-nowrap">
                       {lineTypeIcon(item.line_type)}
                       {lineTypeLabel(item.line_type)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(item.total)}</TableCell>
+                  <TableCell className="w-16 text-center">{item.quantity}</TableCell>
+                  <TableCell className="w-32 text-right">{formatCurrency(item.unit_price)}</TableCell>
+                  <TableCell className="w-32 text-right font-semibold">{formatCurrency(item.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -142,9 +142,17 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
       {/* Totals */}
       <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-0.5">
         <InfoRow label="Subtotal" value={formatCurrency(invoice.subtotal)} />
-        {invoice.total_discount > 0 && (
-          <InfoRow label="Discount" value={<span className="text-destructive">-{formatCurrency(invoice.total_discount)}</span>} />
-        )}
+        {(() => {
+          const itemsDiscount = (invoice.items || []).reduce((s, it) => s + (it.discount || 0), 0)
+          const totalDisc = invoice.total_discount || 0
+          if (totalDisc > 0) {
+            return <InfoRow label="Discount" value={<span className="text-destructive">-{formatCurrency(totalDisc)}</span>} />
+          }
+          if (itemsDiscount > 0) {
+            return <InfoRow label="Discount" value={<span className="text-destructive">-{formatCurrency(itemsDiscount)}</span>} />
+          }
+          return null
+        })()}
         {invoice.total_tax > 0 && (
           <InfoRow label="Tax" value={formatCurrency(invoice.total_tax)} />
         )}

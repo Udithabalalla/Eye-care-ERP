@@ -77,6 +77,15 @@ const Invoices = () => {
   })
 
   const invoices = data?.data || []
+  // Default: show invoices in ascending order by invoice_date when no explicit sort applied
+  const displayedInvoices = useMemo(() => {
+    if (sorting && sorting.length > 0) return invoices
+    return [...invoices].sort((a, b) => {
+      const ta = new Date(a.invoice_date || '').getTime()
+      const tb = new Date(b.invoice_date || '').getTime()
+      return ta - tb
+    })
+  }, [invoices, sorting])
 
   const isAllSelected =
     invoices.length > 0 && invoices.every((inv) => selectedInvoiceIds.includes(inv.invoice_id))
@@ -396,7 +405,7 @@ const Invoices = () => {
         <CardContent className="px-0 pb-0">
           <DataTable
             columns={columns}
-            data={invoices}
+            data={displayedInvoices}
             sorting={sorting}
             onSortingChange={handleSortingChange}
             globalFilter={search}
@@ -440,7 +449,7 @@ const Invoices = () => {
       )}
 
       <Dialog open={isDetailOpen} onOpenChange={(open) => { if (!open) closeDetail() }}>
-        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RiReceiptLine className="size-5 text-primary" />

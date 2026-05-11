@@ -24,6 +24,12 @@ async def get_sales_order(order_id: str, db: AsyncIOMotorDatabase = Depends(get_
     return ResponseModel(data=order)
 
 
+@router.delete("/{order_id}", response_model=ResponseModel)
+async def delete_sales_order(order_id: str, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    await SalesOrderService(db).delete_sales_order(order_id, current_user.user_id)
+    return ResponseModel(message="Sales order deleted successfully")
+
+
 @router.post("", response_model=ResponseModel[SalesOrderResponse])
 async def create_sales_order(data: SalesOrderCreate, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
     order = await SalesOrderService(db).create_sales_order(data, current_user.user_id)

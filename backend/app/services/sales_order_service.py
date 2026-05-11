@@ -259,6 +259,29 @@ class SalesOrderService:
             raise NotFoundException(f"Sales order {order_id} not found")
         return await self._to_response(order)
 
+    async def delete_sales_order(self, order_id: str, deleted_by: str) -> None:
+        order = await self.repo.get_by_order_id(order_id)
+        if not order:
+            raise NotFoundException(f"Sales order {order_id} not found")
+
+        if order.status != SalesOrderStatus.DRAFT:
+            raise BadRequestException("Only draft sales orders can be deleted")
+
+        if order.invoice_id:
+            raise BadRequestException("Draft sales orders with invoices cannot be deleted")
+
+        deleted = await self.repo.delete({"order_id": order_id})
+        if not deleted:
+            raise NotFoundException(f"Sales order {order_id} not found")
+
+        await self.audit_service.log(
+            deleted_by,
+            "sales_order_deleted",
+            "SalesOrder",
+            order_id,
+            old_value=order.dict(),
+        )
+
     async def create_sales_order(self, data: SalesOrderCreate, created_by: str) -> SalesOrderResponse:
         patient = await self.patient_repo.get_by_patient_id(data.patient_id)
         if not patient:

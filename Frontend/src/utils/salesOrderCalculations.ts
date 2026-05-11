@@ -9,6 +9,7 @@ export interface OrderTotalsInput {
   lensTotal: number
   expenses: ExpenseLineInput[]
   discount: number
+  discountType?: 'AMOUNT' | 'PERCENT'
   advancedPayment: number
   isOldOrder: boolean
 }
@@ -34,6 +35,7 @@ export const calculateOrderTotals = ({
   lensTotal,
   expenses,
   discount,
+  discountType = 'AMOUNT',
   advancedPayment,
   isOldOrder,
 }: OrderTotalsInput) => {
@@ -41,7 +43,13 @@ export const calculateOrderTotals = ({
   const subtotalBeforeDiscount = roundCurrency(
     Math.max(frameTotal, 0) + Math.max(lensTotal, 0) + expenseTotal
   )
-  const discountTotal = roundCurrency(Math.max(discount, 0))
+
+  const rawDiscount = roundCurrency(Math.max(discount, 0))
+  const discountTotal =
+    discountType === 'PERCENT'
+      ? roundCurrency(subtotalBeforeDiscount * Math.min(rawDiscount, 100) / 100)
+      : rawDiscount
+
   const subtotal = roundCurrency(Math.max(subtotalBeforeDiscount - discountTotal, 0))
   const payment = roundCurrency(Math.max(advancedPayment, 0))
   const balancePayment = isOldOrder ? 0 : roundCurrency(Math.max(subtotal - payment, 0))
@@ -50,6 +58,7 @@ export const calculateOrderTotals = ({
     frameTotal: roundCurrency(Math.max(frameTotal, 0)),
     lensTotal: roundCurrency(Math.max(lensTotal, 0)),
     expenseTotal,
+    subtotalBeforeDiscount,
     discountTotal,
     subtotal,
     advancedPayment: isOldOrder ? subtotal : payment,

@@ -5,6 +5,7 @@ import math
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.doctor_repository import DoctorRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.prescription import PrescriptionCreate, PrescriptionUpdate, PrescriptionResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.prescription import PrescriptionModel
@@ -17,6 +18,7 @@ class PrescriptionService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.prescription_repo = PrescriptionRepository(db)
         self.patient_repo = PatientRepository(db)
+        self.user_repo = UserRepository(db)
         self.doctor_repo = DoctorRepository()
     
     async def list_prescriptions(
@@ -66,9 +68,18 @@ class PrescriptionService:
         if not patient:
             raise NotFoundException(f"Patient with ID {prescription_data.patient_id} not found")
         
-        # Validate doctor exists
+        # Validate practitioner exists. Support both doctor records and user records,
+        # because the UI now sources the LOV from users.
+        doctor_name = None
         doctor = await self.doctor_repo.get_by_id(prescription_data.doctor_id)
-        if not doctor:
+        if doctor:
+            doctor_name = doctor.name
+        else:
+            user_doctor = await self.user_repo.get_by_user_id(prescription_data.doctor_id)
+            if user_doctor:
+                doctor_name = user_doctor.name
+
+        if not doctor_name:
             raise NotFoundException(f"Doctor with ID {prescription_data.doctor_id} not found")
         
         # Generate prescription ID
@@ -83,7 +94,7 @@ class PrescriptionService:
         prescription_model = PrescriptionModel(
             prescription_id=prescription_id,
             patient_name=patient.name,
-            doctor_name=doctor.name,
+            doctor_name=doctor_name,
             prescription_date=prescription_date_dt,
             valid_until=valid_until_dt,
             **prescription_data.dict(exclude={'prescription_date', 'valid_until'})
@@ -111,3 +122,13 @@ class PrescriptionService:
         
         updated_prescription = await self.prescription_repo.get_by_prescription_id(prescription_id)
         return PrescriptionResponse(**updated_prescription.dict())
+
+    async def delete_prescription(self, prescription_id: str) -> None:
+        """Delete prescription by id."""
+        existing = await self.prescription_repo.get_by_prescription_id(prescription_id)
+        if not existing:
+            raise NotFoundException(f"Prescription with ID {prescription_id} not found")
+
+        deleted = await self.prescription_repo.delete_prescription(prescription_id)
+        if not deleted:
+            raise NotFoundException(f"Prescription with ID {prescription_id} not found")

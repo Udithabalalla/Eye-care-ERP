@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
   RiAddLine,
   RiArrowRightSLine,
+  RiDeleteBin6Line,
   RiFileEditLine,
   RiReceiptLine,
 } from '@remixicon/react'
@@ -31,9 +33,11 @@ import { DataTable, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { RiMore2Line } from '@remixicon/react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import toast from 'react-hot-toast'
 
-const DraftCard = ({ order, onContinue }: { order: SalesOrder; onContinue: () => void }) => (
-  <div className="flex flex-shrink-0 flex-col gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30 w-56">
+const DraftCard = ({ order, onContinue, onDelete }: { order: SalesOrder; onContinue: () => void; onDelete: () => void }) => (
+  <div className="relative flex flex-shrink-0 flex-col gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30 w-56">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">{order.order_number}</p>
@@ -42,6 +46,16 @@ const DraftCard = ({ order, onContinue }: { order: SalesOrder; onContinue: () =>
       </div>
       <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
     </div>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="absolute right-2 top-2 text-amber-700 hover:bg-amber-100 hover:text-destructive dark:text-amber-300 dark:hover:bg-amber-900/40"
+      onClick={onDelete}
+      aria-label={`Delete draft ${order.order_number}`}
+    >
+      <RiDeleteBin6Line className="h-4 w-4" />
+    </Button>
     <Button
       size="sm"
       variant="outline"
@@ -75,12 +89,27 @@ const statusOptions: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
 
 const SalesOrders = () => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | ''>('')
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
+  const [draftToDelete, setDraftToDelete] = useState<SalesOrder | null>(null)
+
+  const deleteDraftMutation = useMutation({
+    mutationFn: (orderId: string) => salesOrdersApi.delete(orderId),
+    onSuccess: () => {
+      toast.success('Draft deleted successfully')
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      setDraftToDelete(null)
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Failed to delete draft')
+    },
+  })
 
   const { data: draftsData } = useQuery({
     queryKey: ['sales-orders-drafts'],
@@ -272,12 +301,19 @@ const SalesOrders = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem
-                onClick={() => navigate(`/sales-orders/assistant?draft=${row.original.order_id}`)}
-              >
+              <DropdownMenuItem onClick={() => navigate(`/sales-orders/assistant?draft=${row.original.order_id}`)}>
                 <RiFileEditLine className="size-4" />
                 Edit / Continue
               </DropdownMenuItem>
+              {row.original.status === 'draft' && (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDraftToDelete(row.original)}
+                >
+                  <RiDeleteBin6Line className="size-4" />
+                  Delete Draft
+                </DropdownMenuItem>
+              )}
               {row.original.invoice_id && (
                 <DropdownMenuItem
                   onClick={() => navigate(`/invoices?detail=${row.original.invoice_id}`)}
@@ -310,11 +346,32 @@ const SalesOrders = () => {
                 key={order.order_id}
                 order={order}
                 onContinue={() => navigate(`/sales-orders/assistant?draft=${order.order_id}`)}
+                onDelete={() => setDraftToDelete(order)}
               />
             ))}
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!draftToDelete} onOpenChange={(open) => { if (!open) setDraftToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete draft order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove draft {draftToDelete?.order_number || 'this order'} and its unsaved progress. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDraftToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => draftToDelete && deleteDraftMutation.mutate(draftToDelete.order_id)}
+              disabled={deleteDraftMutation.isPending}
+            >
+              {deleteDraftMutation.isPending ? 'Deleting...' : 'Delete Draft'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>

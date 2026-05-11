@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +50,7 @@ import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
 import { salesOrdersApi } from '@/api/erp.api'
+import { usersApi } from '@/api/users.api'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { Invoice } from '@/types/invoice.types'
@@ -110,6 +113,7 @@ const salesOrderIntakeSchema = z
       existingId: z.string().optional().default(''),
       newData: z.object({
         fullName: z.string().min(2, 'Full name is required'),
+        email: z.string().email('Invalid email address').optional().default(''),
         phone: z.string().min(10, 'Phone is required'),
         age: optionalNumber(),
         gender: z.nativeEnum(Gender).optional(),
@@ -154,6 +158,7 @@ const salesOrderIntakeSchema = z
     }),
     expenses: z.array(expenseRowSchema).default([]),
     totals: z.object({
+      discountType: z.enum(['AMOUNT', 'PERCENT']).default('AMOUNT'),
       discount: requiredMoney.default(0),
       advancedPayment: requiredMoney.default(0),
       fullPaymentDate: z.string().optional().default(''),
@@ -287,22 +292,34 @@ const PricingPanel = ({ derivedTotals }: { derivedTotals: ReturnType<typeof calc
   </Card>
 )
 
-const StepIndicator = ({ currentStep, onStepClick }: { currentStep: number; onStepClick: (step: number) => void }) => (
+const StepIndicator = ({
+  currentStep,
+  maxStepReached,
+  onStepClick,
+}: {
+  currentStep: number
+  maxStepReached: number
+  onStepClick: (step: number) => void
+}) => (
   <div className="flex items-center">
     {STEPS.map((step, index) => {
       const isPast = step.id < currentStep
       const isCurrent = step.id === currentStep
+      const isReachable = step.id <= maxStepReached
+      const isClickable = isReachable && !isCurrent
       return (
         <div key={step.id} className="flex flex-1 items-center">
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <div
-              onClick={() => isPast && onStepClick(step.id)}
+              onClick={() => isClickable && onStepClick(step.id)}
               className={[
                 'flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200',
                 isCurrent
                   ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
                   : isPast
                     ? 'border-primary bg-primary text-primary-foreground cursor-pointer hover:opacity-75'
+                    : isClickable
+                      ? 'border-primary bg-background text-primary cursor-pointer hover:bg-muted/50'
                     : 'border-border bg-background text-muted-foreground',
               ].join(' ')}
             >
@@ -313,17 +330,23 @@ const StepIndicator = ({ currentStep, onStepClick }: { currentStep: number; onSt
               )}
             </div>
             <span
-              onClick={() => isPast && onStepClick(step.id)}
+              onClick={() => isClickable && onStepClick(step.id)}
               className={[
                 'hidden sm:block text-xs font-medium whitespace-nowrap',
-                isCurrent ? 'text-primary' : isPast ? 'text-foreground cursor-pointer hover:text-primary' : 'text-muted-foreground',
+                isCurrent
+                  ? 'text-primary'
+                  : isPast
+                    ? 'text-foreground cursor-pointer hover:text-primary'
+                    : isClickable
+                      ? 'text-primary cursor-pointer hover:opacity-80'
+                      : 'text-muted-foreground',
               ].join(' ')}
             >
               {step.label}
             </span>
           </div>
           {index < STEPS.length - 1 && (
-            <div className={`h-0.5 w-full mx-2 mb-4 transition-all duration-300 ${step.id < currentStep ? 'bg-primary' : 'bg-border'}`} />
+            <div className={`h-0.5 w-full mx-2 mb-4 transition-all duration-300 ${step.id < maxStepReached ? 'bg-primary' : 'bg-border'}`} />
           )}
         </div>
       )
@@ -336,7 +359,7 @@ const StepIndicator = ({ currentStep, onStepClick }: { currentStep: number; onSt
 const today = new Date().toISOString().split('T')[0]
 
 const defaultValues: SalesOrderIntakeValues = {
-  patient: { existingId: '', newData: { fullName: '', phone: '', age: undefined, gender: undefined, address: '' } },
+  patient: { existingId: '', newData: { fullName: '', email: '', phone: '', age: undefined, gender: undefined, address: '' } },
   prescription: {
     existingId: '',
     newData: {
@@ -349,7 +372,7 @@ const defaultValues: SalesOrderIntakeValues = {
   frame: { selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
   lens: { selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
-  totals: { discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
+  totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
 }
 
@@ -369,18 +392,18 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
   diagnosis: rx.diagnosis || '',
   notes: rx.notes || '',
   rightEye: {
-    sphere: rx.eye_prescription?.right_eye.sphere ?? 0,
-    cylinder: rx.eye_prescription?.right_eye.cylinder ?? 0,
-    axis: rx.eye_prescription?.right_eye.axis ?? 0,
-    add: rx.eye_prescription?.right_eye.add ?? 0,
-    pd: rx.eye_prescription?.right_eye.pupillary_distance ?? 0,
+    sphere: rx.eye_prescription?.right_eye?.sphere ?? 0,
+    cylinder: rx.eye_prescription?.right_eye?.cylinder ?? 0,
+    axis: rx.eye_prescription?.right_eye?.axis ?? 0,
+    add: rx.eye_prescription?.right_eye?.add ?? 0,
+    pd: rx.eye_prescription?.right_eye?.pupillary_distance ?? 0,
   },
   leftEye: {
-    sphere: rx.eye_prescription?.left_eye.sphere ?? 0,
-    cylinder: rx.eye_prescription?.left_eye.cylinder ?? 0,
-    axis: rx.eye_prescription?.left_eye.axis ?? 0,
-    add: rx.eye_prescription?.left_eye.add ?? 0,
-    pd: rx.eye_prescription?.left_eye.pupillary_distance ?? 0,
+    sphere: rx.eye_prescription?.left_eye?.sphere ?? 0,
+    cylinder: rx.eye_prescription?.left_eye?.cylinder ?? 0,
+    axis: rx.eye_prescription?.left_eye?.axis ?? 0,
+    add: rx.eye_prescription?.left_eye?.add ?? 0,
+    pd: rx.eye_prescription?.left_eye?.pupillary_distance ?? 0,
   },
 })
 
@@ -391,12 +414,12 @@ const buildPatientPayload = (values: SalesOrderIntakeValues['patient']) => ({
     : today,
   gender: values.newData.gender || Gender.OTHER,
   phone: values.newData.phone,
+  email: values.newData.email || undefined,
   address: values.newData.address ? { street: values.newData.address } : undefined,
 })
 
 const buildPrescriptionPayload = (patientId: string, values: SalesOrderIntakeValues['prescription']) => ({
   patient_id: patientId,
-  doctor_id: 'UNKNOWN',
   prescription_date: values.newData.prescriptionDate || today,
   valid_until: values.newData.validUntil || today,
   diagnosis: values.newData.diagnosis || 'Walk-in intake',
@@ -447,6 +470,7 @@ const mapDraftToFormValues = (
       existingId: order.patient_id,
       newData: {
         fullName:  patient?.name    || '',
+          email:     patient?.email   || '',
         phone:     patient?.phone   || '',
         age:       patient?.age,
         gender:    patient?.gender  as Gender | undefined,
@@ -491,6 +515,7 @@ const mapDraftToFormValues = (
       orderDate:    meas.order_date ? String(meas.order_date) : today,
     },
     totals: {
+      discountType: 'AMOUNT',
       discount:        Number(meas.discount        || 0),
       advancedPayment: Number(meas.advance_payment || 0),
       fullPaymentDate: '',
@@ -506,6 +531,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
+  const [maxStepReached, setMaxStepReached] = useState(0)
   const [savedOrderNumber, setSavedOrderNumber] = useState('')
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
@@ -530,6 +556,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
+    staleTime: 5 * 60 * 1000,
+  })
 
   // Form
   const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
@@ -542,6 +573,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const prescription = useWatch({ control, name: 'prescription' })
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
+
+  useEffect(() => {
+    setMaxStepReached((prev) => Math.max(prev, currentStep))
+  }, [currentStep])
 
   const isFormDirty = isDirty && !savedOrderNumber
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
@@ -576,7 +611,13 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     if (pendingNavPath) {
       // reset form dirty state so the pushState override won't re-trigger
       reset(getValues(), { keepValues: true })
-      navigate(pendingNavPath)
+      try {
+        // Use location.assign to ensure navigation goes to the originally intended URL
+        window.location.assign(pendingNavPath)
+      } catch {
+        // Fallback to react-router navigate for relative paths
+        try { navigate(pendingNavPath) } catch { /* swallow */ }
+      }
     }
     setPendingNavPath(null)
   }
@@ -608,6 +649,13 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     (expenseMasterData?.data || []).map((e) => ({ value: e.id, label: e.name, subtitle: formatCurrency(e.default_cost) }))
   , [expenseMasterData])
 
+  const testedByOptions = useMemo(() => {
+    const list: any[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
+    return (list || [])
+      .filter((u) => u && u.is_active)
+      .map((u) => ({ value: u.user_id, label: u.name }))
+  }, [usersData])
+
   const patientIsLinked = !!patient.existingId
   const prescriptionIsLinked = !!prescription.existingId
   const isFullOrder = !!frame.selectionId && !!lens.selectionId
@@ -633,10 +681,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       lensTotal: lens.total || 0,
       expenses: (expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
       discount: Number(totals.discount || 0),
+      discountType: totals.discountType,
       advancedPayment: Number(totals.advancedPayment || 0),
       isOldOrder: salesOrder.isOld,
     })
-  , [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount])
+  , [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
 
   // Effects
   useEffect(() => {
@@ -659,6 +708,22 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   useEffect(() => {
     if (prescription.existingId || prescription.newData.diagnosis || prescription.newData.notes) clearErrors('prescription')
   }, [clearErrors, prescription.existingId, prescription.newData.diagnosis, prescription.newData.notes])
+
+  // Auto-load latest prescription when a patient is linked (but don't override if a prescription is already selected)
+  useEffect(() => {
+    if (!patient.existingId) return
+    if (prescription.existingId) return
+    const latest = (patientPrescriptions?.data || [])[0]
+    if (latest) {
+      setValue('prescription.existingId', latest.prescription_id, { shouldDirty: false, shouldValidate: false })
+      setValue('prescription.newData', mapPrescriptionToForm(latest), { shouldDirty: false, shouldValidate: false })
+    } else {
+      // no previous prescriptions — ensure manual empty state
+      setValue('prescription.existingId', '', { shouldDirty: false, shouldValidate: false })
+      setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: false, shouldValidate: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient.existingId, patientPrescriptions?.data])
 
   useEffect(() => {
     if (frame.selectionId && resolvedFrame) {
@@ -741,10 +806,24 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     setValue('lens.total', lensType.price, { shouldDirty: true, shouldValidate: true })
   }
 
+  const buildPrescriptionPayloadForCreate = (patientId: string, presValues: SalesOrderIntakeValues['prescription'], testedById?: string) => {
+    const base = buildPrescriptionPayload(patientId, presValues as any)
+    const list: any[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
+    const matched = testedById ? list.find((u) => String(u.user_id) === String(testedById)) : undefined
+    return {
+      ...base,
+      doctor_id: matched?.user_id || (testedById || ''),
+      doctor_name: matched?.name || (''),
+      patient_name: undefined,
+      diagnosis: presValues.newData.diagnosis || 'Walk-in intake',
+    }
+  }
+
   const handlePatientAction = (rec: Patient) => {
     setValue('patient.existingId', rec.patient_id, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.fullName', rec.name, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.phone', rec.phone, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.email', rec.email || '', { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.age', rec.age, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.gender', rec.gender, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.address', formatAddress(rec), { shouldDirty: true, shouldValidate: true })
@@ -829,7 +908,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
-  const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0) }
+  const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0) }
 
   const handleSubmitClick = async () => {
     const isValid = await trigger()
@@ -908,12 +987,15 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   }
 
   const onSubmit = async (values: SalesOrderIntakeValues) => {
+    let createdPatientId: string | null = null
+    let createdPrescriptionId: string | null = null
     try {
       const phone = phoneDigits(values.patient.newData.phone)
       const exactDuplicate = !values.patient.existingId && freshMatchedPatient && phoneDigits(safeText(freshMatchedPatient.phone)) === phone
       if (exactDuplicate) { toast.error('Phone number already exists. Please link the existing patient or use a different number.'); return }
 
       const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
+      if (!values.patient.existingId) createdPatientId = patientId
 
       const shouldCreateRx = !values.prescription.existingId && Boolean(
         values.prescription.newData.diagnosis.trim() || values.prescription.newData.notes.trim() ||
@@ -922,8 +1004,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       )
       let prescriptionId = values.prescription.existingId || ''
       if (shouldCreateRx) {
-        const createdRx = await createPrescriptionMutation.mutateAsync(buildPrescriptionPayload(patientId, values.prescription))
+        const createdRx = await createPrescriptionMutation.mutateAsync(buildPrescriptionPayloadForCreate(patientId, values.prescription, values.salesOrder.testedBy))
         prescriptionId = createdRx.prescription_id
+        createdPrescriptionId = prescriptionId
       }
 
       const frameItem = resolvedFrame
@@ -961,7 +1044,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         expected_delivery_date: convertDateToISO(values.salesOrder.deliveryDate),
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
-        measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: values.totals.discount, advance_payment: values.totals.advancedPayment },
+        measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
         status: 'confirmed' as const,
         items: itemPayload,
       }
@@ -987,6 +1070,20 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         toast.success(`Historical SO saved as ${savedOrder.order_number}`)
       }
     } catch (error: any) {
+      if (createdPrescriptionId) {
+        try {
+          await prescriptionsApi.delete(createdPrescriptionId)
+        } catch {
+          // ignore rollback failures; original error is the one we report
+        }
+      }
+      if (createdPatientId) {
+        try {
+          await patientsApi.delete(createdPatientId)
+        } catch {
+          // ignore rollback failures; original error is the one we report
+        }
+      }
       toast.error(error?.response?.data?.detail || 'Failed to save sales order')
     }
   }
@@ -1029,11 +1126,24 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-            <AlertDialogCancel onClick={handleLeaveDiscard}>Stay</AlertDialogCancel>
-            <Button variant="outline" onClick={handleLeaveConfirm}>
+            <AlertDialogCancel
+              onClick={handleLeaveDiscard}
+              className="w-full sm:w-auto transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              Stay
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={handleLeaveConfirm}
+              className="w-full sm:w-auto transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-destructive"
+            >
               Discard &amp; Leave
             </Button>
-            <AlertDialogAction disabled={isSavingDraft} onClick={saveDraftAndLeave}>
+            <AlertDialogAction
+              disabled={isSavingDraft}
+              onClick={saveDraftAndLeave}
+              className="w-full sm:w-auto transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
               {isSavingDraft
                 ? <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving Draft...</>
                 : 'Save as Draft'}
@@ -1101,7 +1211,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
         {/* Progress stepper */}
         <Card className="px-6 py-5">
-          <StepIndicator currentStep={currentStep} onStepClick={setCurrentStep} />
+          <StepIndicator currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
         </Card>
 
         <form className="space-y-4">
@@ -1124,6 +1234,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label="Full Name" required error={errors.patient?.newData?.fullName?.message}>
                     <Input placeholder="John Doe" {...register('patient.newData.fullName')} disabled={patientIsLinked} />
+                  </Field>
+                  <Field label="Email" error={errors.patient?.newData?.email?.message as string | undefined}>
+                    <Input placeholder="name@example.com" {...register('patient.newData.email')} disabled={patientIsLinked} />
                   </Field>
                   <Field label="Phone Number" required error={errors.patient?.newData?.phone?.message}>
                     <Input placeholder="0771234567" {...register('patient.newData.phone')} disabled={patientIsLinked} />
@@ -1176,97 +1289,375 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </div>
                   <div>
                     <CardTitle>Prescription & Eye Measurements</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Link an existing prescription or enter new measurements</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Modern optical POS workflow for fast, accurate data entry</p>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
-              <CardContent className="pt-6 space-y-6">
-                {patient.existingId && (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <Field label="Load Existing Prescription" className="flex-1">
-                      <Select
-                        value={prescription.existingId || ''}
-                        onValueChange={(selectedId) => {
-                          setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
-                          const rx = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
-                          if (rx) setValue('prescription.newData', mapPrescriptionToForm(rx), { shouldDirty: true, shouldValidate: false })
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select a prescription" /></SelectTrigger>
-                        <SelectContent>
-                          {(patientPrescriptions?.data || []).map((item) => (
-                            <SelectItem key={item.prescription_id} value={item.prescription_id}>
-                              {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Button type="button" variant="outline" onClick={() => { setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true }); setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false }) }}>
-                      + New Prescription
-                    </Button>
-                  </div>
-                )}
+              <CardContent className="pt-8">
+                {/* Prescription Source Selection Tabs */}
+                <Tabs defaultValue="manual" value={prescription.existingId ? 'existing' : 'manual'} onValueChange={(tab) => {
+                  if (tab === 'manual') {
+                    setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true })
+                    setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
+                  }
+                }} className="w-full">
+                  <TabsList className={`grid w-full mb-8 ${patient.existingId ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    {patient.existingId && (
+                      <TabsTrigger value="existing" className="gap-2">
+                        <RiFileTextLine className="h-4 w-4" />
+                        Existing
+                      </TabsTrigger>
+                    )}
+                    <TabsTrigger value="manual" className="gap-2">
+                      <RiEyeLine className="h-4 w-4" />
+                      Manual Entry
+                    </TabsTrigger>
+                  </TabsList>
 
-                {prescriptionIsLinked && (
-                  <InlineAlert type="info" title="Prescription loaded" description="Fields are read-only. Click '+ New Prescription' to enter custom values." />
-                )}
-
-                {/* Side-by-side OD / OS table layout */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="w-20 pb-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground" />
-                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sphere</th>
-                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cylinder</th>
-                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Axis</th>
-                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add</th>
-                        <th className="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">PD</th>
-                      </tr>
-                    </thead>
-                    <tbody className="space-y-2">
-                      {/* Right Eye — OD */}
-                      <tr>
-                        <td className="pr-3 pb-3 align-middle">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-9 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">OD</span>
-                            <span className="text-xs text-muted-foreground">Right</span>
+                  {/* Existing Prescription Tab */}
+                  {patient.existingId && (
+                    <TabsContent value="existing" className="w-full space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-foreground">Select Previous Prescription</label>
+                        <Select
+                          value={prescription.existingId || ''}
+                          onValueChange={(selectedId) => {
+                            setValue('prescription.existingId', selectedId, { shouldDirty: true, shouldValidate: true })
+                            const rx = (patientPrescriptions?.data || []).find((item) => item.prescription_id === selectedId)
+                            if (rx) setValue('prescription.newData', mapPrescriptionToForm(rx), { shouldDirty: true, shouldValidate: false })
+                          }}
+                        >
+                          <SelectTrigger className="h-11"><SelectValue placeholder="Select a prescription" /></SelectTrigger>
+                          <SelectContent>
+                            {(patientPrescriptions?.data || []).map((item) => (
+                              <SelectItem key={item.prescription_id} value={item.prescription_id}>
+                                {item.prescription_date ? String(item.prescription_date).split('T')[0] : item.prescription_id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {prescriptionIsLinked && (
+                        <div>
+                          <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40 px-4 py-3 mt-4 flex items-center justify-between">
+                            <p className="text-sm font-medium text-green-800 dark:text-green-200 flex items-center gap-2">
+                              <RiCheckLine className="h-4 w-4" />
+                              Prescription loaded successfully
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const latest = (patientPrescriptions?.data || []).find((r) => r.prescription_id === prescription.existingId) || (patientPrescriptions?.data || [])[0]
+                                  setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: true })
+                                  setValue('prescription.newData', latest ? mapPrescriptionToForm(latest) : defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
+                                }}
+                              >
+                                Add New Prescription
+                              </Button>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-3"><Input type="number" step="1" className="text-center" {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-3"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-3"><Input type="number" step="0.1" className="text-center" {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                      </tr>
-                      {/* Left Eye — OS */}
-                      <tr>
-                        <td className="pr-3 pb-1 align-middle">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-9 items-center justify-center rounded bg-blue-100 text-[10px] font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300">OS</span>
-                            <span className="text-xs text-muted-foreground">Left</span>
-                          </div>
-                        </td>
-                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-1"><Input type="number" step="1" className="text-center" {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-1"><Input type="number" step="0.25" className="text-center" {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                        <td className="px-1 pb-1"><Input type="number" step="0.1" className="text-center" {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked} /></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Field label="Diagnosis">
-                    <Input {...register('prescription.newData.diagnosis')} disabled={prescriptionIsLinked} placeholder="e.g. Myopia" />
-                  </Field>
-                  <Field label="Notes">
-                    <Input {...register('prescription.newData.notes')} disabled={prescriptionIsLinked} placeholder="Any clinical notes" />
-                  </Field>
-                </div>
+                          {/* Read-only prescription details */}
+                          <div className="mt-4">
+                            {(() => {
+                              const selected = (patientPrescriptions?.data || []).find((r) => r.prescription_id === prescription.existingId) || (patientPrescriptions?.data || [])[0]
+                              if (!selected) return <p className="text-sm text-muted-foreground">No previous prescription details available.</p>
+                              const form = mapPrescriptionToForm(selected)
+                              return (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-semibold">OD</Badge>
+                                      <h3 className="text-base font-semibold text-foreground">Right Eye</h3>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="grid grid-cols-5 gap-2.5 w-full">
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sphere</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.sphere)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cylinder</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.cylinder)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Axis</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.axis)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.add)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">PD</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.pd)}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 font-semibold">OS</Badge>
+                                      <h3 className="text-base font-semibold text-foreground">Left Eye</h3>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="grid grid-cols-5 gap-2.5 w-full">
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sphere</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.sphere)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cylinder</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.cylinder)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Axis</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.axis)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.add)}</div>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">PD</label>
+                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.pd)}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="col-span-1 lg:col-span-2">
+                                    <div className="border-t pt-4">
+                                      <h4 className="text-sm font-semibold text-foreground mb-2">Clinical Notes</h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <label className="text-sm font-medium text-foreground">Diagnosis</label>
+                                          <div className="mt-1 text-sm text-muted-foreground">{form.diagnosis || '—'}</div>
+                                        </div>
+                                        <div>
+                                          <label className="text-sm font-medium text-foreground">Notes</label>
+                                          <div className="mt-1 text-sm text-muted-foreground">{form.notes || '—'}</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                  )}
+
+                  {/* Manual Entry Tab */}
+                  <TabsContent value="manual" className="w-full space-y-6">
+                    {/* OD / OS Eye Measurements */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+                      {/* Right Eye (OD) Card */}
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3 hover:border-border transition-colors overflow-hidden">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-semibold">OD</Badge>
+                          <h3 className="text-base font-semibold text-foreground">Right Eye</h3>
+                        </div>
+                        <Separator className="my-2" />
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 w-full">
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Sphere</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', val + 0.25) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', val - 0.25) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Cylinder</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', val + 0.25) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', val - 0.25) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Axis</label>
+                            <Input 
+                              type="number" 
+                              step="1" 
+                              placeholder="0"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', (val + 1) % 180) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', val === 0 ? 179 : val - 1) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Add</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.min(val + 0.25, 4)) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(val - 0.25, 0)) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">PD</label>
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              placeholder="0.0"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.min(val + 0.5, 75)) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.max(val - 0.5, 50)) }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Left Eye (OS) Card */}
+                      <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3 hover:border-border transition-colors overflow-hidden">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-semibold">OS</Badge>
+                          <h3 className="text-base font-semibold text-foreground">Left Eye</h3>
+                        </div>
+                        <Separator className="my-2" />
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 w-full">
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Sphere</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', val + 0.25) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', val - 0.25) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Cylinder</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', val + 0.25) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', val - 0.25) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Axis</label>
+                            <Input 
+                              type="number" 
+                              step="1" 
+                              placeholder="0"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', (val + 1) % 180) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', val === 0 ? 179 : val - 1) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Add</label>
+                            <Input 
+                              type="number" 
+                              step="0.25" 
+                              placeholder="0.00"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.min(val + 0.25, 4)) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.max(val - 0.25, 0)) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">PD</label>
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              placeholder="0.0"
+                              className="text-center text-sm h-9 font-medium min-w-[84px]"
+                              {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} 
+                              disabled={prescriptionIsLinked}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.min(val + 0.5, 75)) }
+                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.max(val - 0.5, 50)) }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clinical Notes Section */}
+                    <div className="border-t border-border pt-6 w-full">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Clinical Notes</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Diagnosis</label>
+                          <Input 
+                            {...register('prescription.newData.diagnosis')} 
+                            disabled={prescriptionIsLinked} 
+                            placeholder="e.g. Myopia, Hyperopia, Astigmatism"
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Clinical Notes</label>
+                          <Input 
+                            {...register('prescription.newData.notes')} 
+                            disabled={prescriptionIsLinked} 
+                            placeholder="Special instructions or observations"
+                            className="h-10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
@@ -1481,7 +1872,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <Input type="date" {...register('salesOrder.dateOfFullPayment')} />
                   </Field>
                   <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
-                    <Input placeholder="Optometrist name" {...register('salesOrder.testedBy')} />
+                    <SearchableLOV
+                      placeholder="Select user"
+                      value={salesOrder.testedBy || ''}
+                      onChange={(val: string) => setValue('salesOrder.testedBy', val, { shouldDirty: true, shouldValidate: true })}
+                      options={(testedByOptions || []).map((u: any) => ({ value: u.value, label: u.label, subtitle: '' }))}
+                    />
                   </Field>
                 </div>
 
@@ -1565,7 +1961,26 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                       <Input type="number" min={0} step="0.01" placeholder="0.00" value={totals.advancedPayment || 0} onChange={(e) => setValue('totals.advancedPayment', Number(e.target.value), { shouldDirty: true })} disabled={salesOrder.isOld} />
                     </Field>
                     <Field label="Overall Discount">
-                      <Input type="number" min={0} step="0.01" placeholder="0.00" value={totals.discount || 0} onChange={(e) => setValue('totals.discount', Number(e.target.value), { shouldDirty: true })} />
+                      <div className="flex gap-2">
+                        <Select value={totals.discountType} onValueChange={(v) => setValue('totals.discountType', v as 'AMOUNT' | 'PERCENT', { shouldDirty: true })}>
+                          <SelectTrigger className="w-[150px]">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AMOUNT">Amount</SelectItem>
+                            <SelectItem value="PERCENT">Percent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={totals.discountType === 'PERCENT' ? 100 : undefined}
+                          step="0.01"
+                          placeholder={totals.discountType === 'PERCENT' ? '0 - 100' : '0.00'}
+                          value={totals.discount || 0}
+                          onChange={(e) => setValue('totals.discount', Number(e.target.value), { shouldDirty: true })}
+                        />
+                      </div>
                     </Field>
                   </div>
 

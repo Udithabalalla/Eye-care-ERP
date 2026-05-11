@@ -13,7 +13,7 @@ api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(doctors.router, prefix="/doctors", tags=["Doctors"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
-api_router.include_router(suppliers.router, tags=["Suppliers"])
+api_router.include_router(suppliers.router, tags=["Suppliers"])  # suppliers endpoints
 api_router.include_router(basic_data.router, prefix="/basic-data", tags=["Basic Data"])
 api_router.include_router(sales_orders.router, prefix="/sales-orders", tags=["Sales Orders"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])

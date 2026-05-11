@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
 import { RiAddLine, RiDeleteBinLine } from '@remixicon/react'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { patientsApi } from '@/api/patients.api'
-import { doctorsApi } from '@/api/doctors.api'
+import { usersApi } from '@/api/users.api'
 import { safeDate } from '@/utils/formatters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,12 +28,12 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
         queryFn: () => patientsApi.getAll({ page: 1, page_size: 100 }),
     })
 
-    const { data: doctors } = useQuery({
-        queryKey: ['doctors-list'],
-        queryFn: () => doctorsApi.getAll({ active_only: true }),
+    const { data: users } = useQuery({
+        queryKey: ['users-list'],
+        queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
     })
 
-    console.log('Doctors LOV data:', doctors)
+    console.log('Users LOV data:', users)
     console.log('PrescriptionForm mounting with:', prescription)
 
     const [formData, setFormData] = useState<PrescriptionFormData>(() => {
@@ -225,13 +225,13 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
                         value={formData.doctor_id}
                         onChange={(value: string) => setFormData({ ...formData, doctor_id: value })}
                         options={
-                            doctors?.map((doctor: any): LOVOption => ({
-                                value: doctor.doctor_id,
-                                label: doctor.name,
-                                subtitle: doctor.specialization,
-                            })) || []
+                            (Array.isArray(users?.data) ? users.data : []).map((user: any): LOVOption => ({
+                                value: user.user_id,
+                                label: user.name,
+                                subtitle: user.department || user.role || '',
+                            }))
                         }
-                        placeholder="Select doctor"
+                        placeholder="Select user"
                         disabled={readOnly}
                     />
                     <div>

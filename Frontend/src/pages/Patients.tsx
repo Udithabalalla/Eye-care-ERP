@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { patientsApi } from '@/api/patients.api'
 import {
@@ -11,6 +12,7 @@ import {
   RiFileTextLine,
   RiMore2Line,
   RiReceiptLine,
+  RiDeleteBin6Line,
 } from '@remixicon/react'
 import Pagination from '@/components/common/Pagination'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -40,6 +42,7 @@ import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice } from '@/types/invoice.types'
 import { Prescription } from '@/types/prescription.types'
+import PatientDashboard from '@/components/patients/PatientDashboard'
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -47,6 +50,7 @@ import InvoiceDetail from '@/components/invoices/InvoiceDetail'
 import PaymentModal from '@/components/invoices/PaymentModal'
 import { downloadFile } from '@/utils/helpers'
 import toast from 'react-hot-toast'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 const Patients = () => {
   const [page, setPage] = useState(1)
@@ -66,6 +70,21 @@ const Patients = () => {
   const [isInvoiceDetailOpen, setIsInvoiceDetailOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
+  const queryClient = useQueryClient()
+
+  const deletePatientMutation = useMutation({
+    mutationFn: (patientId: string) => patientsApi.delete(patientId),
+    onSuccess: () => {
+      toast.success('Patient deleted successfully')
+      queryClient.invalidateQueries({ queryKey: ['patients'] })
+      setPatientToDelete(null)
+      setSelectedPatientIds((current) => current.filter((id) => id !== patientToDelete?.patient_id))
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Failed to delete patient')
+    },
+  })
 
   const sortBy = sorting[0]?.id
   const sortOrder = sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined
@@ -238,6 +257,13 @@ const Patients = () => {
       onClick: (rows) => handleViewLatestInvoice(rows[0]),
       showWhen: 'single',
     },
+    {
+      id: 'delete-patient',
+      label: 'Delete Patient',
+      icon: RiDeleteBin6Line,
+      onClick: (rows) => setPatientToDelete(rows[0]),
+      showWhen: 'single',
+    },
   ]
 
   const columns = useMemo<ColumnDef<Patient>[]>(
@@ -314,6 +340,16 @@ const Patients = () => {
           </Button>
         ),
         cell: ({ row }) => formatPhone(row.original.phone),
+      },
+      {
+        id: 'address',
+        header: 'Address',
+        cell: ({ row }) => {
+          const a = row.original.address
+          if (!a) return ''
+          return [a.street, a.city, a.state, a.zip_code, a.country].filter(Boolean).join(', ')
+        },
+        enableSorting: false,
       },
       {
         id: 'age_gender',
@@ -406,6 +442,13 @@ const Patients = () => {
                 <RiReceiptLine className="size-4" />
                 View Latest Invoice
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setPatientToDelete(row.original)}
+                className="text-destructive focus:text-destructive"
+              >
+                <RiDeleteBin6Line className="size-4" />
+                Delete Patient
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -426,6 +469,8 @@ const Patients = () => {
           Add Patient
         </Button>
       </section>
+
+      <PatientDashboard totalPatients={data?.total} />
 
       <Card className="border-border/60">
         <CardHeader className="space-y-4">
@@ -496,6 +541,26 @@ const Patients = () => {
         onSuccess={() => refetch()}
       />
 
+      <AlertDialog open={!!patientToDelete} onOpenChange={(open) => { if (!open) setPatientToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete patient record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {patientToDelete?.name || 'this patient'} and their record from the system. Any linked history may become unavailable. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPatientToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => patientToDelete && deletePatientMutation.mutate(patientToDelete.patient_id)}
+              disabled={deletePatientMutation.isPending}
+            >
+              {deletePatientMutation.isPending ? 'Deleting...' : 'Delete Patient'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PatientDetailsDialog
         isOpen={isDetailsOpen}
         patientId={selectedPatientId}
@@ -528,7 +593,7 @@ const Patients = () => {
         open={isInvoiceDetailOpen}
         onOpenChange={(open) => { if (!open) { setIsInvoiceDetailOpen(false); setSelectedInvoice(null) } }}
       >
-        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader>
             <DialogTitle>Invoice Details</DialogTitle>
           </DialogHeader>

@@ -2,6 +2,7 @@ import { RiArrowLeftSLine } from '@remixicon/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import SalesOrderIntakeForm from '@/components/sales-orders/SalesOrderIntakeForm'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
 
 const SalesOrderAssistant = () => {
   const navigate = useNavigate()
@@ -29,7 +30,9 @@ const SalesOrderAssistant = () => {
         </div>
       </div>
 
-      <SalesOrderIntakeForm draftOrderId={draftOrderId} />
+      <ErrorBoundary>
+        <SalesOrderIntakeForm draftOrderId={draftOrderId} />
+      </ErrorBoundary>
     </div>
   )
 }

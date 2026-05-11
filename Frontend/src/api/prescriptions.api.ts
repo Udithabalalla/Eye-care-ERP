@@ -41,6 +41,10 @@ export const prescriptionsApi = {
     return response.data.data
   },
 
+  delete: async (id: string): Promise<void> => {
+    await axiosInstance.delete(`/prescriptions/${id}`)
+  },
+
   downloadPDF: async (id: string): Promise<Blob> => {
     const response = await axiosInstance.get(`/prescriptions/${id}/pdf`, {
       responseType: 'blob',

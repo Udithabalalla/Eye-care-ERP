@@ -63,3 +63,15 @@ async def update_prescription(
         message="Prescription updated successfully",
         data=prescription
     )
+
+
+@router.delete("/{prescription_id}", response_model=ResponseModel)
+async def delete_prescription(
+    prescription_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Delete prescription"""
+    prescription_service = PrescriptionService(db)
+    await prescription_service.delete_prescription(prescription_id)
+    return ResponseModel(message="Prescription deleted successfully")
