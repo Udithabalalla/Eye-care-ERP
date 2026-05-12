@@ -44,7 +44,13 @@ const SupplierInvoices = () => {
     queryFn: () => suppliersApi.getSupplierInvoices({ page: 1, page_size: 100 }),
   })
 
-  const rows = (data?.data || []).filter((invoice) => {
+  const rows = [...(data?.data || [])]
+    .sort((left, right) => {
+      const leftValue = new Date(left.created_at || left.invoice_date || '').getTime()
+      const rightValue = new Date(right.created_at || right.invoice_date || '').getTime()
+      return rightValue - leftValue
+    })
+    .filter((invoice) => {
     const query = search.trim().toLowerCase()
     if (!query) return true
     return [invoice.id, invoice.invoice_number, invoice.supplier_id, invoice.status]
