@@ -41,7 +41,6 @@ default_allowed_origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://eye-care-erp.vercel.app",
-    "https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app",
 ]
 
 if ENV in {"development", "dev", "local"}:
@@ -53,6 +52,7 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
