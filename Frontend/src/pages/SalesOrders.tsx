@@ -140,7 +140,7 @@ const SalesOrders = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [draftToDelete, setDraftToDelete] = useState<SalesOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
-  const [detailOrder, setDetailOrder] = useState<SalesOrder | null>(null)
+  const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
 
   const rowStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
@@ -213,7 +213,7 @@ const SalesOrders = () => {
   }
 
   const handleRowClick = (order: SalesOrder) => {
-    setDetailOrder(order)
+    setDetailOrderId(order.order_id)
   }
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
@@ -314,7 +314,7 @@ const SalesOrders = () => {
         cell: ({ row }) => (
           <button
             className="flex flex-col text-left group"
-            onClick={(e) => { e.stopPropagation(); setDetailOrder(row.original) }}
+            onClick={(e) => { e.stopPropagation(); setDetailOrderId(row.original.order_id) }}
           >
             <span className="font-medium text-primary group-hover:underline underline-offset-2">
               {row.original.order_number}
@@ -443,7 +443,7 @@ const SalesOrders = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setDetailOrder(order)}>
+                  <DropdownMenuItem onClick={() => setDetailOrderId(order.order_id)}>
                     <RiEyeLine className="size-4" />
                     View Details
                   </DropdownMenuItem>
@@ -538,9 +538,9 @@ const SalesOrders = () => {
 
       {/* Sales order detail sheet */}
       <SalesOrderDetailSheet
-        order={detailOrder}
-        open={!!detailOrder}
-        onOpenChange={(open) => { if (!open) setDetailOrder(null) }}
+        orderId={detailOrderId}
+        open={!!detailOrderId}
+        onOpenChange={(open) => { if (!open) setDetailOrderId(null) }}
       />
 
       {/* Header */}

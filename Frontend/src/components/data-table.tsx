@@ -227,7 +227,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   className={cn('z-0', onRowClick && 'cursor-pointer')}
-                  data-state={row.getIsSelected() && 'selected'}
+                  data-state={(row.getIsSelected() || selectedRows?.includes(row.original)) ? 'selected' : undefined}
                   onClick={(e) => {
                     if (!onRowClick) return
                     const target = e.target as HTMLElement

@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { salesOrdersApi } from '@/api/erp.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
-import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
+import { SalesOrderStatus } from '@/types/erp.types'
 import { Prescription } from '@/types/prescription.types'
 import {
   Sheet,
@@ -42,14 +42,21 @@ const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>
 }
 
 interface Props {
-  order: SalesOrder | null
+  orderId: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
+export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+
+  const { data: order } = useQuery({
+    queryKey: ['sales-order', orderId],
+    queryFn: () => salesOrdersApi.getById(orderId!),
+    enabled: open && !!orderId,
+    staleTime: 0,
+  })
 
   const { data: prescription, isLoading: isLoadingRx } = useQuery({
     queryKey: ['prescription', order?.prescription_id],
@@ -61,25 +68,25 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
       salesOrdersApi.updateStatus(id, status),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-order', id] })
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.detail || 'Status update failed')
     },
   })
 
-  if (!order) return null
-
-  const nextAction = getNextAction(order.status)
+  const nextAction = order ? getNextAction(order.status) : null
   const Icon = nextAction ? (WORKFLOW_ICONS[nextAction.toStatus] ?? RiBox3Line) : null
   const isPending = statusMutation.isPending
 
   const handleAdvance = () => {
-    if (!nextAction) return
+    if (!nextAction || !order) return
     toast.promise(
       salesOrdersApi.updateStatus(order.order_id, nextAction.toStatus).then((updated) => {
         queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+        queryClient.invalidateQueries({ queryKey: ['sales-order', order.order_id] })
         return updated
       }),
       {
@@ -90,7 +97,7 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
     )
   }
 
-  const measurements = order.measurements as Record<string, unknown> | undefined
+  const measurements = order?.measurements as Record<string, unknown> | undefined
   const advancePayment = measurements?.advance_payment
   const orderType = measurements?.order_type as string | undefined
   const orderDate = measurements?.order_date as string | undefined
@@ -106,12 +113,12 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
           <div className="flex items-start gap-3 pr-8">
             <div className="min-w-0">
               <SheetTitle className="text-base font-semibold text-foreground">
-                {order.order_number}
+                {order?.order_number ?? '…'}
               </SheetTitle>
               <SheetDescription className="mt-1 flex items-center gap-2 flex-wrap">
-                <SalesOrderStatusBadge status={order.status} />
+                {order && <SalesOrderStatusBadge status={order.status} />}
                 <span className="text-muted-foreground/60">·</span>
-                <span>{formatDate(order.created_at)}</span>
+                <span>{order ? formatDate(order.created_at) : ''}</span>
               </SheetDescription>
             </div>
           </div>
@@ -122,10 +129,17 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
 
           {/* Lifecycle stepper */}
           <div className="px-6 py-5 border-b bg-muted/20">
-            <SalesOrderStepper status={order.status} />
+            {order ? (
+              <SalesOrderStepper status={order.status} />
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <RiLoader4Line className="size-3.5 animate-spin" />
+                Loading…
+              </div>
+            )}
           </div>
 
-          <div className="divide-y divide-border">
+          {order && <div className="divide-y divide-border">
 
             {/* Patient */}
             <Section icon={RiUserLine} title="Patient">
@@ -274,7 +288,7 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
                 createdBy={order.created_by}
               />
             </Section>
-          </div>
+          </div>}
         </div>
 
         {/* ── Footer actions ─────────────────────── */}
@@ -299,19 +313,19 @@ export function SalesOrderDetailSheet({ order, open, onOpenChange }: Props) {
               className="flex-1 gap-1.5"
               onClick={() => {
                 onOpenChange(false)
-                navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+                navigate(`/sales-orders/assistant?draft=${order?.order_id}`)
               }}
             >
               <RiFileEditLine className="size-4" />
               Edit Order
             </Button>
-            {order.invoice_id && (
+            {order?.invoice_id && (
               <Button
                 variant="outline"
                 className="flex-1 gap-1.5"
                 onClick={() => {
                   onOpenChange(false)
-                  navigate(`/invoices?detail=${order.invoice_id}`)
+                  navigate(`/invoices?detail=${order?.invoice_id}`)
                 }}
               >
                 <RiReceiptLine className="size-4" />

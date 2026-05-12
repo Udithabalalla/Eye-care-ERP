@@ -449,19 +449,21 @@ const Invoices = () => {
       )}
 
       <Dialog open={isDetailOpen} onOpenChange={(open) => { if (!open) closeDetail() }}>
-        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-          <DialogHeader>
+        <DialogContent className="w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <RiReceiptLine className="size-5 text-primary" />
               Invoice Details
             </DialogTitle>
           </DialogHeader>
           {selectedInvoice && (
-            <InvoiceDetail
-              invoice={selectedInvoice}
-              onPayment={() => { closeDetail(); openPayment(selectedInvoice) }}
-              onDownloadPDF={() => handleDownloadPDF(selectedInvoice.invoice_id)}
-            />
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <InvoiceDetail
+                invoice={selectedInvoice}
+                onPayment={() => { closeDetail(); openPayment(selectedInvoice) }}
+                onDownloadPDF={() => handleDownloadPDF(selectedInvoice.invoice_id)}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

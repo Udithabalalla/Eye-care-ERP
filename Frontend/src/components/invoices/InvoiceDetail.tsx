@@ -107,31 +107,31 @@ const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-auto min-w-[200px]">Item</TableHead>
-                <TableHead className="w-24">Type</TableHead>
-                <TableHead className="w-16 text-center">Qty</TableHead>
-                <TableHead className="w-32 text-right">Unit Price</TableHead>
-                <TableHead className="w-32 text-right">Total</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead className="w-20">Type</TableHead>
+                <TableHead className="w-12 text-center">Qty</TableHead>
+                <TableHead className="w-24 text-right">Unit Price</TableHead>
+                <TableHead className="w-24 text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoice.items.map((item, index) => (
                 <TableRow key={index}>
-                  <TableCell className="w-auto min-w-[200px]">
+                  <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium text-foreground">{item.product_name}</span>
                       <span className="text-xs text-muted-foreground">{item.sku}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="w-24">
+                  <TableCell className="w-20">
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground whitespace-nowrap">
                       {lineTypeIcon(item.line_type)}
                       {lineTypeLabel(item.line_type)}
                     </span>
                   </TableCell>
-                  <TableCell className="w-16 text-center">{item.quantity}</TableCell>
-                  <TableCell className="w-32 text-right">{formatCurrency(item.unit_price)}</TableCell>
-                  <TableCell className="w-32 text-right font-semibold">{formatCurrency(item.total)}</TableCell>
+                  <TableCell className="w-12 text-center">{item.quantity}</TableCell>
+                  <TableCell className="w-24 text-right">{formatCurrency(item.unit_price)}</TableCell>
+                  <TableCell className="w-24 text-right font-semibold">{formatCurrency(item.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
