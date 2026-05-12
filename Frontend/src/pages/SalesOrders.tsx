@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
   RiAddLine,
@@ -9,7 +8,15 @@ import {
   RiDeleteBin6Line,
   RiFileEditLine,
   RiReceiptLine,
+  RiMore2Line,
+  RiEyeLine,
+  RiBox3Line,
+  RiSettings4Line,
+  RiShieldCheckLine,
+  RiTruckLine,
+  RiLoader4Line,
 } from '@remixicon/react'
+import { cn } from '@/lib/utils'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
 import { Button } from '@/components/ui/button'
@@ -20,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -32,16 +40,39 @@ import {
 import { DataTable, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
 import { formatCurrency, formatDate } from '@/utils/formatters'
-import { RiMore2Line } from '@remixicon/react'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import toast from 'react-hot-toast'
+import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
+import { getNextAction } from '@/components/sales-orders/SalesOrderWorkflowActions'
+import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 
-const DraftCard = ({ order, onContinue, onDelete }: { order: SalesOrder; onContinue: () => void; onDelete: () => void }) => (
+const DraftCard = ({
+  order,
+  onContinue,
+  onDelete,
+}: {
+  order: SalesOrder
+  onContinue: () => void
+  onDelete: () => void
+}) => (
   <div className="relative flex flex-shrink-0 flex-col gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30 w-56">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">{order.order_number}</p>
-        <p className="text-sm font-medium text-foreground truncate mt-0.5">{order.patient_name || 'Unknown patient'}</p>
+        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">
+          {order.order_number}
+        </p>
+        <p className="text-sm font-medium text-foreground truncate mt-0.5">
+          {order.patient_name || 'Unknown patient'}
+        </p>
         <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at)}</p>
       </div>
       <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
@@ -68,24 +99,35 @@ const DraftCard = ({ order, onContinue, onDelete }: { order: SalesOrder; onConti
   </div>
 )
 
-const statusVariant: Record<SalesOrderStatus, 'secondary' | 'outline' | 'destructive' | 'default'> = {
-  draft: 'outline',
-  confirmed: 'secondary',
-  in_production: 'secondary',
-  ready: 'default',
-  completed: 'default',
-  cancelled: 'destructive',
-}
-
-const statusOptions: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
+const STATUS_FILTER_OPTIONS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All Statuses' },
+  { id: 'created', label: 'Order Created' },
+  { id: 'lens_ordered', label: 'Lens Ordered' },
+  { id: 'fitting', label: 'Sent for Fitting' },
+  { id: 'ready', label: 'Ready for Collection' },
+  { id: 'delivered', label: 'Delivered' },
   { id: 'draft', label: 'Draft' },
   { id: 'confirmed', label: 'Confirmed' },
   { id: 'in_production', label: 'In Production' },
-  { id: 'ready', label: 'Ready' },
   { id: 'completed', label: 'Completed' },
   { id: 'cancelled', label: 'Cancelled' },
 ]
+
+const LIFECYCLE_FILTER_TABS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'created', label: 'Order Created' },
+  { id: 'lens_ordered', label: 'Lens Ordered' },
+  { id: 'fitting', label: 'Sent for Fitting' },
+  { id: 'ready', label: 'Ready' },
+  { id: 'delivered', label: 'Delivered' },
+]
+
+const WORKFLOW_ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  lens_ordered: RiBox3Line,
+  fitting: RiSettings4Line,
+  ready: RiShieldCheckLine,
+  delivered: RiTruckLine,
+}
 
 const SalesOrders = () => {
   const navigate = useNavigate()
@@ -97,6 +139,22 @@ const SalesOrders = () => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [draftToDelete, setDraftToDelete] = useState<SalesOrder | null>(null)
+  const [pendingRowId, setPendingRowId] = useState<string | null>(null)
+  const [detailOrder, setDetailOrder] = useState<SalesOrder | null>(null)
+
+  const rowStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
+      salesOrdersApi.updateStatus(id, status),
+    onMutate: ({ id }) => setPendingRowId(id),
+    onSettled: () => setPendingRowId(null),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      setSelectedOrderIds((prev) => prev.filter((sid) => sid !== id))
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Status update failed')
+    },
+  })
 
   const deleteDraftMutation = useMutation({
     mutationFn: (orderId: string) => salesOrdersApi.delete(orderId),
@@ -155,7 +213,7 @@ const SalesOrders = () => {
   }
 
   const handleRowClick = (order: SalesOrder) => {
-    toggleOne(order.order_id, !selectedOrderIds.includes(order.order_id))
+    setDetailOrder(order)
   }
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
@@ -166,25 +224,68 @@ const SalesOrders = () => {
     })
   }
 
-  const rowActions: RowAction<SalesOrder>[] = [
-    {
+  // Compute workflow action for selected rows (only shown when all selected rows share the same lifecycle action)
+  const selectedStatuses = useMemo(
+    () => new Set(selectedRows.map((o) => o.status)),
+    [selectedRows],
+  )
+  const commonNextAction = useMemo(() => {
+    if (selectedRows.length === 0 || selectedStatuses.size !== 1) return null
+    return getNextAction([...selectedStatuses][0])
+  }, [selectedRows, selectedStatuses])
+
+  const rowActions = useMemo<RowAction<SalesOrder>[]>(() => {
+    const actions: RowAction<SalesOrder>[] = []
+
+    // Workflow action is primary — comes first and stands out
+    if (commonNextAction) {
+      const Icon = WORKFLOW_ACTION_ICONS[commonNextAction.toStatus] ?? RiBox3Line
+      actions.push({
+        id: `workflow-${commonNextAction.toStatus}`,
+        label: commonNextAction.label,
+        icon: Icon,
+        primary: true,
+        showWhen: 'any',
+        onClick: (rows) => {
+          const promises = rows.map((r) =>
+            salesOrdersApi.updateStatus(r.order_id, commonNextAction.toStatus),
+          )
+          toast.promise(Promise.all(promises), {
+            loading: `Updating ${rows.length > 1 ? `${rows.length} orders` : 'order'}…`,
+            success: () => {
+              queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+              setSelectedOrderIds([])
+              return `Moved to "${commonNextAction.label}"`
+            },
+            error: 'Some updates failed',
+          })
+        },
+      })
+    }
+
+    actions.push({
       id: 'edit-order',
       label: 'Edit / Continue',
       icon: RiFileEditLine,
       onClick: (rows) => navigate(`/sales-orders/assistant?draft=${rows[0].order_id}`),
       showWhen: 'single',
-      primary: true,
-    },
-    {
-      id: 'view-invoice',
-      label: 'View Invoice',
-      icon: RiReceiptLine,
-      onClick: (rows) => {
-        if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`)
-      },
-      showWhen: 'single',
-    },
-  ]
+      primary: !commonNextAction,
+    })
+
+    if (selectedRows.length === 1 && selectedRows[0]?.invoice_id) {
+      actions.push({
+        id: 'view-invoice',
+        label: 'View Invoice',
+        icon: RiReceiptLine,
+        onClick: (rows) => {
+          if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`)
+        },
+        showWhen: 'single',
+      })
+    }
+
+    return actions
+  }, [commonNextAction, selectedRows, queryClient, navigate])
 
   const columns = useMemo<ColumnDef<SalesOrder>[]>(
     () => [
@@ -211,10 +312,15 @@ const SalesOrders = () => {
         accessorKey: 'order_number',
         header: 'Order #',
         cell: ({ row }) => (
-          <div className="flex flex-col">
-            <span className="font-medium text-primary">{row.original.order_number}</span>
+          <button
+            className="flex flex-col text-left group"
+            onClick={(e) => { e.stopPropagation(); setDetailOrder(row.original) }}
+          >
+            <span className="font-medium text-primary group-hover:underline underline-offset-2">
+              {row.original.order_number}
+            </span>
             <span className="text-xs text-muted-foreground">{row.original.order_id}</span>
-          </div>
+          </button>
         ),
       },
       {
@@ -232,11 +338,7 @@ const SalesOrders = () => {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <Badge variant={statusVariant[row.original.status]} className="capitalize">
-            {row.original.status.replace('_', ' ')}
-          </Badge>
-        ),
+        cell: ({ row }) => <SalesOrderStatusBadge status={row.original.status} />,
       },
       {
         id: 'items',
@@ -285,53 +387,106 @@ const SalesOrders = () => {
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: '',
         enableSorting: false,
         enableHiding: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="data-[state=open]:bg-muted"
-                aria-label="Open order actions"
-              >
-                <RiMore2Line className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={() => navigate(`/sales-orders/assistant?draft=${row.original.order_id}`)}>
-                <RiFileEditLine className="size-4" />
-                Edit / Continue
-              </DropdownMenuItem>
-              {row.original.status === 'draft' && (
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setDraftToDelete(row.original)}
+        cell: ({ row }) => {
+          const order = row.original
+          const nextAction = getNextAction(order.status)
+          const isRowPending = pendingRowId === order.order_id
+          const Icon = nextAction
+            ? (WORKFLOW_ACTION_ICONS[nextAction.toStatus] ?? RiBox3Line)
+            : null
+
+          return (
+            <div className="flex items-center gap-1.5 justify-end">
+              {/* Primary inline workflow action — always visible */}
+              {nextAction && Icon && (
+                <Button
+                  size="sm"
+                  disabled={isRowPending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    rowStatusMutation.mutate(
+                      { id: order.order_id, status: nextAction.toStatus },
+                      {
+                        onSuccess: () =>
+                          toast.success(`"${order.order_number}" → ${nextAction.label}`),
+                      },
+                    )
+                  }}
+                  className={cn(
+                    'h-7 gap-1 px-2.5 text-xs font-semibold shadow-none',
+                    nextAction.className,
+                  )}
                 >
-                  <RiDeleteBin6Line className="size-4" />
-                  Delete Draft
-                </DropdownMenuItem>
+                  {isRowPending ? (
+                    <RiLoader4Line className="size-3 animate-spin" />
+                  ) : (
+                    <Icon className="size-3" />
+                  )}
+                  {nextAction.label}
+                </Button>
               )}
-              {row.original.invoice_id && (
-                <DropdownMenuItem
-                  onClick={() => navigate(`/invoices?detail=${row.original.invoice_id}`)}
-                >
-                  <RiReceiptLine className="size-4" />
-                  View Invoice
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+
+              {/* Utility-only ellipsis */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="data-[state=open]:bg-muted"
+                    aria-label="More actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <RiMore2Line className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setDetailOrder(order)}>
+                    <RiEyeLine className="size-4" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/sales-orders/assistant?draft=${order.order_id}`)}
+                  >
+                    <RiFileEditLine className="size-4" />
+                    Edit Order
+                  </DropdownMenuItem>
+                  {order.invoice_id && (
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/invoices?detail=${order.invoice_id}`)}
+                    >
+                      <RiReceiptLine className="size-4" />
+                      View Invoice
+                    </DropdownMenuItem>
+                  )}
+                  {order.status === 'draft' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDraftToDelete(order)}
+                      >
+                        <RiDeleteBin6Line className="size-4" />
+                        Delete Draft
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )
+        },
       },
     ],
-    [isAllSelected, isIndeterminate, selectedOrderIds],
+    [isAllSelected, isIndeterminate, selectedOrderIds, pendingRowId, queryClient, navigate, rowStatusMutation],
   )
 
   return (
     <div className="space-y-6">
+      {/* Draft cards */}
       {drafts.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-950/20">
           <div className="flex items-center gap-2 mb-3">
@@ -353,12 +508,20 @@ const SalesOrders = () => {
         </div>
       )}
 
-      <AlertDialog open={!!draftToDelete} onOpenChange={(open) => { if (!open) setDraftToDelete(null) }}>
+      {/* Delete draft dialog */}
+      <AlertDialog
+        open={!!draftToDelete}
+        onOpenChange={(open) => {
+          if (!open) setDraftToDelete(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete draft order?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove draft {draftToDelete?.order_number || 'this order'} and its unsaved progress. This action cannot be undone.
+              This will permanently remove draft{' '}
+              {draftToDelete?.order_number || 'this order'} and its unsaved progress. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -367,31 +530,66 @@ const SalesOrders = () => {
               onClick={() => draftToDelete && deleteDraftMutation.mutate(draftToDelete.order_id)}
               disabled={deleteDraftMutation.isPending}
             >
-              {deleteDraftMutation.isPending ? 'Deleting...' : 'Delete Draft'}
+              {deleteDraftMutation.isPending ? 'Deleting…' : 'Delete Draft'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Sales order detail sheet */}
+      <SalesOrderDetailSheet
+        order={detailOrder}
+        open={!!detailOrder}
+        onOpenChange={(open) => { if (!open) setDetailOrder(null) }}
+      />
+
+      {/* Header */}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sales Orders</h1>
           <p className="text-sm text-muted-foreground">
-            View all created sales orders and open the sales order assistant.
+            Live order processing workspace — track and advance every order through its lifecycle.
           </p>
         </div>
-        <Button size="sm" className="w-full md:w-auto" onClick={() => navigate('/sales-orders/assistant')}>
+        <Button
+          size="sm"
+          className="w-full md:w-auto"
+          onClick={() => navigate('/sales-orders/assistant')}
+        >
           <RiAddLine className="size-4" />
           New Sales Order
         </Button>
       </section>
+
+      {/* Lifecycle quick-filter tabs */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {LIFECYCLE_FILTER_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => {
+              setStatusFilter(tab.id === 'all' ? '' : (tab.id as SalesOrderStatus))
+              setPage(1)
+            }}
+            className={`flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <Card className="border-border/60">
         <CardHeader className="space-y-4">
           <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
             <div>
               <CardTitle className="text-xl">Order Records</CardTitle>
-              <CardDescription>Search, filter, and manage all sales orders.</CardDescription>
+              <CardDescription>
+                Select an order to advance it through the workflow.{' '}
+                <span className="text-foreground/60">Inline action buttons show the next step for each order.</span>
+              </CardDescription>
             </div>
             <Badge variant="secondary" className="w-fit">
               {data?.total || 0} total
@@ -405,11 +603,11 @@ const SalesOrders = () => {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="w-full sm:w-44" aria-label="Filter by status">
+              <SelectTrigger className="w-full sm:w-52" aria-label="Filter by status">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                {statusOptions.map((s) => (
+                {STATUS_FILTER_OPTIONS.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.label}
                   </SelectItem>
@@ -442,9 +640,12 @@ const SalesOrders = () => {
             sorting={sorting}
             onSortingChange={handleSortingChange}
             globalFilter={search}
-            onGlobalFilterChange={(value) => { setSearch(value); setPage(1) }}
+            onGlobalFilterChange={(value) => {
+              setSearch(value)
+              setPage(1)
+            }}
             loading={isLoading}
-            searchPlaceholder="Search orders..."
+            searchPlaceholder="Search orders…"
             className="px-6"
             selectedRows={selectedRows}
             rowActions={rowActions}
@@ -458,7 +659,10 @@ const SalesOrders = () => {
               totalPages={data.total_pages}
               onPageChange={setPage}
               pageSize={pageSize}
-              onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+              onPageSizeChange={(size) => {
+                setPageSize(size)
+                setPage(1)
+              }}
               totalItems={data.total}
             />
           )}

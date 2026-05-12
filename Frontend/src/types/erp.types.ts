@@ -1,6 +1,22 @@
 import { PaymentMethod } from './common.types'
 
-export type SalesOrderStatus = 'draft' | 'confirmed' | 'in_production' | 'ready' | 'completed' | 'cancelled'
+export type SalesOrderStatus =
+  | 'draft'
+  | 'confirmed'
+  | 'in_production'
+  | 'ready'
+  | 'completed'
+  | 'cancelled'
+  | 'created'
+  | 'lens_ordered'
+  | 'fitting'
+  | 'delivered'
+
+export interface StatusHistoryEntry {
+  status: SalesOrderStatus
+  updated_at: string
+  updated_by: string
+}
 
 export type LedgerTransactionType = 'SALE' | 'PURCHASE' | 'SUPPLIER_PAYMENT' | 'CUSTOMER_PAYMENT' | 'REFUND'
 
@@ -59,6 +75,7 @@ export interface SalesOrder {
   notes?: string
   invoice_id?: string
   status: SalesOrderStatus
+  status_history?: StatusHistoryEntry[]
   created_by: string
   created_at: string
   updated_at: string

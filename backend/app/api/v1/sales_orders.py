@@ -44,7 +44,7 @@ async def update_sales_order(order_id: str, data: SalesOrderUpdate, db: AsyncIOM
 
 @router.patch("/{order_id}/status", response_model=ResponseModel[SalesOrderResponse])
 async def update_sales_order_status(order_id: str, data: SalesOrderStatusUpdate, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
-    order = await SalesOrderService(db).update_sales_order(order_id, SalesOrderUpdate(status=data.status), current_user.user_id)
+    order = await SalesOrderService(db).update_sales_order_status(order_id, data.status, current_user.user_id)
     return ResponseModel(message="Sales order status updated successfully", data=order)
 
 

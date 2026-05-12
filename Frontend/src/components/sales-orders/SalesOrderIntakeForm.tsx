@@ -1045,12 +1045,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
         measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
-        status: 'confirmed' as const,
+        status: 'created' as const,
         items: itemPayload,
       }
 
       const savedOrder = draftOrderId
-        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'confirmed' } })
+        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'created' } })
         : await createSalesOrderMutation.mutateAsync(orderPayload)
       setSavedOrderNumber(savedOrder.order_number)
       setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })

@@ -87,6 +87,11 @@ class SalesOrderStatus(str, Enum):
     READY = "ready"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    # Lifecycle statuses
+    CREATED = "created"
+    LENS_ORDERED = "lens_ordered"
+    FITTING = "fitting"
+    DELIVERED = "delivered"
 
 class PrescriptionType(str, Enum):
     SINGLE_VISION = "single-vision"

@@ -6,6 +6,13 @@ from app.models.common import TimestampModel
 from app.utils.constants import SalesOrderStatus
 
 
+class StatusHistoryEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    status: str
+    updated_at: datetime
+    updated_by: str
+
+
 class SalesOrderItemModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
     product_id: str
@@ -35,4 +42,5 @@ class SalesOrderModel(TimestampModel):
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
     status: SalesOrderStatus = Field(default=SalesOrderStatus.DRAFT)
+    status_history: List[StatusHistoryEntry] = Field(default_factory=list)
     created_by: str

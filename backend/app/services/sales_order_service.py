@@ -27,7 +27,7 @@ from app.utils.constants import (
     LedgerReferenceType,
     LedgerTransactionType,
 )
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from pymongo import ReturnDocument
 
 
@@ -58,12 +58,17 @@ class SalesOrderService:
 
     def _allowed_status_transitions(self):
         return {
-            SalesOrderStatus.DRAFT: {SalesOrderStatus.CONFIRMED, SalesOrderStatus.CANCELLED},
-            SalesOrderStatus.CONFIRMED: {SalesOrderStatus.IN_PRODUCTION, SalesOrderStatus.READY, SalesOrderStatus.CANCELLED},
-            SalesOrderStatus.IN_PRODUCTION: {SalesOrderStatus.READY, SalesOrderStatus.CANCELLED},
-            SalesOrderStatus.READY: {SalesOrderStatus.COMPLETED, SalesOrderStatus.CANCELLED},
+            SalesOrderStatus.DRAFT: {SalesOrderStatus.CONFIRMED, SalesOrderStatus.CREATED, SalesOrderStatus.CANCELLED},
+            SalesOrderStatus.CONFIRMED: {SalesOrderStatus.IN_PRODUCTION, SalesOrderStatus.READY, SalesOrderStatus.CANCELLED, SalesOrderStatus.LENS_ORDERED},
+            SalesOrderStatus.IN_PRODUCTION: {SalesOrderStatus.READY, SalesOrderStatus.CANCELLED, SalesOrderStatus.FITTING},
+            SalesOrderStatus.READY: {SalesOrderStatus.COMPLETED, SalesOrderStatus.DELIVERED, SalesOrderStatus.CANCELLED},
             SalesOrderStatus.COMPLETED: set(),
             SalesOrderStatus.CANCELLED: set(),
+            # New lifecycle transitions
+            SalesOrderStatus.CREATED: {SalesOrderStatus.LENS_ORDERED, SalesOrderStatus.CANCELLED},
+            SalesOrderStatus.LENS_ORDERED: {SalesOrderStatus.FITTING, SalesOrderStatus.CANCELLED},
+            SalesOrderStatus.FITTING: {SalesOrderStatus.READY, SalesOrderStatus.CANCELLED},
+            SalesOrderStatus.DELIVERED: set(),
         }
 
     async def _resolve_product_by_identifier(self, identifier: str):
@@ -156,6 +161,13 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product.product_id
                     resolved_track_stock = True
                 else:
+                    # product_id supplied but not found → always an error for catalogued lines.
+                    # Only omit the raise for purely manual lines (no product_id at all).
+                    if product_id:
+                        raise NotFoundException(
+                            f"Product '{product_name or product_id}' (ID: {product_id}) not found in the product catalogue. "
+                            "Please check that the product is active and retry."
+                        )
                     if not product_name:
                         raise NotFoundException(f"Product with ID {product_id} not found")
                     resolved_product_id = product_id
@@ -163,7 +175,6 @@ class SalesOrderService:
                     resolved_sku = sku or product_id
                     resolved_unit_price = unit_price
                     resolved_master_id = master_data_id or product_id
-                    # Manual/legacy lines should not touch stock if no inventory product was found.
                     resolved_track_stock = False
             elif line_type == "lens":
                 lens = await self.lens_master_repo.get_by_id(master_data_id or product_id)
@@ -259,6 +270,48 @@ class SalesOrderService:
             raise NotFoundException(f"Sales order {order_id} not found")
         return await self._to_response(order)
 
+    async def update_sales_order_status(self, order_id: str, new_status: SalesOrderStatus, updated_by: str) -> SalesOrderResponse:
+        existing = await self.repo.get_by_order_id(order_id)
+        if not existing:
+            raise NotFoundException(f"Sales order {order_id} not found")
+
+        old_status = existing.status
+        if old_status == new_status:
+            return await self._to_response(existing)
+
+        allowed = self._allowed_status_transitions().get(old_status, set())
+        if new_status not in allowed:
+            raise BadRequestException(
+                f"Cannot move from '{old_status}' to '{new_status}'. "
+                f"Allowed next steps: {', '.join(s.value for s in allowed) or 'none'}"
+            )
+
+        now = datetime.now(timezone.utc)
+        history_entry = {
+            "status": new_status.value,
+            "updated_at": now,
+            "updated_by": updated_by,
+        }
+
+        await self.db["sales_orders"].update_one(
+            {"order_id": order_id},
+            {
+                "$set": {"status": new_status.value, "updated_at": now},
+                "$push": {"status_history": history_entry},
+            },
+        )
+
+        updated = await self.repo.get_by_order_id(order_id)
+        await self.audit_service.log(
+            updated_by,
+            "sales_order_status_updated",
+            "SalesOrder",
+            order_id,
+            old_value={"status": old_status.value},
+            new_value={"status": new_status.value},
+        )
+        return await self._to_response(updated)
+
     async def delete_sales_order(self, order_id: str, deleted_by: str) -> None:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
@@ -320,6 +373,35 @@ class SalesOrderService:
         await self.audit_service.log(created_by, "sales_order_created", "SalesOrder", order_id, new_value=created)
         created_model = SalesOrderModel(**created)
         if created_model.status != SalesOrderStatus.DRAFT:
+            # Deduct inventory when SO is created with non-DRAFT status
+            for item in created_model.items:
+                if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                    continue
+                product = await self._resolve_product_by_identifier(item.product_id)
+                if not product:
+                    raise NotFoundException(f"Product with ID {item.product_id} not found")
+                await self.inventory_movement_service.create_movement(
+                    InventoryMovementCreate(
+                        product_id=product.product_id,
+                        movement_type=InventoryMovementType.SALE_OUT,
+                        quantity=item.quantity,
+                        reference_type=LedgerReferenceType.SALES_ORDER,
+                        reference_id=created_model.order_id,
+                    ),
+                    created_by=created_by,
+                    apply_stock_change=True,
+                )
+            
+            await self.transaction_service.create_transaction(
+                TransactionCreate(
+                    transaction_type=LedgerTransactionType.SALE,
+                    reference_type=LedgerReferenceType.SALES_ORDER,
+                    reference_id=created_model.order_id,
+                    amount=created_model.total_amount,
+                    status="completed",
+                ),
+                created_by=created_by,
+            )
             await self._record_advance_payment_transaction(created_model.order_id, created_model.measurements, created_by)
         return await self._to_response(created_model)
 
@@ -352,14 +434,16 @@ class SalesOrderService:
             update_dict["subtotal"] = subtotal
             update_dict["total_amount"] = subtotal
 
-        if target_status == SalesOrderStatus.COMPLETED and old_status != SalesOrderStatus.COMPLETED:
-            completion_items = update_dict.get("items", [item.dict() for item in existing.items])
-            await self._ensure_stock_available([SalesOrderItemModel(**item) for item in completion_items])
+        if target_status != old_status and old_status == SalesOrderStatus.DRAFT and target_status != SalesOrderStatus.DRAFT:
+            # Deduct inventory when transitioning from DRAFT to non-DRAFT for the first time
+            transition_items = update_dict.get("items", [item.dict() for item in existing.items])
+            await self._ensure_stock_available([SalesOrderItemModel(**item) for item in transition_items])
 
         await self.repo.update({"order_id": order_id}, update_dict)
         updated = await self.repo.get_by_order_id(order_id)
 
-        if target_status == SalesOrderStatus.COMPLETED and old_status != SalesOrderStatus.COMPLETED:
+        # Create inventory movements when transitioning from DRAFT to non-DRAFT
+        if target_status != old_status and old_status == SalesOrderStatus.DRAFT and target_status != SalesOrderStatus.DRAFT:
             for item in updated.items:
                 if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
                     continue
@@ -388,7 +472,7 @@ class SalesOrderService:
                 ),
                 created_by=created_by,
             )
-
+        
         if updated.status != SalesOrderStatus.DRAFT:
             await self._record_advance_payment_transaction(updated.order_id, updated.measurements, created_by)
 
