@@ -54,7 +54,7 @@ class CasePriceRuleModel(TimestampModel):
     name: str
     min_price: float = Field(default=0, ge=0)
     max_price: Optional[float] = Field(default=None, ge=0)
-    product_id: str   # product's custom product_id (e.g. "PRD000001")
-    product_name: str  # denormalized
+    product_id: str = ""   # product's custom product_id (e.g. "PRD000001")
+    product_name: str = ""  # denormalized
     priority: int = Field(default=0, ge=0)
     is_active: bool = True

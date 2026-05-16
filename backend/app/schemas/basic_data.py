@@ -131,10 +131,10 @@ class CasePriceRuleResponse(BaseModel):
     name: str
     min_price: float
     max_price: Optional[float] = None
-    product_id: str
-    product_name: str
-    priority: int
-    is_active: bool
+    product_id: str = ""
+    product_name: str = ""
+    priority: int = 0
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
 
