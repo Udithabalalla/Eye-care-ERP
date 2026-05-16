@@ -14,3 +14,4 @@ class SupplierModel(TimestampModel):
     address: Optional[str] = None
     payment_terms: Optional[str] = None
     notes: Optional[str] = None
+    is_active: bool = Field(default=True)

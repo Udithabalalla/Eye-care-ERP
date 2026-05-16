@@ -25,7 +25,7 @@ class SupplierRepository(BaseRepository):
         limit: int = 10,
         search: Optional[str] = None,
     ) -> Tuple[List[SupplierModel], int]:
-        filter_query = {"is_active": True}
+        filter_query = {"is_active": {"$ne": False}}
 
         if search:
             escaped = re.escape(search)
