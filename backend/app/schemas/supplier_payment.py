@@ -23,6 +23,7 @@ class SupplierInvoicePaymentCreate(BaseModel):
 class SupplierPaymentResponse(BaseModel):
     id: str
     invoice_id: str
+    invoice_number: Optional[str] = None
     payment_date: datetime
     payment_method: str
     amount_paid: float

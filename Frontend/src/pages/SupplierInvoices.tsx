@@ -29,6 +29,7 @@ import { formatCurrency } from '@/utils/formatters'
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   Paid: 'default',
   Partial: 'secondary',
+  Unpaid: 'outline',
   Pending: 'outline',
   Overdue: 'destructive',
 }
@@ -121,7 +122,7 @@ const SupplierInvoices = () => {
                       <TableCell>
                         <span className="font-medium text-foreground">{invoice.invoice_number}</span>
                       </TableCell>
-                      <TableCell>{invoice.supplier_id}</TableCell>
+                      <TableCell>{invoice.supplier_name || invoice.supplier_id}</TableCell>
                       <TableCell>
                         <Badge variant={statusVariant[invoice.status] ?? 'outline'}>
                           {invoice.status}

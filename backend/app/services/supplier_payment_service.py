@@ -20,12 +20,31 @@ class SupplierPaymentService:
         self.invoice_repo = SupplierInvoiceRepository(db)
         self.payment_service = PaymentService(db)
 
+    async def _enrich_payment(self, payment_dict: dict) -> SupplierPaymentResponse:
+        invoice = await self.invoice_repo.get_by_invoice_id(payment_dict["invoice_id"])
+        payment_dict["invoice_number"] = invoice.invoice_number if invoice else None
+        return SupplierPaymentResponse(**payment_dict)
+
     async def list_payments(self, page: int, page_size: int, invoice_id: Optional[str] = None):
         skip = (page - 1) * page_size
         payments, total = await self.repo.list_payments(skip=skip, limit=page_size, invoice_id=invoice_id)
         total_pages = math.ceil(total / page_size)
+
+        # Build invoice lookup to avoid N+1 queries
+        unique_invoice_ids = list({p.invoice_id for p in payments})
+        invoice_map: dict[str, str] = {}
+        for iid in unique_invoice_ids:
+            inv = await self.invoice_repo.get_by_invoice_id(iid)
+            if inv:
+                invoice_map[iid] = inv.invoice_number
+
+        def _make_response(payment: SupplierPaymentModel) -> SupplierPaymentResponse:
+            data = payment.dict()
+            data["invoice_number"] = invoice_map.get(payment.invoice_id)
+            return SupplierPaymentResponse(**data)
+
         return PaginatedResponse(
-            data=[SupplierPaymentResponse(**payment.dict()) for payment in payments],
+            data=[_make_response(p) for p in payments],
             total=total,
             page=page,
             page_size=page_size,
@@ -59,6 +78,7 @@ class SupplierPaymentService:
         next_status = "Paid" if next_total_paid >= invoice.total_amount else "Partial"
         await self.invoice_repo.update_invoice_status(data.invoice_id, next_status)
 
+        created["invoice_number"] = invoice.invoice_number
         return SupplierPaymentResponse(**created)
 
     async def record_invoice_payment(self, invoice_id: str, data: SupplierInvoicePaymentCreate, current_user_id: str) -> SupplierPaymentResponse:

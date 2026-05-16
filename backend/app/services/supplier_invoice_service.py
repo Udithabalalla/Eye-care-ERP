@@ -33,12 +33,32 @@ class SupplierInvoiceService:
         self.purchase_order_repo = PurchaseOrderRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
 
+    async def _to_response(self, invoice: SupplierInvoiceModel) -> SupplierInvoiceResponse:
+        supplier = await self.supplier_repo.get_by_supplier_id(invoice.supplier_id)
+        data = invoice.dict()
+        data["supplier_name"] = supplier.supplier_name if supplier else None
+        return SupplierInvoiceResponse(**data)
+
     async def list_supplier_invoices(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None):
         skip = (page - 1) * page_size
         invoices, total = await self.repo.list_supplier_invoices(skip=skip, limit=page_size, supplier_id=supplier_id, status=status)
         total_pages = math.ceil(total / page_size)
+
+        # Build supplier lookup to avoid N+1 queries
+        unique_supplier_ids = list({inv.supplier_id for inv in invoices})
+        supplier_map: dict[str, str] = {}
+        for sid in unique_supplier_ids:
+            sup = await self.supplier_repo.get_by_supplier_id(sid)
+            if sup:
+                supplier_map[sid] = sup.supplier_name
+
+        def _make_response(invoice: SupplierInvoiceModel) -> SupplierInvoiceResponse:
+            data = invoice.dict()
+            data["supplier_name"] = supplier_map.get(invoice.supplier_id)
+            return SupplierInvoiceResponse(**data)
+
         return PaginatedResponse(
-            data=[SupplierInvoiceResponse(**invoice.dict()) for invoice in invoices],
+            data=[_make_response(inv) for inv in invoices],
             total=total,
             page=page,
             page_size=page_size,
@@ -137,7 +157,7 @@ class SupplierInvoiceService:
         doc["due_date"] = _date_to_datetime(doc.get("due_date"))
         await self.repo.create(doc)
         created = await self.repo.get_by_invoice_id(invoice_id)
-        return SupplierInvoiceResponse(**created.dict())
+        return await self._to_response(created)
 
     async def update_supplier_invoice(self, invoice_id: str, data: SupplierInvoiceUpdate) -> SupplierInvoiceResponse:
         existing = await self.repo.get_by_invoice_id(invoice_id)
@@ -149,4 +169,4 @@ class SupplierInvoiceService:
         if update_dict:
             await self.repo.update({"id": invoice_id}, update_dict)
         updated = await self.repo.get_by_invoice_id(invoice_id)
-        return SupplierInvoiceResponse(**updated.dict())
+        return await self._to_response(updated)

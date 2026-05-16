@@ -186,6 +186,7 @@ export interface ReceiveStockFormData {
 export interface SupplierInvoice {
   id: string
   supplier_id: string
+  supplier_name?: string
   purchase_order_id?: string
   invoice_number: string
   invoice_date: string
@@ -224,6 +225,7 @@ export interface SupplierInvoiceFormData {
 export interface SupplierPayment {
   id: string
   invoice_id: string
+  invoice_number?: string
   payment_date: string
   payment_method: string
   amount_paid: number

@@ -106,7 +106,7 @@ const SupplierPayments = () => {
                       <TableCell>
                         <span className="font-medium text-foreground">{payment.id}</span>
                       </TableCell>
-                      <TableCell>{payment.invoice_id}</TableCell>
+                      <TableCell>{payment.invoice_number || payment.invoice_id}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="capitalize">
                           {payment.payment_method}

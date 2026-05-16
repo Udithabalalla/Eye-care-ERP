@@ -36,6 +36,7 @@ class SupplierInvoiceUpdate(BaseModel):
 class SupplierInvoiceResponse(BaseModel):
     id: str
     supplier_id: str
+    supplier_name: Optional[str] = None
     purchase_order_id: Optional[str] = None
     invoice_number: str
     invoice_date: datetime
