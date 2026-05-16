@@ -85,6 +85,14 @@ class SalesOrderStatus(str, Enum):
     FITTING = "fitting"
     DELIVERED = "delivered"
 
+
+class PurchaseOrderStatus(str, Enum):
+    DRAFT = "Draft"
+    APPROVED = "Approved"
+    ORDERED = "Ordered"
+    RECEIVED = "Received"
+    CLOSED = "Closed"
+
 class PrescriptionType(str, Enum):
     SINGLE_VISION = "single-vision"
     BIFOCAL = "bifocal"

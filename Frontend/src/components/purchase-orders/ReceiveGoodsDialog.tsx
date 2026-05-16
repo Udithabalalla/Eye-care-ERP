@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import Modal from '@/components/common/Modal'
-import Button from '@/components/common/Button'
-import Input from '@/components/common/Input'
-import { Table, Badge } from '@/components/ui'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, ReceiveGoodsLineItem } from '@/types/supplier.types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { RiLoader4Line, RiTruckLine } from '@remixicon/react'
 
 interface ReceiveGoodsDialogProps {
   isOpen: boolean
@@ -18,50 +33,53 @@ interface ReceiveGoodsDialogProps {
 
 const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsDialogProps) => {
   const queryClient = useQueryClient()
+  const [items, setItems] = useState<ReceiveGoodsLineItem[]>([])
+
   const { data: products } = useQuery({
     queryKey: ['products', 'all'],
     queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
   })
-  const [items, setItems] = useState<ReceiveGoodsLineItem[]>([])
 
   useEffect(() => {
     if (!order) {
       setItems([])
       return
     }
-
-    setItems(order.items.map((item) => {
-      const product = products?.data.find((entry) => entry.product_id === item.product_id)
-      return {
-        product_id: item.product_id,
-        product_name: product?.name || item.product_id,
-        ordered_quantity: item.quantity,
-        received_quantity: item.quantity,
-      }
-    }))
+    setItems(
+      order.items.map((item) => {
+        const product = products?.data.find((p) => p.product_id === item.product_id)
+        return {
+          product_id: item.product_id,
+          product_name: product?.name || item.product_id,
+          ordered_quantity: item.quantity,
+          received_quantity: item.quantity,
+        }
+      }),
+    )
   }, [order, products?.data, isOpen])
 
   const receiveMutation = useMutation({
-    mutationFn: (payload: { items: Array<{ product_id: string; ordered_quantity: number; received_quantity: number }> }) => suppliersApi.receiveStock(order!.id, payload),
+    mutationFn: (payload: {
+      items: Array<{ product_id: string; ordered_quantity: number; received_quantity: number }>
+    }) => suppliersApi.receiveStock(order!.id, payload),
     onSuccess: (updatedOrder) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', order?.id] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
-      toast.success('Goods Received Successfully')
+      toast.success('Goods received successfully')
       onSuccess(updatedOrder)
       onClose()
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to receive stock'
-      toast.error(message)
+      toast.error(error?.response?.data?.detail || 'Failed to receive stock')
     },
   })
 
-  const save = () => {
+  const handleConfirm = () => {
     if (!items.length) {
       toast.error('No items to receive')
       return
     }
-
     receiveMutation.mutate({
       items: items.map((item) => ({
         product_id: item.product_id,
@@ -74,65 +92,78 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
   if (!order) return null
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Receive Goods - ${order.id}`}
-      size="xl"
-      footer={(
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} isLoading={receiveMutation.isPending}>Confirm Receipt</Button>
-        </div>
-      )}
-    >
-      <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
-            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
-            <div><span className="font-medium text-muted-foreground">Status:</span> <Badge color="warning" size="sm">{order.status}</Badge></div>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">Confirm the quantities received from the supplier before updating stock.</p>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <RiTruckLine className="size-4 text-purple-600" />
+            Receive Goods — {order.id}
+          </DialogTitle>
+          <DialogDescription>
+            Confirm quantities received from{' '}
+            {order.supplier_information?.supplier_name || order.supplier_id} before updating stock.
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <Table size="sm">
-            <Table.Header bordered>
-              <Table.Head label="Product" isRowHeader />
-              <Table.Head label="Ordered" />
-              <Table.Head label="Received" />
-            </Table.Header>
-            <Table.Body>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="w-28 text-center">Ordered</TableHead>
+                <TableHead className="w-32 text-center">Received</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((item, index) => (
-                <Table.Row key={item.product_id}>
-                  <Table.Cell>
-                    <div className="space-y-1">
-                      <div className="font-medium text-foreground">{item.product_name}</div>
-                      <div className="text-xs text-muted-foreground">{item.product_id}</div>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>{item.ordered_quantity}</Table.Cell>
-                  <Table.Cell>
+                <TableRow key={item.product_id}>
+                  <TableCell>
+                    <p className="font-medium text-foreground text-sm">{item.product_name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{item.product_id}</p>
+                  </TableCell>
+                  <TableCell className="text-center tabular-nums">{item.ordered_quantity}</TableCell>
+                  <TableCell>
                     <Input
                       type="number"
                       min={0}
                       max={item.ordered_quantity}
                       value={item.received_quantity}
-                      onChange={(value) => {
+                      className="h-8 text-center tabular-nums"
+                      onChange={(e) => {
                         const next = [...items]
-                        next[index] = { ...next[index], received_quantity: Number(value.target.value) }
+                        next[index] = {
+                          ...next[index],
+                          received_quantity: Number(e.target.value),
+                        }
                         setItems(next)
                       }}
                     />
-                  </Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
-      </div>
-    </Modal>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={receiveMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={receiveMutation.isPending}
+            className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600 gap-2"
+          >
+            {receiveMutation.isPending ? (
+              <RiLoader4Line className="size-4 animate-spin" />
+            ) : (
+              <RiTruckLine className="size-4" />
+            )}
+            Confirm Receipt
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -1,3 +1,11 @@
+export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Ordered' | 'Received' | 'Closed'
+
+export interface POStatusHistoryEntry {
+  status: PurchaseOrderStatus
+  updated_at: string
+  updated_by: string
+}
+
 export interface Supplier {
   id: string
   supplier_name: string
@@ -111,7 +119,7 @@ export interface PurchaseOrder {
   supplier_id: string
   order_date: string
   expected_delivery_date?: string
-  status: 'Draft' | 'Approved' | 'Ordered' | 'Received' | 'Closed'
+  status: PurchaseOrderStatus
   total_amount: number
   created_by: string
   is_locked?: boolean
@@ -124,6 +132,7 @@ export interface PurchaseOrder {
   authorization?: Authorization
   footer?: Footer
   receipt_summary?: PurchaseOrderReceiptSummary
+  status_history?: POStatusHistoryEntry[]
   items: PurchaseOrderItem[]
   created_at: string
   updated_at: string

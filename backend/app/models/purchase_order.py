@@ -4,6 +4,13 @@ from datetime import datetime
 from app.models.common import TimestampModel
 
 
+class StatusHistoryEntryModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    status: str
+    updated_at: datetime
+    updated_by: str
+
+
 class BuyerInformationModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
     company_name: Optional[str] = None
@@ -103,3 +110,4 @@ class PurchaseOrderModel(TimestampModel):
     authorization: Optional[AuthorizationModel] = None
     footer: Optional[FooterModel] = None
     receipt_summary: Optional[dict] = None
+    status_history: List[StatusHistoryEntryModel] = Field(default_factory=list)

@@ -110,7 +110,7 @@ async def update_purchase_order_status(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    order = await PurchaseOrderService(db).update_status(order_id, status)
+    order = await PurchaseOrderService(db).update_status(order_id, status, updated_by=current_user.user_id)
     return ResponseModel(message="Purchase order status updated successfully", data=order)
 
 

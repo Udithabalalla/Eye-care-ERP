@@ -37,7 +37,7 @@ from app.utils.helpers import generate_id
 from app.config.settings import settings
 from app.services.inventory_movement_service import InventoryMovementService
 from app.schemas.inventory_movement import InventoryMovementCreate
-from app.utils.constants import InventoryMovementType, LedgerReferenceType
+from app.utils.constants import InventoryMovementType, LedgerReferenceType, PurchaseOrderStatus
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -221,41 +221,66 @@ class PurchaseOrderService:
             raise NotFoundException(f"Purchase order {order_id} not found")
         return await self._to_response(order)
 
-    async def update_status(self, order_id: str, status: str) -> PurchaseOrderResponse:
+    def _allowed_status_transitions(self) -> dict:
+        return {
+            PurchaseOrderStatus.DRAFT: {PurchaseOrderStatus.APPROVED},
+            PurchaseOrderStatus.APPROVED: {PurchaseOrderStatus.ORDERED},
+            PurchaseOrderStatus.ORDERED: {PurchaseOrderStatus.RECEIVED},
+            PurchaseOrderStatus.RECEIVED: {PurchaseOrderStatus.CLOSED},
+            PurchaseOrderStatus.CLOSED: set(),
+        }
+
+    async def update_status(self, order_id: str, status: str, updated_by: str = "system") -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if status not in {"Approved", "Ordered"}:
-            raise BadRequestException("Invalid purchase order status")
-        if status == "Approved":
-            if order.status != "Draft":
-                raise BadRequestException("Only Draft purchase orders can be approved")
 
-            approval_date = datetime.now(timezone.utc)
+        try:
+            new_status = PurchaseOrderStatus(status)
+        except ValueError:
+            valid = [s.value for s in PurchaseOrderStatus]
+            raise BadRequestException(f"Invalid status '{status}'. Valid values: {valid}")
+
+        try:
+            old_status = PurchaseOrderStatus(order.status)
+        except ValueError:
+            old_status = PurchaseOrderStatus.DRAFT
+
+        allowed = self._allowed_status_transitions().get(old_status, set())
+        if new_status not in allowed:
+            allowed_labels = ", ".join(s.value for s in allowed) or "none"
+            raise BadRequestException(
+                f"Cannot move from '{old_status.value}' to '{new_status.value}'. "
+                f"Allowed next steps: {allowed_labels}"
+            )
+
+        now = datetime.now(timezone.utc)
+        history_entry = {
+            "status": new_status.value,
+            "updated_at": now,
+            "updated_by": updated_by,
+        }
+        update_fields: dict = {
+            "status": new_status.value,
+            "updated_at": now,
+        }
+
+        if new_status == PurchaseOrderStatus.APPROVED:
             authorization = order.authorization or AuthorizationModel()
-            authorization.approved_by = "WAS Kumudini"
+            authorization.approved_by = updated_by
             authorization.signature = "sign.png"
-            authorization.approval_date = approval_date
+            authorization.approval_date = now
+            update_fields["is_locked"] = True
+            update_fields["authorization"] = authorization.dict()
 
-            await self.repo.update(
-                {"id": order_id},
-                {
-                    "status": "Approved",
-                    "is_locked": True,
-                    "authorization": authorization.dict(),
-                },
-            )
-        elif status == "Ordered":
-            if order.status != "Approved":
-                raise BadRequestException("Only Approved purchase orders can be marked as ordered")
+        elif new_status == PurchaseOrderStatus.ORDERED:
+            update_fields["is_locked"] = True
 
-            await self.repo.update(
-                {"id": order_id},
-                {
-                    "status": "Ordered",
-                    "is_locked": True,
-                },
-            )
+        elif new_status == PurchaseOrderStatus.CLOSED:
+            update_fields["is_locked"] = True
+
+        await self.repo.update({"id": order_id}, update_fields)
+        await self.repo.push_status_history(order_id, history_entry)
 
         updated = await self.repo.get_by_order_id(order_id)
         return await self._to_response(updated)
@@ -311,7 +336,13 @@ class PurchaseOrderService:
         )
         await self.stock_receipt_repo.create(receipt_model.dict())
 
-        await self.repo.update({"id": order_id}, {"status": "Received"})
+        now = datetime.now(timezone.utc)
+        await self.repo.update({"id": order_id}, {"status": "Received", "updated_at": now})
+        await self.repo.push_status_history(order_id, {
+            "status": "Received",
+            "updated_at": now,
+            "updated_by": received_by,
+        })
         updated = await self.repo.get_by_order_id(order_id)
         return await self._to_response(updated)
 
@@ -378,6 +409,7 @@ class PurchaseOrderService:
             authorization=dump_value(order.authorization),
             footer=dump_value(order.footer),
             receipt_summary=dump_value(receipt_summary),
+            status_history=[entry.dict() for entry in order.status_history] if order.status_history else [],
             created_at=order.created_at,
             updated_at=order.updated_at,
         )

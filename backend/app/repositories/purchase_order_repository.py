@@ -25,3 +25,9 @@ class PurchaseOrderRepository(BaseRepository):
         docs, total = await self.get_many_with_count(filter_query, skip, limit, sort=[("created_at", -1)])
         orders = [PurchaseOrderModel(**d) for d in docs]
         return orders, total
+
+    async def push_status_history(self, order_id: str, entry: dict) -> None:
+        await self.collection.update_one(
+            {"id": order_id},
+            {"$push": {"status_history": entry}},
+        )

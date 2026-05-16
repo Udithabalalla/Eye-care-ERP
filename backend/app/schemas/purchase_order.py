@@ -3,6 +3,12 @@ from typing import Optional, List
 from datetime import datetime
 
 
+class StatusHistoryEntryResponse(BaseModel):
+    status: str
+    updated_at: datetime
+    updated_by: str
+
+
 class BuyerInformation(BaseModel):
     company_name: Optional[str] = None
     company_logo: Optional[str] = None
@@ -120,6 +126,7 @@ class PurchaseOrderResponse(BaseModel):
     authorization: Optional[Authorization] = None
     footer: Optional[Footer] = None
     receipt_summary: Optional["PurchaseOrderReceiptSummary"] = None
+    status_history: List[StatusHistoryEntryResponse] = []
     created_at: datetime
     updated_at: datetime
 
