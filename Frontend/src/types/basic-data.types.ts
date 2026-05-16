@@ -40,3 +40,45 @@ export interface MasterDataQueryParams {
   search?: string
   is_active?: boolean
 }
+
+export type ComplimentaryItemType = 'case' | 'bag'
+
+export interface ComplimentaryItem {
+  id: string
+  name: string
+  item_type: ComplimentaryItemType
+  description?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ComplimentaryItemFormData {
+  name: string
+  item_type: ComplimentaryItemType
+  description?: string
+  is_active: boolean
+}
+
+export interface CasePriceRule {
+  id: string
+  name: string
+  min_price: number
+  max_price?: number | null
+  item_id: string
+  item_name: string
+  priority: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CasePriceRuleFormData {
+  name: string
+  min_price: number
+  max_price?: number | null
+  item_id: string
+  item_name: string
+  priority: number
+  is_active: boolean
+}

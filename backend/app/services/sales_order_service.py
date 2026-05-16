@@ -206,6 +206,12 @@ class SalesOrderService:
                     resolved_unit_price = unit_price
                     resolved_master_id = master_data_id or product_id
                 resolved_track_stock = False
+            elif line_type == "complimentary":
+                resolved_name = product_name or "Complimentary Item"
+                resolved_sku = sku or product_id
+                resolved_unit_price = 0.0
+                resolved_master_id = master_data_id or product_id
+                resolved_track_stock = False
             else:
                 raise BadRequestException(f"Unsupported sales order line type: {line_type}")
 

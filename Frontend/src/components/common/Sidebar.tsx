@@ -131,6 +131,7 @@ const navigationSections: NavSection[] = [
         children: [
           { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: RiSettings4Line },
           { name: 'Lenses', path: '/basic-data/lenses', icon: RiSettings4Line },
+          { name: 'Cases & Bags', path: '/basic-data/complimentary-items', icon: RiSettings4Line },
         ],
       },
     ],

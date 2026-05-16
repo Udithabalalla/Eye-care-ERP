@@ -18,6 +18,7 @@ const SalesOrders = lazy(() => import('./pages/SalesOrders'))
 const SalesOrderAssistant = lazy(() => import('./pages/SalesOrderAssistant'))
 const OtherExpenses = lazy(() => import('./pages/OtherExpenses'))
 const Lenses = lazy(() => import('./pages/Lenses'))
+const ComplimentaryItems = lazy(() => import('./pages/ComplimentaryItems'))
 const Invoices = lazy(() => import('./pages/Invoices'))
 const Transactions = lazy(() => import('./pages/Transactions'))
 const Payments = lazy(() => import('./pages/Payments'))
@@ -69,6 +70,7 @@ function App() {
             <Route path="/sales-orders/assistant" element={<SalesOrderAssistant />} />
             <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
             <Route path="/basic-data/lenses" element={<Lenses />} />
+            <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />

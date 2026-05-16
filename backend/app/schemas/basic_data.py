@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -60,6 +61,75 @@ class LensMasterResponse(BaseModel):
     size: str
     price: float
     lens_code: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ComplimentaryItemCreate(BaseModel):
+    name: str = Field(..., min_length=2)
+    item_type: Literal["case", "bag"] = "case"
+    description: Optional[str] = None
+    is_active: bool = True
+
+
+class ComplimentaryItemUpdate(BaseModel):
+    name: str | None = None
+    item_type: Literal["case", "bag"] | None = None
+    description: Optional[str] = None
+    is_active: bool | None = None
+
+
+class ComplimentaryItemStatusUpdate(BaseModel):
+    is_active: bool
+
+
+class ComplimentaryItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str | None = Field(default=None, alias="_id")
+    name: str
+    item_type: str
+    description: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class CasePriceRuleCreate(BaseModel):
+    name: str = Field(..., min_length=2)
+    min_price: float = Field(default=0, ge=0)
+    max_price: Optional[float] = Field(default=None, ge=0)
+    item_id: str = Field(..., min_length=1)
+    item_name: str = Field(..., min_length=1)
+    priority: int = Field(default=0, ge=0)
+    is_active: bool = True
+
+
+class CasePriceRuleUpdate(BaseModel):
+    name: str | None = None
+    min_price: float | None = Field(default=None, ge=0)
+    max_price: Optional[float] = None
+    item_id: str | None = None
+    item_name: str | None = None
+    priority: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+class CasePriceRuleStatusUpdate(BaseModel):
+    is_active: bool
+
+
+class CasePriceRuleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str | None = Field(default=None, alias="_id")
+    name: str
+    min_price: float
+    max_price: Optional[float] = None
+    item_id: str
+    item_name: str
+    priority: int
     is_active: bool
     created_at: datetime
     updated_at: datetime

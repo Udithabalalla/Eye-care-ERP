@@ -32,7 +32,7 @@ export interface SalesOrderItem {
   unit_price: number
   total: number
   master_data_id?: string
-  line_type?: 'product' | 'lens' | 'expense'
+  line_type?: 'product' | 'lens' | 'expense' | 'complimentary'
   track_stock?: boolean
 }
 
