@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from app.models.common import TimestampModel
-from app.utils.constants import ProductCategory
 
 class Supplier(BaseModel):
     """Supplier information"""
@@ -15,7 +14,7 @@ class ProductModel(TimestampModel):
     product_id: str = Field(..., description="Unique product identifier")
     name: str
     description: Optional[str] = None
-    category: ProductCategory
+    category: str
     subcategory: Optional[str] = None
     brand: Optional[str] = None
     sku: str = Field(..., description="Stock Keeping Unit")

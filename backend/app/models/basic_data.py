@@ -25,6 +25,17 @@ class LensMasterModel(TimestampModel):
     is_active: bool = True
 
 
+class ProductCategoryModel(TimestampModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    id: str | None = Field(default=None, alias="_id")
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None  # hex color for UI badges
+    is_active: bool = True
+
+
+# Kept for backward-compat with old documents — no new records should be created.
 class ComplimentaryItemModel(TimestampModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -36,13 +47,14 @@ class ComplimentaryItemModel(TimestampModel):
 
 
 class CasePriceRuleModel(TimestampModel):
+    """Complimentary price rule — maps a frame price range to a product from inventory."""
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     id: str | None = Field(default=None, alias="_id")
     name: str
     min_price: float = Field(default=0, ge=0)
     max_price: Optional[float] = Field(default=None, ge=0)
-    item_id: str
-    item_name: str
+    product_id: str   # product's custom product_id (e.g. "PRD000001")
+    product_name: str  # denormalized
     priority: int = Field(default=0, ge=0)
     is_active: bool = True

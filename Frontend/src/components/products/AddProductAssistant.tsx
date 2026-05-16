@@ -6,8 +6,8 @@ import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
+import { basicDataApi } from '@/api/basic-data.api'
 import { AddProductAssistantData, Product } from '@/types/product.types'
-import { ProductCategory } from '@/types/common.types'
 
 interface AddProductAssistantProps {
   isOpen: boolean
@@ -26,19 +26,10 @@ type FormState = AddProductAssistantData & {
   internal_notes: string
 }
 
-const categoryOptions: Array<{ value: ProductCategory; label: string }> = [
-  { value: ProductCategory.CONTACT_LENSES, label: 'Contact Lenses' },
-  { value: ProductCategory.EYEGLASSES, label: 'Eyeglasses' },
-  { value: ProductCategory.FRAMES, label: 'Frames' },
-  { value: ProductCategory.SUNGLASSES, label: 'Sunglasses' },
-  { value: ProductCategory.EYE_DROPS, label: 'Eye Drops' },
-  { value: ProductCategory.ACCESSORIES, label: 'Accessories' },
-]
-
 const createDefaultState = (product?: Product | null): FormState => ({
   name: product?.name || '',
   description: product?.description || '',
-  category: product?.category || ProductCategory.ACCESSORIES,
+  category: product?.category || '',
   brand: product?.brand || '',
   sku: product?.sku || '',
   cost_price: product?.cost_price || 0,
@@ -55,6 +46,8 @@ const createDefaultState = (product?: Product | null): FormState => ({
 const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSupplierId }: AddProductAssistantProps) => {
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
+  const { data: categoriesData } = useQuery({ queryKey: ['product-categories'], queryFn: () => basicDataApi.getProductCategories({ page: 1, page_size: 200, is_active: true }), staleTime: 5 * 60 * 1000 })
+  const categories = categoriesData?.data ?? []
   const [form, setForm] = useState<FormState>(createDefaultState(product))
 
   useEffect(() => {
@@ -169,9 +162,10 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
           </div>
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Category</label>
-            <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ProductCategory })}>
-              {categoryOptions.map((category) => (
-                <option key={category.value} value={category.value}>{category.label}</option>
+            <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+              <option value="">Select category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
+import { basicDataApi } from '@/api/basic-data.api'
 import {
   RiAddLine,
   RiAlertLine,
@@ -58,6 +59,13 @@ const Products = () => {
         low_stock: lowStockFilter,
       }),
   })
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['product-categories'],
+    queryFn: () => basicDataApi.getProductCategories({ page: 1, page_size: 200, is_active: true }),
+    staleTime: 5 * 60 * 1000,
+  })
+  const categories = categoriesData?.data ?? []
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product)
@@ -188,12 +196,9 @@ const Products = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="contact-lenses">Contact Lenses</SelectItem>
-                <SelectItem value="eyeglasses">Eyeglasses</SelectItem>
-                <SelectItem value="frames">Frames</SelectItem>
-                <SelectItem value="sunglasses">Sunglasses</SelectItem>
-                <SelectItem value="eye-drops">Eye Drops</SelectItem>
-                <SelectItem value="accessories">Accessories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select

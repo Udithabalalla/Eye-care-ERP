@@ -57,11 +57,10 @@ import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
-import { useComplimentaryItems } from '@/hooks/useComplimentaryItems'
 import { basicDataApi } from '@/api/basic-data.api'
-import { ComplimentaryItem } from '@/types/basic-data.types'
+import { ComplimentaryProductSuggestion } from '@/types/basic-data.types'
 import { Invoice } from '@/types/invoice.types'
-import { Gender, ProductCategory } from '@/types/common.types'
+import { Gender } from '@/types/common.types'
 import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
@@ -563,14 +562,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
-  const { data: caseItemsData } = useComplimentaryItems({ item_type: 'case', is_active: true, page_size: 100 })
-  const { data: bagItemsData } = useComplimentaryItems({ item_type: 'bag', is_active: true, page_size: 100 })
 
   const [includeCase, setIncludeCase] = useState(true)
   const [selectedCaseId, setSelectedCaseId] = useState('')
   const [includeBag, setIncludeBag] = useState(true)
   const [selectedBagId, setSelectedBagId] = useState('')
-  const [suggestedCase, setSuggestedCase] = useState<ComplimentaryItem | null>(null)
+  const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -650,9 +647,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   // Derived options
   const frameOptions = useMemo<LookupOption[]>(() => {
-    const cats = new Set<ProductCategory>([ProductCategory.FRAMES, ProductCategory.SUNGLASSES])
     return (productData?.data || [])
-      .filter((p) => cats.has(p.category) && p.current_stock > 0)
+      .filter((p) => ['frames', 'sunglasses'].includes(p.category.toLowerCase()) && p.current_stock > 0)
       .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku}${p.barcode ? ` • ${p.barcode}` : ''} • ${formatCurrency(p.selling_price)}` }))
   }, [productData])
 
@@ -743,10 +739,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   useEffect(() => {
     if (!frame.total || frame.total <= 0) return
     let cancelled = false
-    basicDataApi.suggestCase(frame.total).then((item) => {
+    basicDataApi.suggestComplimentary(frame.total).then((item) => {
       if (cancelled) return
       setSuggestedCase(item)
-      if (item && !selectedCaseId) setSelectedCaseId(item.id)
+      if (item && !selectedCaseId) setSelectedCaseId(item.product_id)
     }).catch(() => {})
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -812,8 +808,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null)
     reset(mapped, { keepDirty: false })
     const compItems = draftOrder.items.filter((i) => i.line_type === 'complimentary')
-    const draftCase = compItems.find((i) => i.product_name?.toLowerCase().includes('case') || i.sku?.startsWith('CASE-'))
-    const draftBag  = compItems.find((i) => i.product_name?.toLowerCase().includes('bag')  || i.sku?.startsWith('BAG-'))
+    const draftCase = compItems[0] ?? null
+    const draftBag  = compItems[1] ?? null
     if (draftCase) { setIncludeCase(true); setSelectedCaseId(draftCase.product_id) }
     else setIncludeCase(false)
     if (draftBag) { setIncludeBag(true); setSelectedBagId(draftBag.product_id) }
@@ -988,12 +984,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
     })
     if (includeCase && selectedCaseId) {
-      const caseItem = caseItemsData?.data.find((c) => c.id === selectedCaseId)
-      if (caseItem) draftItems.push({ product_id: caseItem.id, product_name: caseItem.name, sku: `CASE-${caseItem.id}`, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.id, line_type: 'complimentary', track_stock: false })
+      const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
+      if (caseItem) draftItems.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary', track_stock: true })
     }
     if (includeBag && selectedBagId) {
-      const bagItem = bagItemsData?.data.find((b) => b.id === selectedBagId)
-      if (bagItem) draftItems.push({ product_id: bagItem.id, product_name: bagItem.name, sku: `BAG-${bagItem.id}`, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.id, line_type: 'complimentary', track_stock: false })
+      const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
+      if (bagItem) draftItems.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary', track_stock: true })
     }
 
     if (draftItems.length === 0) {
@@ -1074,12 +1070,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
       if (!values.salesOrder.isOld) {
         if (includeCase && selectedCaseId) {
-          const caseItem = caseItemsData?.data.find((c) => c.id === selectedCaseId)
-          if (caseItem) itemPayload.push({ product_id: caseItem.id, product_name: caseItem.name, sku: `CASE-${caseItem.id}`, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.id, line_type: 'complimentary' as const, track_stock: false })
+          const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
+          if (caseItem) itemPayload.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary' as const, track_stock: true })
         }
         if (includeBag && selectedBagId) {
-          const bagItem = bagItemsData?.data.find((b) => b.id === selectedBagId)
-          if (bagItem) itemPayload.push({ product_id: bagItem.id, product_name: bagItem.name, sku: `BAG-${bagItem.id}`, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.id, line_type: 'complimentary' as const, track_stock: false })
+          const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
+          if (bagItem) itemPayload.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary' as const, track_stock: true })
         }
       }
 
@@ -1903,7 +1899,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </CardHeader>
                   <Separator />
                   <CardContent className="pt-5 space-y-3">
-                    {/* Frame Case */}
+                    {/* Complimentary Item 1 (e.g. Frame Case) */}
                     <div className={`flex items-center justify-between gap-4 rounded-xl border p-4 transition-all ${includeCase ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
                       <div className="flex items-center gap-3 min-w-0">
                         <Checkbox
@@ -1914,8 +1910,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                         <label htmlFor="include-case" className="flex items-center gap-2 cursor-pointer min-w-0">
                           <RiBriefcaseLine className="size-4 text-muted-foreground flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">Frame Case</p>
-                            {suggestedCase && selectedCaseId === suggestedCase.id && (
+                            <p className="text-sm font-medium text-foreground">Complimentary Item 1</p>
+                            {suggestedCase && selectedCaseId === suggestedCase.product_id && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <RiSparklingFill className="size-3 text-primary" />
                                 Auto-suggested for this price
@@ -1925,29 +1921,26 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                         </label>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {includeCase && (caseItemsData?.data || []).length > 0 && (
-                          <Select
-                            value={selectedCaseId}
-                            onValueChange={setSelectedCaseId}
-                          >
-                            <SelectTrigger className="w-44 h-8 text-sm">
-                              <SelectValue placeholder="Select case" />
+                        {includeCase && (
+                          <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+                            <SelectTrigger className="w-52 h-8 text-sm">
+                              <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(caseItemsData?.data || []).map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              {(productData?.data || []).filter((p) => p.is_active).map((p) => (
+                                <SelectItem key={p.product_id} value={p.product_id}>
+                                  {p.name}
+                                  <span className="ml-1 text-muted-foreground text-xs">· {p.sku}</span>
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        )}
-                        {(caseItemsData?.data || []).length === 0 && includeCase && (
-                          <span className="text-xs text-muted-foreground">No cases configured</span>
                         )}
                         <Badge variant="secondary" className="text-xs">Free</Badge>
                       </div>
                     </div>
 
-                    {/* Carry Bag */}
+                    {/* Complimentary Item 2 (e.g. Carry Bag) */}
                     <div className={`flex items-center justify-between gap-4 rounded-xl border p-4 transition-all ${includeBag ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
                       <div className="flex items-center gap-3 min-w-0">
                         <Checkbox
@@ -1957,27 +1950,24 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                         />
                         <label htmlFor="include-bag" className="flex items-center gap-2 cursor-pointer min-w-0">
                           <RiGiftLine className="size-4 text-muted-foreground flex-shrink-0" />
-                          <p className="text-sm font-medium text-foreground">Carry Bag</p>
+                          <p className="text-sm font-medium text-foreground">Complimentary Item 2</p>
                         </label>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {includeBag && (bagItemsData?.data || []).length > 0 && (
-                          <Select
-                            value={selectedBagId}
-                            onValueChange={setSelectedBagId}
-                          >
-                            <SelectTrigger className="w-44 h-8 text-sm">
-                              <SelectValue placeholder="Select bag" />
+                        {includeBag && (
+                          <Select value={selectedBagId} onValueChange={setSelectedBagId}>
+                            <SelectTrigger className="w-52 h-8 text-sm">
+                              <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(bagItemsData?.data || []).map((b) => (
-                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                              {(productData?.data || []).filter((p) => p.is_active).map((p) => (
+                                <SelectItem key={p.product_id} value={p.product_id}>
+                                  {p.name}
+                                  <span className="ml-1 text-muted-foreground text-xs">· {p.sku}</span>
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        )}
-                        {(bagItemsData?.data || []).length === 0 && includeBag && (
-                          <span className="text-xs text-muted-foreground">No bags configured</span>
                         )}
                         <Badge variant="secondary" className="text-xs">Free</Badge>
                       </div>
@@ -2094,8 +2084,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Complimentary</span>
                           <div className="flex flex-col items-end gap-1">
-                            {includeCase && selectedCaseId && (() => { const c = caseItemsData?.data.find((x) => x.id === selectedCaseId); return c ? <span className="text-xs text-muted-foreground">{c.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
-                            {includeBag && selectedBagId && (() => { const b = bagItemsData?.data.find((x) => x.id === selectedBagId); return b ? <span className="text-xs text-muted-foreground">{b.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
+                            {includeCase && selectedCaseId && (() => { const c = productData?.data.find((x) => x.product_id === selectedCaseId); return c ? <span className="text-xs text-muted-foreground">{c.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
+                            {includeBag && selectedBagId && (() => { const b = productData?.data.find((x) => x.product_id === selectedBagId); return b ? <span className="text-xs text-muted-foreground">{b.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
                             {includeCase && !selectedCaseId && <span className="text-xs text-muted-foreground">Case · <span className="text-green-600 font-medium">Free</span></span>}
                             {includeBag && !selectedBagId && <span className="text-xs text-muted-foreground">Bag · <span className="text-green-600 font-medium">Free</span></span>}
                           </div>

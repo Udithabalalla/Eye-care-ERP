@@ -1,15 +1,27 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { basicDataApi } from '@/api/basic-data.api'
+import { productsApi } from '@/api/products.api'
+import { CasePriceRule, CasePriceRuleFormData } from '@/types/basic-data.types'
 import {
   RiAddLine,
-  RiBriefcaseLine,
-  RiDeleteBin6Line,
   RiEditLine,
+  RiDeleteBin6Line,
+  RiSearchLine,
   RiGiftLine,
-  RiMore2Line,
-  RiPriceTag3Line,
+  RiCloseLine,
+  RiCheckLine,
+  RiMoreLine,
+  RiArrowRightSLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,17 +32,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Separator } from '@/components/ui/separator'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,345 +42,202 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
-import Loading from '@/components/common/Loading'
-import { basicDataApi } from '@/api/basic-data.api'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import SearchableLOV from '@/components/common/SearchableLOV'
 import { formatCurrency } from '@/utils/formatters'
-import { ComplimentaryItem, ComplimentaryItemFormData, CasePriceRule, CasePriceRuleFormData } from '@/types/basic-data.types'
+import toast from 'react-hot-toast'
 
-// ── Complimentary Item Form ───────────────────────────────────────────────────
+// ── Zod schema ────────────────────────────────────────────────────────────────
 
-const emptyItemForm: ComplimentaryItemFormData = {
-  name: '',
-  item_type: 'case',
-  description: '',
-  is_active: true,
-}
+const ruleSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  min_price: z.number().min(0, 'Must be ≥ 0'),
+  max_price: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+    z.number().min(0).nullable().optional()
+  ),
+  product_id: z.string().min(1, 'Select a product'),
+  product_name: z.string().min(1),
+  priority: z.number().min(0).default(0),
+  is_active: z.boolean().default(true),
+})
 
-interface ItemFormDialogProps {
+type RuleFormValues = z.infer<typeof ruleSchema>
+
+// ── Rule Dialog ───────────────────────────────────────────────────────────────
+
+interface RuleDialogProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
-  item: ComplimentaryItem | null
-  defaultType?: 'case' | 'bag'
-  onSaved: () => void
+  onClose: () => void
+  rule?: CasePriceRule | null
 }
 
-const ItemFormDialog = ({ open, onOpenChange, item, defaultType = 'case', onSaved }: ItemFormDialogProps) => {
-  const [form, setForm] = useState<ComplimentaryItemFormData>(
-    item ? { name: item.name, item_type: item.item_type, description: item.description || '', is_active: item.is_active }
-         : { ...emptyItemForm, item_type: defaultType }
-  )
+const RuleDialog = ({ open, onClose, rule }: RuleDialogProps) => {
+  const queryClient = useQueryClient()
 
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      item ? basicDataApi.updateComplimentaryItem(item.id, form) : basicDataApi.createComplimentaryItem(form),
-    onSuccess: () => {
-      toast.success(item ? 'Item updated' : 'Item created')
-      onSaved()
-      onOpenChange(false)
+  const { data: productsData } = useQuery({
+    queryKey: ['products-for-rules'],
+    queryFn: async () => {
+      const first = await productsApi.getAll({ page: 1, page_size: 100 })
+      if (first.total_pages <= 1) return first
+      const all = [...first.data]
+      for (let p = 2; p <= first.total_pages; p++) {
+        const next = await productsApi.getAll({ page: p, page_size: 100 })
+        all.push(...next.data)
+      }
+      return { ...first, data: all }
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to save'),
+    staleTime: 60_000,
   })
 
-  const handleOpen = (v: boolean) => {
-    if (v) {
-      setForm(item ? { name: item.name, item_type: item.item_type, description: item.description || '', is_active: item.is_active }
-                   : { ...emptyItemForm, item_type: defaultType })
-    }
-    onOpenChange(v)
-  }
+  const productOptions = (productsData?.data ?? [])
+    .filter((p) => p.is_active)
+    .map((p) => ({
+      value: p.product_id,
+      label: p.name,
+      subtitle: `${p.sku} · ${p.category} · ${formatCurrency(p.selling_price)}`,
+    }))
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{item ? 'Edit Item' : `Add ${defaultType === 'case' ? 'Case' : 'Bag'}`}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="item-name">Name <span className="text-destructive">*</span></Label>
-            <Input
-              id="item-name"
-              placeholder={defaultType === 'case' ? 'e.g. Premium Hard Case' : 'e.g. Standard Carry Bag'}
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select value={form.item_type} onValueChange={(v) => setForm({ ...form, item_type: v as 'case' | 'bag' })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="case">Case</SelectItem>
-                <SelectItem value="bag">Bag</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="item-desc">Description</Label>
-            <Textarea
-              id="item-desc"
-              rows={2}
-              placeholder="Optional description"
-              className="resize-none"
-              value={form.description || ''}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="item-active"
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm({ ...form, is_active: !!v })}
-            />
-            <Label htmlFor="item-active">Active</Label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={!form.name.trim() || saveMutation.isPending}>
-            {saveMutation.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// ── Case Price Rule Form ──────────────────────────────────────────────────────
-
-const emptyRuleForm: CasePriceRuleFormData = {
-  name: '',
-  min_price: 0,
-  max_price: null,
-  item_id: '',
-  item_name: '',
-  priority: 0,
-  is_active: true,
-}
-
-interface RuleFormDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  rule: CasePriceRule | null
-  caseItems: ComplimentaryItem[]
-  onSaved: () => void
-}
-
-const RuleFormDialog = ({ open, onOpenChange, rule, caseItems, onSaved }: RuleFormDialogProps) => {
-  const [form, setForm] = useState<CasePriceRuleFormData>(
-    rule ? {
-      name: rule.name,
-      min_price: rule.min_price,
-      max_price: rule.max_price ?? null,
-      item_id: rule.item_id,
-      item_name: rule.item_name,
-      priority: rule.priority,
-      is_active: rule.is_active,
-    } : { ...emptyRuleForm }
-  )
-
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      rule ? basicDataApi.updateCasePriceRule(rule.id, form) : basicDataApi.createCasePriceRule(form),
-    onSuccess: () => {
-      toast.success(rule ? 'Rule updated' : 'Rule created')
-      onSaved()
-      onOpenChange(false)
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to save rule'),
+  const form = useForm<RuleFormValues>({
+    resolver: zodResolver(ruleSchema),
+    defaultValues: rule
+      ? {
+          name: rule.name,
+          min_price: rule.min_price,
+          max_price: rule.max_price ?? null,
+          product_id: rule.product_id,
+          product_name: rule.product_name,
+          priority: rule.priority,
+          is_active: rule.is_active,
+        }
+      : { name: '', min_price: 0, max_price: null, product_id: '', product_name: '', priority: 0, is_active: true },
   })
 
-  const handleOpen = (v: boolean) => {
-    if (v) {
-      setForm(rule ? {
-        name: rule.name,
-        min_price: rule.min_price,
-        max_price: rule.max_price ?? null,
-        item_id: rule.item_id,
-        item_name: rule.item_name,
-        priority: rule.priority,
-        is_active: rule.is_active,
-      } : { ...emptyRuleForm })
-    }
-    onOpenChange(v)
+  const createMutation = useMutation({
+    mutationFn: (data: CasePriceRuleFormData) => basicDataApi.createCasePriceRule(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['case-price-rules'] })
+      toast.success('Price rule created')
+      onClose()
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to create rule'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<CasePriceRuleFormData>) => basicDataApi.updateCasePriceRule(rule!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['case-price-rules'] })
+      toast.success('Price rule updated')
+      onClose()
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to update rule'),
+  })
+
+  const onSubmit = (values: RuleFormValues) => {
+    const payload: CasePriceRuleFormData = { ...values, max_price: values.max_price ?? null }
+    if (rule) updateMutation.mutate(payload)
+    else createMutation.mutate(payload)
   }
 
-  const handleCaseSelect = (id: string) => {
-    const item = caseItems.find((c) => c.id === id)
-    setForm({ ...form, item_id: id, item_name: item?.name || '' })
-  }
+  const isPending = createMutation.isPending || updateMutation.isPending
 
-  const isValid = form.name.trim() && form.item_id && form.min_price >= 0
+  const handleProductChange = (productId: string) => {
+    form.setValue('product_id', productId)
+    const product = productsData?.data.find((p) => p.product_id === productId)
+    if (product) form.setValue('product_name', product.name)
+  }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{rule ? 'Edit Price Rule' : 'New Price Rule'}</DialogTitle>
+          <DialogTitle>{rule ? 'Edit Price Rule' : 'Add Complimentary Price Rule'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label>Rule Name <span className="text-destructive">*</span></Label>
-            <Input
-              placeholder="e.g. Premium Case for High-value Frames"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Case to Distribute <span className="text-destructive">*</span></Label>
-            <Select value={form.item_id} onValueChange={handleCaseSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select case type" />
-              </SelectTrigger>
-              <SelectContent>
-                {caseItems.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Min Frame Price ({formatCurrency(0).replace('0.00', '').trim() || 'Rs.'})</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="0.00"
-                value={form.min_price}
-                onChange={(e) => setForm({ ...form, min_price: Number(e.target.value) })}
-              />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Rule Name *</FormLabel>
+                <FormControl><Input {...field} placeholder="e.g. Frame Case for Premium Frames" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="min_price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Min Frame Price *</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} step="0.01" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="max_price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Max Frame Price <span className="text-muted-foreground text-xs">(blank = no limit)</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="No limit"
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Max Frame Price <span className="text-muted-foreground text-xs">(blank = unlimited)</span></Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="No limit"
-                value={form.max_price ?? ''}
-                onChange={(e) => setForm({ ...form, max_price: e.target.value === '' ? null : Number(e.target.value) })}
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Priority <span className="text-muted-foreground text-xs">(lower = checked first)</span></Label>
-            <Input
-              type="number"
-              min={0}
-              step="1"
-              placeholder="0"
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="rule-active"
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm({ ...form, is_active: !!v })}
-            />
-            <Label htmlFor="rule-active">Active</Label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>
-            {saveMutation.isPending ? 'Saving…' : 'Save Rule'}
-          </Button>
-        </DialogFooter>
+
+            <FormField control={form.control} name="product_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Complimentary Product *</FormLabel>
+                <FormControl>
+                  <SearchableLOV
+                    placeholder="Search and select a product…"
+                    value={field.value ?? ''}
+                    onChange={handleProductChange}
+                    options={productOptions}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Product must exist in your inventory. It is given free when frame price is in this range.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="priority" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Priority <span className="text-muted-foreground text-xs">(lower number = higher priority)</span></FormLabel>
+                <FormControl>
+                  <Input type="number" min={0} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="is_active" render={({ field }) => (
+              <FormItem className="flex items-center gap-2 space-y-0">
+                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                <FormLabel className="cursor-pointer font-normal">Active</FormLabel>
+              </FormItem>
+            )} />
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={isPending || productOptions.length === 0}>
+                {productOptions.length === 0
+                  ? 'No products in inventory'
+                  : isPending ? 'Saving…' : rule ? 'Save Changes' : 'Create Rule'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
-}
-
-// ── Item Table (reused for Cases and Bags) ────────────────────────────────────
-
-interface ItemTableProps {
-  items: ComplimentaryItem[]
-  isLoading: boolean
-  type: 'case' | 'bag'
-  onEdit: (item: ComplimentaryItem) => void
-  onToggleStatus: (item: ComplimentaryItem) => void
-}
-
-const ItemTable = ({ items, isLoading, type, onEdit, onToggleStatus }: ItemTableProps) => {
-  const filtered = items.filter((i) => i.item_type === type)
-
-  if (isLoading) return <div className="p-8"><Loading /></div>
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-12" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
-                No {type === 'case' ? 'cases' : 'bags'} configured yet.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filtered.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="text-muted-foreground">{item.description || '—'}</TableCell>
-                <TableCell>
-                  <Badge variant={item.is_active ? 'default' : 'secondary'}>
-                    {item.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label="Actions">
-                        <RiMore2Line className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={() => onEdit(item)}>
-                        <RiEditLine className="size-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onToggleStatus(item)}>
-                        {item.is_active ? 'Deactivate' : 'Activate'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
   )
 }
 
@@ -384,297 +245,191 @@ const ItemTable = ({ items, isLoading, type, onEdit, onToggleStatus }: ItemTable
 
 const ComplimentaryItems = () => {
   const queryClient = useQueryClient()
-  const [itemDialogOpen, setItemDialogOpen] = useState(false)
-  const [ruleDialogOpen, setRuleDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<ComplimentaryItem | null>(null)
-  const [selectedRule, setSelectedRule] = useState<CasePriceRule | null>(null)
-  const [addType, setAddType] = useState<'case' | 'bag'>('case')
-  const [ruleToDelete, setRuleToDelete] = useState<CasePriceRule | null>(null)
+  const [search, setSearch] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selected, setSelected] = useState<CasePriceRule | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CasePriceRule | null>(null)
 
-  const { data: itemsData, isLoading: isLoadingItems } = useQuery({
-    queryKey: ['basic-data', 'complimentary-items'],
-    queryFn: () => basicDataApi.getComplimentaryItems({ page: 1, page_size: 200 }),
+  const { data, isLoading } = useQuery({
+    queryKey: ['case-price-rules', search],
+    queryFn: () => basicDataApi.getCasePriceRules({ page: 1, page_size: 100, search: search || undefined }),
   })
 
-  const { data: rulesData, isLoading: isLoadingRules } = useQuery({
-    queryKey: ['basic-data', 'case-price-rules'],
-    queryFn: () => basicDataApi.getCasePriceRules({ page: 1, page_size: 200 }),
-  })
-
-  const allItems = itemsData?.data || []
-  const caseItems = allItems.filter((i) => i.item_type === 'case')
-  const rules = rulesData?.data || []
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      basicDataApi.setComplimentaryItemStatus(id, is_active),
-    onSuccess: () => {
-      toast.success('Status updated')
-      queryClient.invalidateQueries({ queryKey: ['basic-data', 'complimentary-items'] })
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update status'),
-  })
-
-  const toggleRuleStatusMutation = useMutation({
+  const statusMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
       basicDataApi.setCasePriceRuleStatus(id, is_active),
-    onSuccess: () => {
-      toast.success('Status updated')
-      queryClient.invalidateQueries({ queryKey: ['basic-data', 'case-price-rules'] })
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update status'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['case-price-rules'] }),
+    onError: () => toast.error('Failed to update status'),
   })
 
-  const deleteRuleMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (id: string) => basicDataApi.deleteCasePriceRule(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['case-price-rules'] })
       toast.success('Rule deleted')
-      queryClient.invalidateQueries({ queryKey: ['basic-data', 'case-price-rules'] })
-      setRuleToDelete(null)
+      setDeleteTarget(null)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete rule'),
+    onError: () => toast.error('Failed to delete rule'),
   })
 
-  const invalidateItems = () => queryClient.invalidateQueries({ queryKey: ['basic-data', 'complimentary-items'] })
-  const invalidateRules = () => queryClient.invalidateQueries({ queryKey: ['basic-data', 'case-price-rules'] })
+  const openAdd = () => { setSelected(null); setDialogOpen(true) }
+  const openEdit = (rule: CasePriceRule) => { setSelected(rule); setDialogOpen(true) }
 
-  const openAddItem = (type: 'case' | 'bag') => {
-    setAddType(type)
-    setSelectedItem(null)
-    setItemDialogOpen(true)
-  }
+  const rules = data?.data ?? []
 
-  const openEditItem = (item: ComplimentaryItem) => {
-    setSelectedItem(item)
-    setItemDialogOpen(true)
-  }
-
-  const openAddRule = () => {
-    setSelectedRule(null)
-    setRuleDialogOpen(true)
-  }
-
-  const openEditRule = (rule: CasePriceRule) => {
-    setSelectedRule(rule)
-    setRuleDialogOpen(true)
-  }
-
-  const formatPriceRange = (rule: CasePriceRule) => {
-    if (rule.max_price == null) return `${formatCurrency(rule.min_price)}+`
-    return `${formatCurrency(rule.min_price)} – ${formatCurrency(rule.max_price)}`
-  }
+  const priceRange = (rule: CasePriceRule) =>
+    rule.max_price != null
+      ? `${formatCurrency(rule.min_price)} – ${formatCurrency(rule.max_price)}`
+      : `${formatCurrency(rule.min_price)}+`
 
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Complimentary Items</h1>
-          <p className="text-sm text-muted-foreground">Configure free cases and bags included with orders.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Complimentary Price Rules</h1>
+          <p className="text-sm text-muted-foreground">
+            Map frame price ranges to inventory products — offered free in sales orders.
+          </p>
         </div>
+        <Button size="sm" onClick={openAdd}>
+          <RiAddLine className="size-4" />
+          Add Rule
+        </Button>
       </section>
 
-      <Tabs defaultValue="cases">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="cases" className="flex items-center gap-1.5">
-            <RiBriefcaseLine className="size-4" />
-            Cases
-          </TabsTrigger>
-          <TabsTrigger value="bags" className="flex items-center gap-1.5">
-            <RiGiftLine className="size-4" />
-            Bags
-          </TabsTrigger>
-          <TabsTrigger value="rules" className="flex items-center gap-1.5">
-            <RiPriceTag3Line className="size-4" />
-            Price Rules
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ── Cases Tab ── */}
-        <TabsContent value="cases">
-          <Card className="border-border/60">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Frame Cases</CardTitle>
-                  <CardDescription>Cases given free with frames based on price rules.</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => openAddItem('case')}>
-                  <RiAddLine className="size-4" />
-                  Add Case
-                </Button>
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <RiGiftLine className="size-5 text-primary mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">Setup guide</p>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="rounded bg-background border border-border px-2 py-0.5">1. Create product category (e.g. "Frame Case")</span>
+                <RiArrowRightSLine className="size-3" />
+                <span className="rounded bg-background border border-border px-2 py-0.5">2. Add product in that category via Products</span>
+                <RiArrowRightSLine className="size-3" />
+                <span className="rounded bg-background border border-border px-2 py-0.5">3. Add rule here linking price range → product</span>
+                <RiArrowRightSLine className="size-3" />
+                <span className="rounded bg-background border border-border px-2 py-0.5">4. Product auto-suggested in Sales Orders</span>
               </div>
-            </CardHeader>
-            <CardContent className="px-0 pb-0">
-              <ItemTable
-                items={allItems}
-                isLoading={isLoadingItems}
-                type="case"
-                onEdit={openEditItem}
-                onToggleStatus={(item) => toggleStatusMutation.mutate({ id: item.id, is_active: !item.is_active })}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* ── Bags Tab ── */}
-        <TabsContent value="bags">
-          <Card className="border-border/60">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Carry Bags</CardTitle>
-                  <CardDescription>Bags given free with every order.</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => openAddItem('bag')}>
-                  <RiAddLine className="size-4" />
-                  Add Bag
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="px-0 pb-0">
-              <ItemTable
-                items={allItems}
-                isLoading={isLoadingItems}
-                type="bag"
-                onEdit={openEditItem}
-                onToggleStatus={(item) => toggleStatusMutation.mutate({ id: item.id, is_active: !item.is_active })}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Price Rules</CardTitle>
+              <CardDescription>{data?.total ?? 0} rules configured</CardDescription>
+            </div>
+            <Badge variant="secondary">{rules.filter((r) => r.is_active).length} active</Badge>
+          </div>
+          <div className="relative w-full max-w-xs">
+            <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search rules…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardHeader>
+        <Separator />
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">Loading…</div>
+          ) : rules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <RiGiftLine className="mb-3 size-10 text-muted-foreground/30" />
+              <p className="text-sm font-medium text-foreground">No price rules yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">Rules tell the system which product to include free with an order.</p>
+              <Button size="sm" className="mt-4" onClick={openAdd}>
+                <RiAddLine className="size-4" />
+                Add First Rule
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Frame Price Range</TableHead>
+                  <TableHead>Complimentary Product</TableHead>
+                  <TableHead className="text-center">Priority</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rules.map((rule) => (
+                  <TableRow key={rule.id} className="group">
+                    <TableCell className="font-medium text-foreground">{rule.name}</TableCell>
+                    <TableCell className="text-sm tabular-nums">{priceRange(rule)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{rule.product_name}</span>
+                        <span className="text-xs text-muted-foreground font-mono">{rule.product_id}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-sm">{rule.priority}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={rule.is_active ? 'default' : 'secondary'} className="text-xs">
+                        {rule.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0">
+                            <RiMoreLine className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(rule)}>
+                            <RiEditLine className="size-4 mr-2" />Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => statusMutation.mutate({ id: rule.id, is_active: !rule.is_active })}>
+                            {rule.is_active
+                              ? <><RiCloseLine className="size-4 mr-2" />Deactivate</>
+                              : <><RiCheckLine className="size-4 mr-2" />Activate</>}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(rule)}
+                          >
+                            <RiDeleteBin6Line className="size-4 mr-2" />Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* ── Price Rules Tab ── */}
-        <TabsContent value="rules">
-          <Card className="border-border/60">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Case Price Rules</CardTitle>
-                  <CardDescription>
-                    Automatically assign a case based on the frame price. Rules are evaluated in priority order.
-                  </CardDescription>
-                </div>
-                <Button size="sm" onClick={openAddRule} disabled={caseItems.length === 0}>
-                  <RiAddLine className="size-4" />
-                  Add Rule
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="px-0 pb-0">
-              {caseItems.length === 0 && !isLoadingItems && (
-                <div className="px-6 pb-6">
-                  <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 p-4 text-sm text-amber-700 dark:text-amber-400">
-                    Add at least one case type in the <strong>Cases</strong> tab before creating price rules.
-                  </div>
-                </div>
-              )}
-              {isLoadingRules ? (
-                <div className="p-8"><Loading /></div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Rule</TableHead>
-                        <TableHead>Frame Price Range</TableHead>
-                        <TableHead>Case</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-12" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rules.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                            No price rules configured yet. Add rules to auto-assign cases.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        rules.map((rule) => (
-                          <TableRow key={rule.id}>
-                            <TableCell className="font-medium">{rule.name}</TableCell>
-                            <TableCell className="tabular-nums">{formatPriceRange(rule)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{rule.item_name}</Badge>
-                            </TableCell>
-                            <TableCell>{rule.priority}</TableCell>
-                            <TableCell>
-                              <Badge variant={rule.is_active ? 'default' : 'secondary'}>
-                                {rule.is_active ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon-sm" aria-label="Actions">
-                                    <RiMore2Line className="size-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                  <DropdownMenuItem onClick={() => openEditRule(rule)}>
-                                    <RiEditLine className="size-4" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => toggleRuleStatusMutation.mutate({ id: rule.id, is_active: !rule.is_active })}>
-                                    {rule.is_active ? 'Deactivate' : 'Activate'}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setRuleToDelete(rule)}
-                                  >
-                                    <RiDeleteBin6Line className="size-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <RuleDialog open={dialogOpen} onClose={() => setDialogOpen(false)} rule={selected} />
 
-      <ItemFormDialog
-        open={itemDialogOpen}
-        onOpenChange={setItemDialogOpen}
-        item={selectedItem}
-        defaultType={addType}
-        onSaved={invalidateItems}
-      />
-
-      <RuleFormDialog
-        open={ruleDialogOpen}
-        onOpenChange={setRuleDialogOpen}
-        rule={selectedRule}
-        caseItems={caseItems.filter((c) => c.is_active)}
-        onSaved={invalidateRules}
-      />
-
-      <AlertDialog open={!!ruleToDelete} onOpenChange={(open) => { if (!open) setRuleToDelete(null) }}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete price rule?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the rule{' '}
-              <span className="font-medium text-foreground">{ruleToDelete?.name}</span>.
-              Existing orders are not affected.
+              "{deleteTarget?.name}" will be permanently removed. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => ruleToDelete && deleteRuleMutation.mutate(ruleToDelete.id)}
-              disabled={deleteRuleMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             >
-              {deleteRuleMutation.isPending ? 'Deleting…' : 'Delete'}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

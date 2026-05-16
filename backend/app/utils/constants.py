@@ -41,14 +41,6 @@ class PaymentMethod(str, Enum):
     INSURANCE = "insurance"
     BANK_TRANSFER = "bank-transfer"
 
-class ProductCategory(str, Enum):
-    CONTACT_LENSES = "contact-lenses"
-    EYEGLASSES = "eyeglasses"
-    FRAMES = "frames"
-    SUNGLASSES = "sunglasses"
-    EYE_DROPS = "eye-drops"
-    ACCESSORIES = "accessories"
-
 class TransactionType(str, Enum):
     PURCHASE = "purchase"
     SALE = "sale"

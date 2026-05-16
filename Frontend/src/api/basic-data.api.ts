@@ -6,10 +6,13 @@ import {
   MasterDataQueryParams,
   OtherExpenseType,
   OtherExpenseTypeFormData,
+  ProductCategory,
+  ProductCategoryFormData,
   ComplimentaryItem,
   ComplimentaryItemFormData,
   CasePriceRule,
   CasePriceRuleFormData,
+  ComplimentaryProductSuggestion,
 } from '@/types/basic-data.types'
 
 const withStableId = <T extends { id?: string; _id?: string }>(item: T): T & { id: string } => ({
@@ -18,12 +21,10 @@ const withStableId = <T extends { id?: string; _id?: string }>(item: T): T & { i
 })
 
 export const basicDataApi = {
+  // ── Other Expenses ───────────────────────────────────────────────────────
   getOtherExpenses: async (params?: MasterDataQueryParams): Promise<PaginatedResponse<OtherExpenseType>> => {
     const response = await axiosInstance.get<PaginatedResponse<OtherExpenseType>>('/basic-data/other-expenses', { params })
-    return {
-      ...response.data,
-      data: response.data.data.map((item) => withStableId(item)),
-    }
+    return { ...response.data, data: response.data.data.map((item) => withStableId(item)) }
   },
   getOtherExpenseById: async (id: string): Promise<OtherExpenseType> => {
     const response = await axiosInstance.get<ApiResponse<OtherExpenseType>>(`/basic-data/other-expenses/${id}`)
@@ -41,12 +42,11 @@ export const basicDataApi = {
     const response = await axiosInstance.patch<ApiResponse<OtherExpenseType>>(`/basic-data/other-expenses/${id}/status`, { is_active })
     return withStableId(response.data.data)
   },
+
+  // ── Lenses ───────────────────────────────────────────────────────────────
   getLenses: async (params?: MasterDataQueryParams): Promise<PaginatedResponse<LensMaster>> => {
     const response = await axiosInstance.get<PaginatedResponse<LensMaster>>('/basic-data/lenses', { params })
-    return {
-      ...response.data,
-      data: response.data.data.map((item) => withStableId(item)),
-    }
+    return { ...response.data, data: response.data.data.map((item) => withStableId(item)) }
   },
   getLensById: async (id: string): Promise<LensMaster> => {
     const response = await axiosInstance.get<ApiResponse<LensMaster>>(`/basic-data/lenses/${id}`)
@@ -65,23 +65,25 @@ export const basicDataApi = {
     return withStableId(response.data.data)
   },
 
-  getComplimentaryItems: async (params?: MasterDataQueryParams & { item_type?: string }): Promise<PaginatedResponse<ComplimentaryItem>> => {
-    const response = await axiosInstance.get<PaginatedResponse<ComplimentaryItem>>('/basic-data/complimentary-items', { params })
+  // ── Product Categories ───────────────────────────────────────────────────
+  getProductCategories: async (params?: MasterDataQueryParams): Promise<PaginatedResponse<ProductCategory>> => {
+    const response = await axiosInstance.get<PaginatedResponse<ProductCategory>>('/basic-data/product-categories', { params })
     return { ...response.data, data: response.data.data.map((item) => withStableId(item)) }
   },
-  createComplimentaryItem: async (data: ComplimentaryItemFormData): Promise<ComplimentaryItem> => {
-    const response = await axiosInstance.post<ApiResponse<ComplimentaryItem>>('/basic-data/complimentary-items', data)
+  createProductCategory: async (data: ProductCategoryFormData): Promise<ProductCategory> => {
+    const response = await axiosInstance.post<ApiResponse<ProductCategory>>('/basic-data/product-categories', data)
     return withStableId(response.data.data)
   },
-  updateComplimentaryItem: async (id: string, data: Partial<ComplimentaryItemFormData>): Promise<ComplimentaryItem> => {
-    const response = await axiosInstance.put<ApiResponse<ComplimentaryItem>>(`/basic-data/complimentary-items/${id}`, data)
+  updateProductCategory: async (id: string, data: Partial<ProductCategoryFormData>): Promise<ProductCategory> => {
+    const response = await axiosInstance.put<ApiResponse<ProductCategory>>(`/basic-data/product-categories/${id}`, data)
     return withStableId(response.data.data)
   },
-  setComplimentaryItemStatus: async (id: string, is_active: boolean): Promise<ComplimentaryItem> => {
-    const response = await axiosInstance.patch<ApiResponse<ComplimentaryItem>>(`/basic-data/complimentary-items/${id}/status`, { is_active })
+  setProductCategoryStatus: async (id: string, is_active: boolean): Promise<ProductCategory> => {
+    const response = await axiosInstance.patch<ApiResponse<ProductCategory>>(`/basic-data/product-categories/${id}/status`, { is_active })
     return withStableId(response.data.data)
   },
 
+  // ── Complimentary Price Rules ────────────────────────────────────────────
   getCasePriceRules: async (params?: MasterDataQueryParams): Promise<PaginatedResponse<CasePriceRule>> => {
     const response = await axiosInstance.get<PaginatedResponse<CasePriceRule>>('/basic-data/case-price-rules', { params })
     return { ...response.data, data: response.data.data.map((item) => withStableId(item)) }
@@ -101,9 +103,26 @@ export const basicDataApi = {
     const response = await axiosInstance.patch<ApiResponse<CasePriceRule>>(`/basic-data/case-price-rules/${id}/status`, { is_active })
     return withStableId(response.data.data)
   },
-  suggestCase: async (frame_price: number): Promise<ComplimentaryItem | null> => {
-    const response = await axiosInstance.get<ApiResponse<ComplimentaryItem | null>>('/basic-data/case-price-rules/suggest', { params: { frame_price } })
-    const data = response.data.data
-    return data ? withStableId(data) : null
+  suggestComplimentary: async (frame_price: number): Promise<ComplimentaryProductSuggestion | null> => {
+    const response = await axiosInstance.get<ApiResponse<ComplimentaryProductSuggestion | null>>('/basic-data/case-price-rules/suggest', { params: { frame_price } })
+    return response.data.data ?? null
+  },
+
+  // ── Legacy complimentary items (backward compat) ─────────────────────────
+  getComplimentaryItems: async (params?: MasterDataQueryParams & { item_type?: string }): Promise<PaginatedResponse<ComplimentaryItem>> => {
+    const response = await axiosInstance.get<PaginatedResponse<ComplimentaryItem>>('/basic-data/complimentary-items', { params })
+    return { ...response.data, data: response.data.data.map((item) => withStableId(item)) }
+  },
+  createComplimentaryItem: async (data: ComplimentaryItemFormData): Promise<ComplimentaryItem> => {
+    const response = await axiosInstance.post<ApiResponse<ComplimentaryItem>>('/basic-data/complimentary-items', data)
+    return withStableId(response.data.data)
+  },
+  updateComplimentaryItem: async (id: string, data: Partial<ComplimentaryItemFormData>): Promise<ComplimentaryItem> => {
+    const response = await axiosInstance.put<ApiResponse<ComplimentaryItem>>(`/basic-data/complimentary-items/${id}`, data)
+    return withStableId(response.data.data)
+  },
+  setComplimentaryItemStatus: async (id: string, is_active: boolean): Promise<ComplimentaryItem> => {
+    const response = await axiosInstance.patch<ApiResponse<ComplimentaryItem>>(`/basic-data/complimentary-items/${id}/status`, { is_active })
+    return withStableId(response.data.data)
   },
 }

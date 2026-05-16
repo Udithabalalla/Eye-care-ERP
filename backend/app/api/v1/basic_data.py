@@ -15,6 +15,10 @@ from app.schemas.basic_data import (
     LensMasterUpdate,
     LensMasterStatusUpdate,
     LensMasterResponse,
+    ProductCategoryCreate,
+    ProductCategoryUpdate,
+    ProductCategoryStatusUpdate,
+    ProductCategoryResponse,
     ComplimentaryItemCreate,
     ComplimentaryItemUpdate,
     ComplimentaryItemStatusUpdate,
@@ -23,10 +27,12 @@ from app.schemas.basic_data import (
     CasePriceRuleUpdate,
     CasePriceRuleStatusUpdate,
     CasePriceRuleResponse,
+    ComplimentaryProductSuggestion,
 )
 from app.services.basic_data_service import (
     OtherExpenseTypeService,
     LensMasterService,
+    ProductCategoryService,
     ComplimentaryItemService,
     CasePriceRuleService,
 )
@@ -146,7 +152,63 @@ async def update_lens_status(
     return ResponseModel(message="Lens status updated successfully", data=item)
 
 
-# ── Complimentary Items (Cases & Bags) ────────────────────────────────────────
+# ── Product Categories ────────────────────────────────────────────────────────
+
+@router.get("/product-categories", response_model=PaginatedResponse[ProductCategoryResponse])
+async def list_product_categories(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=200),
+    search: str | None = None,
+    is_active: bool | None = None,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    return await ProductCategoryService(db).list_categories(page, page_size, search, is_active)
+
+
+@router.get("/product-categories/{category_id}", response_model=ResponseModel[ProductCategoryResponse])
+async def get_product_category(
+    category_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    item = await ProductCategoryService(db).get_category(category_id)
+    return ResponseModel(data=item)
+
+
+@router.post("/product-categories", response_model=ResponseModel[ProductCategoryResponse])
+async def create_product_category(
+    data: ProductCategoryCreate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    item = await ProductCategoryService(db).create_category(data)
+    return ResponseModel(message="Product category created successfully", data=item)
+
+
+@router.put("/product-categories/{category_id}", response_model=ResponseModel[ProductCategoryResponse])
+async def update_product_category(
+    category_id: str,
+    data: ProductCategoryUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    item = await ProductCategoryService(db).update_category(category_id, data)
+    return ResponseModel(message="Product category updated successfully", data=item)
+
+
+@router.patch("/product-categories/{category_id}/status", response_model=ResponseModel[ProductCategoryResponse])
+async def update_product_category_status(
+    category_id: str,
+    data: ProductCategoryStatusUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    item = await ProductCategoryService(db).set_status(category_id, data.is_active)
+    return ResponseModel(message="Product category status updated successfully", data=item)
+
+
+# ── Complimentary Items (legacy endpoints, kept for backward compat) ──────────
 
 @router.get("/complimentary-items", response_model=PaginatedResponse[ComplimentaryItemResponse])
 async def list_complimentary_items(
@@ -203,16 +265,16 @@ async def update_complimentary_item_status(
     return ResponseModel(message="Complimentary item status updated successfully", data=item)
 
 
-# ── Case Price Rules ──────────────────────────────────────────────────────────
+# ── Complimentary Price Rules ─────────────────────────────────────────────────
 
-@router.get("/case-price-rules/suggest", response_model=ResponseModel[Optional[ComplimentaryItemResponse]])
-async def suggest_case(
+@router.get("/case-price-rules/suggest", response_model=ResponseModel[Optional[ComplimentaryProductSuggestion]])
+async def suggest_complimentary(
     frame_price: float = Query(..., ge=0),
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    item = await CasePriceRuleService(db).suggest_case(frame_price)
-    return ResponseModel(data=item)
+    suggestion = await CasePriceRuleService(db).suggest_complimentary(frame_price)
+    return ResponseModel(data=suggestion)
 
 
 @router.get("/case-price-rules", response_model=PaginatedResponse[CasePriceRuleResponse])
@@ -244,7 +306,7 @@ async def create_case_price_rule(
     current_user: UserModel = Depends(get_current_user),
 ):
     rule = await CasePriceRuleService(db).create_rule(data)
-    return ResponseModel(message="Case price rule created successfully", data=rule)
+    return ResponseModel(message="Price rule created successfully", data=rule)
 
 
 @router.put("/case-price-rules/{rule_id}", response_model=ResponseModel[CasePriceRuleResponse])
@@ -255,7 +317,7 @@ async def update_case_price_rule(
     current_user: UserModel = Depends(get_current_user),
 ):
     rule = await CasePriceRuleService(db).update_rule(rule_id, data)
-    return ResponseModel(message="Case price rule updated successfully", data=rule)
+    return ResponseModel(message="Price rule updated successfully", data=rule)
 
 
 @router.delete("/case-price-rules/{rule_id}", response_model=ResponseModel[None])
@@ -265,7 +327,7 @@ async def delete_case_price_rule(
     current_user: UserModel = Depends(get_current_user),
 ):
     await CasePriceRuleService(db).delete_rule(rule_id)
-    return ResponseModel(message="Case price rule deleted successfully", data=None)
+    return ResponseModel(message="Price rule deleted successfully", data=None)
 
 
 @router.patch("/case-price-rules/{rule_id}/status", response_model=ResponseModel[CasePriceRuleResponse])
@@ -276,4 +338,4 @@ async def update_case_price_rule_status(
     current_user: UserModel = Depends(get_current_user),
 ):
     rule = await CasePriceRuleService(db).set_status(rule_id, data.is_active)
-    return ResponseModel(message="Case price rule status updated successfully", data=rule)
+    return ResponseModel(message="Price rule status updated successfully", data=rule)

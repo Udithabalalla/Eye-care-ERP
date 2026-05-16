@@ -177,6 +177,7 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product_id
                     resolved_track_stock = False
             elif line_type == "lens":
+                resolved_product_id = product_id
                 lens = await self.lens_master_repo.get_by_id(master_data_id or product_id)
                 if lens:
                     resolved_name = product_name or lens.lens_type
@@ -192,6 +193,7 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product_id
                 resolved_track_stock = False
             elif line_type == "expense":
+                resolved_product_id = product_id
                 expense_type = await self.other_expense_repo.get_by_id(master_data_id or product_id)
                 if expense_type:
                     resolved_name = product_name or expense_type.name
@@ -207,11 +209,21 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product_id
                 resolved_track_stock = False
             elif line_type == "complimentary":
-                resolved_name = product_name or "Complimentary Item"
-                resolved_sku = sku or product_id
-                resolved_unit_price = 0.0
-                resolved_master_id = master_data_id or product_id
-                resolved_track_stock = False
+                product = await self._resolve_product_by_identifier(product_id)
+                if product:
+                    resolved_product_id = product.product_id
+                    resolved_name = product_name or product.name
+                    resolved_sku = sku or product.sku
+                    resolved_unit_price = 0.0
+                    resolved_master_id = master_data_id or product.product_id
+                    resolved_track_stock = True
+                else:
+                    resolved_product_id = product_id
+                    resolved_name = product_name or "Complimentary Item"
+                    resolved_sku = sku or product_id
+                    resolved_unit_price = 0.0
+                    resolved_master_id = master_data_id or product_id
+                    resolved_track_stock = False
             else:
                 raise BadRequestException(f"Unsupported sales order line type: {line_type}")
 
@@ -220,7 +232,7 @@ class SalesOrderService:
 
             item_models.append(
                 SalesOrderItemModel(
-                    product_id=resolved_product_id if line_type == "product" else product_id,
+                    product_id=resolved_product_id,
                     product_name=resolved_name,
                     sku=resolved_sku,
                     quantity=quantity,
@@ -228,7 +240,7 @@ class SalesOrderService:
                     total=line_total,
                     master_data_id=resolved_master_id,
                     line_type=line_type,
-                    track_stock=resolved_track_stock if line_type == "product" else resolved_track_stock,
+                    track_stock=resolved_track_stock,
                 )
             )
 
@@ -236,7 +248,7 @@ class SalesOrderService:
 
     async def _ensure_stock_available(self, items):
         for item in items:
-            if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+            if not getattr(item, "track_stock", False):
                 continue
             product = await self._resolve_product_by_identifier(item.product_id)
             if not product:
@@ -381,7 +393,7 @@ class SalesOrderService:
         if created_model.status != SalesOrderStatus.DRAFT:
             # Deduct inventory when SO is created with non-DRAFT status
             for item in created_model.items:
-                if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                if not getattr(item, "track_stock", False):
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:
@@ -451,7 +463,7 @@ class SalesOrderService:
         # Create inventory movements when transitioning from DRAFT to non-DRAFT
         if target_status != old_status and old_status == SalesOrderStatus.DRAFT and target_status != SalesOrderStatus.DRAFT:
             for item in updated.items:
-                if getattr(item, "line_type", "product") != "product" or not getattr(item, "track_stock", True):
+                if not getattr(item, "track_stock", False):
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:

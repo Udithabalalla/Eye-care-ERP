@@ -1,18 +1,19 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
+import { basicDataApi } from '@/api/basic-data.api'
 import { Product, ProductFormData } from '@/types/product.types'
-import { ProductCategory } from '@/types/common.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import toast from 'react-hot-toast'
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   description: z.string().optional(),
-  category: z.nativeEnum(ProductCategory),
+  category: z.string().min(1, 'Select a category'),
   brand: z.string().optional(),
   sku: z.string().min(1, 'SKU is required'),
   barcode: z.string().optional(),
@@ -41,9 +42,19 @@ const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-
 const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
   const queryClient = useQueryClient()
 
+  const { data: categoriesData } = useQuery({
+    queryKey: ['product-categories'],
+    queryFn: () => basicDataApi.getProductCategories({ page: 1, page_size: 200, is_active: true }),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const categories = categoriesData?.data ?? []
+
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -67,6 +78,8 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
           min_stock_level: 10,
         },
   })
+
+  const selectedCategory = watch('category')
 
   const createMutation = useMutation({
     mutationFn: (data: ProductFormData) => productsApi.create(data),
@@ -127,15 +140,27 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
             <label className="block text-sm font-medium text-muted-foreground mb-2">
               Category *
             </label>
-            <select {...register('category')} className={inputClass}>
-              <option value="">Select category</option>
-              <option value="contact-lenses">Contact Lenses</option>
-              <option value="eyeglasses">Eyeglasses</option>
-              <option value="frames">Frames</option>
-              <option value="sunglasses">Sunglasses</option>
-              <option value="eye-drops">Eye Drops</option>
-              <option value="accessories">Accessories</option>
-            </select>
+            <Select
+              value={selectedCategory || ''}
+              onValueChange={(val) => setValue('category', val, { shouldValidate: true })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.length === 0 ? (
+                  <SelectItem value="_none" disabled>
+                    No categories — add them in Basic Data → Product Categories
+                  </SelectItem>
+                ) : (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
             {errors.category && (
               <p className="text-sm text-error-600 mt-1">{errors.category.message}</p>
             )}

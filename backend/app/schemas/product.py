@@ -1,14 +1,13 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
-from app.utils.constants import ProductCategory
 from app.models.product import Supplier
 
 class ProductCreate(BaseModel):
     """Schema for creating a product"""
     name: str = Field(..., min_length=2)
     description: Optional[str] = None
-    category: ProductCategory
+    category: str = Field(..., min_length=1)
     subcategory: Optional[str] = None
     brand: Optional[str] = None
     sku: str
@@ -31,7 +30,7 @@ class ProductUpdate(BaseModel):
     """Schema for updating a product"""
     name: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[ProductCategory] = None
+    category: Optional[str] = None
     brand: Optional[str] = None
     cost_price: Optional[float] = Field(None, ge=0)
     selling_price: Optional[float] = Field(None, ge=0)
@@ -46,7 +45,7 @@ class ProductResponse(BaseModel):
     product_id: str
     name: str
     description: Optional[str]
-    category: ProductCategory
+    category: str
     brand: Optional[str]
     sku: str
     barcode: Optional[str]

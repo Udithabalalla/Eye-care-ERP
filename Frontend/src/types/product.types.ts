@@ -1,5 +1,3 @@
-import { ProductCategory } from './common.types'
-
 export interface Supplier {
   name?: string
   contact?: string
@@ -10,7 +8,7 @@ export interface Product {
   product_id: string
   name: string
   description?: string
-  category: ProductCategory
+  category: string
   subcategory?: string
   brand?: string
   sku: string
@@ -37,7 +35,7 @@ export interface Product {
 export interface ProductFormData {
   name: string
   description?: string
-  category: ProductCategory
+  category: string
   brand?: string
   sku: string
   barcode?: string
@@ -52,7 +50,7 @@ export interface ProductFormData {
 export interface AddProductAssistantData {
   name: string
   description?: string
-  category: ProductCategory
+  category: string
   brand?: string
   sku: string
   cost_price: number

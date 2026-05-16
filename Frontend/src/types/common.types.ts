@@ -67,11 +67,4 @@ export enum PaymentMethod {
   INSURANCE = 'insurance',
 }
 
-export enum ProductCategory {
-  CONTACT_LENSES = 'contact-lenses',
-  EYEGLASSES = 'eyeglasses',
-  FRAMES = 'frames',
-  SUNGLASSES = 'sunglasses',
-  EYE_DROPS = 'eye-drops',
-  ACCESSORIES = 'accessories',
-}
+

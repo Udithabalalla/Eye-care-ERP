@@ -6,7 +6,7 @@ from typing import Optional, Tuple, List
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.models.basic_data import OtherExpenseTypeModel, LensMasterModel, ComplimentaryItemModel, CasePriceRuleModel
+from app.models.basic_data import OtherExpenseTypeModel, LensMasterModel, ComplimentaryItemModel, CasePriceRuleModel, ProductCategoryModel
 from app.repositories.base import BaseRepository
 
 
@@ -111,6 +111,37 @@ class ComplimentaryItemRepository(BaseRepository):
     async def create_item(self, payload: ComplimentaryItemModel) -> ComplimentaryItemModel:
         created = await self.create(payload.model_dump(exclude_none=True))
         return ComplimentaryItemModel(**created)
+
+
+class ProductCategoryRepository(BaseRepository):
+    def __init__(self, db: AsyncIOMotorDatabase):
+        super().__init__(db, "product_categories")
+
+    async def get_by_id(self, category_id: str) -> Optional[ProductCategoryModel]:
+        document = await super().get_by_id(category_id)
+        return ProductCategoryModel(**document) if document else None
+
+    async def update_by_id(self, category_id: str, update_data: dict) -> bool:
+        return await self.update({"_id": ObjectId(category_id)}, update_data)
+
+    async def get_by_name(self, name: str) -> Optional[ProductCategoryModel]:
+        document = await self.get_one({"name": re.compile(f"^{re.escape(name)}$", re.IGNORECASE)})
+        return ProductCategoryModel(**document) if document else None
+
+    async def list_categories(self, skip: int, limit: int, search: str | None = None, is_active: bool | None = None) -> Tuple[List[ProductCategoryModel], int]:
+        filter_query: dict = {}
+        if search:
+            filter_query["name"] = {"$regex": re.escape(search), "$options": "i"}
+        if is_active is not None:
+            filter_query["is_active"] = is_active
+
+        documents = await self.get_many(filter=filter_query, skip=skip, limit=limit, sort=[("name", 1)])
+        total = await self.count(filter_query)
+        return [ProductCategoryModel(**document) for document in documents], total
+
+    async def create_category(self, payload: ProductCategoryModel) -> ProductCategoryModel:
+        created = await self.create(payload.model_dump(exclude_none=True))
+        return ProductCategoryModel(**created)
 
 
 class CasePriceRuleRepository(BaseRepository):
