@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus } from '@untitledui/icons'
+import { RiAddLine } from '@remixicon/react'
 import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import { productsApi } from '@/api/products.api'
@@ -264,7 +264,7 @@ const AddProductAssistant = ({ isOpen, onClose, onSuccess, product, lockedSuppli
       <div className="flex items-center justify-end gap-3 pt-2">
         <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
         <Button type="submit" isLoading={createMutation.isPending || updateMutation.isPending}>
-          <span className="mr-2 inline-flex items-center"> <Plus className="h-4 w-4" /> </span>
+          <span className="mr-2 inline-flex items-center"> <RiAddLine className="h-4 w-4" /> </span>
           {product ? 'Update Product' : 'Create Product'}
         </Button>
       </div>

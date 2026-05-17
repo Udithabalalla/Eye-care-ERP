@@ -31,7 +31,6 @@ const Doctors = () => {
         onError: (error: any) => {
             const msg = error?.response?.data?.detail || error?.message || 'Failed to add doctor'
             toast.error(typeof msg === 'string' ? msg : 'Failed to add doctor')
-            console.error('Add doctor error:', error?.response?.data || error)
         },
     })
 
@@ -48,7 +47,6 @@ const Doctors = () => {
         onError: (error: any) => {
             const msg = error?.response?.data?.detail || error?.message || 'Failed to update doctor'
             toast.error(typeof msg === 'string' ? msg : 'Failed to update doctor')
-            console.error('Update doctor error:', error?.response?.data || error)
         },
     })
 
@@ -62,7 +60,6 @@ const Doctors = () => {
         onError: (error: any) => {
             const msg = error?.response?.data?.detail || error?.message || 'Failed to delete doctor'
             toast.error(typeof msg === 'string' ? msg : 'Failed to delete doctor')
-            console.error('Delete doctor error:', error?.response?.data || error)
         },
     })
 

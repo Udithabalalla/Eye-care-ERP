@@ -40,8 +40,8 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
                         stopScanning()
                         onClose()
                     },
-                    (errorMessage) => {
-                        console.debug(errorMessage)
+                    () => {
+                        // suppress per-frame decode errors
                     }
                 )
 

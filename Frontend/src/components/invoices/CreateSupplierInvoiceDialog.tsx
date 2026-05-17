@@ -2,9 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Modal from '@/components/common/Modal'
-import Button from '@/components/common/Button'
-import Input from '@/components/common/Input'
-import { Badge, Table } from '@/components/ui'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { RiLoader4Line } from '@remixicon/react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, SupplierInvoiceFormData, SupplierInvoiceItem } from '@/types/supplier.types'
@@ -68,10 +78,10 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
   }, [order, products?.data, isOpen])
 
   const matchingIssues = useMemo(() => {
-    return items.flatMap((item) => buildWarnings(item, {
-      ordered: item.ordered_quantity,
-      received: item.received_quantity,
-    }).map((warning) => `${item.product_id}: ${warning}`))
+    return items.flatMap((item) =>
+      buildWarnings(item, { ordered: item.ordered_quantity, received: item.received_quantity })
+        .map((warning) => `${item.product_name}: ${warning}`)
+    )
   }, [items])
 
   const totalAmount = useMemo(() => {
@@ -86,8 +96,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
       onSuccess()
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to create supplier invoice'
-      toast.error(message)
+      toast.error(error?.response?.data?.detail || 'Failed to create supplier invoice')
     },
   })
 
@@ -118,111 +127,150 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 
   if (!order) return null
 
-  const matchingStatus = matchingIssues.length > 0 ? 'Flagged' : 'Matched'
+  const isMatched = matchingIssues.length === 0
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Create Supplier Invoice - ${order.id}`}
+      title={`Create Supplier Invoice — ${order.id}`}
       size="xl"
       footer={(
         <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} isLoading={createMutation.isPending}>Create Invoice</Button>
+          <Button variant="outline" onClick={onClose} disabled={createMutation.isPending}>Cancel</Button>
+          <Button onClick={save} disabled={createMutation.isPending}>
+            {createMutation.isPending && <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />}
+            Create Invoice
+          </Button>
         </div>
       )}
     >
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
+        {/* Order summary */}
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_information?.supplier_name || order.supplier_id}</div>
-            <div><span className="font-medium text-muted-foreground">Purchase Order:</span> {order.id}</div>
-            <div><span className="font-medium text-muted-foreground">Match Status:</span> <Badge color={matchingStatus === 'Matched' ? 'success' : 'warning'} size="sm">{matchingStatus}</Badge></div>
+            <div>
+              <span className="font-medium text-muted-foreground">Supplier: </span>
+              {order.supplier_information?.supplier_name || order.supplier_id}
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Purchase Order: </span>
+              {order.id}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-muted-foreground">Match Status:</span>
+              <Badge variant={isMatched ? 'default' : 'secondary'}>
+                {isMatched ? 'Matched' : 'Flagged'}
+              </Badge>
+            </div>
           </div>
+
           {matchingIssues.length > 0 && (
-            <div className="mt-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-900">
-              <p className="font-medium">Matching warnings</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
+            <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30 p-3 text-sm">
+              <p className="font-medium text-yellow-800 dark:text-yellow-300">Matching warnings</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-yellow-700 dark:text-yellow-400">
                 {matchingIssues.map((warning) => <li key={warning}>{warning}</li>)}
               </ul>
             </div>
           )}
         </div>
 
+        {/* Invoice header fields */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Input label="Invoice Number" value={invoiceNumber} onChange={(value) => setInvoiceNumber(value.target.value)} placeholder="Enter supplier invoice number" />
-          <Input label="Invoice Date" type="datetime-local" value={invoiceDate} onChange={(value) => setInvoiceDate(value.target.value)} />
-          <Input label="Due Date" type="datetime-local" value={dueDate} onChange={(value) => setDueDate(value.target.value)} />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="inv-number">Invoice Number <span className="text-destructive">*</span></Label>
+            <Input
+              id="inv-number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              placeholder="Enter supplier invoice number"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="inv-date">Invoice Date</Label>
+            <Input
+              id="inv-date"
+              type="datetime-local"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="inv-due">Due Date</Label>
+            <Input
+              id="inv-due"
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <Table size="sm">
-            <Table.Header bordered>
-              <Table.Head label="Product" isRowHeader />
-              <Table.Head label="Ordered" />
-              <Table.Head label="Received" />
-              <Table.Head label="Invoice Qty" />
-              <Table.Head label="Unit Price" />
-              <Table.Head label="Line Total" />
-            </Table.Header>
-            <Table.Body>
+        {/* Line items table */}
+        <div className="overflow-hidden rounded-xl border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Product</TableHead>
+                <TableHead className="text-center">Ordered</TableHead>
+                <TableHead className="text-center">Received</TableHead>
+                <TableHead className="text-center">Invoice Qty</TableHead>
+                <TableHead className="text-center">Unit Price</TableHead>
+                <TableHead className="text-right">Line Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((item, index) => {
                 const warnings = buildWarnings(item, { ordered: item.ordered_quantity, received: item.received_quantity })
                 return (
-                  <Table.Row key={item.product_id}>
-                    <Table.Cell>
+                  <TableRow key={item.product_id}>
+                    <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium text-foreground">{item.product_name}</div>
                         <div className="text-xs text-muted-foreground">{item.product_id}</div>
-                        {warnings.length > 0 && <Badge color="warning" size="sm">Flagged</Badge>}
+                        {warnings.length > 0 && <Badge variant="secondary" className="text-yellow-700 bg-yellow-100">Flagged</Badge>}
                       </div>
-                    </Table.Cell>
-                    <Table.Cell>{item.ordered_quantity}</Table.Cell>
-                    <Table.Cell>{item.received_quantity}</Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell className="text-center">{item.ordered_quantity}</TableCell>
+                    <TableCell className="text-center">{item.received_quantity}</TableCell>
+                    <TableCell>
                       <Input
                         type="number"
                         min={0}
+                        className="h-8 text-sm text-center"
                         value={item.invoice_quantity}
-                        onChange={(event) => {
+                        onChange={(e) => {
                           const next = [...items]
-                          const invoiceQuantity = Number(event.target.value)
-                          next[index] = {
-                            ...next[index],
-                            invoice_quantity: invoiceQuantity,
-                            line_total: Number((invoiceQuantity * next[index].unit_price).toFixed(2)),
-                          }
+                          const invoiceQuantity = Number(e.target.value)
+                          next[index] = { ...next[index], invoice_quantity: invoiceQuantity, line_total: Number((invoiceQuantity * next[index].unit_price).toFixed(2)) }
                           setItems(next)
                         }}
                       />
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <Input
                         type="number"
                         step="0.01"
                         min={0}
+                        className="h-8 text-sm text-center"
                         value={item.unit_price}
-                        onChange={(event) => {
+                        onChange={(e) => {
                           const next = [...items]
-                          const unitPrice = Number(event.target.value)
-                          next[index] = {
-                            ...next[index],
-                            unit_price: unitPrice,
-                            line_total: Number((next[index].invoice_quantity * unitPrice).toFixed(2)),
-                          }
+                          const unitPrice = Number(e.target.value)
+                          next[index] = { ...next[index], unit_price: unitPrice, line_total: Number((next[index].invoice_quantity * unitPrice).toFixed(2)) }
                           setItems(next)
                         }}
                       />
-                    </Table.Cell>
-                    <Table.Cell>{formatCurrency(item.line_total)}</Table.Cell>
-                  </Table.Row>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(item.line_total)}</TableCell>
+                  </TableRow>
                 )
               })}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
 
+        {/* Total */}
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Total Amount</span>
@@ -235,7 +283,3 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 }
 
 export default CreateSupplierInvoiceDialog
-
-
-
-

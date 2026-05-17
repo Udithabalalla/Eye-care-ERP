@@ -9,7 +9,24 @@ import { LedgerReferenceType } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
 import { RiMoneyDollarCircleLine } from '@remixicon/react'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import toast from 'react-hot-toast'
 
 const paymentSchema = z.object({
@@ -28,17 +45,10 @@ interface PaymentFormProps {
   onCancel: () => void
 }
 
-const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
-
 const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
   const queryClient = useQueryClient()
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<PaymentFormValues>({
+  const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       amount: invoice.balance_due,
@@ -47,7 +57,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
     },
   })
 
-  const amount = watch('amount')
+  const amount = form.watch('amount')
 
   const mutation = useMutation({
     mutationFn: (data: PaymentFormValues) =>
@@ -64,9 +74,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
       toast.success('Payment recorded successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to record payment')
-    },
+    onError: () => toast.error('Failed to record payment'),
   })
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -78,132 +86,163 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="bg-secondary p-4 rounded-lg space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Invoice Number:</span>
-          <span className="font-medium">{invoice.invoice_number}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Patient:</span>
-          <span className="font-medium">{invoice.patient_name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Amount:</span>
-          <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Already Paid:</span>
-          <span className="font-medium text-success-600">
-            {formatCurrency(invoice.paid_amount)}
-          </span>
-        </div>
-        <div className="flex justify-between text-lg font-bold border-t pt-2">
-          <span>Balance Due:</span>
-          <span className="text-error-600">{formatCurrency(invoice.balance_due)}</span>
-        </div>
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Payment Amount *
-        </label>
-        <div className="relative">
-          <RiMoneyDollarCircleLine className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            type="number"
-            step="0.01"
-            {...register('amount', { valueAsNumber: true })}
-            className="pl-10"
-            max={invoice.balance_due}
-          />
-        </div>
-        {errors.amount && (
-          <p className="text-sm text-error-600 mt-1">{errors.amount.message}</p>
-        )}
-        {amount > invoice.balance_due && (
-          <p className="text-sm text-error-600 mt-1">
-            Amount cannot exceed balance due
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Payment Method *
-        </label>
-        <select {...register('payment_method')} className={inputClass}>
-          <option value="cash">Cash</option>
-          <option value="card">Card</option>
-          <option value="upi">UPI</option>
-          <option value="netbanking">Net Banking</option>
-          <option value="insurance">Insurance</option>
-        </select>
-        {errors.payment_method && (
-          <p className="text-sm text-error-600 mt-1">{errors.payment_method.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Payment Date *
-        </label>
-        <Input type="date" {...register('payment_date')} />
-        {errors.payment_date && (
-          <p className="text-sm text-error-600 mt-1">{errors.payment_date.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Transaction ID / Reference Number
-        </label>
-        <Input {...register('transaction_id')} placeholder="Optional" />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
-        <textarea {...register('notes')} rows={2} className={inputClass} placeholder="Optional" />
-      </div>
-
-      <div className="bg-brand-50 dark:bg-brand-950 p-4 rounded-lg border border-brand-200 dark:border-brand-800">
-        <p className="text-sm text-brand-900 dark:text-brand-100 font-medium mb-2">After this payment:</p>
-        <div className="space-y-1 text-sm text-brand-800 dark:text-brand-200">
+        {/* Invoice summary */}
+        <div className="rounded-lg bg-secondary/50 p-4 space-y-2 text-sm">
           <div className="flex justify-between">
-            <span>Total Paid:</span>
-            <span className="font-semibold">
+            <span className="text-muted-foreground">Invoice Number</span>
+            <span className="font-medium">{invoice.invoice_number}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Patient</span>
+            <span className="font-medium">{invoice.patient_name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Total Amount</span>
+            <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Already Paid</span>
+            <span className="font-medium text-green-600 dark:text-green-400">
+              {formatCurrency(invoice.paid_amount)}
+            </span>
+          </div>
+          <Separator />
+          <div className="flex justify-between font-bold text-base">
+            <span>Balance Due</span>
+            <span className="text-destructive">{formatCurrency(invoice.balance_due)}</span>
+          </div>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment Amount <span className="text-destructive">*</span></FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <RiMoneyDollarCircleLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    max={invoice.balance_due}
+                    className="pl-9"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                  />
+                </div>
+              </FormControl>
+              {amount > invoice.balance_due && (
+                <p className="text-sm text-destructive">Amount cannot exceed balance due</p>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="payment_method"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment Method <span className="text-destructive">*</span></FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="netbanking">Net Banking</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="payment_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment Date <span className="text-destructive">*</span></FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="transaction_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Transaction ID / Reference</FormLabel>
+              <FormControl>
+                <Input placeholder="Optional" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes</FormLabel>
+              <FormControl>
+                <Textarea rows={2} placeholder="Optional" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* After-payment preview */}
+        <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+          <p className="font-medium text-foreground">After this payment</p>
+          <div className="flex justify-between text-muted-foreground">
+            <span>Total Paid</span>
+            <span className="font-semibold text-foreground">
               {formatCurrency((invoice.paid_amount || 0) + (amount || 0))}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span>Remaining Balance:</span>
-            <span className="font-semibold">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Remaining Balance</span>
+            <span className="font-semibold text-foreground">
               {formatCurrency(invoice.balance_due - (amount || 0))}
             </span>
           </div>
-          <div className="flex justify-between font-bold">
-            <span>Status:</span>
-            <span>
-              {invoice.balance_due - (amount || 0) === 0
-                ? 'PAID ✓'
-                : 'PARTIAL'}
-            </span>
+          <div className="flex justify-between font-bold text-foreground">
+            <span>Status</span>
+            <span>{invoice.balance_due - (amount || 0) === 0 ? 'PAID ✓' : 'PARTIAL'}</span>
           </div>
         </div>
-      </div>
 
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={isSubmitting || amount > invoice.balance_due}
-        >
-          {isSubmitting ? 'Recording...' : 'Record Payment'}
-        </Button>
-      </div>
-    </form>
+        <Separator />
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={mutation.isPending || amount > invoice.balance_due}>
+            {mutation.isPending ? 'Recording...' : 'Record Payment'}
+          </Button>
+        </div>
+      </form>
+    </Form>
   )
 }
 
