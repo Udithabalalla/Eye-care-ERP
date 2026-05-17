@@ -15,7 +15,7 @@ class InvoiceItem(BaseModel):
     tax: float = Field(default=0, ge=0)
     total: float = Field(..., ge=0)
     master_data_id: Optional[str] = None
-    line_type: Literal["product", "lens", "expense"] = "product"
+    line_type: Literal["product", "lens", "expense", "complimentary"] = "product"
     track_stock: bool = True
 
 class InsuranceClaim(BaseModel):

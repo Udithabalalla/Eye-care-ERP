@@ -1,4 +1,5 @@
 import { axiosInstance } from './axios'
+import { ApiResponse } from '@/types/common.types'
 
 export interface User {
     user_id: string
@@ -20,8 +21,8 @@ export const usersApi = {
         page_size?: number
         role?: string
     }): Promise<User[]> => {
-        const response = await axiosInstance.get<User[]>('/users', { params })
-        return response.data
+        const response = await axiosInstance.get<ApiResponse<User[]>>('/users', { params })
+        return response.data.data ?? []
     },
 
     listUsers: async (page = 1, pageSize = 100, role?: string) => {

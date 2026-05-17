@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { salesOrdersApi } from '@/api/erp.api'
+import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { SalesOrderStatus } from '@/types/erp.types'
 import { Prescription } from '@/types/prescription.types'
@@ -12,6 +14,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   RiFileEditLine,
   RiReceiptLine,
@@ -25,6 +28,7 @@ import {
   RiFileTextLine,
   RiStickyNoteLine,
   RiEyeLine,
+  RiMoneyDollarCircleLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -33,6 +37,8 @@ import { SalesOrderStatusBadge } from './SalesOrderStatusBadge'
 import { SalesOrderStepper } from './SalesOrderStepper'
 import { SalesOrderTimeline } from './SalesOrderTimeline'
 import { getNextAction } from './SalesOrderWorkflowActions'
+import { RecordPaymentDialog } from '@/components/common/RecordPaymentDialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -50,6 +56,7 @@ interface Props {
 export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [paymentOpen, setPaymentOpen] = useState(false)
 
   const { data: order } = useQuery({
     queryKey: ['sales-order', orderId],
@@ -63,6 +70,14 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     queryFn: () => prescriptionsApi.getById(order!.prescription_id!),
     enabled: open && !!order?.prescription_id,
     staleTime: 5 * 60 * 1000,
+  })
+
+  // Fetch invoice when SO has one linked (to get live balance_due)
+  const { data: invoice } = useQuery({
+    queryKey: ['invoice', order?.invoice_id],
+    queryFn: () => invoicesApi.getById(order!.invoice_id!),
+    enabled: open && !!order?.invoice_id,
+    staleTime: 0,
   })
 
   const statusMutation = useMutation({
@@ -103,6 +118,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const orderDate = measurements?.order_date as string | undefined
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -293,20 +309,86 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
 
         {/* ── Footer actions ─────────────────────── */}
         <div className="flex-shrink-0 border-t bg-background px-6 py-4 flex flex-col gap-2">
-          {nextAction && Icon && (
-            <Button
-              className={cn('w-full gap-2 font-semibold', nextAction.className)}
-              onClick={handleAdvance}
-              disabled={isPending}
-            >
-              {isPending ? (
-                <RiLoader4Line className="size-4 animate-spin" />
-              ) : (
-                <Icon className="size-4" />
+          {/* Payment prompt — shown when order is ready or delivered and has an invoice */}
+          {order && ['ready', 'delivered'].includes(order.status) && (
+            <div className={cn(
+              'rounded-lg border p-3 flex items-center justify-between gap-3',
+              invoice && invoice.balance_due > 0
+                ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
+                : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+            )}>
+              <div>
+                {invoice && invoice.balance_due > 0 ? (
+                  <>
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Payment pending</p>
+                    <p className="text-sm font-bold tabular-nums text-amber-900 dark:text-amber-100">
+                      {formatCurrency(invoice.balance_due)} due
+                    </p>
+                  </>
+                ) : invoice ? (
+                  <>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Fully paid</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">{formatCurrency(invoice.total_amount)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-muted-foreground">No invoice linked</p>
+                    <p className="text-xs text-muted-foreground">Generate invoice to record payment</p>
+                  </>
+                )}
+              </div>
+              {invoice && invoice.balance_due > 0 && (
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shrink-0"
+                  onClick={() => setPaymentOpen(true)}
+                >
+                  <RiMoneyDollarCircleLine className="size-3.5" />
+                  Record Payment
+                </Button>
               )}
-              {nextAction.label}
-            </Button>
+              {invoice && invoice.balance_due <= 0 && (
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300">Paid</Badge>
+              )}
+            </div>
           )}
+
+          {nextAction && Icon && (() => {
+            // Block "Complete Delivery" if there is an unpaid invoice balance
+            const blocked = nextAction.toStatus === 'delivered' && !!invoice && invoice.balance_due > 0
+            const tooltipMsg = blocked
+              ? `Record the outstanding payment of ${formatCurrency(invoice!.balance_due)} before completing delivery`
+              : undefined
+
+            return (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* wrapper div so tooltip still fires on disabled button */}
+                    <div className={blocked ? 'cursor-not-allowed' : undefined}>
+                      <Button
+                        className={cn('w-full gap-2 font-semibold', nextAction.className)}
+                        onClick={handleAdvance}
+                        disabled={isPending || blocked}
+                      >
+                        {isPending ? (
+                          <RiLoader4Line className="size-4 animate-spin" />
+                        ) : (
+                          <Icon className="size-4" />
+                        )}
+                        {nextAction.label}
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {tooltipMsg && (
+                    <TooltipContent side="top" className="max-w-[220px] text-center">
+                      {tooltipMsg}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            )
+          })()}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -336,6 +418,26 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Payment dialog */}
+    {order && invoice && (
+      <RecordPaymentDialog
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['sales-order', order.order_id] })
+          queryClient.invalidateQueries({ queryKey: ['invoice', order.invoice_id] })
+        }}
+        referenceType="INVOICE"
+        referenceId={invoice.invoice_id}
+        totalAmount={invoice.total_amount}
+        paidAmount={invoice.paid_amount}
+        patientName={invoice.patient_name}
+        invoiceNumber={invoice.invoice_number}
+        invalidateKeys={[['sales-orders'], ['sales-order', order.order_id]]}
+      />
+    )}
+    </>
   )
 }
 

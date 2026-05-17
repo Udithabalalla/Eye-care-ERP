@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { suppliersApi } from '@/api/suppliers.api'
-import { PurchaseOrderStatus } from '@/types/supplier.types'
+import { PurchaseOrderStatus, SupplierInvoice } from '@/types/supplier.types'
 import {
   Sheet,
   SheetContent,
@@ -10,6 +10,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   RiLoader4Line,
   RiTruckLine,
@@ -18,6 +19,7 @@ import {
   RiStickyNoteLine,
   RiBox3Line,
   RiDownloadLine,
+  RiMoneyDollarCircleLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,8 @@ import { PurchaseOrderTimeline } from './PurchaseOrderTimeline'
 import { getPONextAction } from './PurchaseOrderWorkflowActions'
 import ReceiveGoodsDialog from './ReceiveGoodsDialog'
 import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
+import { RecordSupplierPaymentDialog } from './RecordSupplierPaymentDialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Props {
   orderId: string | null
@@ -39,6 +43,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
   const queryClient = useQueryClient()
   const [isReceiveOpen, setIsReceiveOpen] = useState(false)
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['purchase-order', orderId],
@@ -46,6 +51,17 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
     enabled: open && !!orderId,
     staleTime: 0,
   })
+
+  // Fetch linked supplier invoice (if any) for payment recording
+  const { data: supplierInvoicesData } = useQuery({
+    queryKey: ['supplier-invoices', 'by-po', orderId],
+    queryFn: () => suppliersApi.getSupplierInvoices({ page: 1, page_size: 5 }),
+    enabled: open && !!orderId && ['Received', 'Closed'].includes(order?.status ?? ''),
+    staleTime: 0,
+  })
+  const linkedSupplierInvoice: SupplierInvoice | undefined = supplierInvoicesData?.data?.find(
+    (inv) => inv.purchase_order_id === orderId
+  )
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: PurchaseOrderStatus }) =>
@@ -291,20 +307,88 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
 
           {/* Footer actions */}
           <div className="flex-shrink-0 border-t bg-background px-6 py-4 flex flex-col gap-2">
-            {nextAction && Icon && (
-              <Button
-                className={cn('w-full gap-2 font-semibold', nextAction.className)}
-                onClick={handleAdvance}
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <RiLoader4Line className="size-4 animate-spin" />
-                ) : (
-                  <Icon className="size-4" />
-                )}
-                {nextAction.label}
-              </Button>
+            {/* Supplier payment prompt — shown after Received when a supplier invoice exists */}
+            {order && ['Received', 'Closed'].includes(order.status) && (
+              <div className={cn(
+                'rounded-lg border p-3 flex items-center justify-between gap-3',
+                linkedSupplierInvoice && linkedSupplierInvoice.status !== 'Paid'
+                  ? 'bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800'
+                  : linkedSupplierInvoice?.status === 'Paid'
+                    ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                    : 'bg-muted/40 border-border/60'
+              )}>
+                <div>
+                  {linkedSupplierInvoice ? (
+                    linkedSupplierInvoice.status === 'Paid' ? (
+                      <>
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Supplier fully paid</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(linkedSupplierInvoice.total_amount)}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold text-violet-800 dark:text-violet-200">Supplier payment pending</p>
+                        <p className="text-xs text-violet-700 dark:text-violet-300 font-mono">{linkedSupplierInvoice.invoice_number}</p>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground">No supplier invoice yet</p>
+                      <p className="text-xs text-muted-foreground">Create invoice first to record payment</p>
+                    </>
+                  )}
+                </div>
+                {linkedSupplierInvoice && linkedSupplierInvoice.status !== 'Paid' ? (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white border-violet-600 shrink-0"
+                    onClick={() => setIsPaymentOpen(true)}
+                  >
+                    <RiMoneyDollarCircleLine className="size-3.5" />
+                    Pay Supplier
+                  </Button>
+                ) : linkedSupplierInvoice?.status === 'Paid' ? (
+                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300">Paid</Badge>
+                ) : null}
+              </div>
             )}
+
+            {nextAction && Icon && (() => {
+              // Block "Create Invoice" (Closed) if a supplier invoice exists but is unpaid
+              const blocked = nextAction.toStatus === 'Closed'
+                && !!linkedSupplierInvoice
+                && linkedSupplierInvoice.status !== 'Paid'
+              const tooltipMsg = blocked
+                ? `Pay supplier invoice ${linkedSupplierInvoice!.invoice_number} before closing this order`
+                : undefined
+
+              return (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className={blocked ? 'cursor-not-allowed' : undefined}>
+                        <Button
+                          className={cn('w-full gap-2 font-semibold', nextAction.className)}
+                          onClick={handleAdvance}
+                          disabled={isPending || blocked}
+                        >
+                          {isPending ? (
+                            <RiLoader4Line className="size-4 animate-spin" />
+                          ) : (
+                            <Icon className="size-4" />
+                          )}
+                          {nextAction.label}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {tooltipMsg && (
+                      <TooltipContent side="top" className="max-w-[220px] text-center">
+                        {tooltipMsg}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )
+            })()}
             <Button
               variant="outline"
               className="w-full gap-1.5"
@@ -329,6 +413,10 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
               setIsReceiveOpen(false)
               queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
               queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
+              // Ensure product stock and inventory movements are refreshed
+              queryClient.invalidateQueries({ queryKey: ['products'] })
+              queryClient.invalidateQueries({ queryKey: ['inventory-movements'] })
+              queryClient.invalidateQueries({ queryKey: ['stock-receipts'] })
               setIsInvoiceOpen(true)
             }}
           />
@@ -340,7 +428,17 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
               setIsInvoiceOpen(false)
               queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
               queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
+              queryClient.invalidateQueries({ queryKey: ['supplier-invoices', 'by-po', order.id] })
             }}
+          />
+          <RecordSupplierPaymentDialog
+            open={isPaymentOpen}
+            onClose={() => setIsPaymentOpen(false)}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
+              queryClient.invalidateQueries({ queryKey: ['supplier-invoices', 'by-po', order.id] })
+            }}
+            supplierInvoice={linkedSupplierInvoice ?? null}
           />
         </>
       )}

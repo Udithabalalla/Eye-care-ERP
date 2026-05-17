@@ -1417,80 +1417,52 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                               if (!selected) return <p className="text-sm text-muted-foreground">No previous prescription details available.</p>
                               const form = mapPrescriptionToForm(selected)
                               return (
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                  <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                      <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-semibold">OD</Badge>
-                                      <h3 className="text-base font-semibold text-foreground">Right Eye</h3>
-                                    </div>
-                                    <Separator className="my-2" />
-                                    <div className="grid grid-cols-5 gap-2.5 w-full">
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sphere</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.sphere)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cylinder</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.cylinder)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Axis</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.axis)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.add)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">PD</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.rightEye.pd)}</div>
-                                      </div>
-                                    </div>
+                                <div className="space-y-4">
+                                  {/* Rx table — read-only */}
+                                  <div className="overflow-x-auto rounded-lg border border-border/60">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="bg-muted/50 border-b border-border/60">
+                                          <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground w-20"></th>
+                                          {['Sphere', 'Cylinder', 'Axis', 'Add', 'PD'].map((col) => (
+                                            <th key={col} className="py-2.5 px-3 text-center font-semibold text-muted-foreground uppercase tracking-wide text-xs">{col}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr className="border-b border-border/40 bg-primary/5">
+                                          <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                              <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-bold text-xs">OD</Badge>
+                                              <span className="text-xs text-muted-foreground hidden sm:inline">Right</span>
+                                            </div>
+                                          </td>
+                                          {[form.rightEye.sphere, form.rightEye.cylinder, form.rightEye.axis, form.rightEye.add, form.rightEye.pd].map((val, i) => (
+                                            <td key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</td>
+                                          ))}
+                                        </tr>
+                                        <tr className="bg-blue-50/40 dark:bg-blue-950/20">
+                                          <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                              <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-bold text-xs">OS</Badge>
+                                              <span className="text-xs text-muted-foreground hidden sm:inline">Left</span>
+                                            </div>
+                                          </td>
+                                          {[form.leftEye.sphere, form.leftEye.cylinder, form.leftEye.axis, form.leftEye.add, form.leftEye.pd].map((val, i) => (
+                                            <td key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</td>
+                                          ))}
+                                        </tr>
+                                      </tbody>
+                                    </table>
                                   </div>
-
-                                  <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                      <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 font-semibold">OS</Badge>
-                                      <h3 className="text-base font-semibold text-foreground">Left Eye</h3>
+                                  <div className="grid grid-cols-2 gap-4 pt-1">
+                                    <div>
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Diagnosis</p>
+                                      <p className="text-sm text-foreground">{form.diagnosis || '—'}</p>
                                     </div>
-                                    <Separator className="my-2" />
-                                    <div className="grid grid-cols-5 gap-2.5 w-full">
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sphere</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.sphere)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cylinder</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.cylinder)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Axis</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.axis)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.add)}</div>
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">PD</label>
-                                        <div className="text-sm font-medium mt-1">{String(form.leftEye.pd)}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="col-span-1 lg:col-span-2">
-                                    <div className="border-t pt-4">
-                                      <h4 className="text-sm font-semibold text-foreground mb-2">Clinical Notes</h4>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                          <label className="text-sm font-medium text-foreground">Diagnosis</label>
-                                          <div className="mt-1 text-sm text-muted-foreground">{form.diagnosis || '—'}</div>
-                                        </div>
-                                        <div>
-                                          <label className="text-sm font-medium text-foreground">Notes</label>
-                                          <div className="mt-1 text-sm text-muted-foreground">{form.notes || '—'}</div>
-                                        </div>
-                                      </div>
+                                    <div>
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                                      <p className="text-sm text-foreground">{form.notes || '—'}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -1503,206 +1475,185 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   )}
 
                   {/* Manual Entry Tab */}
-                  <TabsContent value="manual" className="w-full space-y-6">
-                    {/* OD / OS Eye Measurements */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-                      {/* Right Eye (OD) Card */}
-                      <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3 hover:border-border transition-colors overflow-hidden">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-semibold">OD</Badge>
-                          <h3 className="text-base font-semibold text-foreground">Right Eye</h3>
-                        </div>
-                        <Separator className="my-2" />
-
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 w-full">
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Sphere</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.rightEye.sphere', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', val + 0.25) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', val - 0.25) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Cylinder</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', val + 0.25) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', val - 0.25) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Axis</label>
-                            <Input 
-                              type="number" 
-                              step="1" 
-                              placeholder="0"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', (val + 1) % 180) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', val === 0 ? 179 : val - 1) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Add</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.min(val + 0.25, 4)) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(val - 0.25, 0)) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">PD</label>
-                            <Input 
-                              type="number" 
-                              step="0.1" 
-                              placeholder="0.0"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.min(val + 0.5, 75)) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.max(val - 0.5, 50)) }
-                              }}
-                            />
-                          </div>
-                        </div>
+                  <TabsContent value="manual" className="w-full space-y-5">
+                    {/* Rx date row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rx Date</label>
+                        <Input type="date" className="h-9" {...register('prescription.newData.prescriptionDate')} disabled={prescriptionIsLinked} />
                       </div>
-
-                      {/* Left Eye (OS) Card */}
-                      <div className="rounded-lg border border-border/60 bg-muted/35 p-4 space-y-3 hover:border-border transition-colors overflow-hidden">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-semibold">OS</Badge>
-                          <h3 className="text-base font-semibold text-foreground">Left Eye</h3>
-                        </div>
-                        <Separator className="my-2" />
-
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 w-full">
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Sphere</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.leftEye.sphere', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', val + 0.25) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', val - 0.25) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Cylinder</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', val + 0.25) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', val - 0.25) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Axis</label>
-                            <Input 
-                              type="number" 
-                              step="1" 
-                              placeholder="0"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', (val + 1) % 180) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', val === 0 ? 179 : val - 1) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Add</label>
-                            <Input 
-                              type="number" 
-                              step="0.25" 
-                              placeholder="0.00"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.min(val + 0.25, 4)) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.max(val - 0.25, 0)) }
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 min-w-0">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">PD</label>
-                            <Input 
-                              type="number" 
-                              step="0.1" 
-                              placeholder="0.0"
-                              className="text-center text-sm h-9 font-medium min-w-[84px]"
-                              {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} 
-                              disabled={prescriptionIsLinked}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ArrowUp') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.min(val + 0.5, 75)) }
-                                if (e.key === 'ArrowDown') { e.preventDefault(); const val = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.max(val - 0.5, 50)) }
-                              }}
-                            />
-                          </div>
-                        </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valid Until</label>
+                        <Input type="date" className="h-9" {...register('prescription.newData.validUntil')} disabled={prescriptionIsLinked} />
                       </div>
                     </div>
 
+                    {/* Prescription table — OD / OS rows */}
+                    <div className="overflow-x-auto rounded-lg border border-border/60">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border/60">
+                            <th className="py-2.5 pl-4 pr-2 text-left font-semibold text-muted-foreground w-24 shrink-0">Eye</th>
+                            {[
+                              { label: 'Sphere', hint: '±0.25' },
+                              { label: 'Cylinder', hint: '±0.25' },
+                              { label: 'Axis', hint: '1–180' },
+                              { label: 'Add', hint: '0–4' },
+                              { label: 'PD', hint: 'mm' },
+                            ].map(({ label, hint }) => (
+                              <th key={label} className="py-2.5 px-2 text-center font-semibold text-muted-foreground">
+                                <div className="text-xs uppercase tracking-wide">{label}</div>
+                                <div className="text-[10px] font-normal text-muted-foreground/60">{hint}</div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* OD — Right Eye */}
+                          <tr className="border-b border-border/40 bg-primary/5">
+                            <td className="pl-4 pr-2 py-3">
+                              <div className="flex flex-col gap-0.5">
+                                <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-bold text-xs w-fit">OD</Badge>
+                                <span className="text-[10px] text-muted-foreground">Right</span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="space-y-1">
+                                <Input
+                                  type="text"
+                                  placeholder="0.00"
+                                  className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                  {...register('prescription.newData.rightEye.sphere')}
+                                  disabled={prescriptionIsLinked}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', v + 0.25) }
+                                    if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.sphere')) || 0; setValue('prescription.newData.rightEye.sphere', v - 0.25) }
+                                  }}
+                                />
+                                <div className="flex gap-1">
+                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'PLANO' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">PL</button>
+                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'NPL' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">NPL</button>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', v + 0.25) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', v - 0.25) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
+                                {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', (v + 1) % 181) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', v === 0 ? 180 : v - 1) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.min(v + 0.25, 4)) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(v - 0.25, 0)) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.min(v + 0.5, 75)) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.max(v - 0.5, 50)) }
+                                }} />
+                            </td>
+                          </tr>
+
+                          {/* OS — Left Eye */}
+                          <tr className="bg-blue-50/40 dark:bg-blue-950/20">
+                            <td className="pl-4 pr-2 py-3">
+                              <div className="flex flex-col gap-0.5">
+                                <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-bold text-xs w-fit">OS</Badge>
+                                <span className="text-[10px] text-muted-foreground">Left</span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="space-y-1">
+                                <Input
+                                  type="text"
+                                  placeholder="0.00"
+                                  className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                  {...register('prescription.newData.leftEye.sphere')}
+                                  disabled={prescriptionIsLinked}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', v + 0.25) }
+                                    if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.sphere')) || 0; setValue('prescription.newData.leftEye.sphere', v - 0.25) }
+                                  }}
+                                />
+                                <div className="flex gap-1">
+                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'PLANO' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">PL</button>
+                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'NPL' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">NPL</button>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', v + 0.25) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', v - 0.25) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
+                                {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', (v + 1) % 181) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', v === 0 ? 180 : v - 1) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.min(v + 0.25, 4)) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.max(v - 0.25, 0)) }
+                                }} />
+                            </td>
+                            <td className="px-2 py-3">
+                              <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
+                                {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.min(v + 0.5, 75)) }
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.max(v - 0.5, 50)) }
+                                }} />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Use <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↑</kbd> <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↓</kbd> arrow keys to step values in any field.</p>
+
                     {/* Clinical Notes Section */}
-                    <div className="border-t border-border pt-6 w-full">
-                      <h4 className="text-sm font-semibold text-foreground mb-3">Clinical Notes</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Diagnosis</label>
-                          <Input 
-                            {...register('prescription.newData.diagnosis')} 
-                            disabled={prescriptionIsLinked} 
-                            placeholder="e.g. Myopia, Hyperopia, Astigmatism"
-                            className="h-10"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Clinical Notes</label>
-                          <Input 
-                            {...register('prescription.newData.notes')} 
-                            disabled={prescriptionIsLinked} 
-                            placeholder="Special instructions or observations"
-                            className="h-10"
-                          />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Diagnosis</label>
+                        <Input
+                          {...register('prescription.newData.diagnosis')}
+                          disabled={prescriptionIsLinked}
+                          placeholder="e.g. Myopia, Hyperopia, Astigmatism"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clinical Notes</label>
+                        <Input
+                          {...register('prescription.newData.notes')}
+                          disabled={prescriptionIsLinked}
+                          placeholder="Special instructions or observations"
+                          className="h-9"
+                        />
                       </div>
                     </div>
                   </TabsContent>
