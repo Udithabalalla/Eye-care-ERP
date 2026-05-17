@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,10 +10,26 @@ import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Invoice, InvoiceFormData } from '@/types/invoice.types'
 import toast from 'react-hot-toast'
 import { RiAddLine, RiDeleteBinLine } from '@remixicon/react'
-import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatCurrency, safeDate } from '@/utils/formatters'
 import PrescriptionSelectionModal from './PrescriptionSelectionModal'
 import QRScanner from '@/components/common/QRScanner'
@@ -46,12 +62,8 @@ interface InvoiceFormProps {
   onCancel: () => void
 }
 
-const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
-
 const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
   const queryClient = useQueryClient()
-  const { } = useAuthStore()
-
   const { data: patients } = useQuery({
     queryKey: ['patients-list'],
     queryFn: () => patientsApi.getAll({ page: 1, page_size: 100 }),
@@ -62,34 +74,28 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
   })
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<InvoiceFormValues>({
+  const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: invoice
       ? {
-        patient_id: invoice.patient_id,
-        invoice_date: safeDate(invoice.invoice_date),
-        due_date: safeDate(invoice.due_date),
-        items: invoice.items,
-        prescription_id: invoice.prescription_id === 'string' ? undefined : invoice.prescription_id,
-        notes: invoice.notes || '',
-      }
+          patient_id: invoice.patient_id,
+          invoice_date: safeDate(invoice.invoice_date),
+          due_date: safeDate(invoice.due_date),
+          items: invoice.items,
+          prescription_id: invoice.prescription_id === 'string' ? undefined : invoice.prescription_id,
+          notes: invoice.notes || '',
+        }
       : {
-        invoice_date: new Date().toISOString().split('T')[0],
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[0],
-        items: [],
-      },
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          items: [],
+        },
   })
 
+  const { control, watch, setValue } = form
   const patientId = watch('patient_id')
+  const items = watch('items')
+
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
@@ -118,35 +124,19 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     setShowPrescriptionModal(false)
   }
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'items',
-  })
-
-  const items = watch('items')
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
 
   const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0)
   const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0)
   const totalTax = items.reduce((sum, item) => sum + (item.tax || 0), 0)
-  const totalAmount = subtotal
 
   const addItem = () => {
-    append({
-      product_id: '',
-      product_name: '',
-      sku: '',
-      quantity: 1,
-      unit_price: 0,
-      discount: 0,
-      tax: 0,
-      total: 0,
-    })
+    append({ product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0, discount: 0, tax: 0, total: 0 })
   }
 
   const addScannedProductToInvoice = async (scannedCode: string) => {
     try {
       const product = await productsApi.lookupByCode(scannedCode)
-
       const existingIndex = items.findIndex((item) => item.product_id === product.product_id)
       if (existingIndex >= 0) {
         const nextQty = (items[existingIndex].quantity || 0) + 1
@@ -164,10 +154,9 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           total: product.selling_price,
         })
       }
-
       toast.success(`${product.name} added to invoice`)
       setShowBarcodeScanner(false)
-    } catch (error) {
+    } catch {
       toast.error('Scanned product not found')
     }
   }
@@ -186,29 +175,26 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
   const calculateItemTotal = (index: number) => {
     const item = items[index]
     if (item) {
-      const subtotal = item.quantity * item.unit_price
+      const sub = item.quantity * item.unit_price
       const discountAmount = item.discount || 0
-      const taxAmount = ((subtotal - discountAmount) * (item.tax || 0)) / 100
-      const total = subtotal - discountAmount + taxAmount
-      setValue(`items.${index}.total`, parseFloat(total.toFixed(2)))
+      const taxAmount = ((sub - discountAmount) * (item.tax || 0)) / 100
+      setValue(`items.${index}.total`, parseFloat((sub - discountAmount + taxAmount).toFixed(2)))
     }
   }
 
   useEffect(() => {
     items.forEach((item, index) => {
       if (item.quantity && item.unit_price) {
-        const subtotal = item.quantity * item.unit_price
+        const sub = item.quantity * item.unit_price
         const discountAmount = item.discount || 0
-        const taxAmount = ((subtotal - discountAmount) * (item.tax || 0)) / 100
-        const total = subtotal - discountAmount + taxAmount
-        const calculatedTotal = parseFloat(total.toFixed(2))
-
+        const taxAmount = ((sub - discountAmount) * (item.tax || 0)) / 100
+        const calculatedTotal = parseFloat((sub - discountAmount + taxAmount).toFixed(2))
         if (item.total !== calculatedTotal) {
           setValue(`items.${index}.total`, calculatedTotal)
         }
       }
     })
-  }, [items.map(i => `${i.quantity}-${i.unit_price}-${i.discount}-${i.tax}`).join(',')])
+  }, [items.map((i) => `${i.quantity}-${i.unit_price}-${i.discount}-${i.tax}`).join(',')])
 
   const createMutation = useMutation({
     mutationFn: (data: InvoiceFormData) => invoicesApi.create(data),
@@ -217,22 +203,17 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
       toast.success('Invoice created successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to create invoice')
-    },
+    onError: () => toast.error('Failed to create invoice'),
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<InvoiceFormData>) =>
-      invoicesApi.update(invoice!.invoice_id, data),
+    mutationFn: (data: Partial<InvoiceFormData>) => invoicesApi.update(invoice!.invoice_id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
       toast.success('Invoice updated successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to update invoice')
-    },
+    onError: () => toast.error('Failed to update invoice'),
   })
 
   const onSubmit = (data: InvoiceFormValues) => {
@@ -243,224 +224,293 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SearchableLOV
-          label="Patient"
-          required
-          value={watch('patient_id')}
-          onChange={(value) => setValue('patient_id', value)}
-          options={
-            patients?.data?.map((patient: any): LOVOption => ({
-              value: patient.patient_id,
-              label: patient.name,
-              subtitle: patient.patient_id,
-            })) || []
-          }
-          placeholder="Select patient"
-          error={errors.patient_id?.message}
-        />
+  const isPending = createMutation.isPending || updateMutation.isPending
 
-        {selectedPrescription && (
-          <div className="col-span-1 md:col-span-3 bg-brand-50 dark:bg-brand-950 p-3 rounded-md flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-brand-700 dark:text-brand-300 font-medium">Linked Prescription:</span>
-              <span className="text-sm text-brand-600 dark:text-brand-400">
-                {new Date(selectedPrescription.prescription_date).toLocaleDateString()} -
-                {selectedPrescription.diagnosis}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-brand-500 bg-brand-100 dark:bg-brand-900 px-2 py-1 rounded">
-                {prescriptionsData?.data?.length === 1 ? 'Auto-linked' : 'Selected'}
-              </span>
-              <button
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+
+        {/* Header fields */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="text-base font-semibold text-foreground">Invoice Details</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Patient, dates, and linked prescription.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={control}
+              name="patient_id"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Patient <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <SearchableLOV
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      options={patients?.data?.map((p: any): LOVOption => ({
+                        value: p.patient_id,
+                        label: p.name,
+                        subtitle: p.patient_id,
+                      })) || []}
+                      placeholder="Select patient"
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="invoice_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Invoice Date <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="due_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Due Date <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {selectedPrescription && (
+            <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary">Linked Prescription</Badge>
+                <span className="text-muted-foreground">
+                  {new Date(selectedPrescription.prescription_date).toLocaleDateString()} — {selectedPrescription.diagnosis}
+                </span>
+              </div>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowPrescriptionModal(true)}
-                className="text-xs text-brand-600 hover:text-brand-800 dark:text-brand-400 dark:hover:text-brand-200 underline"
               >
                 Change
-              </button>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Line items */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-base font-semibold text-foreground">Items</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Products included in this invoice.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowBarcodeScanner(true)}>
+                Scan Barcode
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                <RiAddLine className="w-4 h-4 mr-1" />
+                Add Item
+              </Button>
             </div>
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Invoice Date *
-          </label>
-          <Input type="date" {...register('invoice_date')} />
-          {errors.invoice_date && (
-            <p className="text-sm text-error-600 mt-1">{errors.invoice_date.message}</p>
-          )}
-        </div>
+          <div className="space-y-3">
+            {fields.map((field, index) => (
+              <div key={field.id} className="rounded-lg border border-border p-4">
+                <div className="grid grid-cols-12 gap-3 items-end">
+                  <div className="col-span-3">
+                    <FormLabel className="text-xs mb-1 block">Product</FormLabel>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.product_id`}
+                      render={({ field: f }) => (
+                        <Select
+                          value={f.value}
+                          onValueChange={(v) => {
+                            f.onChange(v)
+                            handleProductChange(index, v)
+                          }}
+                        >
+                          <SelectTrigger className="w-full text-sm">
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products?.data?.map((p: any) => (
+                              <SelectItem key={p.product_id} value={p.product_id}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
 
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Due Date *
-          </label>
-          <Input type="date" {...register('due_date')} />
-          {errors.due_date && (
-            <p className="text-sm text-error-600 mt-1">{errors.due_date.message}</p>
-          )}
-        </div>
-      </div>
+                  <div className="col-span-2">
+                    <FormLabel className="text-xs mb-1 block">Quantity</FormLabel>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.quantity`}
+                      render={({ field: f }) => (
+                        <Input
+                          type="number"
+                          min="1"
+                          className="text-sm"
+                          {...f}
+                          onChange={(e) => f.onChange(parseInt(e.target.value))}
+                        />
+                      )}
+                    />
+                  </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Items</h3>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setShowBarcodeScanner(true)}>
-              Scan Barcode
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={addItem}>
-              <RiAddLine className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
-          </div>
-        </div>
+                  <div className="col-span-2">
+                    <FormLabel className="text-xs mb-1 block">Unit Price</FormLabel>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.unit_price`}
+                      render={({ field: f }) => (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-sm"
+                          {...f}
+                          onChange={(e) => f.onChange(parseFloat(e.target.value))}
+                        />
+                      )}
+                    />
+                  </div>
 
-        <div className="space-y-3">
-          {fields.map((field, index) => (
-            <div key={field.id} className="p-4 border border-border rounded-lg">
-              <div className="grid grid-cols-12 gap-3">
-                <div className="col-span-3">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Product
-                  </label>
-                  <select
-                    {...register(`items.${index}.product_id`)}
-                    onChange={(e) => handleProductChange(index, e.target.value)}
-                    className={`${inputClass} text-sm`}
-                  >
-                    <option value="">Select product</option>
-                    {products?.data?.map((product: any) => (
-                      <option key={product.product_id} value={product.product_id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="col-span-2">
+                    <FormLabel className="text-xs mb-1 block">Discount</FormLabel>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.discount`}
+                      render={({ field: f }) => (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-sm"
+                          {...f}
+                          onChange={(e) => f.onChange(parseFloat(e.target.value))}
+                        />
+                      )}
+                    />
+                  </div>
 
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Quantity
-                  </label>
-                  <Input
-                    type="number"
-                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                    className="text-sm"
-                    min="1"
-                  />
-                </div>
+                  <div className="col-span-2">
+                    <FormLabel className="text-xs mb-1 block">Total</FormLabel>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.total`}
+                      render={({ field: f }) => (
+                        <Input
+                          type="number"
+                          className="text-sm bg-secondary"
+                          readOnly
+                          {...f}
+                        />
+                      )}
+                    />
+                  </div>
 
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Unit Price
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                    className="text-sm"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Discount
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    {...register(`items.${index}.discount`, { valueAsNumber: true })}
-                    className="text-sm"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Total
-                  </label>
-                  <Input
-                    type="number"
-                    {...register(`items.${index}.total`)}
-                    className="text-sm bg-secondary"
-                    readOnly
-                  />
-                </div>
-
-                <div className="col-span-1 flex items-end">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="p-2"
-                    onClick={() => remove(index)}
-                  >
-                    <RiDeleteBinLine className="w-4 h-4" />
-                  </Button>
+                  <div className="col-span-1">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => remove(index)}
+                    >
+                      <RiDeleteBinLine className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {form.formState.errors.items && (
+            <p className="text-sm text-destructive">{form.formState.errors.items.message}</p>
+          )}
+
+          {/* Totals */}
+          <div className="rounded-lg bg-secondary/50 p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
-          ))}
-        </div>
-
-        {errors.items && (
-          <p className="text-sm text-error-600 mt-2">{errors.items.message}</p>
-        )}
-      </div>
-
-      <div className="bg-secondary p-4 rounded-lg">
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal:</span>
-            <span className="font-medium">{formatCurrency(subtotal)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Total Discount:</span>
-            <span className="font-medium text-error-600">-{formatCurrency(totalDiscount)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Total Tax:</span>
-            <span className="font-medium">{formatCurrency(totalTax)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-bold border-t pt-2">
-            <span>Total Amount:</span>
-            <span className="text-primary">{formatCurrency(totalAmount)}</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Discount</span>
+              <span className="font-medium text-destructive">-{formatCurrency(totalDiscount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Tax</span>
+              <span className="font-medium">{formatCurrency(totalTax)}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-base font-bold pt-1">
+              <span>Total Amount</span>
+              <span className="text-primary">{formatCurrency(subtotal)}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">Notes</label>
-        <Input {...register('notes')} />
-      </div>
+        {/* Notes */}
+        <FormField
+          control={control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes</FormLabel>
+              <FormControl>
+                <Input placeholder="Optional notes about this invoice..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : invoice ? 'Update Invoice' : 'Create Invoice'}
-        </Button>
-      </div>
+        <Separator />
 
-      <PrescriptionSelectionModal
-        isOpen={showPrescriptionModal}
-        onClose={() => setShowPrescriptionModal(false)}
-        prescriptions={prescriptionsData?.data || []}
-        onSelect={handlePrescriptionSelect}
-        selectedId={selectedPrescription?.prescription_id}
-      />
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Saving...' : invoice ? 'Update Invoice' : 'Create Invoice'}
+          </Button>
+        </div>
 
-      <QRScanner
-        isOpen={showBarcodeScanner}
-        onClose={() => setShowBarcodeScanner(false)}
-        onScan={addScannedProductToInvoice}
-      />
-    </form>
+        <PrescriptionSelectionModal
+          isOpen={showPrescriptionModal}
+          onClose={() => setShowPrescriptionModal(false)}
+          prescriptions={prescriptionsData?.data || []}
+          onSelect={handlePrescriptionSelect}
+          selectedId={selectedPrescription?.prescription_id}
+        />
+
+        <QRScanner
+          isOpen={showBarcodeScanner}
+          onClose={() => setShowBarcodeScanner(false)}
+          onScan={addScannedProductToInvoice}
+        />
+      </form>
+    </Form>
   )
 }
 

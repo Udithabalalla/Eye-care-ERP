@@ -1,4 +1,4 @@
-import { Calendar, Clock, User01 } from '@untitledui/icons'
+import { RiCalendarLine, RiTimeLine, RiUserLine } from '@remixicon/react'
 import { Appointment } from '@/types/appointment.types'
 import { formatDate } from '@/utils/formatters'
 import { getStatusColor } from '@/utils/helpers'
@@ -35,15 +35,15 @@ const AppointmentCard = ({ appointment, onClick }: AppointmentCardProps) => {
 
           <div className="space-y-1 text-sm text-muted-foreground">
             <div className="flex items-center space-x-2">
-              <User01 className="w-4 h-4" />
+              <RiUserLine className="w-4 h-4" />
               <span>{appointment.doctor_name}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4" />
+              <RiCalendarLine className="w-4 h-4" />
               <span>{formatDate(appointment.appointment_date)}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4" />
+              <RiTimeLine className="w-4 h-4" />
               <span>
                 {timeStr} ({appointment.duration_minutes} mins)
               </span>

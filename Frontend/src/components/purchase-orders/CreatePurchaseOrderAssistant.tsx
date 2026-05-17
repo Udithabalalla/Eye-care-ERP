@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus } from '@untitledui/icons'
+import { RiAddLine } from '@remixicon/react'
 import Modal from '@/components/common/Modal'
 import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
@@ -261,7 +261,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-foreground">Item Information</h4>
-              <Button variant="outline" size="sm" onClick={addItem}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
+              <Button variant="outline" size="sm" onClick={addItem}><RiAddLine className="mr-2 h-4 w-4" />Add Item</Button>
             </div>
             <div className="space-y-4">
               {draft.items.map((item, index) => {
@@ -295,7 +295,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                           onClick={() => openAddNewProduct(index)}
                           className="min-w-fit shrink-0 gap-1 whitespace-nowrap border-brand-200 px-3 text-brand-600 hover:bg-brand-50"
                         >
-                          <Plus className="h-4 w-4" />
+                          <RiAddLine className="h-4 w-4" />
                           <span className="leading-none">Add New Item</span>
                         </Button>
                       </div>

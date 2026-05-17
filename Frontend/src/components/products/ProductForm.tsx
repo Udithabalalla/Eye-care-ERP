@@ -7,7 +7,24 @@ import { basicDataApi } from '@/api/basic-data.api'
 import { Product, ProductFormData } from '@/types/product.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import toast from 'react-hot-toast'
 
 const productSchema = z.object({
@@ -37,8 +54,6 @@ interface ProductFormProps {
   onCancel: () => void
 }
 
-const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
-
 const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
   const queryClient = useQueryClient()
 
@@ -50,13 +65,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
 
   const categories = categoriesData?.data ?? []
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<ProductFormValues>({
+  const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: product
       ? {
@@ -79,8 +88,6 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
         },
   })
 
-  const selectedCategory = watch('category')
-
   const createMutation = useMutation({
     mutationFn: (data: ProductFormData) => productsApi.create(data),
     onSuccess: () => {
@@ -88,9 +95,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
       toast.success('Product created successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to create product')
-    },
+    onError: () => toast.error('Failed to create product'),
   })
 
   const updateMutation = useMutation({
@@ -101,9 +106,7 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
       toast.success('Product updated successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to update product')
-    },
+    onError: () => toast.error('Failed to update product'),
   })
 
   const onSubmit = (data: ProductFormValues) => {
@@ -114,199 +117,304 @@ const ProductForm = ({ product, onSuccess, onCancel }: ProductFormProps) => {
     }
   }
 
+  const isPending = createMutation.isPending || updateMutation.isPending
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Product Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Product Name *
-            </label>
-            <Input {...register('name')} />
-            {errors.name && (
-              <p className="text-sm text-error-600 mt-1">{errors.name.message}</p>
-            )}
-          </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Description
-            </label>
-            <textarea {...register('description')} rows={2} className={inputClass} />
-          </div>
-
+        {/* Product Information */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Category *
-            </label>
-            <Select
-              value={selectedCategory || ''}
-              onValueChange={(val) => setValue('category', val, { shouldValidate: true })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.length === 0 ? (
-                  <SelectItem value="_none" disabled>
-                    No categories — add them in Basic Data → Product Categories
-                  </SelectItem>
-                ) : (
-                  categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            {errors.category && (
-              <p className="text-sm text-error-600 mt-1">{errors.category.message}</p>
-            )}
+            <p className="text-base font-semibold text-foreground">Product Information</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Core product details and classification.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Brand</label>
-            <Input {...register('brand')} />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Product Name <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Contact Lens Daily 360" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">SKU *</label>
-            <Input {...register('sku')} placeholder="e.g., CLS-360" />
-            {errors.sku && (
-              <p className="text-sm text-error-600 mt-1">{errors.sku.message}</p>
-            )}
-          </div>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} placeholder="Optional product description..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Barcode</label>
-            {product?.barcode ? (
-              <Input value={product.barcode} className="bg-secondary/60" readOnly />
-            ) : (
-              <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
-                Barcode will be generated automatically when the product is saved.
-              </div>
-            )}
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category <span className="text-destructive">*</span></FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.length === 0 ? (
+                        <SelectItem value="_none" disabled>
+                          No categories — add them in Basic Data → Product Categories
+                        </SelectItem>
+                      ) : (
+                        categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="brand"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Brand</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Acuvue" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sku"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SKU <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., CLS-360" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormItem className="md:col-span-2">
+              <FormLabel>Barcode</FormLabel>
+              {product?.barcode ? (
+                <Input value={product.barcode} className="bg-secondary/60" readOnly />
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
+                  Barcode will be generated automatically when the product is saved.
+                </div>
+              )}
+            </FormItem>
           </div>
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Pricing</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Pricing */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Cost Price *
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              {...register('cost_price', { valueAsNumber: true })}
-            />
-            {errors.cost_price && (
-              <p className="text-sm text-error-600 mt-1">{errors.cost_price.message}</p>
-            )}
+            <p className="text-base font-semibold text-foreground">Pricing</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Cost, selling, and maximum retail price.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Selling Price *
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              {...register('selling_price', { valueAsNumber: true })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="cost_price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cost Price <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {errors.selling_price && (
-              <p className="text-sm text-error-600 mt-1">{errors.selling_price.message}</p>
-            )}
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">MRP *</label>
-            <Input
-              type="number"
-              step="0.01"
-              {...register('mrp', { valueAsNumber: true })}
+            <FormField
+              control={form.control}
+              name="selling_price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selling Price <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {errors.mrp && (
-              <p className="text-sm text-error-600 mt-1">{errors.mrp.message}</p>
-            )}
+
+            <FormField
+              control={form.control}
+              name="mrp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>MRP <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Inventory</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Inventory */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Current Stock *
-            </label>
-            <Input
-              type="number"
-              {...register('current_stock', { valueAsNumber: true })}
-              disabled={!!product}
-            />
-            {errors.current_stock && (
-              <p className="text-sm text-error-600 mt-1">{errors.current_stock.message}</p>
-            )}
-            {product && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Use stock adjustment to change quantity
-              </p>
-            )}
+            <p className="text-base font-semibold text-foreground">Inventory</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Stock levels and reorder thresholds.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Min Stock Level *
-            </label>
-            <Input
-              type="number"
-              {...register('min_stock_level', { valueAsNumber: true })}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="current_stock"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current Stock <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      disabled={!!product}
+                    />
+                  </FormControl>
+                  {product && (
+                    <FormDescription>Use stock adjustment to change quantity.</FormDescription>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {errors.min_stock_level && (
-              <p className="text-sm text-error-600 mt-1">{errors.min_stock_level.message}</p>
-            )}
+
+            <FormField
+              control={form.control}
+              name="min_stock_level"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Min Stock Level <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Supplier Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Supplier */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Supplier Name
-            </label>
-            <Input {...register('supplier.name')} />
+            <p className="text-base font-semibold text-foreground">Supplier Information</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Optional supplier contact for this product.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Contact
-            </label>
-            <Input {...register('supplier.contact')} />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="supplier.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Supplier Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Supplier name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
-            <Input type="email" {...register('supplier.email')} />
+            <FormField
+              control={form.control}
+              name="supplier.contact"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Phone or contact" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="supplier.email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="supplier@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-      </div>
 
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : product ? 'Update Product' : 'Create Product'}
-        </Button>
-      </div>
-    </form>
+        <Separator />
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Saving...' : product ? 'Update Product' : 'Create Product'}
+          </Button>
+        </div>
+      </form>
+    </Form>
   )
 }
 

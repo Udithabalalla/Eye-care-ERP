@@ -7,12 +7,28 @@ import { patientsApi } from '@/api/patients.api'
 import { Appointment, AppointmentFormData } from '@/types/appointment.types'
 import { AppointmentType } from '@/types/common.types'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
 import SearchableLOV, { LOVOption } from '@/components/common/SearchableLOV'
 import { doctorsApi } from '@/api/doctors.api'
 import { safeDate } from '@/utils/formatters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
@@ -34,12 +50,8 @@ interface AppointmentFormProps {
   onCancel: () => void
 }
 
-const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background'
-
 const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }: AppointmentFormProps) => {
   const queryClient = useQueryClient()
-  const { } = useAuthStore()
-
   const { data: patients } = useQuery({
     queryKey: ['patients-list'],
     queryFn: () => patientsApi.getAll({ page: 1, page_size: 100 }),
@@ -50,32 +62,26 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
     queryFn: () => doctorsApi.getAll({ active_only: true }),
   })
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<AppointmentFormValues>({
+  const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: appointment
       ? {
-        patient_id: appointment.patient_id,
-        doctor_id: appointment.doctor_id,
-        appointment_date: safeDate(appointment.appointment_date),
-        appointment_time: appointment.appointment_time.includes('T')
-          ? appointment.appointment_time.split('T')[1].substring(0, 5)
-          : appointment.appointment_time.substring(0, 5),
-        duration_minutes: appointment.duration_minutes,
-        type: appointment.type,
-        reason: appointment.reason,
-        notes: appointment.notes || '',
-      }
+          patient_id: appointment.patient_id,
+          doctor_id: appointment.doctor_id,
+          appointment_date: safeDate(appointment.appointment_date),
+          appointment_time: appointment.appointment_time.includes('T')
+            ? appointment.appointment_time.split('T')[1].substring(0, 5)
+            : appointment.appointment_time.substring(0, 5),
+          duration_minutes: appointment.duration_minutes,
+          type: appointment.type,
+          reason: appointment.reason,
+          notes: appointment.notes || '',
+        }
       : {
-        patient_id: initialPatientId || '',
-        duration_minutes: 30,
-        type: AppointmentType.CONSULTATION,
-      },
+          patient_id: initialPatientId || '',
+          duration_minutes: 30,
+          type: AppointmentType.CONSULTATION,
+        },
   })
 
   const createMutation = useMutation({
@@ -85,9 +91,7 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
       toast.success('Appointment scheduled successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to schedule appointment')
-    },
+    onError: () => toast.error('Failed to schedule appointment'),
   })
 
   const updateMutation = useMutation({
@@ -98,9 +102,7 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
       toast.success('Appointment updated successfully')
       onSuccess()
     },
-    onError: () => {
-      toast.error('Failed to update appointment')
-    },
+    onError: () => toast.error('Failed to update appointment'),
   })
 
   const onSubmit = (data: AppointmentFormValues) => {
@@ -111,122 +113,195 @@ const AppointmentForm = ({ appointment, initialPatientId, onSuccess, onCancel }:
     }
   }
 
+  const isPending = createMutation.isPending || updateMutation.isPending
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SearchableLOV
-          label="Patient"
-          required
-          value={watch('patient_id')}
-          onChange={(value) => setValue('patient_id', value)}
-          options={
-            patients?.data?.map((patient): LOVOption => ({
-              value: patient.patient_id,
-              label: patient.name,
-              subtitle: patient.patient_id,
-            })) || []
-          }
-          placeholder="Select patient"
-          error={errors.patient_id?.message}
-        />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="text-base font-semibold text-foreground">Appointment Details</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Schedule a patient visit with a doctor.</p>
+          </div>
 
-        <SearchableLOV
-          label="Doctor"
-          required
-          value={watch('doctor_id')}
-          onChange={(value) => setValue('doctor_id', value)}
-          options={
-            doctors?.map((doctor): LOVOption => ({
-              value: doctor.doctor_id,
-              label: doctor.name,
-              subtitle: doctor.specialization,
-            })) || []
-          }
-          placeholder="Select doctor"
-          error={errors.doctor_id?.message}
-        />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="patient_id"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Patient <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <SearchableLOV
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      options={
+                        patients?.data?.map((p): LOVOption => ({
+                          value: p.patient_id,
+                          label: p.name,
+                          subtitle: p.patient_id,
+                        })) || []
+                      }
+                      placeholder="Select patient"
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Date *
-          </label>
-          <Input type="date" {...register('appointment_date')} />
-          {errors.appointment_date && (
-            <p className="text-sm text-error-600 mt-1">{errors.appointment_date.message}</p>
-          )}
+            <FormField
+              control={form.control}
+              name="doctor_id"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Doctor <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <SearchableLOV
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      options={
+                        doctors?.map((d): LOVOption => ({
+                          value: d.doctor_id,
+                          label: d.name,
+                          subtitle: d.specialization,
+                        })) || []
+                      }
+                      placeholder="Select doctor"
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="appointment_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="appointment_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Time <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="duration_minutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duration <span className="text-destructive">*</span></FormLabel>
+                  <Select
+                    onValueChange={(v) => field.onChange(Number(v))}
+                    value={String(field.value ?? 30)}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="45">45 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Appointment Type <span className="text-destructive">*</span></FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="consultation">Consultation</SelectItem>
+                      <SelectItem value="follow-up">Follow-up</SelectItem>
+                      <SelectItem value="emergency">Emergency</SelectItem>
+                      <SelectItem value="screening">Screening</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Time *
-          </label>
-          <Input type="time" {...register('appointment_time')} />
-          {errors.appointment_time && (
-            <p className="text-sm text-error-600 mt-1">{errors.appointment_time.message}</p>
-          )}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <p className="text-base font-semibold text-foreground">Visit Information</p>
+
+          <FormField
+            control={form.control}
+            name="reason"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Reason for Visit <span className="text-destructive">*</span></FormLabel>
+                <FormControl>
+                  <Textarea rows={2} placeholder="Describe the reason for this appointment..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Additional Notes</FormLabel>
+                <FormControl>
+                  <Textarea rows={2} placeholder="Optional notes..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Duration (minutes) *
-          </label>
-          <select {...register('duration_minutes', { valueAsNumber: true })} className={inputClass}>
-            <option value={15}>15 minutes</option>
-            <option value={30}>30 minutes</option>
-            <option value={45}>45 minutes</option>
-            <option value={60}>1 hour</option>
-          </select>
-          {errors.duration_minutes && (
-            <p className="text-sm text-error-600 mt-1">{errors.duration_minutes.message}</p>
-          )}
+        <Separator />
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Saving...' : appointment ? 'Update Appointment' : 'Schedule Appointment'}
+          </Button>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Appointment Type *
-          </label>
-          <select {...register('type')} className={inputClass}>
-            <option value="consultation">Consultation</option>
-            <option value="follow-up">Follow-up</option>
-            <option value="emergency">Emergency</option>
-            <option value="screening">Screening</option>
-          </select>
-          {errors.type && (
-            <p className="text-sm text-error-600 mt-1">{errors.type.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Reason for Visit *
-        </label>
-        <textarea {...register('reason')} rows={2} className={inputClass} />
-        {errors.reason && (
-          <p className="text-sm text-error-600 mt-1">{errors.reason.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Additional Notes
-        </label>
-        <textarea {...register('notes')} rows={2} className={inputClass} />
-      </div>
-
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting
-            ? 'Saving...'
-            : appointment
-              ? 'Update Appointment'
-              : 'Schedule Appointment'}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   )
 }
 

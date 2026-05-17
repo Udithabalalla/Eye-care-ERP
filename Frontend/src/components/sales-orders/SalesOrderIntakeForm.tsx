@@ -28,6 +28,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -1368,7 +1369,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   {patient.existingId && (
                     <TabsContent value="existing" className="w-full space-y-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-foreground">Select Previous Prescription</label>
+                        <Label className="text-sm font-semibold text-foreground">Select Previous Prescription</Label>
                         <Select
                           value={prescription.existingId || ''}
                           onValueChange={(selectedId) => {
@@ -1479,11 +1480,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     {/* Rx date row */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rx Date</label>
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rx Date</Label>
                         <Input type="date" className="h-9" {...register('prescription.newData.prescriptionDate')} disabled={prescriptionIsLinked} />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valid Until</label>
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valid Until</Label>
                         <Input type="date" className="h-9" {...register('prescription.newData.validUntil')} disabled={prescriptionIsLinked} />
                       </div>
                     </div>
@@ -1638,7 +1639,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     {/* Clinical Notes Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Diagnosis</label>
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Diagnosis</Label>
                         <Input
                           {...register('prescription.newData.diagnosis')}
                           disabled={prescriptionIsLinked}
@@ -1647,7 +1648,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clinical Notes</label>
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clinical Notes</Label>
                         <Input
                           {...register('prescription.newData.notes')}
                           disabled={prescriptionIsLinked}
