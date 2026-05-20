@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axiosRetry, { isNetworkOrIdempotentRequestError, exponentialDelay } from 'axios-retry'
 import toast from 'react-hot-toast'
 
 const HOSTED_API_BASE_URL = 'https://eye-care-erp-production.up.railway.app/api/v1'
 const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/me', '/auth/register']
 
 const resolveApiBaseUrl = (): string => {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
@@ -45,6 +47,19 @@ export const axiosInstance = axios.create({
   },
 })
 
+// Retry transient network/server errors with exponential backoff (skip on 4xx client errors)
+axiosRetry(axiosInstance, {
+  retries: 2,
+  retryDelay: exponentialDelay,
+  retryCondition: (error: AxiosError) => {
+    // Do not retry on client errors (4xx)
+    if (error.response && error.response.status >= 400 && error.response.status < 500) {
+      return false
+    }
+    return isNetworkOrIdempotentRequestError(error)
+  },
+})
+
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -52,7 +67,13 @@ axiosInstance.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
+
+    // Give mutation requests more time — Railway cold starts can take 30–60 s
+    const method = config.method?.toLowerCase()
+    if (method === 'post' || method === 'put' || method === 'patch') {
+      config.timeout = 90000
+    }
+
     // Deduplicate GET requests - cancel previous pending request with same key
     if (config.method?.toLowerCase() === 'get') {
       const requestKey = getRequestKey(config)
@@ -99,12 +120,40 @@ axiosInstance.interceptors.response.use(
       const status = error.response.status
       const data: any = error.response.data
 
+      // Attempt token refresh on 401 before failing
+      const originalRequest: any = error.config
+      if (status === 401 && originalRequest && !originalRequest._retry) {
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (refreshToken) {
+          originalRequest._retry = true
+          // Use raw axios to call refresh endpoint to avoid interceptor loops
+          return axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken })
+            .then((resp) => {
+              const newAccess = resp.data.access_token
+              if (newAccess) {
+                localStorage.setItem('token', newAccess)
+                // Update header and retry original request
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = `Bearer ${newAccess}`
+                }
+                return axiosInstance(originalRequest)
+              }
+              // Fallthrough to normal 401 handling
+              throw error
+            })
+            .catch(() => {
+              // If refresh fails, fall back to existing behaviour
+            })
+        }
+      }
+
       switch (status) {
         case 401:
           // Clear all auth data including zustand persist storage
           localStorage.removeItem('token')
           localStorage.removeItem('user')
           localStorage.removeItem('auth-storage')  // Clear zustand persist storage
+          localStorage.removeItem('refresh_token')
           
           // Only redirect if not already on login page to prevent loops
           if (!window.location.pathname.includes('/login')) {
@@ -115,11 +164,12 @@ axiosInstance.interceptors.response.use(
         case 403:
           toast.error('You do not have permission to perform this action.')
           break
-        case 404:
+        case 404: {
           const errorMessage = data.detail || data.message || 'Resource not found.'
           toast.error(errorMessage)
           break
-        case 422:
+        }
+        case 422: {
           const errors = data.detail
           if (Array.isArray(errors)) {
             errors.forEach((err: any) => {
@@ -127,6 +177,7 @@ axiosInstance.interceptors.response.use(
             })
           }
           break
+        }
         case 400:
           toast.error(data.detail || data.message || 'Request failed.')
           break
@@ -137,23 +188,32 @@ axiosInstance.interceptors.response.use(
           toast.error(data.detail || data.message || 'An error occurred')
       }
     } else if (error.request) {
+      const requestUrl: string = error.config?.url || ''
+      const isAuthEndpoint = AUTH_ENDPOINTS.some((ep) => requestUrl.includes(ep))
       const hasToken = Boolean(localStorage.getItem('token'))
       const alreadyRecovered = localStorage.getItem(AUTH_RECOVERY_KEY) === '1'
 
-      // In hosted environments, stale/invalid persisted auth state can lead to repeated failed requests.
-      // Attempt one automatic recovery by clearing auth and forcing a clean login.
-      if (hasToken && !alreadyRecovered && !window.location.pathname.includes('/login')) {
+      // Only auto-recover on auth endpoints — never on feature endpoints like invoice creation.
+      // Non-auth network failures (server down, cold start, timeout) must not log the user out.
+      if (isAuthEndpoint && hasToken && !alreadyRecovered && !window.location.pathname.includes('/login')) {
         localStorage.setItem(AUTH_RECOVERY_KEY, '1')
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         localStorage.removeItem('auth-storage')
-        toast.error('Connection session reset. Please login again.')
+        toast.error('Session error. Please login again.')
         window.location.href = '/login'
         return Promise.reject(error)
       }
 
-      localStorage.removeItem(AUTH_RECOVERY_KEY)
-      toast.error('No response from server. Please check your connection.')
+      if (!isAuthEndpoint) {
+        localStorage.removeItem(AUTH_RECOVERY_KEY)
+      }
+      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+      toast.error(
+        isTimeout
+          ? 'Request timed out — the server may be starting up. Please try again.'
+          : 'No response from server. Please check your connection and try again.',
+      )
     } else {
       toast.error('An error occurred. Please try again.')
     }

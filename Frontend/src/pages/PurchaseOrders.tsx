@@ -41,6 +41,7 @@ import { PurchaseOrderDetailSheet } from '@/components/purchase-orders/PurchaseO
 import CreatePurchaseOrderAssistant from '@/components/purchase-orders/CreatePurchaseOrderAssistant'
 import ReceiveGoodsDialog from '@/components/purchase-orders/ReceiveGoodsDialog'
 import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
+import SupplierPaymentForm from '@/components/suppliers/SupplierPaymentForm'
 
 const LIFECYCLE_FILTER_TABS: Array<{ id: PurchaseOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All' },
@@ -66,6 +67,7 @@ const PurchaseOrders = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<PurchaseOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['purchase-orders', page, pageSize, statusFilter],
@@ -488,11 +490,33 @@ const PurchaseOrders = () => {
         isOpen={!!invoiceOrder}
         order={invoiceOrder}
         onClose={() => setInvoiceOrder(null)}
-        onSuccess={() => {
+        onSuccess={async (invoice) => {
+          const closingOrderId = invoiceOrder?.id
           setInvoiceOrder(null)
+          if (closingOrderId) {
+            try {
+              await suppliersApi.updatePurchaseOrderStatus(closingOrderId, 'Closed')
+            } catch {
+              toast.error('Invoice created but failed to close PO — please close it manually.')
+            }
+          }
           queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
+          setPaymentInvoiceId(invoice.id)
         }}
       />
+
+      {/* Record payment dialog — opens automatically after invoice creation */}
+      {paymentInvoiceId && (
+        <SupplierPaymentForm
+          invoiceId={paymentInvoiceId}
+          onSuccess={() => {
+            setPaymentInvoiceId(null)
+            queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] })
+            queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
+          }}
+          onCancel={() => setPaymentInvoiceId(null)}
+        />
+      )}
     </div>
   )
 }

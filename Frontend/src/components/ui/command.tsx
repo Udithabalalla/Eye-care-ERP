@@ -24,10 +24,9 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
   children,
   ...props
-}: React.ComponentProps<typeof Dialog> & { title?: string }) {
+}: React.ComponentProps<typeof Dialog>) {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 sm:max-w-lg">

@@ -110,7 +110,8 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
     if (!cleaned.email) delete cleaned.email
 
     if (cleaned.address) {
-      const { country, ...rest } = cleaned.address
+      const rest = { ...cleaned.address }
+      delete (rest as any).country
       if (!Object.values(rest).some((v) => v && String(v).trim())) delete cleaned.address
     }
 

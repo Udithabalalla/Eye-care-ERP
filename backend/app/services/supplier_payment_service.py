@@ -78,6 +78,23 @@ class SupplierPaymentService:
         next_status = "Paid" if next_total_paid >= invoice.total_amount else "Partial"
         await self.invoice_repo.update_invoice_status(data.invoice_id, next_status)
 
+        # If invoice is fully paid and linked to a purchase order, attempt to close the PO
+        if next_status == "Paid" and invoice.purchase_order_id:
+            try:
+                # Import locally to avoid import cycles
+                from app.services.purchase_order_service import PurchaseOrderService
+
+                po_service = PurchaseOrderService(self.invoice_repo.db)
+                # Attempt to close the purchase order. If transition is invalid (e.g., not Received),
+                # PurchaseOrderService.update_status will raise BadRequestException which we ignore here.
+                await po_service.update_status(invoice.purchase_order_id, "Closed", updated_by=current_user_id)
+            except BadRequestException:
+                # PO not in a state that allows closing; ignore
+                pass
+            except Exception:
+                # Do not fail the payment flow for PO close errors; log could be added here
+                pass
+
         created["invoice_number"] = invoice.invoice_number
         return SupplierPaymentResponse(**created)
 

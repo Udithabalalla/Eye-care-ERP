@@ -100,7 +100,8 @@ const Users = () => {
     if (!selectedUser && !formData.password) { toast.error('Password is required for new users'); return }
     const data = { ...formData }
     if (selectedUser) {
-      const { password, ...updateData } = data
+      const updateData: any = { ...data }
+      delete updateData.password
       saveUserMutation.mutate(updateData)
     } else {
       saveUserMutation.mutate(data)

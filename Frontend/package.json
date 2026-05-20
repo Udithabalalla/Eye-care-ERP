@@ -19,6 +19,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@untitledui/icons": "^0.0.21",
     "axios": "^1.7.7",
+    "axios-retry": "^3.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

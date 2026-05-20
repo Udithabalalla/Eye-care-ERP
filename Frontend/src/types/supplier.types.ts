@@ -205,6 +205,8 @@ export interface SupplierInvoice {
   items?: SupplierInvoiceItem[]
   matching_status?: 'Matched' | 'Flagged'
   matching_issues?: string[]
+  created_by?: string
+  updated_by?: string
   created_at: string
   updated_at: string
 }

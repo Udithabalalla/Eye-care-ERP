@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { StatusHistoryEntry } from '@/types/erp.types'
-import { STATUS_CONFIG } from './SalesOrderStatusBadge'
+import { STATUS_CONFIG } from './salesOrderStatusConfig'
 
 function formatTime(iso: string): string {
   try {

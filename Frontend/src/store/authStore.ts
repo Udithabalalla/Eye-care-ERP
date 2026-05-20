@@ -23,8 +23,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authApi.login(credentials)
           
-          // Store token in localStorage
+          // Store token and refresh token in localStorage
           localStorage.setItem('token', response.access_token)
+          if ((response as any).refresh_token) {
+            localStorage.setItem('refresh_token', (response as any).refresh_token)
+          }
           localStorage.setItem('user', JSON.stringify(response.user))
           
           set({
@@ -48,6 +51,9 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.signup(data)
 
           localStorage.setItem('token', response.access_token)
+          if ((response as any).refresh_token) {
+            localStorage.setItem('refresh_token', (response as any).refresh_token)
+          }
           localStorage.setItem('user', JSON.stringify(response.user))
 
           set({
@@ -98,6 +104,7 @@ export const useAuthStore = create<AuthState>()(
           console.error('Logout error:', error)
         } finally {
           localStorage.removeItem('token')
+          localStorage.removeItem('refresh_token')
           localStorage.removeItem('user')
           set({
             user: null,

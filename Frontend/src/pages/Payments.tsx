@@ -65,7 +65,7 @@ const Payments = () => {
       return paymentsApi.create({
         amount: numericAmount,
         payment_method: form.payment_method,
-        payment_date: form.payment_date,
+        payment_date: new Date(form.payment_date).toISOString(),
         reference_type: 'INVOICE',
         reference_id: form.reference_id,
       })

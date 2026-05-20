@@ -50,4 +50,13 @@ class LoginResponse(BaseModel):
     """Schema for login response"""
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
     user: UserResponse
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class RefreshResponse(BaseModel):
+    access_token: str

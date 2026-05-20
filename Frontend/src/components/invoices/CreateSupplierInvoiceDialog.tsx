@@ -17,14 +17,14 @@ import {
 } from '@/components/ui/table'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
-import { PurchaseOrder, SupplierInvoiceFormData, SupplierInvoiceItem } from '@/types/supplier.types'
+import { PurchaseOrder, SupplierInvoice, SupplierInvoiceFormData, SupplierInvoiceItem } from '@/types/supplier.types'
 import { formatCurrency } from '@/utils/formatters'
 
 interface CreateSupplierInvoiceDialogProps {
   isOpen: boolean
   order: PurchaseOrder | null
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (invoice: SupplierInvoice) => void
 }
 
 const buildWarnings = (item: SupplierInvoiceItem, orderQuantities: { ordered: number; received: number }) => {
@@ -74,7 +74,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
     setItems(nextItems)
     setInvoiceNumber('')
     setInvoiceDate(new Date().toISOString().slice(0, 16))
-    setDueDate('')
+    setDueDate(order.expected_delivery_date ? new Date(order.expected_delivery_date).toISOString().slice(0, 16) : '')
   }, [order, products?.data, isOpen])
 
   const matchingIssues = useMemo(() => {
@@ -90,10 +90,10 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 
   const createMutation = useMutation({
     mutationFn: (data: SupplierInvoiceFormData) => suppliersApi.createSupplierInvoice(data),
-    onSuccess: () => {
+    onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] })
       toast.success('Supplier invoice created successfully')
-      onSuccess()
+      onSuccess(invoice)
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.detail || 'Failed to create supplier invoice')

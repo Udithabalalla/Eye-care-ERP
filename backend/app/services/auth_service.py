@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.user_repository import UserRepository
@@ -6,6 +7,9 @@ from app.core.security import verify_password, get_password_hash, create_access_
 from app.core.exceptions import UnauthorizedException, ConflictException
 from app.schemas.user import LoginResponse, UserResponse, SignupRequest
 from app.models.user import UserModel
+from app.config.settings import settings
+
+REFRESH_COLLECTION = 'refresh_tokens'
 
 class AuthService:
     """Authentication service"""
@@ -36,6 +40,15 @@ class AuthService:
         access_token = create_access_token(
             data={"sub": user.user_id, "email": user.email, "role": user.role}
         )
+
+        # Create refresh token and persist
+        refresh_token = uuid.uuid4().hex
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        await self.user_repo.db[REFRESH_COLLECTION].insert_one({
+            "token": refresh_token,
+            "user_id": user.user_id,
+            "expires_at": expires_at,
+        })
         
         # Prepare response
         user_response = UserResponse(**user.dict())
@@ -43,6 +56,7 @@ class AuthService:
         return LoginResponse(
             access_token=access_token,
             token_type="bearer",
+            refresh_token=refresh_token,
             user=user_response
         )
 
@@ -72,10 +86,35 @@ class AuthService:
             data={"sub": created_user.user_id, "email": created_user.email, "role": created_user.role}
         )
 
+        # Create refresh token and persist
+        refresh_token = uuid.uuid4().hex
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        await self.user_repo.db[REFRESH_COLLECTION].insert_one({
+            "token": refresh_token,
+            "user_id": created_user.user_id,
+            "expires_at": expires_at,
+        })
+
         user_response = UserResponse(**created_user.dict())
 
         return LoginResponse(
             access_token=access_token,
             token_type="bearer",
+            refresh_token=refresh_token,
             user=user_response
         )
+
+    async def refresh_access_token(self, refresh_token: str) -> str:
+        """Validate refresh token and return a new access token"""
+        doc = await self.user_repo.db[REFRESH_COLLECTION].find_one({"token": refresh_token})
+        if not doc:
+            raise UnauthorizedException("Invalid refresh token")
+        expires_at = doc.get('expires_at')
+        if not expires_at or datetime.now(timezone.utc) > expires_at:
+            raise UnauthorizedException("Refresh token expired")
+        user = await self.user_repo.get_by_user_id(doc.get('user_id'))
+        if not user:
+            raise UnauthorizedException("User not found for refresh token")
+        # Issue new access token
+        new_access = create_access_token({"sub": user.user_id, "email": user.email, "role": user.role})
+        return new_access

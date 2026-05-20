@@ -111,6 +111,7 @@ const SupplierInvoices = () => {
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Supplier</TableHead>
+                    <TableHead>Matching</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Actions</TableHead>
@@ -123,6 +124,13 @@ const SupplierInvoices = () => {
                         <span className="font-medium text-foreground">{invoice.invoice_number}</span>
                       </TableCell>
                       <TableCell>{invoice.supplier_name || invoice.supplier_id}</TableCell>
+                      <TableCell>
+                        {invoice.matching_status === 'Flagged' ? (
+                          <Badge variant="destructive">Flagged</Badge>
+                        ) : (
+                          <Badge variant="outline">OK</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={statusVariant[invoice.status] ?? 'outline'}>
                           {invoice.status}
