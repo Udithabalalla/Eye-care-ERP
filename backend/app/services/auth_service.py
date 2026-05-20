@@ -110,7 +110,12 @@ class AuthService:
         if not doc:
             raise UnauthorizedException("Invalid refresh token")
         expires_at = doc.get('expires_at')
-        if not expires_at or datetime.now(timezone.utc) > expires_at:
+        if not expires_at:
+            raise UnauthorizedException("Refresh token expired")
+        # Ensure expires_at is timezone-aware (MongoDB might return naive datetime)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires_at:
             raise UnauthorizedException("Refresh token expired")
         user = await self.user_repo.get_by_user_id(doc.get('user_id'))
         if not user:
