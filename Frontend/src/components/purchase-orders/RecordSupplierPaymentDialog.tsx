@@ -61,6 +61,8 @@ interface Props {
 export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplierInvoice, paidAmount = 0 }: Props) {
   const queryClient = useQueryClient()
 
+  if (!supplierInvoice) return null
+
   const balanceDue = Math.max((supplierInvoice.total_amount ?? 0) - paidAmount, 0)
 
   const form = useForm<FormValues>({
