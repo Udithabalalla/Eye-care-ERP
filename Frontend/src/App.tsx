@@ -6,6 +6,10 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import Loading from './components/common/Loading'
 
 // Lazy load pages for better initial bundle size
+const FrameMasters = lazy(() => import('./pages/FrameMasters'))
+const FrameVariants = lazy(() => import('./pages/FrameVariants'))
+const QuickIntake = lazy(() => import('./pages/QuickIntake'))
+const GoodsReceipts = lazy(() => import('./pages/GoodsReceipts'))
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
@@ -64,6 +68,12 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            {/* ── Optical ERP ──────────────────────────────────────────── */}
+            <Route path="/frame-masters" element={<FrameMasters />} />
+            <Route path="/frame-variants" element={<FrameVariants />} />
+            <Route path="/quick-intake" element={<QuickIntake />} />
+            <Route path="/goods-receipts" element={<GoodsReceipts />} />
+            {/* ── Existing ─────────────────────────────────────────────── */}
             <Route path="/patients" element={<Patients />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/prescriptions" element={<Prescriptions />} />

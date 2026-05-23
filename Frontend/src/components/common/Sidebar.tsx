@@ -19,6 +19,9 @@ import {
   RiSettings4Line,
   RiArrowDownSLine,
   RiMore2Line,
+  RiDownload2Line,
+  RiGridLine,
+  RiQrCodeLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -69,12 +72,18 @@ const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Clinical',
+    title: 'Frames',
     items: [
-      { name: 'Patients', path: '/patients', icon: RiTeamLine },
-      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
-      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
-      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
+      { name: 'Frame Catalog', path: '/frame-masters', icon: RiGridLine },
+      { name: 'Frame Inventory', path: '/frame-variants', icon: RiBox3Line },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
+      { name: 'Quick Intake', path: '/quick-intake', icon: RiDownload2Line },
+      { name: 'Goods Receipts', path: '/goods-receipts', icon: RiTruckLine },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiSettings4Line },
     ],
   },
   {
@@ -91,17 +100,17 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Suppliers', path: '/suppliers', icon: RiTeamLine },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: RiTruckLine },
-      { name: 'Stock Receipts', path: '/stock-receipts', icon: RiBox3Line },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
       { name: 'Supplier Payments', path: '/supplier-payments', icon: RiMoneyDollarCircleLine },
     ],
   },
   {
-    title: 'Inventory',
+    title: 'Clinical',
     items: [
-      { name: 'Products', path: '/products', icon: RiBox3Line },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiBarChart2Line },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiSettings4Line },
+      { name: 'Patients', path: '/patients', icon: RiTeamLine },
+      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
+      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
+      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
     ],
   },
   {
@@ -109,11 +118,6 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Transactions', path: '/transactions', icon: RiBarChart2Line },
       { name: 'Ledger', path: '/ledger', icon: RiBarChartLine },
-    ],
-  },
-  {
-    title: 'Analytics',
-    items: [
       { name: 'Reports', path: '/reports', icon: RiBarChartLine },
     ],
   },
