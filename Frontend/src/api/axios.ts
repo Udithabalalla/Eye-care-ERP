@@ -34,6 +34,34 @@ const API_BASE_URL = resolveApiBaseUrl()
 // Request deduplication map
 const pendingRequests = new Map<string, AbortController>()
 
+export const extractApiErrorMessage = (detail: unknown, fallback = 'An error occurred'): string => {
+  if (typeof detail === 'string') return detail
+
+  if (Array.isArray(detail)) {
+    return detail
+      .map((entry) => {
+        if (typeof entry === 'string') return entry
+        if (entry && typeof entry === 'object') {
+          const error = entry as { msg?: unknown; message?: unknown }
+          if (typeof error.msg === 'string') return error.msg
+          if (typeof error.message === 'string') return error.message
+        }
+        return ''
+      })
+      .filter(Boolean)
+      .join(', ')
+  }
+
+  if (detail && typeof detail === 'object') {
+    const error = detail as { detail?: unknown; msg?: unknown; message?: unknown }
+    if (typeof error.detail === 'string') return error.detail
+    if (typeof error.msg === 'string') return error.msg
+    if (typeof error.message === 'string') return error.message
+  }
+
+  return fallback
+}
+
 // Generate unique request key
 const getRequestKey = (config: InternalAxiosRequestConfig): string => {
   return `${config.method}-${config.url}-${JSON.stringify(config.params || {})}`
@@ -170,12 +198,7 @@ axiosInstance.interceptors.response.use(
           break
         }
         case 422: {
-          const errors = data.detail
-          if (Array.isArray(errors)) {
-            errors.forEach((err: any) => {
-              toast.error(err.msg || 'Validation error')
-            })
-          }
+            toast.error(extractApiErrorMessage(data.detail, 'Validation error'))
           break
         }
         case 400:

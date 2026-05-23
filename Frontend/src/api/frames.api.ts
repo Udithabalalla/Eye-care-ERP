@@ -14,7 +14,11 @@ export const frameMastersApi = {
     page?: number; page_size?: number; search?: string
     brand?: string; category?: string; gender?: string
   }): Promise<PaginatedResponse<FrameMaster>> => {
-    const res = await axiosInstance.get<PaginatedResponse<FrameMaster>>('/frame-masters', { params })
+    const safeParams = {
+      ...params,
+      page_size: params?.page_size ? Math.min(params.page_size, 100) : params?.page_size,
+    }
+    const res = await axiosInstance.get<PaginatedResponse<FrameMaster>>('/frame-masters', { params: safeParams })
     return res.data
   },
 

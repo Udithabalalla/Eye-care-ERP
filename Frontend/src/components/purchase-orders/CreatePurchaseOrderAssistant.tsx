@@ -9,6 +9,7 @@ import AddProductAssistant from '@/components/products/AddProductAssistant'
 import { VariantPicker } from '@/components/frames/VariantPicker'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
+import { extractApiErrorMessage } from '@/api/axios'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
@@ -143,7 +144,9 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
       onSuccess()
       onClose()
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to create purchase order'),
+    onError: (error: any) => {
+      toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to create purchase order'))
+    },
   })
 
   const save = () => {

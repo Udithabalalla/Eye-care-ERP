@@ -81,7 +81,7 @@ export default function FrameVariants() {
 
   const { data: mastersData } = useQuery({
     queryKey: ['frame-masters-all'],
-    queryFn: () => frameMastersApi.getAll({ page_size: 200 }),
+    queryFn: () => frameMastersApi.getAll({ page_size: 100 }),
     staleTime: 30_000,
   })
 

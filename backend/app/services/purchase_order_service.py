@@ -8,6 +8,7 @@ import io
 from app.repositories.purchase_order_repository import PurchaseOrderRepository
 from app.repositories.supplier_repository import SupplierRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.frame_variant_repository import FrameVariantRepository
 from app.repositories.stock_receipt_repository import StockReceiptRepository
 from app.services.company_profile_service import CompanyProfileService
 from app.schemas.purchase_order import (
@@ -60,6 +61,7 @@ class PurchaseOrderService:
         self.repo = PurchaseOrderRepository(db)
         self.supplier_repo = SupplierRepository(db)
         self.product_repo = ProductRepository(db)
+        self.frame_variant_repo = FrameVariantRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
         self.company_profile_service = CompanyProfileService(db)
         self.inventory_service = InventoryMovementService(db)
@@ -89,9 +91,16 @@ class PurchaseOrderService:
         subtotal = 0.0
         line_discount_total = 0.0
         for index, item in enumerate(data.items, start=1):
-            product = await self.product_repo.get_by_product_id(item.product_id)
-            if not product:
-                raise NotFoundException(f"Product with ID {item.product_id} not found")
+            resolved_product_id = item.product_id
+            if item.frame_variant_id:
+                variant = await self.frame_variant_repo.get_by_variant_id(item.frame_variant_id)
+                if not variant:
+                    raise NotFoundException(f"Frame variant with ID {item.frame_variant_id} not found")
+                resolved_product_id = variant.variant_id
+            else:
+                product = await self.product_repo.get_by_product_id(item.product_id)
+                if not product:
+                    raise NotFoundException(f"Product with ID {item.product_id} not found")
 
             line_subtotal = item.quantity * item.unit_cost
             line_discount_amount = self._calculate_line_discount(
@@ -105,7 +114,8 @@ class PurchaseOrderService:
             item_models.append(PurchaseOrderItemModel(
                 id=item_id,
                 purchase_order_id=order_id,
-                product_id=item.product_id,
+                product_id=resolved_product_id,
+                frame_variant_id=item.frame_variant_id,
                 quantity=item.quantity,
                 unit_cost=item.unit_cost,
                 line_discount_type=item.line_discount_type,
@@ -309,7 +319,13 @@ class PurchaseOrderService:
 
         for receipt_item in receipt_items:
             if receipt_item.received_quantity > 0:
-                ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
+                is_variant_line = bool(
+                    next((item for item in order.items if item.product_id == receipt_item.product_id and item.frame_variant_id), None)
+                )
+                if is_variant_line:
+                    ok = await self.frame_variant_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
+                else:
+                    ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
                 if not ok:
                     raise BadRequestException(f"Failed to update stock for {receipt_item.product_id}")
 

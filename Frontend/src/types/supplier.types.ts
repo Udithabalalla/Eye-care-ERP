@@ -35,6 +35,7 @@ export interface PurchaseOrderItem {
   id: string
   purchase_order_id: string
   product_id: string
+  frame_variant_id?: string
   quantity: number
   unit_cost: number
   line_discount_type?: 'percent' | 'amount'

@@ -84,8 +84,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'Frames',
     items: [
-      { name: 'Frame Catalog', path: '/frame-masters', icon: RiGridLine },
-      { name: 'Frame Inventory', path: '/frame-variants', icon: RiBox3Line },
+      { name: 'Frames', path: '/frame-masters', icon: RiGridLine },
     ],
   },
   {

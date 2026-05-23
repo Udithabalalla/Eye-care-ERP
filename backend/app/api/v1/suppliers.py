@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/suppliers", response_model=PaginatedResponse[SupplierResponse])
 async def list_suppliers(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     search: str | None = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
@@ -74,7 +74,7 @@ async def delete_supplier(
 @router.get("/purchase-orders", response_model=PaginatedResponse[PurchaseOrderResponse])
 async def list_purchase_orders(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     supplier_id: str | None = None,
     status: str | None = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
@@ -142,7 +142,7 @@ async def download_purchase_order_pdf(
 @router.get("/supplier-invoices", response_model=PaginatedResponse[SupplierInvoiceResponse])
 async def list_supplier_invoices(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     supplier_id: str | None = None,
     status: str | None = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
@@ -175,7 +175,7 @@ async def update_supplier_invoice(
 @router.get("/supplier-payments", response_model=PaginatedResponse[SupplierPaymentResponse])
 async def list_supplier_payments(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     invoice_id: str | None = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),

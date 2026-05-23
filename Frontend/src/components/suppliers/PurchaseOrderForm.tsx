@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import Modal from '@/components/common/Modal'
 import Input from '@/components/common/Input'
 import Button from '@/components/common/Button'
+import { extractApiErrorMessage } from '@/api/axios'
 import { suppliersApi } from '@/api/suppliers.api'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { productsApi } from '@/api/products.api'
@@ -122,8 +123,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
       onSuccess()
     },
     onError: (error: any) => {
-      const msg = error?.response?.data?.detail || 'Failed to create purchase order'
-      toast.error(msg)
+      toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to create purchase order'))
     },
   })
 

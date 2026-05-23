@@ -82,6 +82,7 @@ class PurchaseOrderItemModel(BaseModel):
     id: str
     purchase_order_id: str
     product_id: str
+    frame_variant_id: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
     line_discount_type: Optional[str] = None
