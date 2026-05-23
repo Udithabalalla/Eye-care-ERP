@@ -32,6 +32,9 @@ import {
   RiDownload2Line,
   RiGridLine,
   RiArrowUpDownLine,
+  RiBuilding2Line,
+  RiExchangeDollarLine,
+  RiListSettingsLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -81,74 +84,84 @@ const navigationSections: NavSection[] = [
       { name: 'Dashboard', path: '/', icon: RiHomeLine },
     ],
   },
+
+  // ── Inventory ──────────────────────────────────────────────────────────────
+  // Frame catalog → receiving → ad-hoc intake → corrections → audit log
   {
-    title: 'Frames',
+    title: 'Inventory',
     items: [
-      { name: 'Frames', path: '/frame-masters', icon: RiGridLine },
+      { name: 'Frames',             path: '/frame-masters',       icon: RiGridLine },
+      { name: 'Goods Receipts',     path: '/goods-receipts',      icon: RiTruckLine },
+      { name: 'Quick Intake',       path: '/quick-intake',        icon: RiDownload2Line },
+      { name: 'Stock Adjustments',  path: '/stock-adjustments',   icon: RiEqualizerLine },
+      { name: 'Movement History',   path: '/inventory-movements', icon: RiArrowUpDownLine },
     ],
   },
+
+  // ── Purchasing ─────────────────────────────────────────────────────────────
+  // Supplier setup → order → receive → invoice → pay
   {
-    title: 'Operations',
+    title: 'Purchasing',
     items: [
-      { name: 'Quick Intake', path: '/quick-intake', icon: RiDownload2Line },
-      { name: 'Goods Receipts', path: '/goods-receipts', icon: RiTruckLine },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiEqualizerLine },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiArrowUpDownLine },
+      { name: 'Suppliers',          path: '/suppliers',           icon: RiBuilding2Line },
+      { name: 'Purchase Orders',    path: '/purchase-orders',     icon: RiShoppingCartLine },
+      { name: 'Stock Receipts',     path: '/stock-receipts',      icon: RiInboxLine },
+      { name: 'Supplier Invoices',  path: '/supplier-invoices',   icon: RiFileTextLine },
+      { name: 'Supplier Payments',  path: '/supplier-payments',   icon: RiBankCardLine },
     ],
   },
+
+  // ── Sales ──────────────────────────────────────────────────────────────────
+  // Order → invoice → collect payment → handle returns
   {
     title: 'Sales',
     items: [
       { name: 'Sales Orders', path: '/sales-orders', icon: RiReceiptLine },
-      { name: 'Invoices', path: '/invoices', icon: RiFileChartLine },
-      { name: 'Payments', path: '/payments', icon: RiMoneyDollarCircleLine },
-      { name: 'Refunds', path: '/refunds', icon: RiRefundLine },
+      { name: 'Invoices',     path: '/invoices',     icon: RiFileChartLine },
+      { name: 'Payments',     path: '/payments',     icon: RiMoneyDollarCircleLine },
+      { name: 'Refunds',      path: '/refunds',      icon: RiRefundLine },
     ],
   },
-  {
-    title: 'Purchasing',
-    items: [
-      { name: 'Suppliers', path: '/suppliers', icon: RiTeamLine },
-      { name: 'Purchase Orders', path: '/purchase-orders', icon: RiShoppingCartLine },
-      { name: 'Stock Receipts', path: '/stock-receipts', icon: RiInboxLine },
-      { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
-      { name: 'Supplier Payments', path: '/supplier-payments', icon: RiBankCardLine },
-    ],
-  },
+
+  // ── Clinical ───────────────────────────────────────────────────────────────
   {
     title: 'Clinical',
     items: [
-      { name: 'Patients', path: '/patients', icon: RiUserLine },
-      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
-      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
-      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
-      { name: 'Products', path: '/products', icon: RiBox3Line },
+      { name: 'Patients',      path: '/patients',      icon: RiUserLine },
+      { name: 'Appointments',  path: '/appointments',  icon: RiCalendarLine },
+      { name: 'Prescriptions', path: '/prescriptions', icon: RiEyeLine },
+      { name: 'Doctors',       path: '/doctors',       icon: RiUserFollowLine },
+      { name: 'Products',      path: '/products',      icon: RiBox3Line },
     ],
   },
+
+  // ── Finance ────────────────────────────────────────────────────────────────
   {
     title: 'Finance',
     items: [
-      { name: 'Transactions', path: '/transactions', icon: RiMoneyDollarCircleLine },
-      { name: 'Ledger', path: '/ledger', icon: RiBookOpenLine },
-      { name: 'Reports', path: '/reports', icon: RiBarChartLine },
+      { name: 'Transactions', path: '/transactions', icon: RiExchangeDollarLine },
+      { name: 'Ledger',       path: '/ledger',       icon: RiBookOpenLine },
+      { name: 'Reports',      path: '/reports',      icon: RiBarChartLine },
     ],
   },
+
+  // ── System ─────────────────────────────────────────────────────────────────
   {
     title: 'System',
     items: [
-      { name: 'Users', path: '/users', icon: RiTeamLine },
-      { name: 'Roles & Permissions', path: '/roles-permissions', icon: RiShieldCheckLine },
-      { name: 'Activity Logs', path: '/activity-logs', icon: RiHistoryLine },
-      { name: 'Company Profile', path: '/settings', icon: RiSettings4Line },
+      { name: 'Users',               path: '/users',               icon: RiTeamLine },
+      { name: 'Roles & Permissions', path: '/roles-permissions',   icon: RiShieldCheckLine },
+      { name: 'Activity Logs',       path: '/activity-logs',       icon: RiHistoryLine },
+      { name: 'Company Profile',     path: '/settings',            icon: RiSettings4Line },
       {
         name: 'Basic Data',
         path: '/basic-data',
-        icon: RiSettings4Line,
+        icon: RiListSettingsLine,
         children: [
-          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: RiWallet3Line },
-          { name: 'Lenses', path: '/basic-data/lenses', icon: RiEyeLine },
-          { name: 'Product Categories', path: '/basic-data/product-categories', icon: RiPriceTag3Line },
-          { name: 'Price Rules', path: '/basic-data/complimentary-items', icon: RiPercentLine },
+          { name: 'Other Expenses',      path: '/basic-data/other-expenses',      icon: RiWallet3Line },
+          { name: 'Lenses',              path: '/basic-data/lenses',              icon: RiEyeLine },
+          { name: 'Product Categories',  path: '/basic-data/product-categories',  icon: RiPriceTag3Line },
+          { name: 'Price Rules',         path: '/basic-data/complimentary-items', icon: RiPercentLine },
         ],
       },
     ],
