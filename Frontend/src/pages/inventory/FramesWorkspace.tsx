@@ -91,7 +91,7 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
   if (isLoading) {
     return (
       <TableRow>
-        <TableCell colSpan={9} className="bg-muted/30 py-3 pl-12 text-sm text-muted-foreground">
+        <TableCell colSpan={9} className="bg-muted/20 py-3 pl-16 text-sm text-muted-foreground">
           Loading variants…
         </TableCell>
       </TableRow>
@@ -101,8 +101,8 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
   if (!variants?.length) {
     return (
       <TableRow>
-        <TableCell colSpan={9} className="bg-muted/20 py-3 pl-12 text-sm text-muted-foreground italic">
-          No variants yet — use "Add Variant" to create one.
+        <TableCell colSpan={9} className="bg-muted/10 py-3 pl-16 text-sm text-muted-foreground italic">
+          No variants yet — use "+ Add Variant" to create one.
         </TableCell>
       </TableRow>
     )
@@ -110,51 +110,62 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
 
   return (
     <>
-      {variants.map((v) => (
-        <TableRow key={v.variant_id} className="group bg-muted/20 hover:bg-muted/30 h-10 text-sm">
-          {/* indent connector */}
-          <TableCell className="py-2 pr-0 w-10">
-            <div className="ml-4 h-full w-px bg-border/60" />
-          </TableCell>
+      {variants.map((v, i) => {
+        const isLast = i === variants.length - 1
+        return (
+          <TableRow
+            key={v.variant_id}
+            className="group bg-muted/[0.12] hover:bg-muted/25 transition-colors duration-100 border-b border-border/30"
+          >
+            {/* Tree connector — L-shape for last, T-shape for others */}
+            <TableCell className="py-0 w-10 p-0 relative">
+              {/* vertical spine */}
+              <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
+              {/* horizontal arm */}
+              <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
+            </TableCell>
 
-          {/* color / label */}
-          <TableCell className="py-2 pl-4" colSpan={2}>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full border border-border/60 bg-muted-foreground/20 shrink-0" />
-              <div>
-                <p className="font-medium">{v.color}</p>
-                <p className="text-xs text-muted-foreground">eye {v.eye_size}mm · {v.rim_type}</p>
+            {/* Variant color / label — indented */}
+            <TableCell className="py-2.5 pl-3" colSpan={2}>
+              <div className="flex items-center gap-2.5">
+                <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
+                <div>
+                  <p className="font-medium text-sm leading-tight">{v.color}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">eye {v.eye_size}mm · {v.rim_type}</p>
+                </div>
               </div>
-            </div>
-          </TableCell>
+            </TableCell>
 
-          {/* SKU */}
-          <TableCell className="py-2 font-mono text-xs text-muted-foreground">{v.sku}</TableCell>
+            {/* SKU */}
+            <TableCell className="py-2.5 font-mono text-xs text-muted-foreground/80">{v.sku}</TableCell>
 
-          {/* stock */}
-          <TableCell className="py-2">
-            <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
-          </TableCell>
+            {/* empty (Variants col) */}
+            <TableCell className="py-2.5" />
 
-          {/* cost */}
-          <TableCell className="py-2 tabular-nums text-xs text-muted-foreground">
-            {formatCurrency(v.cost_price)}
-          </TableCell>
+            {/* Stock */}
+            <TableCell className="py-2.5">
+              <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
+            </TableCell>
 
-          {/* price + actions (hover swap) */}
-          <TableCell className="py-2" colSpan={3}>
-            <div className="flex items-center justify-end">
-              {/* price — hidden on hover */}
-              <span className="tabular-nums font-medium text-sm group-hover:hidden">
-                {formatCurrency(v.selling_price)}
-              </span>
+            {/* Price — always visible, never swapped out */}
+            <TableCell className="py-2.5 text-right tabular-nums font-medium text-sm">
+              {formatCurrency(v.selling_price)}
+            </TableCell>
 
-              {/* action bar — visible on hover */}
-              <div className="hidden group-hover:flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+            {/* Actions — opacity reveal only (no layout shift = no stutter) */}
+            <TableCell className="py-2 w-44 text-right" colSpan={2}>
+              <div
+                className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => onReceive(v)}>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                        onClick={() => onReceive(v)}
+                      >
                         <RiArrowDownCircleLine className="size-3.5" />
                       </Button>
                     </TooltipTrigger>
@@ -216,10 +227,10 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
                   </Tooltip>
                 </TooltipProvider>
               </div>
-            </div>
-          </TableCell>
-        </TableRow>
-      ))}
+            </TableCell>
+          </TableRow>
+        )
+      })}
     </>
   )
 }
@@ -515,7 +526,8 @@ export default function FramesWorkspace() {
                       <TableHead>SKU / Color</TableHead>
                       <TableHead>Variants</TableHead>
                       <TableHead>Stock</TableHead>
-                      <TableHead colSpan={3} />
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead colSpan={2} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -528,7 +540,7 @@ export default function FramesWorkspace() {
                           {/* Master row */}
                           <TableRow
                             key={m.frame_master_id}
-                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 hover:bg-primary/8' : 'hover:bg-muted/40'}`}
+                            className={`cursor-pointer transition-colors ${isExpanded ? 'border-b-0' : ''} ${isSelected ? 'bg-primary/[0.04] hover:bg-primary/[0.07]' : 'hover:bg-muted/30'}`}
                             onClick={() => toggleRow(m.frame_master_id)}
                           >
                             <TableCell className="py-2.5 w-10">
@@ -555,7 +567,10 @@ export default function FramesWorkspace() {
                             <TableCell className="py-2.5">
                               <StockBadge stock={m.total_stock} reorderLevel={0} showCount />
                             </TableCell>
-                            <TableCell className="py-2.5 text-right" colSpan={3}>
+                            {/* Price col — empty for master rows */}
+                            <TableCell className="py-2.5" />
+
+                            <TableCell className="py-2.5 text-right" colSpan={2}>
                               {isSelected ? (
                                 <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                                   <Button size="sm" className="h-7 text-xs gap-1" onClick={() => openCreateVariant(m.frame_master_id)}>
@@ -587,7 +602,7 @@ export default function FramesWorkspace() {
                                   </TooltipProvider>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground/60">click to manage</span>
+                                <span className="text-xs text-muted-foreground/40">click to manage</span>
                               )}
                             </TableCell>
                           </TableRow>
