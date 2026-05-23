@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { RiAddLine } from '@remixicon/react'
+import { RiAddLine, RiDeleteBinLine } from '@remixicon/react'
 import Modal from '@/components/common/Modal'
 import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import AddProductAssistant from '@/components/products/AddProductAssistant'
+import { VariantPicker } from '@/components/frames/VariantPicker'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
+import { FrameVariant } from '@/types/frames.types'
 import { PurchaseOrder, PurchaseOrderAssistantItem, PurchaseOrderFormData } from '@/types/supplier.types'
 
 interface CreatePurchaseOrderAssistantProps {
@@ -18,6 +20,11 @@ interface CreatePurchaseOrderAssistantProps {
   onClose: () => void
   onSuccess: () => void
   order?: PurchaseOrder | null
+}
+
+type DraftItem = PurchaseOrderAssistantItem & {
+  _key: string
+  variantObj?: FrameVariant
 }
 
 type PurchaseOrderDraft = {
@@ -32,8 +39,18 @@ type PurchaseOrderDraft = {
   discount: number
   supplier_notes: string
   internal_notes: string
-  items: PurchaseOrderAssistantItem[]
+  items: DraftItem[]
 }
+
+const blankItem = (): DraftItem => ({
+  _key: crypto.randomUUID(),
+  item_type: 'frame_variant',
+  product_id: undefined,
+  frame_variant_id: undefined,
+  description: '',
+  quantity: 1,
+  unit_cost: 0,
+})
 
 const createDraft = (): PurchaseOrderDraft => ({
   supplier_id: '',
@@ -47,7 +64,7 @@ const createDraft = (): PurchaseOrderDraft => ({
   discount: 0,
   supplier_notes: '',
   internal_notes: '',
-  items: [{ product_id: '', description: '', quantity: 1, unit_cost: 0 }],
+  items: [blankItem()],
 })
 
 const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: CreatePurchaseOrderAssistantProps) => {
@@ -57,32 +74,66 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
   const { data: companyProfile } = useQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get() })
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft())
   const [productPickerOpen, setProductPickerOpen] = useState(false)
-  const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null)
+  const [targetItemKey, setTargetItemKey] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isOpen && !order) {
-      setDraft(createDraft())
-    }
+    if (isOpen && !order) setDraft(createDraft())
   }, [isOpen, order])
 
   const selectedSupplier = useMemo(
-    () => suppliers?.data.find((supplier) => supplier.id === draft.supplier_id),
+    () => suppliers?.data.find((s) => s.id === draft.supplier_id),
     [draft.supplier_id, suppliers?.data],
   )
 
   useEffect(() => {
     if (!isOpen || order || !companyProfile) return
-    setDraft((current) => ({
-      ...current,
-      shipping_address: current.shipping_address || companyProfile.default_delivery_address || companyProfile.address || '',
-      ship_to_location: current.ship_to_location || companyProfile.default_ship_to_location || '',
-      receiving_department: current.receiving_department || companyProfile.default_receiving_department || '',
-      delivery_instructions: current.delivery_instructions || companyProfile.default_delivery_instructions || '',
+    setDraft((cur) => ({
+      ...cur,
+      shipping_address: cur.shipping_address || companyProfile.default_delivery_address || companyProfile.address || '',
+      ship_to_location: cur.ship_to_location || companyProfile.default_ship_to_location || '',
+      receiving_department: cur.receiving_department || companyProfile.default_receiving_department || '',
+      delivery_instructions: cur.delivery_instructions || companyProfile.default_delivery_instructions || '',
     }))
   }, [companyProfile, isOpen, order])
 
-  const subtotal = draft.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0), 0)
+  const subtotal = draft.items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_cost) || 0), 0)
   const gross = Math.max(0, subtotal + Number(draft.shipping_cost || 0) - Number(draft.discount || 0))
+
+  const patchItem = (key: string, patch: Partial<DraftItem>) =>
+    setDraft((cur) => ({ ...cur, items: cur.items.map((i) => i._key === key ? { ...i, ...patch } : i) }))
+
+  const setItemType = (key: string, type: 'product' | 'frame_variant') =>
+    patchItem(key, { item_type: type, product_id: undefined, frame_variant_id: undefined, variantObj: undefined, description: '', unit_cost: 0 })
+
+  const setVariant = (key: string, v: FrameVariant | null) => {
+    if (!v) { patchItem(key, { frame_variant_id: undefined, variantObj: undefined, description: '', unit_cost: 0 }); return }
+    patchItem(key, {
+      frame_variant_id: v.variant_id,
+      variantObj: v,
+      description: `${v.frame_master_ref?.brand ?? ''} ${v.frame_master_ref?.model_code ?? ''} / ${v.color} / ${v.eye_size}`.trim(),
+      unit_cost: v.cost_price ?? 0,
+    })
+  }
+
+  const setProduct = (key: string, productId: string) => {
+    const product = products?.data.find((p) => p.product_id === productId)
+    patchItem(key, {
+      product_id: productId,
+      description: product?.description || product?.name || '',
+      unit_cost: product?.cost_price ?? 0,
+    })
+  }
+
+  const handleProductCreated = (product?: Product) => {
+    if (!product || !targetItemKey) return
+    patchItem(targetItemKey, {
+      product_id: product.product_id,
+      description: product.description || product.name,
+      unit_cost: product.cost_price,
+    })
+    setTargetItemKey(null)
+    setProductPickerOpen(false)
+  }
 
   const createMutation = useMutation({
     mutationFn: (data: PurchaseOrderFormData) => suppliersApi.createPurchaseOrder(data),
@@ -92,83 +143,31 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
       onSuccess()
       onClose()
     },
-    onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to create purchase order'
-      toast.error(message)
-    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to create purchase order'),
   })
-
-  const handleProductCreated = (product?: Product) => {
-    if (!product) return
-
-    setDraft((current) => {
-      const nextItems = [...current.items]
-      const itemIndex = targetItemIndex ?? nextItems.findIndex((item) => !item.product_id)
-      const updateIndex = itemIndex >= 0 ? itemIndex : nextItems.length - 1
-
-      if (!nextItems[updateIndex]) {
-        nextItems.push({ product_id: '', description: '', quantity: 1, unit_cost: 0 })
-      }
-
-      nextItems[updateIndex] = {
-        ...nextItems[updateIndex],
-        product_id: product.product_id,
-        description: product.description || product.name,
-        unit_cost: product.cost_price,
-      }
-
-      return { ...current, items: nextItems }
-    })
-
-    setTargetItemIndex(null)
-    setProductPickerOpen(false)
-  }
-
-  const updateItem = (index: number, updater: Partial<PurchaseOrderAssistantItem>) => {
-    setDraft((current) => {
-      const nextItems = [...current.items]
-      nextItems[index] = { ...nextItems[index], ...updater }
-      return { ...current, items: nextItems }
-    })
-  }
-
-  const addItem = () => {
-    setDraft((current) => ({ ...current, items: [...current.items, { product_id: '', description: '', quantity: 1, unit_cost: 0 }] }))
-  }
-
-  const openAddNewProduct = (itemIndex: number) => {
-    if (!draft.supplier_id) {
-      toast.error('Please select a supplier before adding a new product')
-      return
-    }
-
-    setTargetItemIndex(itemIndex)
-    setProductPickerOpen(true)
-  }
-
-  const removeItem = (index: number) => {
-    setDraft((current) => {
-      const nextItems = current.items.filter((_, itemIndex) => itemIndex !== index)
-      return { ...current, items: nextItems.length > 0 ? nextItems : [{ product_id: '', description: '', quantity: 1, unit_cost: 0 }] }
-    })
-  }
 
   const save = () => {
     if (!draft.supplier_id) return toast.error('Please select a supplier')
     if (!draft.shipping_address.trim()) return toast.error('Please fill delivery address')
     if (!draft.ship_to_location.trim()) return toast.error('Please fill ship to location')
     if (!draft.receiving_department.trim()) return toast.error('Please fill receiving department')
-    if (draft.items.some((item) => !item.product_id || item.quantity <= 0 || item.unit_cost < 0)) {
-      return toast.error('Please fill all item fields properly')
+
+    for (const item of draft.items) {
+      if (item.item_type === 'frame_variant' && !item.frame_variant_id)
+        return toast.error('Select a frame variant for all lines or remove empty ones')
+      if (item.item_type === 'product' && !item.product_id)
+        return toast.error('Select a product for all lines or remove empty ones')
+      if (item.quantity <= 0) return toast.error('Quantity must be greater than 0')
     }
 
-    const payload: PurchaseOrderFormData = {
+    createMutation.mutate({
       supplier_id: draft.supplier_id,
       order_date: new Date(draft.order_date).toISOString(),
       expected_delivery_date: draft.expected_delivery_date ? new Date(draft.expected_delivery_date).toISOString() : undefined,
-      items: draft.items.map((item) => ({
-        product_id: item.product_id,
-        description: item.description,
+      items: draft.items.map(({ _key, variantObj, product_id, frame_variant_id, ...item }) => ({
+        ...item,
+        ...(product_id ? { product_id } : {}),
+        ...(frame_variant_id ? { frame_variant_id } : {}),
         quantity: Number(item.quantity),
         unit_cost: Number(item.unit_cost),
       })),
@@ -178,21 +177,10 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
         receiving_department: draft.receiving_department || undefined,
         delivery_instructions: draft.delivery_instructions || undefined,
       },
-      summary: {
-        tax_rate: 0,
-        shipping_cost: Number(draft.shipping_cost),
-        discount: Number(draft.discount),
-      },
-      notes: {
-        supplier_notes: draft.supplier_notes || undefined,
-        internal_notes: draft.internal_notes || undefined,
-      },
-    }
-
-    createMutation.mutate(payload)
+      summary: { tax_rate: 0, shipping_cost: Number(draft.shipping_cost), discount: Number(draft.discount) },
+      notes: { supplier_notes: draft.supplier_notes || undefined, internal_notes: draft.internal_notes || undefined },
+    })
   }
-
-  const orderStatus = order?.status
 
   return (
     <>
@@ -209,115 +197,165 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
         )}
       >
         <div className="space-y-4">
+
+          {/* General Information */}
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">General Information</h4>
-            </div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">General Information</h4>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-8">
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Supplier</label>
-                <select className="input" value={draft.supplier_id} onChange={(event) => setDraft({ ...draft, supplier_id: event.target.value })}>
+                <select className="input" value={draft.supplier_id} onChange={(e) => setDraft({ ...draft, supplier_id: e.target.value })}>
                   <option value="">Select an option</option>
-                  {suppliers?.data.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>
-                  ))}
+                  {suppliers?.data.map((s) => <option key={s.id} value={s.id}>{s.supplier_name}</option>)}
                 </select>
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Order Date</label>
-                <Input type="datetime-local" value={draft.order_date} onChange={(event) => setDraft({ ...draft, order_date: event.target.value })} />
+                <Input type="datetime-local" value={draft.order_date} onChange={(e) => setDraft({ ...draft, order_date: e.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Expected Delivery Date (optional)</label>
-                <Input type="datetime-local" value={draft.expected_delivery_date} onChange={(event) => setDraft({ ...draft, expected_delivery_date: event.target.value })} />
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Expected Delivery (optional)</label>
+                <Input type="datetime-local" value={draft.expected_delivery_date} onChange={(e) => setDraft({ ...draft, expected_delivery_date: e.target.value })} />
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Contact</label>
                 <Input value={selectedSupplier?.phone || selectedSupplier?.email || ''} readOnly />
               </div>
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Person</label>
-                <Input value={selectedSupplier?.contact_person || ''} readOnly />
-              </div>
-              <div className="md:col-span-4">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Supplier Address</label>
-                <Input value={selectedSupplier?.address || ''} readOnly />
-              </div>
+              {selectedSupplier && (
+                <>
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Contact Person</label>
+                    <Input value={selectedSupplier.contact_person || ''} readOnly />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Address</label>
+                    <Input value={selectedSupplier.address || ''} readOnly />
+                  </div>
+                </>
+              )}
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">Amounts</h4>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <Input label="Total Net Amount" value={formatCurrency(subtotal)} readOnly />
-              <Input label="Total Shipping Cost" type="number" value={draft.shipping_cost} onChange={(event) => setDraft({ ...draft, shipping_cost: Number(event.target.value) })} />
-              <Input label="Total Discount" type="number" value={draft.discount} onChange={(event) => setDraft({ ...draft, discount: Number(event.target.value) })} />
-              <Input label="Total Gross Amount" value={formatCurrency(gross)} readOnly />
-            </div>
-          </section>
-
+          {/* Items */}
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-foreground">Item Information</h4>
-              <Button variant="outline" size="sm" onClick={addItem}><RiAddLine className="mr-2 h-4 w-4" />Add Item</Button>
+              <Button variant="outline" size="sm" onClick={() => setDraft((cur) => ({ ...cur, items: [...cur.items, blankItem()] }))}>
+                <RiAddLine className="mr-1 h-4 w-4" />Add Item
+              </Button>
             </div>
-            <div className="space-y-4">
-              {draft.items.map((item, index) => {
-                const itemSubtotal = (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0)
+
+            {/* Column headers */}
+            <div className="mb-1 hidden grid-cols-[120px_1fr_80px_110px_90px_36px] gap-2 px-1 text-xs font-medium text-muted-foreground md:grid">
+              <span>Type</span><span>Item</span><span>Qty</span><span>Unit Cost</span><span>Subtotal</span><span />
+            </div>
+
+            <div className="space-y-2">
+              {draft.items.map((item) => {
+                const lineSubtotal = (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0)
+                const isVariant = item.item_type === 'frame_variant'
 
                 return (
-                  <div key={`${item.product_id || 'item'}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
-                    <div className="md:col-span-3">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Product</label>
-                      <div className="flex gap-2">
-                        <select
-                          className="input"
-                          value={item.product_id}
-                          onChange={(event) => {
-                            const product = products?.data.find((entry) => entry.product_id === event.target.value)
-                            updateItem(index, {
-                              product_id: event.target.value,
-                              description: product?.description || product?.name || '',
-                              unit_cost: product?.cost_price || 0,
-                            })
-                          }}
-                        >
-                          <option value="">Select an option</option>
-                          {products?.data.map((product) => (
-                            <option key={product.product_id} value={product.product_id}>{product.name}</option>
-                          ))}
-                        </select>
-                        <Button
+                  <div key={item._key} className="rounded-md border border-border/60 bg-muted/20 p-3">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_80px_110px_90px_36px] md:items-center">
+
+                      {/* Type toggle */}
+                      <div className="flex rounded-md border border-border overflow-hidden text-xs h-8 shrink-0">
+                        <button
                           type="button"
-                          variant="outline"
-                          onClick={() => openAddNewProduct(index)}
-                          className="min-w-fit shrink-0 gap-1 whitespace-nowrap border-brand-200 px-3 text-brand-600 hover:bg-brand-50"
+                          className={`flex-1 px-2 transition-colors ${isVariant ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                          onClick={() => setItemType(item._key, 'frame_variant')}
                         >
-                          <RiAddLine className="h-4 w-4" />
-                          <span className="leading-none">Add New Item</span>
-                        </Button>
+                          Variant
+                        </button>
+                        <button
+                          type="button"
+                          className={`flex-1 px-2 transition-colors ${!isVariant ? 'bg-primary text-primary-foreground font-medium' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                          onClick={() => setItemType(item._key, 'product')}
+                        >
+                          Product
+                        </button>
                       </div>
+
+                      {/* Item picker */}
+                      {isVariant ? (
+                        <div className="min-w-0">
+                          <VariantPicker
+                            value={item.variantObj ?? null}
+                            onChange={(v) => setVariant(item._key, v)}
+                            showStock
+                            showPrice={false}
+                            placeholder="Search or scan variant…"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex min-w-0 gap-2">
+                          <select
+                            className="input flex-1 min-w-0"
+                            value={item.product_id || ''}
+                            onChange={(e) => setProduct(item._key, e.target.value)}
+                          >
+                            <option value="">Select product…</option>
+                            {products?.data.map((p) => (
+                              <option key={p.product_id} value={p.product_id}>{p.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted transition-colors h-9"
+                            onClick={() => { setTargetItemKey(item._key); setProductPickerOpen(true) }}
+                          >
+                            + New
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Qty */}
+                      <input
+                        type="number"
+                        min={1}
+                        className="input h-9 text-center"
+                        value={item.quantity}
+                        onChange={(e) => patchItem(item._key, { quantity: Number(e.target.value) })}
+                      />
+
+                      {/* Unit cost */}
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="input h-9"
+                        value={item.unit_cost}
+                        onChange={(e) => patchItem(item._key, { unit_cost: Number(e.target.value) })}
+                      />
+
+                      {/* Subtotal */}
+                      <span className="text-sm font-medium tabular-nums text-right hidden md:block">
+                        {formatCurrency(lineSubtotal)}
+                      </span>
+
+                      {/* Remove */}
+                      <button
+                        type="button"
+                        className="flex items-center justify-center h-9 w-9 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onClick={() => setDraft((cur) => {
+                          const next = cur.items.filter((i) => i._key !== item._key)
+                          return { ...cur, items: next.length ? next : [blankItem()] }
+                        })}
+                        title="Remove line"
+                      >
+                        <RiDeleteBinLine className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="md:col-span-4">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">Description</label>
-                      <Input value={item.description} onChange={(event) => updateItem(index, { description: event.target.value })} placeholder="Description" />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Qty Ordered</label>
-                      <Input type="number" min={1} value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value) })} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Unit Cost</label>
-                      <Input type="number" step="0.01" value={item.unit_cost} onChange={(event) => updateItem(index, { unit_cost: Number(event.target.value) })} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">Subtotal</label>
-                      <Input value={formatCurrency(itemSubtotal)} readOnly />
-                    </div>
-                    <div className="md:col-span-12 flex justify-end">
-                      <Button type="button" variant="ghost" onClick={() => removeItem(index)}>Remove</Button>
+
+                    {/* Description — shown below on a second row */}
+                    <div className="mt-2 md:pl-[128px]">
+                      <input
+                        className="input h-8 w-full text-xs text-muted-foreground"
+                        placeholder="Description (optional)"
+                        value={item.description}
+                        onChange={(e) => patchItem(item._key, { description: e.target.value })}
+                      />
                     </div>
                   </div>
                 )
@@ -325,61 +363,51 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
             </div>
           </section>
 
+          {/* Amounts */}
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">Shipping Information</h4>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">Amounts</h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <Input label="Net Amount" value={formatCurrency(subtotal)} readOnly />
+              <Input label="Shipping Cost" type="number" value={draft.shipping_cost} onChange={(e) => setDraft({ ...draft, shipping_cost: Number(e.target.value) })} />
+              <Input label="Discount" type="number" value={draft.discount} onChange={(e) => setDraft({ ...draft, discount: Number(e.target.value) })} />
+              <Input label="Total Gross" value={formatCurrency(gross)} readOnly />
             </div>
+          </section>
+
+          {/* Shipping */}
+          <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
+            <h4 className="mb-3 text-sm font-semibold text-foreground">Shipping Information</h4>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Delivery Address</label>
-                <Input value={draft.shipping_address} onChange={(event) => setDraft({ ...draft, shipping_address: event.target.value })} placeholder="Delivery Address" />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Ship To Location</label>
-                <Input value={draft.ship_to_location} onChange={(event) => setDraft({ ...draft, ship_to_location: event.target.value })} placeholder="Ship To Location" />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-muted-foreground"><span className="mr-1 text-error-500">*</span>Receiving Department</label>
-                <Input value={draft.receiving_department} onChange={(event) => setDraft({ ...draft, receiving_department: event.target.value })} placeholder="Receiving Department" />
-              </div>
-              <Input label="Delivery Instructions (optional)" value={draft.delivery_instructions} onChange={(event) => setDraft({ ...draft, delivery_instructions: event.target.value })} placeholder="Delivery Instructions note" />
+              <Input label="* Delivery Address" value={draft.shipping_address} onChange={(e) => setDraft({ ...draft, shipping_address: e.target.value })} placeholder="Delivery Address" />
+              <Input label="* Ship To Location" value={draft.ship_to_location} onChange={(e) => setDraft({ ...draft, ship_to_location: e.target.value })} placeholder="Ship To Location" />
+              <Input label="* Receiving Department" value={draft.receiving_department} onChange={(e) => setDraft({ ...draft, receiving_department: e.target.value })} placeholder="Receiving Department" />
+              <Input label="Delivery Instructions (optional)" value={draft.delivery_instructions} onChange={(e) => setDraft({ ...draft, delivery_instructions: e.target.value })} placeholder="Delivery instructions" />
             </div>
           </section>
 
+          {/* Notes */}
           <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">Notes</h4>
-            </div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">Notes</h4>
             <div className="grid grid-cols-1 gap-4">
-              <Input label="Supplier Notes" value={draft.supplier_notes} onChange={(event) => setDraft({ ...draft, supplier_notes: event.target.value })} placeholder="Notes" />
-              <Input label="Internal Notes" value={draft.internal_notes} onChange={(event) => setDraft({ ...draft, internal_notes: event.target.value })} placeholder="Notes" />
+              <Input label="Supplier Notes" value={draft.supplier_notes} onChange={(e) => setDraft({ ...draft, supplier_notes: e.target.value })} placeholder="Notes visible to supplier" />
+              <Input label="Internal Notes" value={draft.internal_notes} onChange={(e) => setDraft({ ...draft, internal_notes: e.target.value })} placeholder="Internal notes" />
             </div>
           </section>
 
-          {order && (
-            <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-              <h4 className="mb-3 text-sm font-semibold text-foreground">Current Purchase Order</h4>
-              <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-                <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
-                <div><span className="font-medium text-muted-foreground">Status:</span> {orderStatus}</div>
-                <div><span className="font-medium text-muted-foreground">Total:</span> {formatCurrency(order.total_amount)}</div>
-              </div>
-            </section>
-          )}
         </div>
       </Modal>
 
-      {productPickerOpen && (
+      {productPickerOpen && targetItemKey && (
         <Modal
           isOpen={productPickerOpen}
-          onClose={() => { setProductPickerOpen(false); setTargetItemIndex(null) }}
+          onClose={() => { setProductPickerOpen(false); setTargetItemKey(null) }}
           title="Add New Product"
           size="xl"
           className="z-[60]"
         >
           <AddProductAssistant
             isOpen={productPickerOpen}
-            onClose={() => { setProductPickerOpen(false); setTargetItemIndex(null) }}
+            onClose={() => { setProductPickerOpen(false); setTargetItemKey(null) }}
             onSuccess={handleProductCreated}
             lockedSupplierId={draft.supplier_id || undefined}
           />

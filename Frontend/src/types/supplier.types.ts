@@ -148,7 +148,9 @@ export interface BuyerInformation {
 }
 
 export interface PurchaseOrderFormItem {
-  product_id: string
+  product_id?: string
+  frame_variant_id?: string
+  item_type?: 'product' | 'frame_variant'
   description?: string
   quantity: number
   unit_cost: number
@@ -169,7 +171,9 @@ export interface PurchaseOrderFormData {
 }
 
 export interface PurchaseOrderAssistantItem {
-  product_id: string
+  product_id?: string
+  frame_variant_id?: string
+  item_type: 'product' | 'frame_variant'
   description: string
   quantity: number
   unit_cost: number
