@@ -148,7 +148,11 @@ export interface BuyerInformation {
 }
 
 export interface PurchaseOrderFormItem {
-  product_id: string
+  product_id?: string
+  frame_variant_id?: string
+  item_type?: 'product' | 'frame_variant'
+  item_name?: string
+  item_sku?: string
   description?: string
   quantity: number
   unit_cost: number

@@ -8,6 +8,8 @@ import { suppliersApi } from '@/api/suppliers.api'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { productsApi } from '@/api/products.api'
 import { PurchaseOrder, PurchaseOrderFormData } from '@/types/supplier.types'
+import { VariantPicker } from '@/components/frames/VariantPicker'
+import { FrameVariant } from '@/types/frames.types'
 
 interface PurchaseOrderFormProps {
   order?: PurchaseOrder | null
@@ -23,7 +25,7 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
   const [form, setForm] = useState<PurchaseOrderFormData>({
     supplier_id: '',
     order_date: new Date().toISOString(),
-    items: [{ product_id: '', quantity: 1, unit_cost: 0 }],
+    items: [{ product_id: '', item_type: 'frame_variant' as const, quantity: 1, unit_cost: 0 }],
     shipping_information: {
       ship_to_location: '',
       delivery_address: '',
@@ -229,7 +231,11 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
     if (!form.shipping_information?.ship_to_location?.trim()) { toast.error('Please fill ship to location'); return }
     if (!form.shipping_information?.delivery_address?.trim()) { toast.error('Please fill delivery address'); return }
     if (!form.shipping_information?.receiving_department?.trim()) { toast.error('Please fill receiving department'); return }
-    const hasInvalidItem = form.items.some(i => !i.product_id || i.quantity <= 0 || i.unit_cost < 0)
+    const hasInvalidItem = form.items.some(i => {
+      const isVariant = (i.item_type ?? 'frame_variant') === 'frame_variant'
+      return isVariant ? !i.frame_variant_id : !i.product_id
+        || i.quantity <= 0 || i.unit_cost < 0
+    })
     if (hasInvalidItem) { toast.error('Please fill all item fields properly'); return }
     // Send null for empty delivery date (not empty string which causes 422)
     const payload: PurchaseOrderFormData = {
@@ -320,34 +326,82 @@ const PurchaseOrderForm = ({ order, onSuccess, onCancel }: PurchaseOrderFormProp
 
       <div className="mt-6 space-y-3">
         <h4 className="font-semibold text-foreground">Items</h4>
-        {form.items.map((item, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Product</label>
-              <select className="input" value={item.product_id} onChange={(e) => {
-                const next = [...form.items]
-                next[index].product_id = e.target.value
-                setForm({ ...form, items: next })
-              }}>
-                <option value="">Select product</option>
-                {products?.data.map((product) => (
-                  <option key={product.product_id} value={product.product_id}>{product.name}</option>
-                ))}
-              </select>
+        {form.items.map((item, index) => {
+          const isVariant = (item.item_type ?? 'frame_variant') === 'frame_variant'
+          const setField = (patch: Partial<typeof item>) => {
+            const next = [...form.items]
+            next[index] = { ...next[index], ...patch }
+            setForm({ ...form, items: next })
+          }
+          return (
+            <div key={index} className="rounded-md border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex gap-1 rounded-md border border-border p-0.5 bg-muted/30 text-xs">
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${isVariant ? 'bg-background shadow text-foreground font-medium' : 'text-muted-foreground'}`}
+                    onClick={() => setField({ item_type: 'frame_variant', product_id: undefined, frame_variant_id: undefined, item_name: undefined, item_sku: undefined })}
+                  >
+                    Frame Variant
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${!isVariant ? 'bg-background shadow text-foreground font-medium' : 'text-muted-foreground'}`}
+                    onClick={() => setField({ item_type: 'product', frame_variant_id: undefined, item_name: undefined, item_sku: undefined })}
+                  >
+                    Product
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
+                >
+                  Remove
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_120px] gap-3 items-end">
+                {isVariant ? (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">Frame Variant *</label>
+                    <VariantPicker
+                      value={item.frame_variant_id ? ({ variant_id: item.frame_variant_id, sku: item.item_sku, cost_price: item.unit_cost } as unknown as FrameVariant) : null}
+                      onChange={(v: FrameVariant | null) => setField({
+                        frame_variant_id: v?.variant_id ?? undefined,
+                        item_name: v ? `${v.frame_master_ref?.brand ?? ''} ${v.frame_master_ref?.model_code ?? ''} / ${v.color} / ${v.eye_size}`.trim() : undefined,
+                        item_sku: v?.sku ?? undefined,
+                        unit_cost: v?.cost_price ?? item.unit_cost,
+                      })}
+                      showStock
+                      showPrice={false}
+                      placeholder="Search or scan variant…"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">Product *</label>
+                    <select className="input" value={item.product_id ?? ''} onChange={(e) => setField({ product_id: e.target.value })}>
+                      <option value="">Select product</option>
+                      {products?.data.map((product) => (
+                        <option key={product.product_id} value={product.product_id}>{product.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <Input label="Qty Ordered" type="number" min={1} value={item.quantity} onChange={(e) => setField({ quantity: Number(e.target.value) })} />
+                <Input label="Unit Cost" type="number" step="0.01" min={0} value={item.unit_cost} onChange={(e) => setField({ unit_cost: Number(e.target.value) })} />
+              </div>
+
+              {item.item_name && (
+                <p className="text-xs text-muted-foreground">
+                  {item.item_name}{item.item_sku ? ` · ${item.item_sku}` : ''}
+                </p>
+              )}
             </div>
-            <Input label="Quantity" type="number" value={item.quantity} onChange={(e) => {
-              const next = [...form.items]
-              next[index].quantity = Number(e.target.value)
-              setForm({ ...form, items: next })
-            }} />
-            <Input label="Unit Cost" type="number" step="0.01" value={item.unit_cost} onChange={(e) => {
-              const next = [...form.items]
-              next[index].unit_cost = Number(e.target.value)
-              setForm({ ...form, items: next })
-            }} />
-          </div>
-        ))}
-        <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_cost: 0 }] })}>Add Item</Button>
+          )
+        })}
+        <Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { item_type: 'frame_variant' as const, quantity: 1, unit_cost: 0 }] })}>+ Add Item</Button>
         <p className="text-sm text-muted-foreground">Items Total: {totalAmount.toFixed(2)}</p>
         {order?.status === 'Approved' && <p className="text-sm font-medium text-success-600">This purchase order is approved and locked for edits. It can now be sent.</p>}
         {order?.status === 'Ordered' && <p className="text-sm font-medium text-brand-600">This purchase order has been ordered.</p>}

@@ -5,6 +5,7 @@ import math
 
 from app.repositories.inventory_movement_repository import InventoryMovementRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.frame_variant_repository import FrameVariantRepository
 from app.schemas.inventory_movement import InventoryMovementCreate, InventoryMovementResponse
 from app.schemas.responses import PaginatedResponse
 from app.utils.constants import InventoryMovementType
@@ -16,26 +17,42 @@ class InventoryMovementService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.repo = InventoryMovementRepository(db)
         self.product_repo = ProductRepository(db)
+        self.variant_repo = FrameVariantRepository(db)
 
     async def create_movement(self, data: InventoryMovementCreate, created_by: str, apply_stock_change: bool = True) -> InventoryMovementResponse:
-        product = await self.product_repo.get_by_product_id(data.product_id)
-        if not product:
-            raise NotFoundException(f"Product with ID {data.product_id} not found")
+        is_variant = bool(data.variant_id)
 
-        if apply_stock_change:
-            if data.movement_type == InventoryMovementType.SALE_OUT:
-                ok = await self.product_repo.decrement_stock_atomic(data.product_id, abs(data.quantity))
-                if not ok:
-                    raise BadRequestException("Insufficient stock for sale movement")
-            elif data.movement_type == InventoryMovementType.PURCHASE_IN:
-                ok = await self.product_repo.increment_stock_atomic(data.product_id, abs(data.quantity))
-                if not ok:
-                    raise BadRequestException("Failed to increase stock for purchase movement")
-            elif data.movement_type == InventoryMovementType.ADJUSTMENT:
-                updated_stock = product.current_stock + data.quantity
-                if updated_stock < 0:
-                    raise BadRequestException("Stock cannot be negative")
-                await self.product_repo.update_stock(data.product_id, updated_stock)
+        if is_variant:
+            variant = await self.variant_repo.get_by_variant_id(data.variant_id)
+            if not variant:
+                raise NotFoundException(f"Frame variant {data.variant_id} not found")
+            if apply_stock_change:
+                if data.movement_type == InventoryMovementType.SALE_OUT:
+                    ok = await self.variant_repo.decrement_stock_atomic(data.variant_id, abs(data.quantity))
+                    if not ok:
+                        raise BadRequestException(f"Insufficient stock for frame variant {data.variant_id}")
+                elif data.movement_type == InventoryMovementType.PURCHASE_IN:
+                    ok = await self.variant_repo.increment_stock_atomic(data.variant_id, abs(data.quantity))
+                    if not ok:
+                        raise BadRequestException(f"Failed to increase stock for frame variant {data.variant_id}")
+        else:
+            product = await self.product_repo.get_by_product_id(data.product_id)
+            if not product:
+                raise NotFoundException(f"Product with ID {data.product_id} not found")
+            if apply_stock_change:
+                if data.movement_type == InventoryMovementType.SALE_OUT:
+                    ok = await self.product_repo.decrement_stock_atomic(data.product_id, abs(data.quantity))
+                    if not ok:
+                        raise BadRequestException("Insufficient stock for sale movement")
+                elif data.movement_type == InventoryMovementType.PURCHASE_IN:
+                    ok = await self.product_repo.increment_stock_atomic(data.product_id, abs(data.quantity))
+                    if not ok:
+                        raise BadRequestException("Failed to increase stock for purchase movement")
+                elif data.movement_type == InventoryMovementType.ADJUSTMENT:
+                    updated_stock = product.current_stock + data.quantity
+                    if updated_stock < 0:
+                        raise BadRequestException("Stock cannot be negative")
+                    await self.product_repo.update_stock(data.product_id, updated_stock)
 
         next_number = await self.repo.count({}) + 1
         movement_id = generate_id("MOV", next_number)

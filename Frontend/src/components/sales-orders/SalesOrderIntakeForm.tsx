@@ -54,6 +54,7 @@ import SaveRecordDialog from '@/components/common/SaveRecordDialog'
 import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
+import { frameVariantsApi } from '@/api/frames.api'
 import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
@@ -66,6 +67,8 @@ import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
 import { SalesOrder, SalesOrderItem } from '@/types/erp.types'
+import { FrameVariant } from '@/types/frames.types'
+import { VariantPicker } from '@/components/frames/VariantPicker'
 import { formatCurrency } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -182,8 +185,9 @@ const salesOrderIntakeSchema = z
       })
     }
     if (!value.salesOrder.isOld) {
-      if (!value.frame.selectionId && !value.frame.model.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Frame selection is required', path: ['frame', 'selectionId'] })
+      // Frame validation is handled in onSubmit (variant or catalog)
+      if (!value.frame.selectionId && !value.frame.model.trim() && !value.frame.barcode.trim()) {
+        // allow — variant picker sets selectionId; we validate in onSubmit
       }
       if (!value.lens.selectionId && !value.lens.lensType.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lens selection is required', path: ['lens', 'selectionId'] })
@@ -569,6 +573,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [includeBag, setIncludeBag] = useState(true)
   const [selectedBagId, setSelectedBagId] = useState('')
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
+  const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
+  const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -808,6 +814,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     if (!draftLoaded) return
     const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null)
     reset(mapped, { keepDirty: false })
+    // Restore frame source if draft used a frame variant
+    const draftFrameItem = draftOrder.items.find((i) => i.line_type === 'frame')
+    if (draftFrameItem?.frame_variant_id) {
+      setFrameSource('variant')
+      frameVariantsApi.getById(draftFrameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
+    }
     const compItems = draftOrder.items.filter((i) => i.line_type === 'complimentary')
     const draftCase = compItems[0] ?? null
     const draftBag  = compItems[1] ?? null
@@ -827,6 +839,23 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   // Handlers
   const applyFrameSelection = (product: Product) => setValue('frame', mapProductToFrame(product), { shouldDirty: true, shouldValidate: true })
+
+  const applyFrameVariantSelection = (variant: FrameVariant | null) => {
+    setSelectedFrameVariant(variant)
+    if (variant) {
+      setValue('frame', {
+        selectionId: variant.variant_id,
+        barcode: variant.barcode || variant.sku,
+        model: `${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`,
+        color: variant.color,
+        size: String(variant.eye_size),
+        frameId: variant.sku,
+        total: variant.selling_price,
+      }, { shouldDirty: true, shouldValidate: true })
+    } else {
+      setValue('frame', defaultValues.frame, { shouldDirty: true, shouldValidate: false })
+    }
+  }
 
   const applyLensSelection = (lensType: NonNullable<typeof lensMasterData>['data'][number]) => {
     setValue('lens.selectionId', lensType.id, { shouldDirty: true, shouldValidate: true })
@@ -884,8 +913,19 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const handleBarcodeScan = async (barcode: string) => {
     try {
+      // Try frame variant inventory first
+      const variant = await frameVariantsApi.scanLookup(barcode).catch(() => null)
+      if (variant) {
+        setFrameSource('variant')
+        applyFrameVariantSelection(variant)
+        toast.success(`Frame variant loaded: ${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`)
+        closeScanner()
+        return
+      }
+      // Fall back to legacy product catalog
       const product = await scanBarcode(barcode)
       if (!product) { toast.error('Frame not found for this barcode'); return }
+      setFrameSource('catalog')
       applyFrameSelection(product)
       toast.success(`Frame loaded: ${product.name}`)
       closeScanner()
@@ -972,7 +1012,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     }
 
     const draftItems: SalesOrderItem[] = []
-    if (resolvedFrame) {
+    if (frameSource === 'variant' && selectedFrameVariant) {
+      draftItems.push({ product_id: selectedFrameVariant.variant_id, product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`, sku: selectedFrameVariant.sku, quantity: 1, unit_price: Number(values.frame.total || selectedFrameVariant.selling_price), total: Number(values.frame.total || selectedFrameVariant.selling_price), master_data_id: selectedFrameVariant.frame_master_id, frame_variant_id: selectedFrameVariant.variant_id, line_type: 'frame', track_stock: true })
+    } else if (resolvedFrame) {
       draftItems.push({ product_id: resolvedFrame.product_id, product_name: values.frame.model || resolvedFrame.name, sku: values.frame.frameId || resolvedFrame.sku, quantity: 1, unit_price: Number(values.frame.total || resolvedFrame.selling_price), total: Number(values.frame.total || resolvedFrame.selling_price), master_data_id: resolvedFrame.product_id, line_type: 'product', track_stock: true })
     }
     if (resolvedLens) {
@@ -1049,7 +1091,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       }
 
       const frameItem = resolvedFrame
-      if (!values.salesOrder.isOld && !frameItem) { toast.error('Frame selection is required'); return }
+      if (!values.salesOrder.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
       if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
       if (!values.salesOrder.isOld) {
@@ -1058,7 +1100,20 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       }
 
       const itemPayload: SalesOrderItem[] = []
-      if (frameItem) {
+      if (frameSource === 'variant' && selectedFrameVariant) {
+        itemPayload.push({
+          product_id: selectedFrameVariant.variant_id,
+          product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`,
+          sku: selectedFrameVariant.sku,
+          quantity: 1,
+          unit_price: Number(values.frame.total || selectedFrameVariant.selling_price),
+          total: Number(values.frame.total || selectedFrameVariant.selling_price),
+          master_data_id: selectedFrameVariant.frame_master_id,
+          frame_variant_id: selectedFrameVariant.variant_id,
+          line_type: 'frame' as const,
+          track_stock: true,
+        })
+      } else if (frameItem) {
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
       }
       if (lensItem) {
@@ -1673,12 +1728,13 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </div>
                   <div>
                     <CardTitle>Frame Selection</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Scan a barcode or search from inventory</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Scan a barcode or pick from frame variant inventory</p>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
+                {/* Scan button always available */}
                 <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="w-full h-12 text-base gap-2">
                   <RiScanLine className="h-5 w-5" />
                   {isScanningProduct ? 'Scanning...' : 'Scan Barcode'}
@@ -1690,31 +1746,70 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
-                <Field label="Frame" error={errors.frame?.selectionId?.message}>
-                  <SearchableLOV
-                    placeholder="Search by name, SKU, or barcode"
-                    value={frame.selectionId || ''}
-                    onChange={(value) => {
-                      const product = productData?.data.find((item) => String(item.product_id) === String(value))
-                      if (product) { applyFrameSelection(product); return }
-                      setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
-                    }}
-                    options={frameOptions}
-                  />
-                </Field>
+                {/* Frame source tabs */}
+                <Tabs value={frameSource} onValueChange={(v) => {
+                  setFrameSource(v as 'catalog' | 'variant')
+                  setSelectedFrameVariant(null)
+                  setValue('frame', defaultValues.frame, { shouldDirty: false, shouldValidate: false })
+                }}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="variant">Frame Inventory (SKU)</TabsTrigger>
+                    <TabsTrigger value="catalog">Product Catalog</TabsTrigger>
+                  </TabsList>
 
-                <div className={`rounded-xl border p-4 ${frame.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                    {frame.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
-                    <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
-                    <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
-                    <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
-                    <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
-                  </div>
-                </div>
+                  {/* Frame Variant tab */}
+                  <TabsContent value="variant" className="space-y-4 pt-2">
+                    <Field label="Search frame variant" error={errors.frame?.selectionId?.message}>
+                      <VariantPicker
+                        value={selectedFrameVariant}
+                        onChange={(v) => applyFrameVariantSelection(v)}
+                        showStock
+                        showPrice
+                        placeholder="Search brand, model, color, size or scan barcode…"
+                      />
+                    </Field>
+                    {selectedFrameVariant && (
+                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Variant</p>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          <Field label="Model"><Input value={frame.model} onChange={(e) => setValue('frame.model', e.target.value, { shouldDirty: true })} placeholder="Model" /></Field>
+                          <Field label="Color"><Input value={frame.color} readOnly placeholder="Color" /></Field>
+                          <Field label="Size"><Input value={frame.size} readOnly placeholder="Size" /></Field>
+                          <Field label="SKU"><Input value={frame.frameId} readOnly placeholder="SKU" /></Field>
+                          <Field label="Price"><Input type="number" step="0.01" value={frame.total} onChange={(e) => setValue('frame.total', +e.target.value, { shouldDirty: true })} /></Field>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Product Catalog tab (legacy) */}
+                  <TabsContent value="catalog" className="space-y-4 pt-2">
+                    <Field label="Frame" error={errors.frame?.selectionId?.message}>
+                      <SearchableLOV
+                        placeholder="Search by name, SKU, or barcode"
+                        value={frame.selectionId || ''}
+                        onChange={(value) => {
+                          const product = productData?.data.find((item) => String(item.product_id) === String(value))
+                          if (product) { applyFrameSelection(product); return }
+                          setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
+                        }}
+                        options={frameOptions}
+                      />
+                    </Field>
+                    <div className={`rounded-xl border p-4 ${frame.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                        {frame.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
+                        <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                        <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                        <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
+                        <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}

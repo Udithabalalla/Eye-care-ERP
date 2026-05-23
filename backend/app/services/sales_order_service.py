@@ -6,6 +6,7 @@ from app.repositories.sales_order_repository import SalesOrderRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.frame_variant_repository import FrameVariantRepository
 from app.repositories.basic_data_repository import OtherExpenseTypeRepository, LensMasterRepository
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrderResponse
 from app.schemas.responses import PaginatedResponse
@@ -37,6 +38,7 @@ class SalesOrderService:
         self.patient_repo = PatientRepository(db)
         self.prescription_repo = PrescriptionRepository(db)
         self.product_repo = ProductRepository(db)
+        self.variant_repo = FrameVariantRepository(db)
         self.other_expense_repo = OtherExpenseTypeRepository(db)
         self.lens_master_repo = LensMasterRepository(db)
         self.audit_service = AuditService(db)
@@ -128,22 +130,24 @@ class SalesOrderService:
         for raw_item in items:
             if isinstance(raw_item, dict):
                 product_id = raw_item.get("product_id")
+                frame_variant_id = raw_item.get("frame_variant_id")
                 quantity = int(raw_item.get("quantity", 0))
                 unit_price = float(raw_item.get("unit_price", 0))
                 product_name = raw_item.get("product_name")
                 sku = raw_item.get("sku")
                 master_data_id = raw_item.get("master_data_id")
                 line_type = raw_item.get("line_type", "product")
-                track_stock = bool(raw_item.get("track_stock", line_type == "product"))
+                track_stock = bool(raw_item.get("track_stock", line_type in ("product", "frame")))
             else:
                 product_id = raw_item.product_id
+                frame_variant_id = getattr(raw_item, "frame_variant_id", None)
                 quantity = raw_item.quantity
                 unit_price = raw_item.unit_price
                 product_name = raw_item.product_name
                 sku = raw_item.sku
                 master_data_id = getattr(raw_item, "master_data_id", None)
                 line_type = getattr(raw_item, "line_type", "product")
-                track_stock = getattr(raw_item, "track_stock", line_type == "product")
+                track_stock = getattr(raw_item, "track_stock", line_type in ("product", "frame"))
 
             if quantity <= 0:
                 raise BadRequestException("Item quantity must be greater than zero")
@@ -218,12 +222,26 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product.product_id
                     resolved_track_stock = True
                 else:
-                    resolved_product_id = product_id
+                    resolved_product_id = product_id or "COMP"
                     resolved_name = product_name or "Complimentary Item"
-                    resolved_sku = sku or product_id
+                    resolved_sku = sku or resolved_product_id
                     resolved_unit_price = 0.0
-                    resolved_master_id = master_data_id or product_id
+                    resolved_master_id = master_data_id or resolved_product_id
                     resolved_track_stock = False
+            elif line_type == "frame":
+                vid = frame_variant_id or product_id
+                if not vid:
+                    raise BadRequestException("frame_variant_id is required for line_type='frame'")
+                variant = await self.variant_repo.get_by_variant_id(vid)
+                if not variant:
+                    raise NotFoundException(f"Frame variant {vid} not found")
+                resolved_product_id = vid
+                resolved_name = product_name or f"{variant.frame_master_ref.brand} {variant.frame_master_ref.model_code} / {variant.color} / {variant.eye_size}"
+                resolved_sku = sku or variant.sku
+                resolved_unit_price = unit_price if unit_price >= 0 else variant.selling_price
+                resolved_master_id = variant.frame_master_id
+                resolved_track_stock = True
+                frame_variant_id = variant.variant_id
             else:
                 raise BadRequestException(f"Unsupported sales order line type: {line_type}")
 
@@ -239,6 +257,7 @@ class SalesOrderService:
                     unit_price=resolved_unit_price,
                     total=line_total,
                     master_data_id=resolved_master_id,
+                    frame_variant_id=frame_variant_id if line_type == "frame" else None,
                     line_type=line_type,
                     track_stock=resolved_track_stock,
                 )
@@ -250,13 +269,25 @@ class SalesOrderService:
         for item in items:
             if not getattr(item, "track_stock", False):
                 continue
-            product = await self._resolve_product_by_identifier(item.product_id)
-            if not product:
-                raise NotFoundException(f"Product with ID {item.product_id} not found")
-            if product.current_stock < item.quantity:
-                raise BadRequestException(
-                    f"Insufficient stock for {product.name}. Available: {product.current_stock}, required: {item.quantity}"
-                )
+            variant_id = getattr(item, "frame_variant_id", None)
+            line_type = getattr(item, "line_type", "product")
+            if line_type == "frame" and variant_id:
+                variant = await self.variant_repo.get_by_variant_id(variant_id)
+                if not variant:
+                    raise NotFoundException(f"Frame variant {variant_id} not found")
+                if variant.current_stock < item.quantity:
+                    raise BadRequestException(
+                        f"Insufficient stock for {variant.frame_master_ref.brand} {variant.frame_master_ref.model_code} / {variant.color}. "
+                        f"Available: {variant.current_stock}, required: {item.quantity}"
+                    )
+            else:
+                product = await self._resolve_product_by_identifier(item.product_id)
+                if not product:
+                    raise NotFoundException(f"Product with ID {item.product_id} not found")
+                if product.current_stock < item.quantity:
+                    raise BadRequestException(
+                        f"Insufficient stock for {product.name}. Available: {product.current_stock}, required: {item.quantity}"
+                    )
 
     async def _to_response(self, order: SalesOrderModel) -> SalesOrderResponse:
         patient_name = None
@@ -395,20 +426,35 @@ class SalesOrderService:
             for item in created_model.items:
                 if not getattr(item, "track_stock", False):
                     continue
-                product = await self._resolve_product_by_identifier(item.product_id)
-                if not product:
-                    raise NotFoundException(f"Product with ID {item.product_id} not found")
-                await self.inventory_movement_service.create_movement(
-                    InventoryMovementCreate(
-                        product_id=product.product_id,
-                        movement_type=InventoryMovementType.SALE_OUT,
-                        quantity=item.quantity,
-                        reference_type=LedgerReferenceType.SALES_ORDER,
-                        reference_id=created_model.order_id,
-                    ),
-                    created_by=created_by,
-                    apply_stock_change=True,
-                )
+                variant_id = getattr(item, "frame_variant_id", None)
+                if getattr(item, "line_type", "product") == "frame" and variant_id:
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=variant_id,
+                            variant_id=variant_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=created_model.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
+                else:
+                    product = await self._resolve_product_by_identifier(item.product_id)
+                    if not product:
+                        raise NotFoundException(f"Product with ID {item.product_id} not found")
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=product.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=created_model.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
             
             await self.transaction_service.create_transaction(
                 TransactionCreate(
@@ -465,20 +511,35 @@ class SalesOrderService:
             for item in updated.items:
                 if not getattr(item, "track_stock", False):
                     continue
-                product = await self._resolve_product_by_identifier(item.product_id)
-                if not product:
-                    raise NotFoundException(f"Product with ID {item.product_id} not found")
-                await self.inventory_movement_service.create_movement(
-                    InventoryMovementCreate(
-                        product_id=product.product_id,
-                        movement_type=InventoryMovementType.SALE_OUT,
-                        quantity=item.quantity,
-                        reference_type=LedgerReferenceType.SALES_ORDER,
-                        reference_id=updated.order_id,
-                    ),
-                    created_by=created_by,
-                    apply_stock_change=True,
-                )
+                variant_id = getattr(item, "frame_variant_id", None)
+                if getattr(item, "line_type", "product") == "frame" and variant_id:
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=variant_id,
+                            variant_id=variant_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=updated.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
+                else:
+                    product = await self._resolve_product_by_identifier(item.product_id)
+                    if not product:
+                        raise NotFoundException(f"Product with ID {item.product_id} not found")
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=product.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=updated.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
 
             await self.transaction_service.create_transaction(
                 TransactionCreate(

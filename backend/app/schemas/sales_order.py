@@ -7,14 +7,15 @@ from app.utils.constants import SalesOrderStatus
 
 
 class SalesOrderItemCreate(BaseModel):
-    product_id: str
+    product_id: Optional[str] = None
     product_name: Optional[str] = None
     sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
     total: Optional[float] = Field(default=None, ge=0)
     master_data_id: Optional[str] = None
-    line_type: Literal["product", "lens", "expense", "complimentary"] = "product"
+    frame_variant_id: Optional[str] = None
+    line_type: Literal["product", "lens", "expense", "complimentary", "frame"] = "product"
     track_stock: bool = True
 
 
