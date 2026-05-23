@@ -6,10 +6,14 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import Loading from './components/common/Loading'
 
 // Lazy load pages for better initial bundle size
-const FrameMasters = lazy(() => import('./pages/FrameMasters'))
-const FrameVariants = lazy(() => import('./pages/FrameVariants'))
-const QuickIntake = lazy(() => import('./pages/QuickIntake'))
-const GoodsReceipts = lazy(() => import('./pages/GoodsReceipts'))
+
+// ── Inventory workspace pages (new) ──────────────────────────────────────────
+const FramesWorkspace = lazy(() => import('./pages/inventory/FramesWorkspace'))
+const GeneralInventory = lazy(() => import('./pages/inventory/GeneralInventory'))
+const ReceivingWorkspace = lazy(() => import('./pages/inventory/ReceivingWorkspace'))
+const MovementsLog = lazy(() => import('./pages/inventory/MovementsLog'))
+const AdjustmentsWorkspace = lazy(() => import('./pages/inventory/AdjustmentsWorkspace'))
+
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
@@ -17,7 +21,6 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Patients = lazy(() => import('./pages/Patients'))
 const Appointments = lazy(() => import('./pages/Appointments'))
 const Prescriptions = lazy(() => import('./pages/Prescriptions'))
-const Products = lazy(() => import('./pages/Products'))
 const SalesOrders = lazy(() => import('./pages/SalesOrders'))
 const SalesOrderAssistant = lazy(() => import('./pages/SalesOrderAssistant'))
 const OtherExpenses = lazy(() => import('./pages/OtherExpenses'))
@@ -28,8 +31,6 @@ const Invoices = lazy(() => import('./pages/Invoices'))
 const Transactions = lazy(() => import('./pages/Transactions'))
 const Payments = lazy(() => import('./pages/Payments'))
 const Refunds = lazy(() => import('./pages/Refunds'))
-const InventoryMovements = lazy(() => import('./pages/InventoryMovements'))
-const StockAdjustments = lazy(() => import('./pages/StockAdjustments'))
 const ActivityLogs = lazy(() => import('./pages/ActivityLogs'))
 const RolesPermissions = lazy(() => import('./pages/RolesPermissions'))
 const Ledger = lazy(() => import('./pages/Ledger'))
@@ -68,12 +69,24 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
-            {/* ── Optical ERP ──────────────────────────────────────────── */}
-            <Route path="/frame-masters" element={<FrameMasters />} />
-            <Route path="/frame-variants" element={<FrameVariants />} />
-            <Route path="/quick-intake" element={<QuickIntake />} />
-            <Route path="/goods-receipts" element={<GoodsReceipts />} />
-            {/* ── Existing ─────────────────────────────────────────────── */}
+
+            {/* ── Inventory workspace (new routes) ─────────────────────── */}
+            <Route path="/inventory/frames" element={<FramesWorkspace />} />
+            <Route path="/inventory/general" element={<GeneralInventory />} />
+            <Route path="/inventory/receiving" element={<ReceivingWorkspace />} />
+            <Route path="/inventory/movements" element={<MovementsLog />} />
+            <Route path="/inventory/adjustments" element={<AdjustmentsWorkspace />} />
+
+            {/* ── Legacy redirects (keep old bookmarks working) ─────────── */}
+            <Route path="/frame-masters" element={<Navigate to="/inventory/frames" replace />} />
+            <Route path="/frame-variants" element={<Navigate to="/inventory/frames" replace />} />
+            <Route path="/goods-receipts" element={<Navigate to="/inventory/receiving" replace />} />
+            <Route path="/quick-intake" element={<Navigate to="/inventory/receiving" replace />} />
+            <Route path="/stock-adjustments" element={<Navigate to="/inventory/adjustments" replace />} />
+            <Route path="/inventory-movements" element={<Navigate to="/inventory/movements" replace />} />
+            <Route path="/products" element={<Navigate to="/inventory/general" replace />} />
+
+            {/* ── Clinical ─────────────────────────────────────────────── */}
             <Route path="/patients" element={<Patients />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/prescriptions" element={<Prescriptions />} />
@@ -83,7 +96,6 @@ function App() {
             <Route path="/basic-data/lenses" element={<Lenses />} />
             <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
             <Route path="/basic-data/product-categories" element={<ProductCategories />} />
-            <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/refunds" element={<Refunds />} />
@@ -97,8 +109,6 @@ function App() {
             <Route path="/users" element={<Users />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/ledger" element={<Ledger />} />
-            <Route path="/inventory-movements" element={<InventoryMovements />} />
-            <Route path="/stock-adjustments" element={<StockAdjustments />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/roles-permissions" element={<RolesPermissions />} />
             <Route path="/settings" element={<ClinicSettings />} />
