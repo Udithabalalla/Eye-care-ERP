@@ -569,13 +569,6 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
-  const { data: genProductSearchData } = useQuery({
-    queryKey: ['so-gen-product-search', genProductSearch],
-    queryFn: () => productsApi.getAll({ page: 1, page_size: 20, search: genProductSearch }),
-    enabled: genProductSearch.length >= 2,
-    staleTime: 10_000,
-  })
-
   const [includeCase, setIncludeCase] = useState(true)
   const [selectedCaseId, setSelectedCaseId] = useState('')
   const [includeBag, setIncludeBag] = useState(true)
@@ -587,6 +580,13 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [generalInventoryItems, setGeneralInventoryItems] = useState<Array<{ product: Product; qty: number; unit_price: number }>>([])
   const [pendingSoVariant, setPendingSoVariant] = useState<FrameVariant | null>(null)
   const [genProductSearch, setGenProductSearch] = useState('')
+
+  const { data: genProductSearchData } = useQuery({
+    queryKey: ['so-gen-product-search', genProductSearch],
+    queryFn: () => productsApi.getAll({ page: 1, page_size: 20, search: genProductSearch }),
+    enabled: genProductSearch.length >= 2,
+    staleTime: 10_000,
+  })
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
