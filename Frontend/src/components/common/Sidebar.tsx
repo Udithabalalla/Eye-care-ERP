@@ -86,11 +86,12 @@ const navigationSections: NavSection[] = [
   },
 
   // ── Inventory ──────────────────────────────────────────────────────────────
-  // Frame catalog → receiving → ad-hoc intake → corrections → audit log
+  // Stock items first, then receiving → corrections → audit log
   {
     title: 'Inventory',
     items: [
       { name: 'Frames',             path: '/frame-masters',       icon: RiGridLine },
+      { name: 'Products',           path: '/products',            icon: RiBox3Line },
       { name: 'Goods Receipts',     path: '/goods-receipts',      icon: RiTruckLine },
       { name: 'Quick Intake',       path: '/quick-intake',        icon: RiDownload2Line },
       { name: 'Stock Adjustments',  path: '/stock-adjustments',   icon: RiEqualizerLine },
@@ -131,7 +132,6 @@ const navigationSections: NavSection[] = [
       { name: 'Appointments',  path: '/appointments',  icon: RiCalendarLine },
       { name: 'Prescriptions', path: '/prescriptions', icon: RiEyeLine },
       { name: 'Doctors',       path: '/doctors',       icon: RiUserFollowLine },
-      { name: 'Products',      path: '/products',      icon: RiBox3Line },
     ],
   },
 

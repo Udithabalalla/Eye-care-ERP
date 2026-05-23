@@ -7,6 +7,7 @@ import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import AddProductAssistant from '@/components/products/AddProductAssistant'
 import { VariantPicker } from '@/components/frames/VariantPicker'
+import { QuickAddVariantDialog } from '@/components/frames/QuickAddVariantDialog'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { extractApiErrorMessage } from '@/api/axios'
@@ -75,6 +76,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
   const { data: companyProfile } = useQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get() })
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft())
   const [productPickerOpen, setProductPickerOpen] = useState(false)
+  const [variantPickerOpen, setVariantPickerOpen] = useState(false)
   const [targetItemKey, setTargetItemKey] = useState<string | null>(null)
 
   useEffect(() => {
@@ -134,6 +136,13 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
     })
     setTargetItemKey(null)
     setProductPickerOpen(false)
+  }
+
+  const handleVariantCreated = (variant: FrameVariant) => {
+    if (!targetItemKey) return
+    setVariant(targetItemKey, variant)
+    setTargetItemKey(null)
+    setVariantPickerOpen(false)
   }
 
   const createMutation = useMutation({
@@ -282,14 +291,23 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
                       {/* Item picker */}
                       {isVariant ? (
-                        <div className="min-w-0">
-                          <VariantPicker
-                            value={item.variantObj ?? null}
-                            onChange={(v) => setVariant(item._key, v)}
-                            showStock
-                            showPrice={false}
-                            placeholder="Search or scan variant…"
-                          />
+                        <div className="flex min-w-0 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <VariantPicker
+                              value={item.variantObj ?? null}
+                              onChange={(v) => setVariant(item._key, v)}
+                              showStock
+                              showPrice={false}
+                              placeholder="Search or scan variant…"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors h-9"
+                            onClick={() => { setTargetItemKey(item._key); setVariantPickerOpen(true) }}
+                          >
+                            + New
+                          </button>
                         </div>
                       ) : (
                         <div className="flex min-w-0 gap-2">
@@ -399,6 +417,12 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
 
         </div>
       </Modal>
+
+      <QuickAddVariantDialog
+        open={variantPickerOpen && !!targetItemKey}
+        onClose={() => { setVariantPickerOpen(false); setTargetItemKey(null) }}
+        onCreated={handleVariantCreated}
+      />
 
       {productPickerOpen && targetItemKey && (
         <Modal
