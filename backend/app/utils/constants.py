@@ -97,3 +97,83 @@ class PrescriptionType(str, Enum):
     SINGLE_VISION = "single-vision"
     BIFOCAL = "bifocal"
     PROGRESSIVE = "progressive"
+
+
+class FrameMaterial(str, Enum):
+    ACETATE = "acetate"
+    METAL = "metal"
+    TITANIUM = "titanium"
+    TR90 = "tr90"
+    MIXED = "mixed"
+    WOOD = "wood"
+    OTHER = "other"
+
+
+class FrameShape(str, Enum):
+    RECTANGLE = "rectangle"
+    SQUARE = "square"
+    ROUND = "round"
+    OVAL = "oval"
+    CAT_EYE = "cat-eye"
+    AVIATOR = "aviator"
+    GEOMETRIC = "geometric"
+    OTHER = "other"
+
+
+class RimType(str, Enum):
+    FULL = "full"
+    HALF = "half"
+    RIMLESS = "rimless"
+
+
+class FrameGender(str, Enum):
+    MEN = "men"
+    WOMEN = "women"
+    UNISEX = "unisex"
+    KIDS = "kids"
+
+
+class FrameCategory(str, Enum):
+    OPTICAL = "optical"
+    SUNGLASSES = "sunglasses"
+    SPORTS = "sports"
+    SAFETY = "safety"
+    READING = "reading"
+
+
+class StockMovementType(str, Enum):
+    PURCHASE_RECEIVE = "purchase_receive"
+    SALE = "sale"
+    ADJUSTMENT = "adjustment"
+    RETURN = "return"
+    DAMAGE = "damage"
+    TRANSFER = "transfer"
+
+
+class StockMovementRefType(str, Enum):
+    GOODS_RECEIPT = "goods_receipt"
+    QUICK_INTAKE = "quick_intake"
+    SALES_ORDER = "sales_order"
+    PURCHASE_ORDER = "purchase_order"
+    ADJUSTMENT = "adjustment"
+    RETURN = "return"
+
+
+class GoodsReceiptStatus(str, Enum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+
+
+class QuickIntakeStatus(str, Enum):
+    DRAFT = "draft"
+    COMMITTED = "committed"
+
+
+class OpticalSalesOrderStatus(str, Enum):
+    PENDING = "pending"
+    FRAME_SELECTED = "frame_selected"
+    LENS_ORDERED = "lens_ordered"
+    IN_LAB = "in_lab"
+    READY = "ready"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"

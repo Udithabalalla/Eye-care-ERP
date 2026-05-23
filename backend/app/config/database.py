@@ -131,7 +131,47 @@ async def create_indexes():
     await safe_create_index(db.db.doctors, "doctor_id", unique=True)
     await safe_create_index(db.db.doctors, "is_active")
     await safe_create_index(db.db.doctors, "specialization")
-    
+
+    # ── Optical ERP indexes ───────────────────────────────────────────────────
+    # Frame Masters
+    await safe_create_index(db.db.frame_masters, "frame_master_id", unique=True)
+    await safe_create_index(db.db.frame_masters, [("brand", 1), ("model_code", 1)], name="frame_master_brand_model")
+    await safe_create_index(db.db.frame_masters, "category")
+    await safe_create_index(db.db.frame_masters, "is_active")
+    await safe_create_index(db.db.frame_masters, [
+        ("brand", "text"), ("model_code", "text"), ("frame_name", "text")
+    ], name="frame_master_search_index")
+
+    # Frame Variants
+    await safe_create_index(db.db.frame_variants, "variant_id", unique=True)
+    await safe_create_index(db.db.frame_variants, "sku", unique=True)
+    await safe_create_index(db.db.frame_variants, "barcode", unique=True)
+    await safe_create_index(db.db.frame_variants, "frame_master_id")
+    await safe_create_index(db.db.frame_variants, "is_active")
+    await safe_create_index(db.db.frame_variants, "supplier_id")
+    await safe_create_index(db.db.frame_variants, [
+        ("frame_master_id", 1), ("color", 1), ("eye_size", 1), ("rim_type", 1)
+    ], name="variant_uniqueness_index")
+    await safe_create_index(db.db.frame_variants, [
+        ("is_active", 1), ("current_stock", 1), ("reorder_level", 1)
+    ], name="variant_stock_alert_index")
+    await safe_create_index(db.db.frame_variants, [
+        ("sku", "text"), ("barcode", "text"), ("color", "text"),
+        ("frame_master_ref.brand", "text"), ("frame_master_ref.model_code", "text")
+    ], name="variant_search_index")
+
+    # Goods Receipts
+    await safe_create_index(db.db.goods_receipts, "grn_number", unique=True)
+    await safe_create_index(db.db.goods_receipts, "supplier_id")
+    await safe_create_index(db.db.goods_receipts, "purchase_order_id", sparse=True)
+    await safe_create_index(db.db.goods_receipts, [("receipt_date", -1)])
+
+    # Quick Intakes
+    await safe_create_index(db.db.quick_intakes, "intake_id", unique=True)
+    await safe_create_index(db.db.quick_intakes, "status")
+    await safe_create_index(db.db.quick_intakes, "supplier_id", sparse=True)
+    await safe_create_index(db.db.quick_intakes, [("intake_date", -1)])
+
     print("✅ Database indexes created")
 
 def get_database() -> AsyncIOMotorDatabase:

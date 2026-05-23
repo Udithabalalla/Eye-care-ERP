@@ -21,7 +21,6 @@ import {
   RiArrowDownSLine,
   RiMore2Line,
   RiShoppingCartLine,
-  RiExchangeLine,
   RiEyeLine,
   RiPriceTag3Line,
   RiWallet3Line,
@@ -30,6 +29,9 @@ import {
   RiInboxLine,
   RiBankCardLine,
   RiEqualizerLine,
+  RiDownload2Line,
+  RiGridLine,
+  RiArrowUpDownLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -80,12 +82,19 @@ const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Clinical',
+    title: 'Frames',
     items: [
-      { name: 'Patients', path: '/patients', icon: RiUserLine },
-      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
-      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
-      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
+      { name: 'Frame Catalog', path: '/frame-masters', icon: RiGridLine },
+      { name: 'Frame Inventory', path: '/frame-variants', icon: RiBox3Line },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
+      { name: 'Quick Intake', path: '/quick-intake', icon: RiDownload2Line },
+      { name: 'Goods Receipts', path: '/goods-receipts', icon: RiTruckLine },
+      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiEqualizerLine },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiArrowUpDownLine },
     ],
   },
   {
@@ -100,7 +109,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'Purchasing',
     items: [
-      { name: 'Suppliers', path: '/suppliers', icon: RiTruckLine },
+      { name: 'Suppliers', path: '/suppliers', icon: RiTeamLine },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: RiShoppingCartLine },
       { name: 'Stock Receipts', path: '/stock-receipts', icon: RiInboxLine },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
@@ -108,15 +117,17 @@ const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Inventory',
+    title: 'Clinical',
     items: [
+      { name: 'Patients', path: '/patients', icon: RiUserLine },
+      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
+      { name: 'Prescriptions', path: '/prescriptions', icon: RiFileTextLine },
+      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
       { name: 'Products', path: '/products', icon: RiBox3Line },
-      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiExchangeLine },
-      { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiEqualizerLine },
     ],
   },
   {
-    title: 'Finance & Reports',
+    title: 'Finance',
     items: [
       { name: 'Transactions', path: '/transactions', icon: RiMoneyDollarCircleLine },
       { name: 'Ledger', path: '/ledger', icon: RiBookOpenLine },
