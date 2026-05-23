@@ -13,7 +13,7 @@ class InventoryMovementRepository(BaseRepository):
         record = await self.get_one({"movement_id": movement_id})
         return InventoryMovementModel(**record) if record else None
 
-    async def list_movements(self, skip: int = 0, limit: int = 10, product_id: Optional[str] = None, reference_type: Optional[str] = None, reference_id: Optional[str] = None) -> Tuple[List[InventoryMovementModel], int]:
+    async def list_movements(self, skip: int = 0, limit: int = 10, product_id: Optional[str] = None, reference_type: Optional[str] = None, reference_id: Optional[str] = None, movement_type: Optional[str] = None) -> Tuple[List[InventoryMovementModel], int]:
         query = {}
         if product_id:
             query["product_id"] = product_id
@@ -21,6 +21,8 @@ class InventoryMovementRepository(BaseRepository):
             query["reference_type"] = reference_type
         if reference_id:
             query["reference_id"] = reference_id
+        if movement_type:
+            query["movement_type"] = movement_type
         records = await self.get_many(filter=query, skip=skip, limit=limit, sort=[("created_at", -1)])
         total = await self.count(query)
         return [InventoryMovementModel(**record) for record in records], total

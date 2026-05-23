@@ -350,6 +350,48 @@ class SalesOrderService:
             },
         )
 
+        # Reverse stock decrements when cancelling an order that had stock committed
+        if new_status == SalesOrderStatus.CANCELLED and old_status != SalesOrderStatus.DRAFT:
+            # Only reverse if no invoice was generated (invoice service owns stock after that point)
+            if not existing.invoice_id:
+                # Idempotency: skip if reversal movements already exist for this SO
+                already_reversed = await self.db["inventory_movements"].count_documents({
+                    "reference_id": order_id,
+                    "movement_type": InventoryMovementType.RETURN.value,
+                })
+                if already_reversed == 0:
+                    for item in existing.items:
+                        if not getattr(item, "track_stock", False):
+                            continue
+                        variant_id = getattr(item, "frame_variant_id", None)
+                        if getattr(item, "line_type", "product") == "frame" and variant_id:
+                            await self.inventory_movement_service.create_movement(
+                                InventoryMovementCreate(
+                                    product_id=variant_id,
+                                    variant_id=variant_id,
+                                    movement_type=InventoryMovementType.RETURN,
+                                    quantity=item.quantity,
+                                    reference_type=LedgerReferenceType.SALES_ORDER,
+                                    reference_id=order_id,
+                                ),
+                                created_by=updated_by,
+                                apply_stock_change=True,
+                            )
+                        elif item.product_id and getattr(item, "line_type", "product") == "product":
+                            product = await self._resolve_product_by_identifier(item.product_id)
+                            if product:
+                                await self.inventory_movement_service.create_movement(
+                                    InventoryMovementCreate(
+                                        product_id=product.product_id,
+                                        movement_type=InventoryMovementType.RETURN,
+                                        quantity=item.quantity,
+                                        reference_type=LedgerReferenceType.SALES_ORDER,
+                                        reference_id=order_id,
+                                    ),
+                                    created_by=updated_by,
+                                    apply_stock_change=True,
+                                )
+
         updated = await self.repo.get_by_order_id(order_id)
         await self.audit_service.log(
             updated_by,

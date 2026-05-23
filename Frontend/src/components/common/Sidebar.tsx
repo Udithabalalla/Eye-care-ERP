@@ -18,6 +18,7 @@ import {
   RiUserFollowLine,
   RiSettings4Line,
   RiArrowDownSLine,
+  RiArrowUpDownLine,
   RiMore2Line,
   RiDownload2Line,
   RiGridLine,
@@ -83,6 +84,7 @@ const navigationSections: NavSection[] = [
       { name: 'Quick Intake', path: '/quick-intake', icon: RiDownload2Line },
       { name: 'Goods Receipts', path: '/goods-receipts', icon: RiTruckLine },
       { name: 'Stock Adjustments', path: '/stock-adjustments', icon: RiSettings4Line },
+      { name: 'Inventory Movements', path: '/inventory-movements', icon: RiArrowUpDownLine },
     ],
   },
   {

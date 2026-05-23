@@ -31,7 +31,7 @@ class InventoryMovementService:
                     ok = await self.variant_repo.decrement_stock_atomic(data.variant_id, abs(data.quantity))
                     if not ok:
                         raise BadRequestException(f"Insufficient stock for frame variant {data.variant_id}")
-                elif data.movement_type == InventoryMovementType.PURCHASE_IN:
+                elif data.movement_type in (InventoryMovementType.PURCHASE_IN, InventoryMovementType.RETURN):
                     ok = await self.variant_repo.increment_stock_atomic(data.variant_id, abs(data.quantity))
                     if not ok:
                         raise BadRequestException(f"Failed to increase stock for frame variant {data.variant_id}")
@@ -44,7 +44,7 @@ class InventoryMovementService:
                     ok = await self.product_repo.decrement_stock_atomic(data.product_id, abs(data.quantity))
                     if not ok:
                         raise BadRequestException("Insufficient stock for sale movement")
-                elif data.movement_type == InventoryMovementType.PURCHASE_IN:
+                elif data.movement_type in (InventoryMovementType.PURCHASE_IN, InventoryMovementType.RETURN):
                     ok = await self.product_repo.increment_stock_atomic(data.product_id, abs(data.quantity))
                     if not ok:
                         raise BadRequestException("Failed to increase stock for purchase movement")
@@ -66,9 +66,9 @@ class InventoryMovementService:
         created = await self.repo.get_by_movement_id(movement_id)
         return InventoryMovementResponse(**created.dict())
 
-    async def list_movements(self, page: int, page_size: int, product_id: Optional[str] = None, reference_type: Optional[str] = None):
+    async def list_movements(self, page: int, page_size: int, product_id: Optional[str] = None, reference_type: Optional[str] = None, movement_type: Optional[str] = None):
         skip = (page - 1) * page_size
-        movements, total = await self.repo.list_movements(skip=skip, limit=page_size, product_id=product_id, reference_type=reference_type)
+        movements, total = await self.repo.list_movements(skip=skip, limit=page_size, product_id=product_id, reference_type=reference_type, movement_type=movement_type)
         total_pages = math.ceil(total / page_size)
         return PaginatedResponse(
             data=[InventoryMovementResponse(**item.dict()) for item in movements],
