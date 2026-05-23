@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RiBox3Line, RiSearchLine } from '@remixicon/react'
+import { RiSearchLine } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +22,7 @@ const MOVEMENT_TYPE_COLORS: Record<string, 'default' | 'secondary' | 'outline'> 
 export default function InventoryMovements() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [referenceType, setReferenceType] = useState('')
+  const [referenceType, setReferenceType] = useState<string>('')
   const [movementType, setMovementType] = useState('')
 
   const { data, isLoading } = useQuery({
@@ -31,7 +31,7 @@ export default function InventoryMovements() {
       inventoryMovementsApi.getAll({
         page,
         page_size: 20,
-        reference_type: referenceType || undefined,
+        reference_type: (referenceType as any) || undefined,
         movement_type: movementType || undefined,
       }),
   })

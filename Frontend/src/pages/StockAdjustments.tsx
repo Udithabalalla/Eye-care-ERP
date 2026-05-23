@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RiAdjustLine, RiSearchLine } from '@remixicon/react'
+import { RiEqualizerLine, RiSearchLine } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -122,7 +122,7 @@ export default function StockAdjustments() {
             </Select>
           </div>
           <Button onClick={handleSubmit} disabled={adjustMutation.isPending || !variant || newStock === '' || !reason}>
-            <RiAdjustLine className="size-4" />
+            <RiEqualizerLine className="size-4" />
             {adjustMutation.isPending ? 'Saving…' : 'Apply Adjustment'}
           </Button>
         </CardContent>
