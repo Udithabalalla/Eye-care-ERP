@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  RiAddLine, RiEditLine, RiDeleteBinLine, RiEyeLine,
+  RiAddLine, RiEditLine, RiDeleteBinLine,
   RiBox3Line, RiSearchLine, RiGridLine,
 } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'

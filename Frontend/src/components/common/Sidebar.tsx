@@ -21,7 +21,6 @@ import {
   RiMore2Line,
   RiDownload2Line,
   RiGridLine,
-  RiQrCodeLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'

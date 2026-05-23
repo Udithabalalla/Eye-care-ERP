@@ -3,7 +3,7 @@ import {
   FrameMaster, FrameMasterFormData,
   FrameVariant, FrameVariantFormData, BulkVariantCreate,
   GoodsReceipt, GoodsReceiptFormData,
-  QuickIntake, QuickIntakeFormData, QuickIntakeItem,
+  QuickIntake, QuickIntakeFormData,
 } from '@/types/frames.types'
 import { ApiResponse, PaginatedResponse } from '@/types/common.types'
 

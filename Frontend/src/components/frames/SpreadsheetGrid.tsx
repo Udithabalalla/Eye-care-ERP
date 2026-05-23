@@ -2,7 +2,6 @@
  * Spreadsheet-style editable grid.
  * Keyboard-first: Tab = next cell, Enter = new row, Ctrl+D = duplicate row.
  */
-import * as React from 'react'
 import { useCallback, useRef, useEffect } from 'react'
 import {
   RiAddLine, RiDeleteBinLine, RiFileCopyLine,
@@ -12,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { FrameVariant } from '@/types/frames.types'
 import { VariantPicker } from './VariantPicker'
-import { StockBadge } from './StockBadge'
 import { formatCurrency } from '@/utils/formatters'
 
 export interface SpreadsheetRow {
@@ -103,11 +101,10 @@ export function SpreadsheetGrid({
 
       {/* Rows */}
       <div className="border-x border-border divide-y divide-border">
-        {rows.map((row, idx) => (
+        {rows.map((row) => (
           <SpreadsheetRowItem
             key={row.id}
             row={row}
-            index={idx}
             disabled={disabled}
             showCostPrice={showCostPrice}
             onVariantChange={(v) => updateRow(row.id, {
@@ -149,7 +146,6 @@ export function SpreadsheetGrid({
 
 interface RowProps {
   row: SpreadsheetRow
-  index: number
   disabled: boolean
   showCostPrice: boolean
   onVariantChange: (v: FrameVariant | null) => void
@@ -160,7 +156,7 @@ interface RowProps {
 }
 
 function SpreadsheetRowItem({
-  row, index, disabled, showCostPrice,
+  row, disabled, showCostPrice,
   onVariantChange, onQtyChange, onCostChange, onDuplicate, onDelete,
 }: RowProps) {
   return (

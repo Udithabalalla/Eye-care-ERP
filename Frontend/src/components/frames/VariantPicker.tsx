@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { useState, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -7,7 +6,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { frameVariantsApi } from '@/api/frames.api'
 import { FrameVariant } from '@/types/frames.types'
