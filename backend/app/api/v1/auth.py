@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config.database import get_database
 from app.schemas.user import LoginRequest, LoginResponse, SignupRequest, UserResponse
+from app.schemas.user import RefreshRequest, RefreshResponse
 from app.schemas.password_reset import PasswordResetConfirmRequest, PasswordResetRequest, PasswordResetResponse
 from app.schemas.responses import ResponseModel
 from app.services.auth_service import AuthService
@@ -49,6 +50,16 @@ async def request_password_reset(
     """Send a one-time password to the registered email address"""
     password_reset_service = PasswordResetService(db)
     return await password_reset_service.request_reset(payload.email)
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(
+    payload: RefreshRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    auth_service = AuthService(db)
+    access = await auth_service.refresh_access_token(payload.refresh_token)
+    return RefreshResponse(access_token=access)
 
 
 @router.post("/password-reset/confirm", response_model=PasswordResetResponse)

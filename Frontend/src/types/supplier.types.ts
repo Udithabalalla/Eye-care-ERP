@@ -35,6 +35,7 @@ export interface PurchaseOrderItem {
   id: string
   purchase_order_id: string
   product_id: string
+  frame_variant_id?: string
   quantity: number
   unit_cost: number
   line_discount_type?: 'percent' | 'amount'
@@ -151,8 +152,6 @@ export interface PurchaseOrderFormItem {
   product_id?: string
   frame_variant_id?: string
   item_type?: 'product' | 'frame_variant'
-  item_name?: string
-  item_sku?: string
   description?: string
   quantity: number
   unit_cost: number
@@ -173,7 +172,9 @@ export interface PurchaseOrderFormData {
 }
 
 export interface PurchaseOrderAssistantItem {
-  product_id: string
+  product_id?: string
+  frame_variant_id?: string
+  item_type: 'product' | 'frame_variant'
   description: string
   quantity: number
   unit_cost: number
@@ -209,6 +210,8 @@ export interface SupplierInvoice {
   items?: SupplierInvoiceItem[]
   matching_status?: 'Matched' | 'Flagged'
   matching_issues?: string[]
+  created_by?: string
+  updated_by?: string
   created_at: string
   updated_at: string
 }

@@ -13,6 +13,7 @@ from app.models.supplier_invoice import SupplierInvoiceModel, SupplierInvoiceIte
 from app.models.purchase_order import PurchaseOrderModel
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.utils.helpers import generate_id
+from pymongo import ReturnDocument
 
 
 def _date_to_datetime(d) -> Optional[datetime]:
@@ -65,10 +66,15 @@ class SupplierInvoiceService:
             total_pages=total_pages,
         )
 
-    async def create_supplier_invoice(self, data: SupplierInvoiceCreate) -> SupplierInvoiceResponse:
+    async def create_supplier_invoice(self, data: SupplierInvoiceCreate, created_by: Optional[str] = None) -> SupplierInvoiceResponse:
         supplier = await self.supplier_repo.get_by_supplier_id(data.supplier_id)
         if not supplier:
             raise NotFoundException(f"Supplier with ID {data.supplier_id} not found")
+
+        # Check for duplicate invoice number
+        existing_invoice = await self.repo.get_by_invoice_number(data.invoice_number)
+        if existing_invoice:
+            raise BadRequestException(f"Invoice number '{data.invoice_number}' already exists. Please use a unique invoice number.")
 
         purchase_order: Optional[PurchaseOrderModel] = None
         if data.purchase_order_id:
@@ -137,7 +143,15 @@ class SupplierInvoiceService:
             ))
             computed_total += line_total
 
-        next_number = await self.repo.count({}) + 1
+        # Use an atomic counter to avoid race conditions when generating sequential IDs
+        counters = self.repo.db['counters']
+        seq = await counters.find_one_and_update(
+            {"_id": "supplier_invoice"},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        next_number = int(seq.get('seq', 1))
         invoice_id = generate_id("SINV", next_number)
         invoice = SupplierInvoiceModel(
             id=invoice_id,
@@ -151,21 +165,26 @@ class SupplierInvoiceService:
             items=normalized_items,
             matching_status="Flagged" if matching_issues else "Matched",
             matching_issues=matching_issues,
+            created_by=created_by,
+            updated_by=created_by,
         )
         doc = invoice.dict()
         # Convert date -> datetime for BSON compatibility
         doc["due_date"] = _date_to_datetime(doc.get("due_date"))
+        doc["invoice_date"] = _date_to_datetime(doc.get("invoice_date"))
         await self.repo.create(doc)
         created = await self.repo.get_by_invoice_id(invoice_id)
         return await self._to_response(created)
 
-    async def update_supplier_invoice(self, invoice_id: str, data: SupplierInvoiceUpdate) -> SupplierInvoiceResponse:
+    async def update_supplier_invoice(self, invoice_id: str, data: SupplierInvoiceUpdate, updated_by: Optional[str] = None) -> SupplierInvoiceResponse:
         existing = await self.repo.get_by_invoice_id(invoice_id)
         if not existing:
             raise NotFoundException(f"Supplier invoice {invoice_id} not found")
         update_dict = data.dict(exclude_unset=True)
         if "due_date" in update_dict:
             update_dict["due_date"] = _date_to_datetime(update_dict["due_date"])
+        if updated_by:
+            update_dict["updated_by"] = updated_by
         if update_dict:
             await self.repo.update({"id": invoice_id}, update_dict)
         updated = await self.repo.get_by_invoice_id(invoice_id)

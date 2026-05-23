@@ -108,7 +108,7 @@ export function RecordPaymentDialog({
       paymentsApi.create({
         amount: data.amount,
         payment_method: data.payment_method,
-        payment_date: data.payment_date,
+        payment_date: new Date(data.payment_date).toISOString(),
         reference_type: referenceType,
         reference_id: referenceId,
       }),

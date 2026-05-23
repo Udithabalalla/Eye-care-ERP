@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { POStatusHistoryEntry } from '@/types/supplier.types'
-import { PO_STATUS_CONFIG } from './PurchaseOrderStatusBadge'
+import { PO_STATUS_CONFIG } from './purchaseOrderStatusConfig'
 
 function formatTime(iso: string): string {
   try {

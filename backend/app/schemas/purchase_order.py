@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -76,11 +76,16 @@ class PurchaseOrderSummaryResponse(BaseModel):
 class PurchaseOrderItemCreate(BaseModel):
     product_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
-    item_type: str = "product"  # "product" | "frame_variant"
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
     line_discount_type: Optional[str] = None
     line_discount_value: float = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_item_reference(self):
+        if bool(self.product_id) == bool(self.frame_variant_id):
+            raise ValueError("Provide exactly one of product_id or frame_variant_id")
+        return self
 
 
 class PurchaseOrderCreate(BaseModel):
@@ -102,9 +107,6 @@ class PurchaseOrderItemResponse(BaseModel):
     purchase_order_id: str
     product_id: str
     frame_variant_id: Optional[str] = None
-    item_type: str = "product"
-    item_name: Optional[str] = None
-    item_sku: Optional[str] = None
     quantity: int
     unit_cost: float
     line_discount_type: Optional[str] = None
@@ -138,8 +140,7 @@ class PurchaseOrderResponse(BaseModel):
 
 
 class ReceiveStockItem(BaseModel):
-    product_id: Optional[str] = None
-    frame_variant_id: Optional[str] = None
+    product_id: str
     ordered_quantity: int
     received_quantity: int = Field(..., ge=0)
 
@@ -149,8 +150,7 @@ class ReceiveStockRequest(BaseModel):
 
 
 class ReceiveStockResponseItem(BaseModel):
-    product_id: Optional[str] = None
-    frame_variant_id: Optional[str] = None
+    product_id: str
     ordered_quantity: int
     received_quantity: int
 

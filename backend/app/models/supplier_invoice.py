@@ -29,3 +29,5 @@ class SupplierInvoiceModel(TimestampModel):
     items: List[SupplierInvoiceItemModel] = Field(default_factory=list)
     matching_status: str = Field(default="Matched")
     matching_issues: List[str] = Field(default_factory=list)
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None

@@ -64,7 +64,7 @@ const PaymentForm = ({ invoice, onSuccess, onCancel }: PaymentFormProps) => {
       paymentsApi.create({
         amount: data.amount,
         payment_method: data.payment_method,
-        payment_date: data.payment_date,
+        payment_date: new Date(data.payment_date).toISOString(),
         reference_type: 'INVOICE' as LedgerReferenceType,
         reference_id: invoice.invoice_id,
       }),

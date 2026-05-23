@@ -60,6 +60,7 @@ interface Props {
 
 export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplierInvoice, paidAmount = 0 }: Props) {
   const queryClient = useQueryClient()
+
   if (!supplierInvoice) return null
 
   const balanceDue = Math.max((supplierInvoice.total_amount ?? 0) - paidAmount, 0)
@@ -87,8 +88,8 @@ export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplier
 
   const mutation = useMutation({
     mutationFn: (data: FormValues) =>
-      suppliersApi.recordSupplierInvoicePayment(supplierInvoice.id, {
-        payment_date: data.payment_date,
+      suppliersApi.recordSupplierInvoicePayment(supplierInvoice!.id, {
+        payment_date: new Date(data.payment_date).toISOString(),
         payment_method: data.payment_method,
         amount_paid: data.amount_paid,
         reference_number: data.reference_number,
@@ -108,6 +109,8 @@ export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplier
 
   const remainingAfter = balanceDue - amountPaid
   const willBeFullyPaid = remainingAfter <= 0
+
+  if (!supplierInvoice) return null
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

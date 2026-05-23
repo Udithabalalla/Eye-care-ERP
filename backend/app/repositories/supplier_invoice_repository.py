@@ -12,6 +12,10 @@ class SupplierInvoiceRepository(BaseRepository):
         doc = await self.get_one({"id": invoice_id})
         return SupplierInvoiceModel(**doc) if doc else None
 
+    async def get_by_invoice_number(self, invoice_number: str) -> Optional[SupplierInvoiceModel]:
+        doc = await self.get_one({"invoice_number": invoice_number})
+        return SupplierInvoiceModel(**doc) if doc else None
+
     async def list_supplier_invoices(self, skip: int = 0, limit: int = 10, supplier_id: Optional[str] = None, status: Optional[str] = None) -> Tuple[List[SupplierInvoiceModel], int]:
         filter_query = {}
         if supplier_id:

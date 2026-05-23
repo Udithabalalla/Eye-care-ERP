@@ -61,7 +61,7 @@ class PurchaseOrderService:
         self.repo = PurchaseOrderRepository(db)
         self.supplier_repo = SupplierRepository(db)
         self.product_repo = ProductRepository(db)
-        self.variant_repo = FrameVariantRepository(db)
+        self.frame_variant_repo = FrameVariantRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
         self.company_profile_service = CompanyProfileService(db)
         self.inventory_service = InventoryMovementService(db)
@@ -91,25 +91,16 @@ class PurchaseOrderService:
         subtotal = 0.0
         line_discount_total = 0.0
         for index, item in enumerate(data.items, start=1):
-            resolved_product_id = item.product_id or "_variant_"
-            resolved_name: Optional[str] = None
-            resolved_sku: Optional[str] = None
-
-            if item.item_type == "frame_variant" and item.frame_variant_id:
-                variant = await self.variant_repo.get_by_variant_id(item.frame_variant_id)
+            resolved_product_id = item.product_id
+            if item.frame_variant_id:
+                variant = await self.frame_variant_repo.get_by_variant_id(item.frame_variant_id)
                 if not variant:
-                    raise NotFoundException(f"Frame variant {item.frame_variant_id} not found")
-                resolved_product_id = item.frame_variant_id
-                resolved_name = f"{variant.frame_master_ref.brand} {variant.frame_master_ref.model_code} / {variant.color} / {variant.eye_size}"
-                resolved_sku = variant.sku
+                    raise NotFoundException(f"Frame variant with ID {item.frame_variant_id} not found")
+                resolved_product_id = variant.variant_id
             else:
-                if not item.product_id:
-                    raise BadRequestException("product_id is required for item_type='product'")
                 product = await self.product_repo.get_by_product_id(item.product_id)
                 if not product:
                     raise NotFoundException(f"Product with ID {item.product_id} not found")
-                resolved_name = product.name
-                resolved_sku = product.sku
 
             line_subtotal = item.quantity * item.unit_cost
             line_discount_amount = self._calculate_line_discount(
@@ -125,9 +116,6 @@ class PurchaseOrderService:
                 purchase_order_id=order_id,
                 product_id=resolved_product_id,
                 frame_variant_id=item.frame_variant_id,
-                item_type=item.item_type,
-                item_name=resolved_name,
-                item_sku=resolved_sku,
                 quantity=item.quantity,
                 unit_cost=item.unit_cost,
                 line_discount_type=item.line_discount_type,
@@ -314,60 +302,38 @@ class PurchaseOrderService:
         if order.status != "Ordered":
             raise BadRequestException("Only Ordered purchase orders can be received")
 
-        # Build lookup map keyed by frame_variant_id first, then product_id
-        item_map_by_variant = {item.frame_variant_id: item for item in order.items if item.frame_variant_id}
-        item_map_by_product = {item.product_id: item for item in order.items if item.item_type == "product"}
-
+        item_map = {item.product_id: item for item in order.items}
         receipt_items: list[StockReceiptItemModel] = []
         for receipt_item in receipt.items:
-            if receipt_item.frame_variant_id:
-                order_item = item_map_by_variant.get(receipt_item.frame_variant_id)
-                lookup_key = receipt_item.frame_variant_id
-            else:
-                order_item = item_map_by_product.get(receipt_item.product_id)
-                lookup_key = receipt_item.product_id
-
+            order_item = item_map.get(receipt_item.product_id)
             if not order_item:
-                raise BadRequestException(f"Item {lookup_key} is not part of this purchase order")
+                raise BadRequestException(f"Product {receipt_item.product_id} is not part of this purchase order")
             if receipt_item.received_quantity > order_item.quantity:
-                raise BadRequestException(f"Received quantity cannot exceed ordered quantity for {lookup_key}")
+                raise BadRequestException(f"Received quantity cannot exceed ordered quantity for {receipt_item.product_id}")
             receipt_items.append(StockReceiptItemModel(
                 purchase_order_id=order_id,
-                product_id=receipt_item.product_id or receipt_item.frame_variant_id or lookup_key,
+                product_id=receipt_item.product_id,
                 ordered_quantity=order_item.quantity,
                 received_quantity=receipt_item.received_quantity,
             ))
 
-        for idx, receipt_item in enumerate(receipt.items):
-            if receipt_items[idx].received_quantity <= 0:
-                continue
-            qty = receipt_items[idx].received_quantity
-
-            if receipt_item.frame_variant_id:
-                ok = await self.variant_repo.increment_stock_atomic(receipt_item.frame_variant_id, qty)
-                if not ok:
-                    raise BadRequestException(f"Failed to update stock for variant {receipt_item.frame_variant_id}")
-                await self.inventory_service.create_movement(
-                    InventoryMovementCreate(
-                        product_id=receipt_item.frame_variant_id,
-                        variant_id=receipt_item.frame_variant_id,
-                        movement_type=InventoryMovementType.PURCHASE_IN,
-                        quantity=qty,
-                        reference_type=LedgerReferenceType.PURCHASE_ORDER,
-                        reference_id=order_id,
-                    ),
-                    received_by,
-                    apply_stock_change=False,
+        for receipt_item in receipt_items:
+            if receipt_item.received_quantity > 0:
+                is_variant_line = bool(
+                    next((item for item in order.items if item.product_id == receipt_item.product_id and item.frame_variant_id), None)
                 )
-            else:
-                ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, qty)
+                if is_variant_line:
+                    ok = await self.frame_variant_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
+                else:
+                    ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
                 if not ok:
                     raise BadRequestException(f"Failed to update stock for {receipt_item.product_id}")
+
                 await self.inventory_service.create_movement(
                     InventoryMovementCreate(
                         product_id=receipt_item.product_id,
                         movement_type=InventoryMovementType.PURCHASE_IN,
-                        quantity=qty,
+                        quantity=receipt_item.received_quantity,
                         reference_type=LedgerReferenceType.PURCHASE_ORDER,
                         reference_id=order_id,
                     ),

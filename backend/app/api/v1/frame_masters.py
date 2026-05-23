@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("", response_model=PaginatedResponse[FrameMasterResponse])
 async def list_frame_masters(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     search: Optional[str] = None,
     brand: Optional[str] = None,
     category: Optional[str] = None,

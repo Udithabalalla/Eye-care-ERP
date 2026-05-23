@@ -34,21 +34,24 @@ export function VariantPicker({
 }: VariantPickerProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [scannerOpen, setScannerOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const { data, isFetching } = useQuery({
-    queryKey: ['variant-picker', search],
-    queryFn: () => frameVariantsApi.getAll({ search, page_size: 20 }),
-    enabled: search.length >= 1,
+    queryKey: ['variant-picker', open, search, page],
+    queryFn: () => frameVariantsApi.getAll({ search: search || undefined, page, page_size: 20 }),
+    enabled: open,
     staleTime: 10_000,
   })
   const variants = data?.data ?? []
+  const totalPages = data?.total_pages ?? 1
 
   const handleSelect = useCallback((v: FrameVariant) => {
     onChange(v)
     setOpen(false)
     setSearch('')
+    setPage(1)
   }, [onChange])
 
   const handleScan = useCallback(async (code: string) => {
@@ -66,7 +69,13 @@ export function VariantPicker({
   const handleClear = useCallback(() => {
     onChange(null)
     setSearch('')
+    setPage(1)
   }, [onChange])
+
+  const updateSearch = (nextSearch: string) => {
+    setSearch(nextSearch)
+    setPage(1)
+  }
 
   return (
     <>
@@ -108,7 +117,7 @@ export function VariantPicker({
               <Input
                 ref={inputRef}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateSearch(e.target.value)}
                 placeholder={placeholder}
                 className="border-0 shadow-none focus-visible:ring-0 h-10"
               />
@@ -116,9 +125,25 @@ export function VariantPicker({
             </div>
 
             <div className="max-h-72 overflow-y-auto">
-              {search.length === 0 && (
+              {!isFetching && variants.length === 0 && search.length === 0 && (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm font-medium text-foreground">No variants available</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Add a frame variant or try again after syncing the catalogue.</p>
+                </div>
+              )}
+              {search.length === 0 && variants.length > 0 && (
+                <div className="border-b bg-muted/30 px-3 py-2">
+                  <p className="text-xs font-medium text-foreground">
+                    Showing page {page} of {totalPages}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Browse the catalog now or type to narrow results.
+                  </p>
+                </div>
+              )}
+              {search.length === 0 && variants.length === 0 && isFetching && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  Type to search variants…
+                  Loading variants…
                 </p>
               )}
               {search.length > 0 && variants.length === 0 && !isFetching && (
@@ -151,6 +176,30 @@ export function VariantPicker({
                   </div>
                 </button>
               ))}
+
+              <div className="flex items-center justify-between border-t px-3 py-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page <= 1 || isFetching}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  disabled={page >= totalPages || isFetching}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </PopoverContent>
         </Popover>

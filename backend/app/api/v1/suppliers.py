@@ -157,7 +157,7 @@ async def create_supplier_invoice(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    invoice = await SupplierInvoiceService(db).create_supplier_invoice(invoice_data)
+    invoice = await SupplierInvoiceService(db).create_supplier_invoice(invoice_data, created_by=current_user.user_id)
     return ResponseModel(message="Supplier invoice created successfully", data=invoice)
 
 
@@ -168,7 +168,7 @@ async def update_supplier_invoice(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    invoice = await SupplierInvoiceService(db).update_supplier_invoice(invoice_id, invoice_data)
+    invoice = await SupplierInvoiceService(db).update_supplier_invoice(invoice_id, invoice_data, updated_by=current_user.user_id)
     return ResponseModel(message="Supplier invoice updated successfully", data=invoice)
 
 

@@ -39,7 +39,8 @@ const SupplierPaymentForm = ({ payment, invoiceId, onSuccess, onCancel }: Suppli
   const mutation = useMutation({
     mutationFn: (data: SupplierPaymentFormData) => {
       if (invoiceId) {
-        const { invoice_id: _ignoredInvoiceId, ...payload } = data
+        const payload: any = { ...data }
+        delete payload.invoice_id
         return suppliersApi.recordSupplierInvoicePayment(invoiceId, payload)
       }
       return suppliersApi.createSupplierPayment(data)
