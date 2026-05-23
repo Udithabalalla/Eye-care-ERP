@@ -4,7 +4,7 @@ import {
   RiAddLine, RiEditLine, RiDeleteBinLine, RiPrinterLine,
   RiSearchLine, RiQrCodeLine, RiFilterLine,
   RiArrowDownSLine, RiArrowRightSLine, RiGridLine, RiBox3Line,
-  RiStackLine, RiArrowDownCircleLine, RiEqualizer2Line, RiHistoryLine,
+  RiStackLine, RiReceiptLine, RiEqualizer2Line, RiHistoryLine,
   RiAlertLine,
 } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -31,7 +31,7 @@ import { formatCurrency } from '@/utils/formatters'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
-import { ReceiveStockDrawer } from '@/components/inventory/ReceiveStockDrawer'
+import { QuickSellDrawer } from '@/components/inventory/QuickSellDrawer'
 import { AdjustStockDrawer } from '@/components/inventory/AdjustStockDrawer'
 import { PrintBarcodeDrawer } from '@/components/inventory/PrintBarcodeDrawer'
 import { VariantHistoryDrawer } from '@/components/inventory/VariantHistoryDrawer'
@@ -75,13 +75,13 @@ interface VariantRowsProps {
   master: FrameMaster
   onEditVariant: (v: FrameVariant) => void
   onDeleteVariant: (id: string) => void
-  onReceive: (v: FrameVariant) => void
+  onSell: (v: FrameVariant) => void
   onAdjust: (v: FrameVariant) => void
   onPrint: (v: FrameVariant) => void
   onHistory: (v: FrameVariant) => void
 }
 
-function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdjust, onPrint, onHistory }: VariantRowsProps) {
+function VariantRows({ master, onEditVariant, onDeleteVariant, onSell, onAdjust, onPrint, onHistory }: VariantRowsProps) {
   const { data: variants, isLoading } = useQuery({
     queryKey: ['frame-variants-for-master', master.frame_master_id],
     queryFn: () => frameVariantsApi.getForMaster(master.frame_master_id),
@@ -110,8 +110,27 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
 
   return (
     <>
+      {/* Variant sub-header row */}
+      <TableRow className="bg-muted/[0.08] border-b border-border/20 h-7">
+        <TableCell className="py-0 w-10" />
+        <TableCell className="py-1 pl-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60" colSpan={2}>
+          Color / Variant
+        </TableCell>
+        <TableCell className="py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">SKU</TableCell>
+        <TableCell className="py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60" />
+        <TableCell className="py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Stock</TableCell>
+        <TableCell className="py-1 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Price</TableCell>
+        <TableCell colSpan={2} />
+      </TableRow>
+
       {variants.map((v, i) => {
         const isLast = i === variants.length - 1
+        const specs = [
+          `eye ${v.eye_size}mm`,
+          v.bridge_size ? `bridge ${v.bridge_size}mm` : null,
+          v.temple_length ? `arm ${v.temple_length}mm` : null,
+          v.rim_type,
+        ].filter(Boolean).join(' · ')
         return (
           <TableRow
             key={v.variant_id}
@@ -119,9 +138,7 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
           >
             {/* Tree connector — L-shape for last, T-shape for others */}
             <TableCell className="py-0 w-10 p-0 relative">
-              {/* vertical spine */}
               <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
-              {/* horizontal arm */}
               <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
             </TableCell>
 
@@ -131,7 +148,7 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
                 <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
                 <div>
                   <p className="font-medium text-sm leading-tight">{v.color}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">eye {v.eye_size}mm · {v.rim_type}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{specs}</p>
                 </div>
               </div>
             </TableCell>
@@ -163,13 +180,13 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost" size="sm"
-                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                        onClick={() => onReceive(v)}
+                        className="h-7 w-7 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                        onClick={() => onSell(v)}
                       >
-                        <RiArrowDownCircleLine className="size-3.5" />
+                        <RiReceiptLine className="size-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Receive Stock</TooltipContent>
+                    <TooltipContent>New Sale</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <TooltipProvider>
@@ -257,7 +274,7 @@ export default function FramesWorkspace() {
 
   // Drawers
   const [drawerVariant, setDrawerVariant] = useState<FrameVariant | null>(null)
-  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [sellOpen, setSellOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -364,9 +381,9 @@ export default function FramesWorkspace() {
     else createVariantMutation.mutate(values)
   }
 
-  const openDrawer = (v: FrameVariant, drawer: 'receive' | 'adjust' | 'print' | 'history') => {
+  const openDrawer = (v: FrameVariant, drawer: 'sell' | 'adjust' | 'print' | 'history') => {
     setDrawerVariant(v)
-    if (drawer === 'receive') setReceiveOpen(true)
+    if (drawer === 'sell') setSellOpen(true)
     else if (drawer === 'adjust') setAdjustOpen(true)
     else if (drawer === 'print') setPrintOpen(true)
     else setHistoryOpen(true)
@@ -613,7 +630,7 @@ export default function FramesWorkspace() {
                               master={m}
                               onEditVariant={openEditVariant}
                               onDeleteVariant={(id) => deleteVariantMutation.mutate(id)}
-                              onReceive={(v) => openDrawer(v, 'receive')}
+                              onSell={(v) => openDrawer(v, 'sell')}
                               onAdjust={(v) => openDrawer(v, 'adjust')}
                               onPrint={(v) => openDrawer(v, 'print')}
                               onHistory={(v) => openDrawer(v, 'history')}
@@ -797,9 +814,9 @@ export default function FramesWorkspace() {
       </Dialog>
 
       {/* ── Side Drawers ───────────────────────────────────────────────────── */}
-      <ReceiveStockDrawer
-        open={receiveOpen}
-        onClose={() => { setReceiveOpen(false) }}
+      <QuickSellDrawer
+        open={sellOpen}
+        onClose={() => { setSellOpen(false) }}
         variant={drawerVariant}
       />
       <AdjustStockDrawer

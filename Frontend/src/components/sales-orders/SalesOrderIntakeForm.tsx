@@ -24,6 +24,9 @@ import {
   RiBriefcaseLine,
   RiGiftLine,
   RiSparklingLine as RiSparklingFill,
+  RiGridLine,
+  RiDeleteBin6Line as RiDeleteSmLine,
+  RiSearchLine,
 } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
@@ -54,6 +57,8 @@ import SaveRecordDialog from '@/components/common/SaveRecordDialog'
 import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
+import { FrameVariant } from '@/types/frames.types'
+import { VariantPicker } from '@/components/frames/VariantPicker'
 import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
@@ -564,11 +569,24 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
+  const { data: genProductSearchData } = useQuery({
+    queryKey: ['so-gen-product-search', genProductSearch],
+    queryFn: () => productsApi.getAll({ page: 1, page_size: 20, search: genProductSearch }),
+    enabled: genProductSearch.length >= 2,
+    staleTime: 10_000,
+  })
+
   const [includeCase, setIncludeCase] = useState(true)
   const [selectedCaseId, setSelectedCaseId] = useState('')
   const [includeBag, setIncludeBag] = useState(true)
   const [selectedBagId, setSelectedBagId] = useState('')
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
+
+  // Extra items added in Frame step
+  const [frameVariantItems, setFrameVariantItems] = useState<Array<{ variant: FrameVariant; qty: number; unit_price: number }>>([])
+  const [generalInventoryItems, setGeneralInventoryItems] = useState<Array<{ product: Product; qty: number; unit_price: number }>>([])
+  const [pendingSoVariant, setPendingSoVariant] = useState<FrameVariant | null>(null)
+  const [genProductSearch, setGenProductSearch] = useState('')
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -1068,6 +1086,36 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
         return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
       }))
+
+      // Frame variant items (from Section 1 of Frame step)
+      frameVariantItems.forEach((item) => {
+        itemPayload.push({
+          product_id: item.variant.variant_id,
+          product_name: `${item.variant.frame_master_ref?.brand ?? ''} ${item.variant.frame_master_ref?.model_code ?? ''} – ${item.variant.color}`.trim(),
+          sku: item.variant.sku,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          total: item.qty * item.unit_price,
+          master_data_id: item.variant.frame_master_id,
+          line_type: 'product' as const,
+          track_stock: true,
+        })
+      })
+
+      // General inventory items (from Section 2 of Frame step)
+      generalInventoryItems.forEach((item) => {
+        itemPayload.push({
+          product_id: item.product.product_id,
+          product_name: item.product.name,
+          sku: item.product.sku,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          total: item.qty * item.unit_price,
+          master_data_id: item.product.product_id,
+          line_type: 'product' as const,
+          track_stock: true,
+        })
+      })
 
       if (!values.salesOrder.isOld) {
         if (includeCase && selectedCaseId) {
@@ -1713,6 +1761,135 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
                     <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
                     <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* ── Section 1: Frame Variants from inventory ───────────── */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RiGridLine className="size-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold">Frame Variants <span className="text-xs font-normal text-muted-foreground">(from Frames inventory)</span></p>
+                  </div>
+
+                  {frameVariantItems.map((item, idx) => (
+                    <div key={item.variant.variant_id} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{item.variant.frame_master_ref?.brand} {item.variant.frame_master_ref?.model_code} — {item.variant.color}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.variant.sku}</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
+                          onClick={() => setFrameVariantItems((prev) => prev.filter((_, i) => i !== idx))}>
+                          <RiDeleteSmLine className="size-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Qty</label>
+                          <Input type="number" min={1} value={item.qty} className="h-8"
+                            onChange={(e) => setFrameVariantItems((prev) => prev.map((it, i) => i === idx ? { ...it, qty: parseInt(e.target.value, 10) || 1 } : it))} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Unit Price</label>
+                          <Input type="number" step="0.01" min={0} value={item.unit_price} className="h-8"
+                            onChange={(e) => setFrameVariantItems((prev) => prev.map((it, i) => i === idx ? { ...it, unit_price: parseFloat(e.target.value) || 0 } : it))} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <VariantPicker value={pendingSoVariant} onChange={setPendingSoVariant} showStock showPrice={false} placeholder="Search frame variant…" />
+                    </div>
+                    <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={!pendingSoVariant}
+                      onClick={() => {
+                        if (!pendingSoVariant) return
+                        setFrameVariantItems((prev) => {
+                          const exists = prev.find((i) => i.variant.variant_id === pendingSoVariant.variant_id)
+                          if (exists) return prev.map((i) => i.variant.variant_id === pendingSoVariant.variant_id ? { ...i, qty: i.qty + 1 } : i)
+                          return [...prev, { variant: pendingSoVariant, qty: 1, unit_price: pendingSoVariant.selling_price }]
+                        })
+                        setPendingSoVariant(null)
+                      }}>
+                      <RiAddLine className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* ── Section 2: General Inventory items ────────────────── */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RiBox3Line className="size-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold">General Inventory <span className="text-xs font-normal text-muted-foreground">(lenses, drops, accessories…)</span></p>
+                  </div>
+
+                  {generalInventoryItems.map((item, idx) => (
+                    <div key={item.product.product_id} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{item.product.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.product.sku}</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
+                          onClick={() => setGeneralInventoryItems((prev) => prev.filter((_, i) => i !== idx))}>
+                          <RiDeleteSmLine className="size-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Qty</label>
+                          <Input type="number" min={1} value={item.qty} className="h-8"
+                            onChange={(e) => setGeneralInventoryItems((prev) => prev.map((it, i) => i === idx ? { ...it, qty: parseInt(e.target.value, 10) || 1 } : it))} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Unit Price</label>
+                          <Input type="number" step="0.01" min={0} value={item.unit_price} className="h-8"
+                            onChange={(e) => setGeneralInventoryItems((prev) => prev.map((it, i) => i === idx ? { ...it, unit_price: parseFloat(e.target.value) || 0 } : it))} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search general inventory…"
+                        value={genProductSearch}
+                        onChange={(e) => setGenProductSearch(e.target.value)}
+                        className="pl-9 h-9"
+                      />
+                    </div>
+                    {(genProductSearchData?.data ?? []).length > 0 && genProductSearch.length >= 2 && (
+                      <div className="rounded-lg border divide-y overflow-hidden max-h-44 overflow-y-auto">
+                        {(genProductSearchData?.data ?? []).map((p) => (
+                          <button
+                            key={p.product_id}
+                            type="button"
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              setGeneralInventoryItems((prev) => {
+                                const exists = prev.find((i) => i.product.product_id === p.product_id)
+                                if (exists) return prev.map((i) => i.product.product_id === p.product_id ? { ...i, qty: i.qty + 1 } : i)
+                                return [...prev, { product: p, qty: 1, unit_price: p.selling_price }]
+                              })
+                              setGenProductSearch('')
+                            }}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">{p.sku} · {p.category}</p>
+                            </div>
+                            <span className="text-sm font-semibold tabular-nums ml-4 shrink-0">{formatCurrency(p.selling_price)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
