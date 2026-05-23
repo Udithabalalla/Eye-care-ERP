@@ -243,49 +243,102 @@ Replaced cramped 3-button layout + separate variant modal with inline per-line d
 
 ---
 
+## Session 4 — Hybrid Inventory Architecture (2026-05-24)
+
+> **Scope:** Redesign inventory UX into a workflow-driven hybrid architecture. Frontend-only — backend unchanged.
+
+### New Pages Created
+
+| File | Route | Replaces |
+|---|---|---|
+| `pages/inventory/FramesWorkspace.tsx` | `/inventory/frames` | FrameMasters + drawers for receive/adjust/print/history |
+| `pages/inventory/GeneralInventory.tsx` | `/inventory/general` | Products page |
+| `pages/inventory/ReceivingWorkspace.tsx` | `/inventory/receiving` | GoodsReceipts + QuickIntake merged into tabs |
+| `pages/inventory/MovementsLog.tsx` | `/inventory/movements` | InventoryMovements |
+| `pages/inventory/AdjustmentsWorkspace.tsx` | `/inventory/adjustments` | StockAdjustments |
+
+### New Drawer Components Created
+
+| File | Purpose |
+|---|---|
+| `components/inventory/ReceiveStockDrawer.tsx` | Inline receive stock — creates + commits a Quick Intake in one step |
+| `components/inventory/AdjustStockDrawer.tsx` | Inline stock adjustment with reason |
+| `components/inventory/PrintBarcodeDrawer.tsx` | Label format picker + barcode preview + PDF open |
+| `components/inventory/VariantHistoryDrawer.tsx` | Shows all movements for a specific variant |
+
+### Key UX Changes
+
+**Frames workspace:** Hover over a variant row to reveal 4 inline action buttons (Receive, Adjust, Print, History). Each opens a 480px side drawer — no page navigation required. Added a "Low Stock" stat card.
+
+**Receiving:** GoodsReceipts and QuickIntake are now two tabs on one page (`/inventory/receiving`). GRN tab + Quick Intake tab. Same functionality, unified entry point.
+
+**General Inventory:** Products page moved under `/inventory/general`. Hover-reveal action buttons (Edit, Adjust, Print).
+
+**Sidebar restructured:** Operations section removed. New `INVENTORY` section with 5 entries. Products removed from Clinical. Purchasing moved before Sales.
+
+### Old Routes → Redirects
+
+All old routes redirect to new ones so bookmarks and external links still work:
+- `/frame-masters` → `/inventory/frames`
+- `/frame-variants` → `/inventory/frames`
+- `/goods-receipts` → `/inventory/receiving`
+- `/quick-intake` → `/inventory/receiving`
+- `/stock-adjustments` → `/inventory/adjustments`
+- `/inventory-movements` → `/inventory/movements`
+- `/products` → `/inventory/general`
+
+### Icon Fixes Applied
+
+- Suppliers: `RiBuilding2Line` (was `RiTeamLine` — same as Users)
+- Transactions: `RiExchangeDollarLine` (was `RiMoneyDollarCircleLine` — same as Payments)
+- Prescriptions: `RiEyeLine` (optical context)
+- Basic Data: `RiListSettingsLine`
+- Adjustments: `RiEqualizer2Line`
+
+---
+
 ## Current Sidebar Structure
 
 ```
 Dashboard
 
 INVENTORY
-  Frames            /frame-masters       — expandable model→variant table
-  Products          /products            — flat product inventory
-  Goods Receipts    /goods-receipts      — formal GRN (PO-linked receiving)
-  Quick Intake      /quick-intake        — rapid ad-hoc stock intake
-  Stock Adjustments /stock-adjustments   — manual absolute stock corrections
-  Movement History  /inventory-movements — full audit log
+  Frames              /inventory/frames       — expandable model→variant table + 4 inline drawers
+  General Inventory   /inventory/general      — flat product inventory (contact lenses, drops, accessories)
+  Receiving           /inventory/receiving    — tabbed: PO Receiving (GRN) | Quick Intake
+  Stock Movements     /inventory/movements    — full audit log
+  Adjustments         /inventory/adjustments  — manual absolute stock corrections
 
 PURCHASING
-  Suppliers         /suppliers
-  Purchase Orders   /purchase-orders     — includes inline VariantPicker per line
-  Stock Receipts    /stock-receipts
-  Supplier Invoices /supplier-invoices
-  Supplier Payments /supplier-payments
+  Suppliers           /suppliers
+  Purchase Orders     /purchase-orders        — includes inline VariantPicker per line
+  Stock Receipts      /stock-receipts
+  Supplier Invoices   /supplier-invoices
+  Supplier Payments   /supplier-payments
 
 SALES
-  Sales Orders      /sales-orders        — cancellation reverses stock (RETURN movement)
-  Invoices          /invoices
-  Payments          /payments
-  Refunds           /refunds
+  Sales Orders        /sales-orders           — cancellation reverses stock (RETURN movement)
+  Invoices            /invoices
+  Payments            /payments
+  Refunds             /refunds
 
 CLINICAL
-  Patients          /patients
-  Appointments      /appointments
-  Prescriptions     /prescriptions
-  Doctors           /doctors
+  Patients            /patients
+  Appointments        /appointments
+  Prescriptions       /prescriptions
+  Doctors             /doctors
 
 FINANCE
-  Transactions      /transactions
-  Ledger            /ledger
-  Reports           /reports
+  Transactions        /transactions
+  Ledger              /ledger
+  Reports             /reports
 
 SYSTEM
-  Users             /users
+  Users               /users
   Roles & Permissions /roles-permissions
-  Activity Logs     /activity-logs
-  Company Profile   /settings
-  Basic Data        /basic-data  (sub-menu: Other Expenses, Lenses, Product Categories, Price Rules)
+  Activity Logs       /activity-logs
+  Company Profile     /settings
+  Basic Data          /basic-data  (sub-menu: Other Expenses, Lenses, Product Categories, Price Rules)
 ```
 
 ---
