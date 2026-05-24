@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  RiAddLine, RiEditLine, RiDeleteBinLine,
+  RiAddLine, RiEditLine, RiDeleteBinLine, RiPrinterLine,
   RiSearchLine, RiQrCodeLine, RiFilterLine,
   RiArrowRightSLine, RiGridLine, RiBox3Line,
-  RiStackLine, RiAlertLine, RiCloseLine, RiMore2Line,
+  RiStackLine, RiArrowDownCircleLine, RiEqualizer2Line, RiHistoryLine,
+  RiAlertLine, RiCloseLine, RiMore2Line,
 } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,10 @@ import { formatCurrency } from '@/utils/formatters'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
-import { ManageSKUDrawer } from '@/components/inventory/ManageSKUDrawer'
+import { ReceiveStockDrawer } from '@/components/inventory/ReceiveStockDrawer'
+import { AdjustStockDrawer } from '@/components/inventory/AdjustStockDrawer'
+import { PrintBarcodeDrawer } from '@/components/inventory/PrintBarcodeDrawer'
+import { VariantHistoryDrawer } from '@/components/inventory/VariantHistoryDrawer'
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -75,10 +79,13 @@ interface VariantRowsProps {
   onToggleSelect: (v: FrameVariant) => void
   onEditVariant: (v: FrameVariant) => void
   onDeleteVariant: (id: string) => void
-  onManageSKU: (v: FrameVariant) => void
+  onReceive: (v: FrameVariant) => void
+  onAdjust: (v: FrameVariant) => void
+  onPrint: (v: FrameVariant) => void
+  onHistory: (v: FrameVariant) => void
 }
 
-function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDeleteVariant, onManageSKU }: VariantRowsProps) {
+function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDeleteVariant, onReceive, onAdjust, onPrint, onHistory }: VariantRowsProps) {
   const { data: variants, isLoading } = useQuery({
     queryKey: ['frame-variants-for-master', master.frame_master_id],
     queryFn: () => frameVariantsApi.getForMaster(master.frame_master_id),
@@ -162,13 +169,50 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
                 className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button
-                  variant="ghost" size="sm"
-                  className="h-7 px-2 text-xs font-medium"
-                  onClick={() => onManageSKU(v)}
-                >
-                  Manage
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                        onClick={() => onReceive(v)}
+                      >
+                        <RiArrowDownCircleLine className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Receive Stock</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onAdjust(v)}>
+                        <RiEqualizer2Line className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Adjust Stock</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onPrint(v)}>
+                        <RiPrinterLine className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Print Label</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onHistory(v)}>
+                        <RiHistoryLine className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View History</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Separator orientation="vertical" className="h-4 mx-0.5" />
                 <TooltipProvider>
                   <Tooltip>
@@ -225,7 +269,10 @@ export default function FramesWorkspace() {
 
   // Drawers
   const [drawerVariant, setDrawerVariant] = useState<FrameVariant | null>(null)
-  const [skuDrawerOpen, setSkuDrawerOpen] = useState(false)
+  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
@@ -340,9 +387,12 @@ export default function FramesWorkspace() {
     else createVariantMutation.mutate(values)
   }
 
-  const openSkuDrawer = (v: FrameVariant) => {
+  const openDrawer = (v: FrameVariant, drawer: 'receive' | 'adjust' | 'print' | 'history') => {
     setDrawerVariant(v)
-    setSkuDrawerOpen(true)
+    if (drawer === 'receive') setReceiveOpen(true)
+    else if (drawer === 'adjust') setAdjustOpen(true)
+    else if (drawer === 'print') setPrintOpen(true)
+    else setHistoryOpen(true)
   }
 
   const handleBarcodeScan = async (code: string) => {
@@ -489,11 +539,17 @@ export default function FramesWorkspace() {
               <Separator orientation="vertical" className="h-5" />
               {singleSelected && (
                 <>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openSkuDrawer(singleSelected); clearVariantSelection() }}>
-                    <RiBox3Line className="size-3.5" />Manage SKU
-                  </Button>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
                     <RiEditLine className="size-3.5" />Edit
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
+                    <RiArrowDownCircleLine className="size-3.5" />Receive Stock
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
+                    <RiEqualizer2Line className="size-3.5" />Adjust Stock
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
+                    <RiPrinterLine className="size-3.5" />Print Barcode
                   </Button>
                 </>
               )}
@@ -506,11 +562,17 @@ export default function FramesWorkspace() {
                 <DropdownMenuContent align="end">
                   {singleSelected && (
                     <>
-                      <DropdownMenuItem onClick={() => { openSkuDrawer(singleSelected); clearVariantSelection() }}>
-                        <RiBox3Line className="mr-2 size-4" />Manage SKU
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
                         <RiEditLine className="mr-2 size-4" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
+                        <RiArrowDownCircleLine className="mr-2 size-4" />Receive Stock
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
+                        <RiEqualizer2Line className="mr-2 size-4" />Adjust Stock
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
+                        <RiPrinterLine className="mr-2 size-4" />Print Barcode
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -641,7 +703,10 @@ export default function FramesWorkspace() {
                               onToggleSelect={toggleVariantSelect}
                               onEditVariant={openEditVariant}
                               onDeleteVariant={(id) => deleteVariantMutation.mutate(id)}
-                              onManageSKU={openSkuDrawer}
+                              onReceive={(v) => openDrawer(v, 'receive')}
+                              onAdjust={(v) => openDrawer(v, 'adjust')}
+                              onPrint={(v) => openDrawer(v, 'print')}
+                              onHistory={(v) => openDrawer(v, 'history')}
                             />
                           )}
                         </>
@@ -821,10 +886,25 @@ export default function FramesWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* ── SKU Drawer ─────────────────────────────────────────────────────── */}
-      <ManageSKUDrawer
-        open={skuDrawerOpen}
-        onClose={() => setSkuDrawerOpen(false)}
+      {/* ── Side Drawers ───────────────────────────────────────────────────── */}
+      <ReceiveStockDrawer
+        open={receiveOpen}
+        onClose={() => { setReceiveOpen(false) }}
+        variant={drawerVariant}
+      />
+      <AdjustStockDrawer
+        open={adjustOpen}
+        onClose={() => { setAdjustOpen(false) }}
+        variant={drawerVariant}
+      />
+      <PrintBarcodeDrawer
+        open={printOpen}
+        onClose={() => { setPrintOpen(false) }}
+        variant={drawerVariant}
+      />
+      <VariantHistoryDrawer
+        open={historyOpen}
+        onClose={() => { setHistoryOpen(false) }}
         variant={drawerVariant}
       />
 
