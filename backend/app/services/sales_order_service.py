@@ -6,6 +6,7 @@ from app.repositories.sales_order_repository import SalesOrderRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.frame_variant_repository import FrameVariantRepository
 from app.repositories.basic_data_repository import OtherExpenseTypeRepository, LensMasterRepository
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrderResponse
 from app.schemas.responses import PaginatedResponse
@@ -32,11 +33,12 @@ from pymongo import ReturnDocument
 
 
 class SalesOrderService:
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db):
         self.repo = SalesOrderRepository(db)
         self.patient_repo = PatientRepository(db)
         self.prescription_repo = PrescriptionRepository(db)
         self.product_repo = ProductRepository(db)
+        self.frame_variant_repo = FrameVariantRepository(db)
         self.other_expense_repo = OtherExpenseTypeRepository(db)
         self.lens_master_repo = LensMasterRepository(db)
         self.audit_service = AuditService(db)
@@ -84,6 +86,12 @@ class SalesOrderService:
         if not by_mongo_id:
             return None
         return await self.product_repo.get_by_product_id(by_mongo_id.get("product_id"))
+
+    async def _resolve_frame_variant_by_identifier(self, identifier: str):
+        """Resolve a frame variant by its public variant identifier."""
+        if not identifier:
+            return None
+        return await self.frame_variant_repo.get_by_variant_id(identifier)
 
     @staticmethod
     def _extract_advance_payment(measurements: Optional[dict]) -> float:
@@ -176,6 +184,24 @@ class SalesOrderService:
                     resolved_unit_price = unit_price
                     resolved_master_id = master_data_id or product_id
                     resolved_track_stock = False
+            elif line_type == "frame":
+                variant = await self._resolve_frame_variant_by_identifier(master_data_id or product_id)
+                if variant:
+                    resolved_product_id = variant.variant_id
+                    resolved_name = product_name or f"{variant.frame_master_ref.brand} {variant.frame_master_ref.model_code}"
+                    resolved_sku = sku or variant.sku
+                    resolved_unit_price = unit_price if unit_price >= 0 else variant.selling_price
+                    resolved_master_id = variant.frame_master_id
+                    resolved_track_stock = True
+                else:
+                    if not product_name:
+                        raise NotFoundException(f"Frame variant with ID {master_data_id or product_id} not found")
+                    resolved_product_id = product_id
+                    resolved_name = product_name
+                    resolved_sku = sku or product_id
+                    resolved_unit_price = unit_price
+                    resolved_master_id = master_data_id or product_id
+                    resolved_track_stock = False
             elif line_type == "lens":
                 resolved_product_id = product_id
                 lens = await self.lens_master_repo.get_by_id(master_data_id or product_id)
@@ -249,6 +275,15 @@ class SalesOrderService:
     async def _ensure_stock_available(self, items):
         for item in items:
             if not getattr(item, "track_stock", False):
+                continue
+            if getattr(item, "line_type", "product") == "frame":
+                variant = await self._resolve_frame_variant_by_identifier(getattr(item, "frame_variant_id", None) or item.product_id)
+                if not variant:
+                    raise NotFoundException(f"Frame variant with ID {item.product_id} not found")
+                if variant.current_stock < item.quantity:
+                    raise BadRequestException(
+                        f"Insufficient stock for {variant.frame_master_ref.brand} {variant.frame_master_ref.model_code}. Available: {variant.current_stock}, required: {item.quantity}"
+                    )
                 continue
             product = await self._resolve_product_by_identifier(item.product_id)
             if not product:

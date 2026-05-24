@@ -22,7 +22,8 @@ class SalesOrderItemModel(BaseModel):
     unit_price: float = Field(..., ge=0)
     total: float = Field(..., ge=0)
     master_data_id: Optional[str] = None
-    line_type: Literal["product", "lens", "expense", "complimentary"] = "product"
+    frame_variant_id: Optional[str] = None
+    line_type: Literal["product", "frame", "lens", "expense", "complimentary"] = "product"
     track_stock: bool = True
 
 

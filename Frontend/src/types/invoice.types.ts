@@ -9,7 +9,7 @@ export interface InvoiceItem {
   discount: number
   tax: number
   total: number
-  line_type?: 'product' | 'lens' | 'expense'
+  line_type?: 'product' | 'frame' | 'lens' | 'expense'
 }
 
 export interface Invoice {
