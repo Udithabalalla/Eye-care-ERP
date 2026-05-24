@@ -72,7 +72,7 @@ export const paymentsApi = {
 }
 
 export const inventoryMovementsApi = {
-  getAll: async (params?: { page?: number; page_size?: number; product_id?: string; reference_type?: LedgerReferenceType | '' }) => {
+  getAll: async (params?: { page?: number; page_size?: number; product_id?: string; variant_id?: string; reference_type?: LedgerReferenceType | ''; movement_type?: string | '' }) => {
     const response = await axiosInstance.get<PaginatedResponse<InventoryMovement>>('/inventory-movements', { params })
     return response.data
   },

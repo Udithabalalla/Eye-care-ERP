@@ -84,7 +84,7 @@ export function QuickPODrawer({ open, onClose, variant, onSuccess }: Props) {
       })
     },
     onSuccess: (po) => {
-      toast.success(`PO ${po.po_number ?? po.id ?? ''} created`)
+      toast.success(`PO ${po.order_number ?? po.id ?? ''} created`)
       qc.invalidateQueries({ queryKey: ['purchase-orders'] })
       handleClose()
       onSuccess?.()

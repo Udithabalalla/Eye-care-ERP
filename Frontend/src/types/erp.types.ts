@@ -119,6 +119,7 @@ export interface PaymentCreatePayload {
 export interface InventoryMovement {
   movement_id: string
   product_id: string
+  variant_id?: string
   movement_type: InventoryMovementType
   quantity: number
   reference_type: LedgerReferenceType

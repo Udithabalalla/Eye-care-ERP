@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   RiReceiptLine, RiUserLine, RiGridLine, RiBox3Line,
@@ -91,12 +91,6 @@ export function QuickSellDrawer({ open, onClose, variant, onSuccess }: Props) {
     enabled: open && productSearch.length >= 2,
     staleTime: 10_000,
   })
-
-  // Pre-fill the clicked variant when drawer opens
-  const initVariantItems = useMemo(() => {
-    if (!variant) return []
-    return [{ variant, qty: 1, unit_price: variant.selling_price }]
-  }, [variant?.variant_id]) // eslint-disable-line
 
   // Reset state when drawer opens/closes
   const handleOpen = (open: boolean) => {

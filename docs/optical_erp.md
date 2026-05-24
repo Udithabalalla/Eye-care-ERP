@@ -87,7 +87,7 @@ The old `products` collection is **still live** and untouched. All new optical l
 
 ### Key Design Decisions
 
-**SKU Format:** `BOS-1602-BLK-52-F` = `{brand_3}-{model}-{color_3}-{size_mm}-{rim_code}`
+**SKU Format:** `BOS-1602-BLK-52-F` = `{brandme_3}-{model}-{color_3}-{size_mm}-{rim_code}`
 
 **Stock Atomicity:** All changes via MongoDB `$inc`. `increment_stock_atomic` / `decrement_stock_atomic`.
 
