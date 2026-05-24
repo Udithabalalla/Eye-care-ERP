@@ -24,9 +24,6 @@ import {
   RiBriefcaseLine,
   RiGiftLine,
   RiSparklingLine as RiSparklingFill,
-  RiGridLine,
-  RiDeleteBin6Line as RiDeleteSmLine,
-  RiSearchLine,
 } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
@@ -57,8 +54,7 @@ import SaveRecordDialog from '@/components/common/SaveRecordDialog'
 import { patientsApi } from '@/api/patients.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
-import { FrameVariant } from '@/types/frames.types'
-import { VariantPicker } from '@/components/frames/VariantPicker'
+import { frameVariantsApi } from '@/api/frames.api'
 import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
@@ -71,6 +67,8 @@ import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
 import { SalesOrder, SalesOrderItem } from '@/types/erp.types'
+import { FrameVariant } from '@/types/frames.types'
+import { VariantPicker } from '@/components/frames/VariantPicker'
 import { formatCurrency } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -187,8 +185,9 @@ const salesOrderIntakeSchema = z
       })
     }
     if (!value.salesOrder.isOld) {
-      if (!value.frame.selectionId && !value.frame.model.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Frame selection is required', path: ['frame', 'selectionId'] })
+      // Frame validation is handled in onSubmit (variant or catalog)
+      if (!value.frame.selectionId && !value.frame.model.trim() && !value.frame.barcode.trim()) {
+        // allow — variant picker sets selectionId; we validate in onSubmit
       }
       if (!value.lens.selectionId && !value.lens.lensType.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lens selection is required', path: ['lens', 'selectionId'] })
@@ -574,19 +573,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [includeBag, setIncludeBag] = useState(true)
   const [selectedBagId, setSelectedBagId] = useState('')
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
-
-  // Extra items added in Frame step
-  const [frameVariantItems, setFrameVariantItems] = useState<Array<{ variant: FrameVariant; qty: number; unit_price: number }>>([])
-  const [generalInventoryItems, setGeneralInventoryItems] = useState<Array<{ product: Product; qty: number; unit_price: number }>>([])
-  const [pendingSoVariant, setPendingSoVariant] = useState<FrameVariant | null>(null)
-  const [genProductSearch, setGenProductSearch] = useState('')
-
-  const { data: genProductSearchData } = useQuery({
-    queryKey: ['so-gen-product-search', genProductSearch],
-    queryFn: () => productsApi.getAll({ page: 1, page_size: 20, search: genProductSearch }),
-    enabled: genProductSearch.length >= 2,
-    staleTime: 10_000,
-  })
+  const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
+  const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
+  const [generalItems, setGeneralItems] = useState<Array<{ productId: string; productName: string; sku: string; qty: number; unitPrice: number }>>([])
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -665,11 +654,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const { fields: expenseFields, append, remove } = useFieldArray({ control, name: 'expenses' })
 
   // Derived options
-  const frameOptions = useMemo<LookupOption[]>(() => {
-    return (productData?.data || [])
-      .filter((p) => ['frames', 'sunglasses'].includes(p.category.toLowerCase()) && p.current_stock > 0)
-      .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku}${p.barcode ? ` • ${p.barcode}` : ''} • ${formatCurrency(p.selling_price)}` }))
-  }, [productData])
+  const generalInventoryOptions = useMemo<LookupOption[]>(() =>
+    (productData?.data || [])
+      .filter((p) => !['frames', 'sunglasses'].includes(p.category.toLowerCase()) && p.current_stock > 0 && p.is_active)
+      .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku} · ${formatCurrency(p.selling_price)}` }))
+  , [productData])
 
   const lensOptions = useMemo<LookupOption[]>(() =>
     (lensMasterData?.data || []).map((l) => ({ value: l.id, label: l.lens_type, subtitle: `${l.color} • ${l.size} • ${l.lens_code} • ${formatCurrency(l.price)}` }))
@@ -709,13 +698,16 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     calculateOrderTotals({
       frameTotal: frame.total || 0,
       lensTotal: lens.total || 0,
-      expenses: (expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
+      expenses: [
+        ...(expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
+        ...generalItems.map((g) => ({ qty: g.qty, unitCost: g.unitPrice, discount: 0 })),
+      ],
       discount: Number(totals.discount || 0),
       discountType: totals.discountType,
       advancedPayment: Number(totals.advancedPayment || 0),
       isOldOrder: salesOrder.isOld,
     })
-  , [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
+  , [expenses, frame.total, generalItems, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
 
   // Effects
   useEffect(() => {
@@ -826,6 +818,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     if (!draftLoaded) return
     const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null)
     reset(mapped, { keepDirty: false })
+    // Restore frame source if draft used a frame variant
+    const draftFrameItem = draftOrder.items.find((i) => i.line_type === 'frame')
+    if (draftFrameItem?.frame_variant_id) {
+      setFrameSource('variant')
+      frameVariantsApi.getById(draftFrameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
+    }
     const compItems = draftOrder.items.filter((i) => i.line_type === 'complimentary')
     const draftCase = compItems[0] ?? null
     const draftBag  = compItems[1] ?? null
@@ -845,6 +843,23 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   // Handlers
   const applyFrameSelection = (product: Product) => setValue('frame', mapProductToFrame(product), { shouldDirty: true, shouldValidate: true })
+
+  const applyFrameVariantSelection = (variant: FrameVariant | null) => {
+    setSelectedFrameVariant(variant)
+    if (variant) {
+      setValue('frame', {
+        selectionId: variant.variant_id,
+        barcode: variant.barcode || variant.sku,
+        model: `${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`,
+        color: variant.color,
+        size: String(variant.eye_size),
+        frameId: variant.sku,
+        total: variant.selling_price,
+      }, { shouldDirty: true, shouldValidate: true })
+    } else {
+      setValue('frame', defaultValues.frame, { shouldDirty: true, shouldValidate: false })
+    }
+  }
 
   const applyLensSelection = (lensType: NonNullable<typeof lensMasterData>['data'][number]) => {
     setValue('lens.selectionId', lensType.id, { shouldDirty: true, shouldValidate: true })
@@ -902,8 +917,19 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const handleBarcodeScan = async (barcode: string) => {
     try {
+      // Try frame variant inventory first
+      const variant = await frameVariantsApi.scanLookup(barcode).catch(() => null)
+      if (variant) {
+        setFrameSource('variant')
+        applyFrameVariantSelection(variant)
+        toast.success(`Frame variant loaded: ${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`)
+        closeScanner()
+        return
+      }
+      // Fall back to legacy product catalog
       const product = await scanBarcode(barcode)
       if (!product) { toast.error('Frame not found for this barcode'); return }
+      setFrameSource('catalog')
       applyFrameSelection(product)
       toast.success(`Frame loaded: ${product.name}`)
       closeScanner()
@@ -990,7 +1016,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     }
 
     const draftItems: SalesOrderItem[] = []
-    if (resolvedFrame) {
+    if (frameSource === 'variant' && selectedFrameVariant) {
+      draftItems.push({ product_id: selectedFrameVariant.variant_id, product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`, sku: selectedFrameVariant.sku, quantity: 1, unit_price: Number(values.frame.total || selectedFrameVariant.selling_price), total: Number(values.frame.total || selectedFrameVariant.selling_price), master_data_id: selectedFrameVariant.frame_master_id, frame_variant_id: selectedFrameVariant.variant_id, line_type: 'frame', track_stock: true })
+    } else if (resolvedFrame) {
       draftItems.push({ product_id: resolvedFrame.product_id, product_name: values.frame.model || resolvedFrame.name, sku: values.frame.frameId || resolvedFrame.sku, quantity: 1, unit_price: Number(values.frame.total || resolvedFrame.selling_price), total: Number(values.frame.total || resolvedFrame.selling_price), master_data_id: resolvedFrame.product_id, line_type: 'product', track_stock: true })
     }
     if (resolvedLens) {
@@ -1001,6 +1029,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       if (Number(expense.qty || 0) <= 0) return
       const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
       draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
+    })
+    generalItems.filter((g) => g.qty > 0).forEach((g) => {
+      draftItems.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product', track_stock: true })
     })
     if (includeCase && selectedCaseId) {
       const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
@@ -1067,7 +1098,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       }
 
       const frameItem = resolvedFrame
-      if (!values.salesOrder.isOld && !frameItem) { toast.error('Frame selection is required'); return }
+      if (!values.salesOrder.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
       if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
       if (!values.salesOrder.isOld) {
@@ -1076,7 +1107,20 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       }
 
       const itemPayload: SalesOrderItem[] = []
-      if (frameItem) {
+      if (frameSource === 'variant' && selectedFrameVariant) {
+        itemPayload.push({
+          product_id: selectedFrameVariant.variant_id,
+          product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`,
+          sku: selectedFrameVariant.sku,
+          quantity: 1,
+          unit_price: Number(values.frame.total || selectedFrameVariant.selling_price),
+          total: Number(values.frame.total || selectedFrameVariant.selling_price),
+          master_data_id: selectedFrameVariant.frame_master_id,
+          frame_variant_id: selectedFrameVariant.variant_id,
+          line_type: 'frame' as const,
+          track_stock: true,
+        })
+      } else if (frameItem) {
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
       }
       if (lensItem) {
@@ -1087,34 +1131,8 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
       }))
 
-      // Frame variant items (from Section 1 of Frame step)
-      frameVariantItems.forEach((item) => {
-        itemPayload.push({
-          product_id: item.variant.variant_id,
-          product_name: `${item.variant.frame_master_ref?.brand ?? ''} ${item.variant.frame_master_ref?.model_code ?? ''} – ${item.variant.color}`.trim(),
-          sku: item.variant.sku,
-          quantity: item.qty,
-          unit_price: item.unit_price,
-          total: item.qty * item.unit_price,
-          master_data_id: item.variant.frame_master_id,
-          line_type: 'product' as const,
-          track_stock: true,
-        })
-      })
-
-      // General inventory items (from Section 2 of Frame step)
-      generalInventoryItems.forEach((item) => {
-        itemPayload.push({
-          product_id: item.product.product_id,
-          product_name: item.product.name,
-          sku: item.product.sku,
-          quantity: item.qty,
-          unit_price: item.unit_price,
-          total: item.qty * item.unit_price,
-          master_data_id: item.product.product_id,
-          line_type: 'product' as const,
-          track_stock: true,
-        })
+      generalItems.filter((g) => g.qty > 0).forEach((g) => {
+        itemPayload.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product' as const, track_stock: true })
       })
 
       if (!values.salesOrder.isOld) {
@@ -1721,12 +1739,13 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </div>
                   <div>
                     <CardTitle>Frame Selection</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Scan a barcode or search from inventory</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Scan a barcode or pick from frame variant inventory</p>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
+                {/* Scan button */}
                 <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="w-full h-12 text-base gap-2">
                   <RiScanLine className="h-5 w-5" />
                   {isScanningProduct ? 'Scanning...' : 'Scan Barcode'}
@@ -1738,22 +1757,28 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
-                <Field label="Frame" error={errors.frame?.selectionId?.message}>
-                  <SearchableLOV
-                    placeholder="Search by name, SKU, or barcode"
-                    value={frame.selectionId || ''}
-                    onChange={(value) => {
-                      const product = productData?.data.find((item) => String(item.product_id) === String(value))
-                      if (product) { applyFrameSelection(product); return }
-                      setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
-                    }}
-                    options={frameOptions}
-                  />
-                </Field>
+                {/* Frame Variants from inventory */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RiBox3Line className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">Frame Variants</span>
+                    <span className="text-xs text-muted-foreground">(from Frames inventory)</span>
+                  </div>
+                  <Field error={errors.frame?.selectionId?.message}>
+                    <VariantPicker
+                      value={selectedFrameVariant}
+                      onChange={(v) => { setFrameSource('variant'); applyFrameVariantSelection(v) }}
+                      showStock
+                      showPrice
+                      placeholder="Search brand, model, color, size or scan barcode…"
+                    />
+                  </Field>
+                </div>
 
-                <div className={`rounded-xl border p-4 ${frame.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                    {frame.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
+                {/* Frame details — always visible; pre-filled when variant selected */}
+                <div className={`rounded-xl border p-4 space-y-2 ${selectedFrameVariant ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {selectedFrameVariant ? 'Frame Details' : 'Manual Entry (older / unlisted frames)'}
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
@@ -1766,131 +1791,73 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
                 <Separator />
 
-                {/* ── Section 1: Frame Variants from inventory ───────────── */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <RiGridLine className="size-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">Frame Variants <span className="text-xs font-normal text-muted-foreground">(from Frames inventory)</span></p>
-                  </div>
-
-                  {frameVariantItems.map((item, idx) => (
-                    <div key={item.variant.variant_id} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">{item.variant.frame_master_ref?.brand} {item.variant.frame_master_ref?.model_code} — {item.variant.color}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{item.variant.sku}</p>
-                        </div>
-                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
-                          onClick={() => setFrameVariantItems((prev) => prev.filter((_, i) => i !== idx))}>
-                          <RiDeleteSmLine className="size-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Qty</label>
-                          <Input type="number" min={1} value={item.qty} className="h-8"
-                            onChange={(e) => setFrameVariantItems((prev) => prev.map((it, i) => i === idx ? { ...it, qty: parseInt(e.target.value, 10) || 1 } : it))} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Unit Price</label>
-                          <Input type="number" step="0.01" min={0} value={item.unit_price} className="h-8"
-                            onChange={(e) => setFrameVariantItems((prev) => prev.map((it, i) => i === idx ? { ...it, unit_price: parseFloat(e.target.value) || 0 } : it))} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <VariantPicker value={pendingSoVariant} onChange={setPendingSoVariant} showStock showPrice={false} placeholder="Search frame variant…" />
-                    </div>
-                    <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={!pendingSoVariant}
-                      onClick={() => {
-                        if (!pendingSoVariant) return
-                        setFrameVariantItems((prev) => {
-                          const exists = prev.find((i) => i.variant.variant_id === pendingSoVariant.variant_id)
-                          if (exists) return prev.map((i) => i.variant.variant_id === pendingSoVariant.variant_id ? { ...i, qty: i.qty + 1 } : i)
-                          return [...prev, { variant: pendingSoVariant, qty: 1, unit_price: pendingSoVariant.selling_price }]
-                        })
-                        setPendingSoVariant(null)
-                      }}>
-                      <RiAddLine className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* ── Section 2: General Inventory items ────────────────── */}
+                {/* General Inventory */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <RiBox3Line className="size-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">General Inventory <span className="text-xs font-normal text-muted-foreground">(lenses, drops, accessories…)</span></p>
+                    <span className="text-sm font-semibold">General Inventory</span>
+                    <span className="text-xs text-muted-foreground">(lenses, drops, accessories...)</span>
                   </div>
-
-                  {generalInventoryItems.map((item, idx) => (
-                    <div key={item.product.product_id} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">{item.product.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{item.product.sku}</p>
-                        </div>
-                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive"
-                          onClick={() => setGeneralInventoryItems((prev) => prev.filter((_, i) => i !== idx))}>
-                          <RiDeleteSmLine className="size-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Qty</label>
-                          <Input type="number" min={1} value={item.qty} className="h-8"
-                            onChange={(e) => setGeneralInventoryItems((prev) => prev.map((it, i) => i === idx ? { ...it, qty: parseInt(e.target.value, 10) || 1 } : it))} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Unit Price</label>
-                          <Input type="number" step="0.01" min={0} value={item.unit_price} className="h-8"
-                            onChange={(e) => setGeneralInventoryItems((prev) => prev.map((it, i) => i === idx ? { ...it, unit_price: parseFloat(e.target.value) || 0 } : it))} />
-                        </div>
-                      </div>
+                  <SearchableLOV
+                    placeholder="Search general inventory…"
+                    value=""
+                    onChange={(value) => {
+                      const product = productData?.data.find((p) => p.product_id === value)
+                      if (!product) return
+                      setGeneralItems((prev) => {
+                        const existing = prev.findIndex((i) => i.productId === value)
+                        if (existing >= 0) {
+                          const next = [...prev]
+                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
+                          return next
+                        }
+                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
+                      })
+                    }}
+                    options={generalInventoryOptions}
+                  />
+                  {generalItems.length > 0 && (
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
+                            <th className="w-10" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {generalItems.map((item, i) => (
+                            <tr key={item.productId}>
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium text-sm">{item.productName}</p>
+                                <p className="text-xs text-muted-foreground">{item.sku}</p>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <Input
+                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
+                                  value={item.qty}
+                                  onChange={(e) => {
+                                    const next = [...generalItems]
+                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
+                                    setGeneralItems(next)
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
+                                  <RiDeleteBin6Line className="size-3.5" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        placeholder="Search general inventory…"
-                        value={genProductSearch}
-                        onChange={(e) => setGenProductSearch(e.target.value)}
-                        className="pl-9 h-9"
-                      />
-                    </div>
-                    {(genProductSearchData?.data ?? []).length > 0 && genProductSearch.length >= 2 && (
-                      <div className="rounded-lg border divide-y overflow-hidden max-h-44 overflow-y-auto">
-                        {(genProductSearchData?.data ?? []).map((p) => (
-                          <button
-                            key={p.product_id}
-                            type="button"
-                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-muted/50 transition-colors"
-                            onClick={() => {
-                              setGeneralInventoryItems((prev) => {
-                                const exists = prev.find((i) => i.product.product_id === p.product_id)
-                                if (exists) return prev.map((i) => i.product.product_id === p.product_id ? { ...i, qty: i.qty + 1 } : i)
-                                return [...prev, { product: p, qty: 1, unit_price: p.selling_price }]
-                              })
-                              setGenProductSearch('')
-                            }}
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{p.name}</p>
-                              <p className="text-xs text-muted-foreground">{p.sku} · {p.category}</p>
-                            </div>
-                            <span className="text-sm font-semibold tabular-nums ml-4 shrink-0">{formatCurrency(p.selling_price)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -2208,6 +2175,20 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
                     <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
                     <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
+                    {generalItems.length > 0 && (
+                      <div className="py-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">General Items</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {generalItems.map((g) => (
+                              <span key={g.productId} className="text-xs text-muted-foreground">
+                                {g.productName} × {g.qty} · <span className="font-medium">{formatCurrency(g.unitPrice * g.qty)}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {!salesOrder.isOld && (includeCase || includeBag) && (
                       <div className="py-2.5">
                         <div className="flex items-center justify-between">
