@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   RiHomeLine,
   RiTeamLine,
@@ -240,9 +240,29 @@ const AppSidebar = () => {
   }
 
   const resetOrder = () => {
-    const defaultOrder = ALL_SECTIONS.map((s) => s.id)
-    setDraftOrder(defaultOrder)
+    setDraftOrder(ALL_SECTIONS.map((s) => s.id))
   }
+
+  // Drag-and-drop state
+  const dragIdx = useRef<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
+
+  const onDragStart = (idx: number) => { dragIdx.current = idx }
+  const onDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault()
+    setDragOver(idx)
+  }
+  const onDrop = (idx: number) => {
+    const from = dragIdx.current
+    if (from === null || from === idx) { setDragOver(null); return }
+    const next = [...draftOrder]
+    const [moved] = next.splice(from, 1)
+    next.splice(idx, 0, moved)
+    setDraftOrder(next)
+    dragIdx.current = null
+    setDragOver(null)
+  }
+  const onDragEnd = () => { dragIdx.current = null; setDragOver(null) }
 
   return (
     <>
@@ -433,10 +453,17 @@ const AppSidebar = () => {
               const section = ALL_SECTIONS.find((s) => s.id === id)
               if (!section) return null
               const label = section.title ?? 'Dashboard'
+              const isOver = dragOver === idx
               return (
                 <li
                   key={id}
-                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
+                  draggable
+                  onDragStart={() => onDragStart(idx)}
+                  onDragOver={(e) => onDragOver(e, idx)}
+                  onDrop={() => onDrop(idx)}
+                  onDragEnd={onDragEnd}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-grab active:cursor-grabbing transition-colors select-none
+                    ${isOver ? 'border-primary bg-primary/10' : 'border-border/60 bg-muted/30'}`}
                 >
                   <RiDraggable className="size-4 text-muted-foreground shrink-0" />
                   <span className="flex-1 text-sm font-medium">{label}</span>
