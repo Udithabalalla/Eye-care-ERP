@@ -5,7 +5,7 @@ import {
   RiSearchLine, RiQrCodeLine, RiFilterLine,
   RiArrowDownSLine, RiArrowRightSLine, RiGridLine, RiBox3Line,
   RiStackLine, RiArrowDownCircleLine, RiEqualizer2Line, RiHistoryLine,
-  RiAlertLine,
+  RiAlertLine, RiCloseLine, RiMore2Line,
 } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -73,6 +75,8 @@ type VariantFormValues = z.infer<typeof variantSchema>
 
 interface VariantRowsProps {
   master: FrameMaster
+  selectedIds: Set<string>
+  onToggleSelect: (v: FrameVariant) => void
   onEditVariant: (v: FrameVariant) => void
   onDeleteVariant: (id: string) => void
   onReceive: (v: FrameVariant) => void
@@ -81,7 +85,7 @@ interface VariantRowsProps {
   onHistory: (v: FrameVariant) => void
 }
 
-function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdjust, onPrint, onHistory }: VariantRowsProps) {
+function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDeleteVariant, onReceive, onAdjust, onPrint, onHistory }: VariantRowsProps) {
   const { data: variants, isLoading } = useQuery({
     queryKey: ['frame-variants-for-master', master.frame_master_id],
     queryFn: () => frameVariantsApi.getForMaster(master.frame_master_id),
@@ -115,14 +119,21 @@ function VariantRows({ master, onEditVariant, onDeleteVariant, onReceive, onAdju
         return (
           <TableRow
             key={v.variant_id}
-            className="group bg-muted/[0.12] hover:bg-muted/25 transition-colors duration-100 border-b border-border/30"
+            className={`group border-b border-border/30 transition-colors duration-100 ${selectedIds.has(v.variant_id) ? 'bg-primary/[0.06]' : 'bg-muted/[0.12] hover:bg-muted/25'}`}
           >
-            {/* Tree connector — L-shape for last, T-shape for others */}
-            <TableCell className="py-0 w-10 p-0 relative">
+            {/* Tree connector + checkbox */}
+            <TableCell className="py-0 w-10 p-0 relative" onClick={(e) => e.stopPropagation()}>
               {/* vertical spine */}
               <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
               {/* horizontal arm */}
               <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
+              <div className="flex items-center justify-center h-full py-2.5 relative z-10">
+                <Checkbox
+                  checked={selectedIds.has(v.variant_id)}
+                  onCheckedChange={() => onToggleSelect(v)}
+                  className="bg-background"
+                />
+              </div>
             </TableCell>
 
             {/* Variant color / label — indented */}
@@ -246,6 +257,7 @@ export default function FramesWorkspace() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [selectedMasterId, setSelectedMasterId] = useState<string | null>(null)
+  const [selectedVariants, setSelectedVariants] = useState<Map<string, FrameVariant>>(new Map())
   const [scannerOpen, setScannerOpen] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState('')
 
@@ -334,6 +346,17 @@ export default function FramesWorkspace() {
   })
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
+
+  const toggleVariantSelect = (v: FrameVariant) => {
+    setSelectedVariants((prev) => {
+      const next = new Map(prev)
+      if (next.has(v.variant_id)) next.delete(v.variant_id)
+      else next.set(v.variant_id, v)
+      return next
+    })
+  }
+  const clearVariantSelection = () => setSelectedVariants(new Map())
+  const singleSelected = selectedVariants.size === 1 ? [...selectedVariants.values()][0] : null
 
   const toggleRow = (id: string) => {
     const next = new Set(expandedIds)
@@ -508,6 +531,73 @@ export default function FramesWorkspace() {
               </Button>
             )}
           </div>
+
+          {/* Selection toolbar */}
+          {selectedVariants.size > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+              <span className="text-sm font-medium text-primary">{selectedVariants.size} selected</span>
+              <Separator orientation="vertical" className="h-5" />
+              {singleSelected && (
+                <>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
+                    <RiEditLine className="size-3.5" />Edit
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
+                    <RiArrowDownCircleLine className="size-3.5" />Receive Stock
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
+                    <RiEqualizer2Line className="size-3.5" />Adjust Stock
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
+                    <RiPrinterLine className="size-3.5" />Print Barcode
+                  </Button>
+                </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <RiMore2Line className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {singleSelected && (
+                    <>
+                      <DropdownMenuItem onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
+                        <RiEditLine className="mr-2 size-4" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
+                        <RiArrowDownCircleLine className="mr-2 size-4" />Receive Stock
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
+                        <RiEqualizer2Line className="mr-2 size-4" />Adjust Stock
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
+                        <RiPrinterLine className="mr-2 size-4" />Print Barcode
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => {
+                      const ids = [...selectedVariants.keys()]
+                      if (confirm(`Delete ${ids.length} variant${ids.length > 1 ? 's' : ''}?`)) {
+                        ids.forEach((id) => deleteVariantMutation.mutate(id))
+                        clearVariantSelection()
+                      }
+                    }}
+                  >
+                    <RiDeleteBinLine className="mr-2 size-4" />
+                    Delete {selectedVariants.size > 1 ? `${selectedVariants.size} variants` : 'variant'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="flex-1" />
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={clearVariantSelection}>
+                <RiCloseLine className="size-4" />
+              </Button>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="px-0 pb-0">
@@ -611,6 +701,8 @@ export default function FramesWorkspace() {
                           {isExpanded && (
                             <VariantRows
                               master={m}
+                              selectedIds={new Set(selectedVariants.keys())}
+                              onToggleSelect={toggleVariantSelect}
                               onEditVariant={openEditVariant}
                               onDeleteVariant={(id) => deleteVariantMutation.mutate(id)}
                               onReceive={(v) => openDrawer(v, 'receive')}

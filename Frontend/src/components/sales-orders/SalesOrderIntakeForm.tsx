@@ -575,6 +575,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
   const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
   const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
+  const [generalItems, setGeneralItems] = useState<Array<{ productId: string; productName: string; sku: string; qty: number; unitPrice: number }>>([])
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -653,11 +654,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const { fields: expenseFields, append, remove } = useFieldArray({ control, name: 'expenses' })
 
   // Derived options
-  const frameOptions = useMemo<LookupOption[]>(() => {
-    return (productData?.data || [])
-      .filter((p) => ['frames', 'sunglasses'].includes(p.category.toLowerCase()) && p.current_stock > 0)
-      .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku}${p.barcode ? ` • ${p.barcode}` : ''} • ${formatCurrency(p.selling_price)}` }))
-  }, [productData])
+  const generalInventoryOptions = useMemo<LookupOption[]>(() =>
+    (productData?.data || [])
+      .filter((p) => !['frames', 'sunglasses'].includes(p.category.toLowerCase()) && p.current_stock > 0 && p.is_active)
+      .map((p) => ({ value: p.product_id, label: p.name, subtitle: `${p.sku} · ${formatCurrency(p.selling_price)}` }))
+  , [productData])
 
   const lensOptions = useMemo<LookupOption[]>(() =>
     (lensMasterData?.data || []).map((l) => ({ value: l.id, label: l.lens_type, subtitle: `${l.color} • ${l.size} • ${l.lens_code} • ${formatCurrency(l.price)}` }))
@@ -697,13 +698,16 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     calculateOrderTotals({
       frameTotal: frame.total || 0,
       lensTotal: lens.total || 0,
-      expenses: (expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
+      expenses: [
+        ...(expenses || []).map((item) => ({ qty: Number(item.qty || 0), unitCost: Number(item.unitCost || 0), discount: Number(item.discount || 0) })),
+        ...generalItems.map((g) => ({ qty: g.qty, unitCost: g.unitPrice, discount: 0 })),
+      ],
       discount: Number(totals.discount || 0),
       discountType: totals.discountType,
       advancedPayment: Number(totals.advancedPayment || 0),
       isOldOrder: salesOrder.isOld,
     })
-  , [expenses, frame.total, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
+  , [expenses, frame.total, generalItems, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
 
   // Effects
   useEffect(() => {
@@ -1026,6 +1030,9 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
       draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
     })
+    generalItems.filter((g) => g.qty > 0).forEach((g) => {
+      draftItems.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product', track_stock: true })
+    })
     if (includeCase && selectedCaseId) {
       const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
       if (caseItem) draftItems.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary', track_stock: true })
@@ -1123,6 +1130,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
         return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
       }))
+
+      generalItems.filter((g) => g.qty > 0).forEach((g) => {
+        itemPayload.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product' as const, track_stock: true })
+      })
 
       if (!values.salesOrder.isOld) {
         if (includeCase && selectedCaseId) {
@@ -1734,7 +1745,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
-                {/* Scan button always available */}
+                {/* Scan button */}
                 <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="w-full h-12 text-base gap-2">
                   <RiScanLine className="h-5 w-5" />
                   {isScanningProduct ? 'Scanning...' : 'Scan Barcode'}
@@ -1746,70 +1757,108 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Frame source tabs */}
-                <Tabs value={frameSource} onValueChange={(v) => {
-                  setFrameSource(v as 'catalog' | 'variant')
-                  setSelectedFrameVariant(null)
-                  setValue('frame', defaultValues.frame, { shouldDirty: false, shouldValidate: false })
-                }}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="variant">Frame Inventory (SKU)</TabsTrigger>
-                    <TabsTrigger value="catalog">Product Catalog</TabsTrigger>
-                  </TabsList>
+                {/* Frame Variants from inventory */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RiBox3Line className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">Frame Variants</span>
+                    <span className="text-xs text-muted-foreground">(from Frames inventory)</span>
+                  </div>
+                  <Field error={errors.frame?.selectionId?.message}>
+                    <VariantPicker
+                      value={selectedFrameVariant}
+                      onChange={(v) => { setFrameSource('variant'); applyFrameVariantSelection(v) }}
+                      showStock
+                      showPrice
+                      placeholder="Search brand, model, color, size or scan barcode…"
+                    />
+                  </Field>
+                </div>
 
-                  {/* Frame Variant tab */}
-                  <TabsContent value="variant" className="space-y-4 pt-2">
-                    <Field label="Search frame variant" error={errors.frame?.selectionId?.message}>
-                      <VariantPicker
-                        value={selectedFrameVariant}
-                        onChange={(v) => applyFrameVariantSelection(v)}
-                        showStock
-                        showPrice
-                        placeholder="Search brand, model, color, size or scan barcode…"
-                      />
-                    </Field>
-                    {selectedFrameVariant && (
-                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Variant</p>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          <Field label="Model"><Input value={frame.model} onChange={(e) => setValue('frame.model', e.target.value, { shouldDirty: true })} placeholder="Model" /></Field>
-                          <Field label="Color"><Input value={frame.color} readOnly placeholder="Color" /></Field>
-                          <Field label="Size"><Input value={frame.size} readOnly placeholder="Size" /></Field>
-                          <Field label="SKU"><Input value={frame.frameId} readOnly placeholder="SKU" /></Field>
-                          <Field label="Price"><Input type="number" step="0.01" value={frame.total} onChange={(e) => setValue('frame.total', +e.target.value, { shouldDirty: true })} /></Field>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
+                {/* Frame details — always visible; pre-filled when variant selected */}
+                <div className={`rounded-xl border p-4 space-y-2 ${selectedFrameVariant ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {selectedFrameVariant ? 'Frame Details' : 'Manual Entry (older / unlisted frames)'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
+                    <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                    <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                    <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
+                    <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
+                  </div>
+                </div>
 
-                  {/* Product Catalog tab (legacy) */}
-                  <TabsContent value="catalog" className="space-y-4 pt-2">
-                    <Field label="Frame" error={errors.frame?.selectionId?.message}>
-                      <SearchableLOV
-                        placeholder="Search by name, SKU, or barcode"
-                        value={frame.selectionId || ''}
-                        onChange={(value) => {
-                          const product = productData?.data.find((item) => String(item.product_id) === String(value))
-                          if (product) { applyFrameSelection(product); return }
-                          setValue('frame.selectionId', value, { shouldDirty: true, shouldValidate: true })
-                        }}
-                        options={frameOptions}
-                      />
-                    </Field>
-                    <div className={`rounded-xl border p-4 ${frame.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                        {frame.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
-                        <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
-                        <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
-                        <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
-                        <Field label="Price"><Input type="number" step="0.01" placeholder="0.00" {...register('frame.total', { valueAsNumber: true })} /></Field>
-                      </div>
+                <Separator />
+
+                {/* General Inventory */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RiBox3Line className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">General Inventory</span>
+                    <span className="text-xs text-muted-foreground">(lenses, drops, accessories...)</span>
+                  </div>
+                  <SearchableLOV
+                    placeholder="Search general inventory…"
+                    value=""
+                    onChange={(value) => {
+                      const product = productData?.data.find((p) => p.product_id === value)
+                      if (!product) return
+                      setGeneralItems((prev) => {
+                        const existing = prev.findIndex((i) => i.productId === value)
+                        if (existing >= 0) {
+                          const next = [...prev]
+                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
+                          return next
+                        }
+                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
+                      })
+                    }}
+                    options={generalInventoryOptions}
+                  />
+                  {generalItems.length > 0 && (
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
+                            <th className="w-10" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {generalItems.map((item, i) => (
+                            <tr key={item.productId}>
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium text-sm">{item.productName}</p>
+                                <p className="text-xs text-muted-foreground">{item.sku}</p>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <Input
+                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
+                                  value={item.qty}
+                                  onChange={(e) => {
+                                    const next = [...generalItems]
+                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
+                                    setGeneralItems(next)
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
+                                  <RiDeleteBin6Line className="size-3.5" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -2126,6 +2175,20 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
                     <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
                     <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
+                    {generalItems.length > 0 && (
+                      <div className="py-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">General Items</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {generalItems.map((g) => (
+                              <span key={g.productId} className="text-xs text-muted-foreground">
+                                {g.productName} × {g.qty} · <span className="font-medium">{formatCurrency(g.unitPrice * g.qty)}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {!salesOrder.isOld && (includeCase || includeBag) && (
                       <div className="py-2.5">
                         <div className="flex items-center justify-between">
