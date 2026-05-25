@@ -21,6 +21,7 @@ import Loading from '@/components/common/Loading'
 import Pagination from '@/components/common/Pagination'
 import ProductModal from '@/components/products/ProductModal'
 import StockAdjustmentModal from '@/components/products/StockAdjustmentModal'
+import { ProductReceiveDrawer } from '@/components/inventory/ProductReceiveDrawer'
 import QRScanner from '@/components/common/QRScanner'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
@@ -39,9 +40,8 @@ export default function GeneralInventory() {
   const [barcodeInput, setBarcodeInput] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
-  // Separate modal modes for adjust vs receive
   const [adjustModalOpen, setAdjustModalOpen] = useState(false)
-  const [receiveModalOpen, setReceiveModalOpen] = useState(false)
+  const [receiveDrawerOpen, setReceiveDrawerOpen] = useState(false)
 
   // Row selection
   const [selectedProducts, setSelectedProducts] = useState<Map<string, Product>>(new Map())
@@ -92,7 +92,7 @@ export default function GeneralInventory() {
   const singleSelected = selectedProducts.size === 1 ? [...selectedProducts.values()][0] : null
 
   const openAdjust = (p: Product) => { setSelectedProduct(p); setAdjustModalOpen(true) }
-  const openReceive = (p: Product) => { setSelectedProduct(p); setReceiveModalOpen(true) }
+  const openReceive = (p: Product) => { setSelectedProduct(p); setReceiveDrawerOpen(true) }
   const openEdit = (p: Product) => { setSelectedProduct(p); setIsModalOpen(true) }
 
   const openPrintLabel = async (p: Product) => {
@@ -448,16 +448,13 @@ export default function GeneralInventory() {
         onSuccess={() => refetch()}
       />
 
-      {/* Receive Stock modal — pre-fills positive quantity + receive reason */}
-      {selectedProduct && (
-        <StockAdjustmentModal
-          isOpen={receiveModalOpen}
-          onClose={() => { setReceiveModalOpen(false); setSelectedProduct(null) }}
-          product={selectedProduct}
-          onSuccess={() => refetch()}
-          defaultValues={{ quantity: 1, reason: 'Purchase - New stock received' }}
-        />
-      )}
+      {/* Receive Stock — sliding sheet, creates quick intake PO record */}
+      <ProductReceiveDrawer
+        open={receiveDrawerOpen}
+        onClose={() => { setReceiveDrawerOpen(false); setSelectedProduct(null) }}
+        product={selectedProduct}
+        onSuccess={() => refetch()}
+      />
 
       {/* Adjust Stock modal */}
       {selectedProduct && (

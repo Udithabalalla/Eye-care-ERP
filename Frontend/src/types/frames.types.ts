@@ -142,7 +142,8 @@ export interface GoodsReceiptFormData {
 }
 
 export interface QuickIntakeItem {
-  variant_id: string
+  variant_id?: string
+  product_id?: string
   sku: string
   variant_label: string
   qty: number
