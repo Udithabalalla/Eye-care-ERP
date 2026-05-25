@@ -123,7 +123,7 @@ const salesOrderIntakeSchema = z
       existingId: z.string().optional().default(''),
       newData: z.object({
         fullName: z.string().min(2, 'Full name is required'),
-        email: z.string().email('Invalid email address').optional().default(''),
+        email: z.union([z.literal(''), z.string().email('Invalid email address')]).optional().default(''),
         phone: z.string().min(10, 'Phone is required'),
         age: optionalNumber(),
         gender: z.nativeEnum(Gender).optional(),
@@ -1789,76 +1789,6 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* General Inventory */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <RiBox3Line className="size-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold">General Inventory</span>
-                    <span className="text-xs text-muted-foreground">(lenses, drops, accessories...)</span>
-                  </div>
-                  <SearchableLOV
-                    placeholder="Search general inventory…"
-                    value=""
-                    onChange={(value) => {
-                      const product = productData?.data.find((p) => p.product_id === value)
-                      if (!product) return
-                      setGeneralItems((prev) => {
-                        const existing = prev.findIndex((i) => i.productId === value)
-                        if (existing >= 0) {
-                          const next = [...prev]
-                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
-                          return next
-                        }
-                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
-                      })
-                    }}
-                    options={generalInventoryOptions}
-                  />
-                  {generalItems.length > 0 && (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border">
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
-                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
-                            <th className="w-10" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {generalItems.map((item, i) => (
-                            <tr key={item.productId}>
-                              <td className="px-4 py-2.5">
-                                <p className="font-medium text-sm">{item.productName}</p>
-                                <p className="text-xs text-muted-foreground">{item.sku}</p>
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <Input
-                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
-                                  value={item.qty}
-                                  onChange={(e) => {
-                                    const next = [...generalItems]
-                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
-                                    setGeneralItems(next)
-                                  }}
-                                />
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
-                              <td className="px-4 py-2.5 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
-                                  <RiDeleteBin6Line className="size-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
           )}
@@ -1911,70 +1841,86 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
           {/* ── Step 4: Expenses ────────────────────────────────────────────── */}
           {currentStep === 4 && (
             <div className="space-y-4">
+
+              {/* General Inventory Items */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiReceiptLine className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Other Expenses</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiBox3Line className="h-5 w-5 text-primary" />
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
-                      <RiAddLine className="mr-1.5 h-4 w-4" />
-                      Add Expense
-                    </Button>
+                    <div>
+                      <CardTitle>General Inventory Items</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Accessories, drops, solutions and other stocked products</p>
+                    </div>
                   </div>
                 </CardHeader>
                 <Separator />
-                <CardContent className="pt-6">
-                  {expenseFields.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto rounded-lg border border-border">
+                <CardContent className="pt-6 space-y-3">
+                  <SearchableLOV
+                    placeholder="Search general inventory…"
+                    value=""
+                    onChange={(value) => {
+                      const product = productData?.data.find((p) => p.product_id === value)
+                      if (!product) return
+                      setGeneralItems((prev) => {
+                        const existing = prev.findIndex((i) => i.productId === value)
+                        if (existing >= 0) {
+                          const next = [...prev]
+                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
+                          return next
+                        }
+                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
+                      })
+                    }}
+                    options={generalInventoryOptions}
+                  />
+                  {generalItems.length > 0 ? (
+                    <div className="rounded-lg border border-border overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-border bg-muted/50">
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
-                            <th className="w-12" />
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
+                            <th className="w-10" />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                          {expenseFields.map((field, index) => (
-                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-4 py-3">
-                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                          {generalItems.map((item, i) => (
+                            <tr key={item.productId}>
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium text-sm">{item.productName}</p>
+                                <p className="text-xs text-muted-foreground">{item.sku}</p>
                               </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                              <td className="px-4 py-2.5">
+                                <Input
+                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
+                                  value={item.qty}
+                                  onChange={(e) => {
+                                    const next = [...generalItems]
+                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
+                                    setGeneralItems(next)
+                                  }}
+                                />
                               </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
-                              <td className="px-4 py-3 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                                  <RiDeleteBin6Line className="h-4 w-4" />
+                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
+                                  <RiDeleteBin6Line className="size-3.5" />
                                 </Button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center">
+                      <RiBox3Line className="mb-2 h-6 w-6 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No items added</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground/70">Search above to add accessories or supplies</p>
                     </div>
                   )}
                 </CardContent>
@@ -2071,6 +2017,76 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Other Expenses */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <RiReceiptLine className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Other Expenses</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
+                      <RiAddLine className="mr-1.5 h-4 w-4" />
+                      Add Expense
+                    </Button>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-6">
+                  {expenseFields.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
+                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/50">
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
+                            <th className="w-12" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {expenseFields.map((field, index) => (
+                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3">
+                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                  <RiDeleteBin6Line className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Remarks & Notes</CardTitle></CardHeader>
