@@ -168,6 +168,8 @@ export interface QuickIntake {
 
 export interface QuickIntakeFormData {
   supplier_id?: string
+  intake_date?: string
+  reference_no?: string
   items?: Omit<QuickIntakeItem, 'variant_label'>[]
   notes?: string
 }

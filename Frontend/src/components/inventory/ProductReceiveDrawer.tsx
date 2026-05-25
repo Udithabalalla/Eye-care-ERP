@@ -7,6 +7,7 @@ import {
   RiStickyNoteLine,
   RiMoneyDollarCircleLine,
   RiCheckLine,
+  RiCalendarLine,
 } from '@remixicon/react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -47,11 +48,23 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="text-xs font-medium text-muted-foreground">
+      {children}{required && <span className="text-destructive ml-0.5">*</span>}
+    </label>
+  )
+}
+
+const today = () => new Date().toISOString().slice(0, 10)
+
 export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Props) {
   const qc = useQueryClient()
   const [qty, setQty] = useState('1')
   const [cost, setCost] = useState('')
   const [supplierId, setSupplierId] = useState('')
+  const [referenceNo, setReferenceNo] = useState('')
+  const [intakeDate, setIntakeDate] = useState(today())
   const [notes, setNotes] = useState('')
 
   const { data: suppliersData } = useQuery({
@@ -62,17 +75,31 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
   })
   const suppliers = suppliersData?.data ?? []
 
+  const qtyNum = parseInt(qty, 10) || 0
+  const effectiveCost = cost !== '' ? parseFloat(cost) : (product?.cost_price ?? 0)
+  const newTotal = (product?.current_stock ?? 0) + qtyNum
+
+  const isValid = qtyNum >= 1 && effectiveCost >= 0 && !!intakeDate
+
+  const resetForm = () => {
+    setQty('1'); setCost(''); setSupplierId(''); setReferenceNo('')
+    setIntakeDate(today()); setNotes('')
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!product) throw new Error('No product')
+      if (qtyNum < 1) throw new Error('Quantity must be at least 1')
       const created = await quickIntakesApi.create({
         supplier_id: supplierId || undefined,
+        intake_date: new Date(intakeDate).toISOString(),
+        reference_no: referenceNo || undefined,
         notes: notes || undefined,
         items: [{
           product_id: product.product_id,
           sku: product.sku ?? '',
-          qty: parseInt(qty, 10),
-          cost_price: parseFloat(cost) || product.cost_price,
+          qty: qtyNum,
+          cost_price: effectiveCost,
         }],
       })
       await quickIntakesApi.commit(created.intake_id)
@@ -81,23 +108,16 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
       toast.success(`${qty} units received — stock updated`)
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['quick-intakes'] })
-      setQty('1'); setCost(''); setSupplierId(''); setNotes('')
+      resetForm()
       onSuccess?.()
       onClose()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Receive failed'),
   })
 
-  const handleClose = () => {
-    setQty('1'); setCost(''); setSupplierId(''); setNotes('')
-    onClose()
-  }
+  const handleClose = () => { resetForm(); onClose() }
 
   if (!product) return null
-
-  const qtyNum = parseInt(qty, 10) || 0
-  const newTotal = product.current_stock + qtyNum
-  const effectiveCost = parseFloat(cost) || product.cost_price
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -107,15 +127,16 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <RiArrowDownCircleLine className="size-5 text-green-700 dark:text-green-400" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <SheetTitle className="text-base">Receive Stock</SheetTitle>
-              <p className="text-xs text-muted-foreground">Creates a quick intake record and updates stock immediately.</p>
+              <p className="text-xs text-muted-foreground">Creates a quick intake record (QI-XXXX) and updates stock immediately on confirm.</p>
             </div>
           </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto">
           <div className="divide-y divide-border">
+
             <Section icon={RiBox3Line} title="Product">
               <Row label="Name">{product.name}</Row>
               <Row label="SKU">
@@ -130,7 +151,7 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
             <Section icon={RiArrowDownCircleLine} title="Receive Details">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Qty Received *</label>
+                  <FieldLabel required>Qty Received</FieldLabel>
                   <Input
                     type="number"
                     min={1}
@@ -142,7 +163,7 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Unit Cost</label>
+                  <FieldLabel>Unit Cost</FieldLabel>
                   <Input
                     type="number"
                     step="0.01"
@@ -165,6 +186,28 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
               )}
             </Section>
 
+            <Section icon={RiCalendarLine} title="Receipt Info">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel required>Receipt Date</FieldLabel>
+                  <Input
+                    type="date"
+                    value={intakeDate}
+                    onChange={(e) => setIntakeDate(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Reference No.</FieldLabel>
+                  <Input
+                    value={referenceNo}
+                    onChange={(e) => setReferenceNo(e.target.value)}
+                    placeholder="INV-001 / DO-2026-…"
+                  />
+                </div>
+              </div>
+            </Section>
+
             <Section icon={RiTruckLine} title="Supplier">
               <Select value={supplierId || 'none'} onValueChange={(v) => setSupplierId(v === 'none' ? '' : v)}>
                 <SelectTrigger>
@@ -185,14 +228,19 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional reference or notes…"
+                placeholder="Optional internal notes…"
               />
             </Section>
 
             <Section icon={RiMoneyDollarCircleLine} title="Summary">
               <Row label="Unit Cost">{formatCurrency(effectiveCost)}</Row>
-              <Row label="Total Value">{formatCurrency(effectiveCost * qtyNum)}</Row>
+              <Row label="Qty">{qtyNum} units</Row>
+              <Row label="Total Value">
+                <span className="text-base font-bold">{formatCurrency(effectiveCost * qtyNum)}</span>
+              </Row>
+              {referenceNo && <Row label="Reference">{referenceNo}</Row>}
             </Section>
+
           </div>
         </div>
 
@@ -200,10 +248,10 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !qty || qtyNum < 1}
+            disabled={mutation.isPending || !isValid}
           >
             <RiCheckLine className="size-4" />
-            {mutation.isPending ? 'Receiving…' : 'Receive Stock'}
+            {mutation.isPending ? 'Receiving…' : 'Confirm Receipt'}
           </Button>
         </div>
       </SheetContent>
