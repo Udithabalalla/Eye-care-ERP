@@ -45,6 +45,7 @@ class QuickIntakeService:
             intake_id=intake_id,
             supplier_id=data.supplier_id,
             intake_date=intake_date,
+            reference_no=data.reference_no,
             items=data.items,
             status="draft",
             notes=data.notes,

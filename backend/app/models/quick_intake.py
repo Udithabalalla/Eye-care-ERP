@@ -17,6 +17,7 @@ class QuickIntakeModel(TimestampModel):
     intake_id: str = Field(..., description="QI-2026-0001")
     supplier_id: Optional[str] = None
     intake_date: datetime
+    reference_no: Optional[str] = None
     items: List[QuickIntakeItem] = Field(default_factory=list)
     status: str = "draft"
     notes: Optional[str] = None
