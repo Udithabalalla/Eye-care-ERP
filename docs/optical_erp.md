@@ -367,6 +367,94 @@ All movements stored in `inventory_movements` collection with `variant_id`, `pro
 
 ---
 
+---
+
+## Session 5 — Inventory UX Polish + General Inventory Parity (2026-05-25)
+
+> **Scope:** FramesWorkspace visual hierarchy improvements, General Inventory UX unification with Frames, ProductReceiveDrawer (sheet + PO), navigation mobile UX + customisation, UI theme fixes.
+
+### Backend Changes (staging branch)
+
+#### `api/v1/frame_variants.py`
+- Removed `current_user` dependency from `GET /{variant_id}/barcode` — `<img>` tags cannot send JWT headers; barcode PNGs are non-sensitive.
+
+#### `models/quick_intake.py`
+- `variant_id` changed from `str` → `Optional[str] = None`
+- Added `product_id: Optional[str] = None` — quick intakes can now contain general inventory product lines alongside (or instead of) frame variant lines.
+
+#### `services/quick_intake_service.py`
+- Injected `ProductRepository`
+- `commit_intake` now routes each item by presence of `product_id` vs `variant_id`, calling `product_repo.increment_stock_atomic` or `variant_repo.increment_stock_atomic` accordingly.
+- Raises `BadRequestException` if an item has neither id.
+
+### Frontend Changes
+
+#### `components/ui/select.tsx`
+- Removed hardcoded `"dark"` class from `SelectContent` — was forcing all Select dropdowns to dark theme regardless of page theme, breaking light mode everywhere.
+
+#### `components/common/Sidebar.tsx` — full rewrite
+- **Mobile auto-close:** `useSidebar()` → `setOpenMobile(false)` called on every `NavLink` click when `isMobile`. Sidebar closes immediately after navigation on small screens.
+- **Section order customisation:** Sections converted to `NavSection[]` with `id` field. Order persisted to `localStorage` key `nav-section-order`. Customize dialog (grid icon in header) lists all sections with:
+  - Up/down arrow buttons
+  - HTML5 native drag-and-drop (`draggable`, `onDragStart/Over/Drop/End`) — drop target highlights in primary colour
+  - "Reset to default" restores original order
+  - Save writes to `localStorage`; new sections in code are automatically appended after saved order.
+
+#### `pages/inventory/FramesWorkspace.tsx`
+
+**Master row visual improvements:**
+- Always has a base background (`bg-muted/20` collapsed, `bg-muted/40` expanded) — no longer transparent until hover
+- `border-l-[3px]` accent: `border-l-primary` when expanded, `border-l-transparent` when collapsed
+- `py-3.5` (taller than variant `py-2.5`) — visual weight signals group header
+- Brand name `font-bold text-foreground`, model code `font-semibold text-muted-foreground`
+- Chevron: single `RiArrowRightSLine` with `rotate-90` on expand (animated `transition-transform duration-200`) — replaced two separate icons
+
+**Variant row restructure:**
+- Collapsed separate Color cell (colSpan=2) + SKU cell into one cell (colSpan=3)
+- Primary line: `Black · 52mm · Full` — operators identify by color/size/rim before SKU
+- Secondary line: `RAY-1234-BLK-52-F` in muted monospace — SKU still visible, not dominant
+
+**Label rename:**
+- "Bridge Size" field label → **"Arm Length"** in variant create/edit dialog (backend field `bridge_size` unchanged)
+
+**Checkbox row selection (added in previous session, now complete):**
+- `selectedVariants: Map<string, FrameVariant>` state
+- Selection toolbar: Receive Stock / Adjust Stock / Edit / Print Barcode for single selection; bulk Delete in dropdown
+- Hover actions per variant row: Receive (green) | Adjust | Print | History | Edit | Delete (6 icon buttons, opacity-reveal)
+
+#### `pages/inventory/GeneralInventory.tsx` — major rework
+
+Unified UX with FramesWorkspace. Changes:
+
+| Feature | Before | After |
+|---|---|---|
+| Row selection | None | Checkbox column + select-all in header |
+| Selection toolbar | None | Receive / Adjust / Edit / Print / Delete (bulk) |
+| Hover actions | Edit, Adjust, Print (3 buttons) | Receive (green) \| Adjust \| Print \| Edit \| Delete (5 buttons) |
+| Receive Stock | `StockAdjustmentModal` pre-filled | `ProductReceiveDrawer` (Sheet, creates QI record) |
+| Stock display | Raw number + alert icon | `StockBadge` component (green/amber/red pill) |
+| Delete | No delete action | `productsApi.delete` wired via `useMutation` |
+| Filter clear | Not present | "Clear" button when filters active |
+
+#### `components/inventory/ProductReceiveDrawer.tsx` — new component
+
+Pixel-identical to `ReceiveStockDrawer`. Props: `{ open, onClose, product: Product | null, onSuccess? }`.
+
+Sections (same structure as frame drawer):
+- **Product** — name, SKU badge, brand, current stock
+- **Receive Details** — qty input (large, auto-focused) + unit cost override; live "X + Y = Z units" preview
+- **Supplier** — optional LOV (same `suppliersApi.getAll`)
+- **Notes** — free text
+- **Summary** — unit cost + total value
+
+On confirm: `quickIntakesApi.create({ product_id, sku, qty, cost_price, ... })` → `quickIntakesApi.commit(intake_id)`. Creates a `QI-YYYY-NNNN` record traceable in the Receiving module — same PO trail as frame variants.
+
+#### `types/frames.types.ts`
+- `QuickIntakeItem.variant_id` changed `string` → `string | undefined` (optional)
+- Added `product_id?: string` to `QuickIntakeItem`
+
+---
+
 ## Pending / Not Yet Implemented
 
 1. **BulkVariantCreate UI** — backend `/frame-variants/bulk` exists; frontend color × size matrix UI missing
@@ -376,4 +464,3 @@ All movements stored in `inventory_movements` collection with `variant_id`, `pro
 5. **Dashboard optical widgets** — low stock / out-of-stock counts for frame variants
 6. **Product Categories — module scoping** — Basic Data → Product Categories should flag which categories apply to Frames vs General Inventory
 7. **FrameMaster detail page** — `/frame-masters/:id` showing that model's variants + bulk create button
-8. **Hybrid inventory architecture** — planned future redesign to unify Frames + General Inventory under a single stock engine with shared receiving, barcode, movement, and supplier workflows while keeping specialized Frames UI
