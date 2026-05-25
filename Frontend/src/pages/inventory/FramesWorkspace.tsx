@@ -136,19 +136,22 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
               </div>
             </TableCell>
 
-            {/* Variant color / label — indented */}
-            <TableCell className="py-2.5 pl-3" colSpan={2}>
+            {/* Variant identity: color · eye size · rim type + SKU below */}
+            <TableCell className="py-2.5 pl-3" colSpan={3}>
               <div className="flex items-center gap-2.5">
                 <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
                 <div>
-                  <p className="font-medium text-sm leading-tight">{v.color}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">eye {v.eye_size}mm · {v.rim_type}</p>
+                  <p className="font-medium text-sm leading-tight">
+                    {v.color}
+                    <span className="text-muted-foreground font-normal mx-1">·</span>
+                    {v.eye_size}mm
+                    <span className="text-muted-foreground font-normal mx-1">·</span>
+                    <span className="capitalize">{v.rim_type}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 font-mono mt-0.5">{v.sku}</p>
                 </div>
               </div>
             </TableCell>
-
-            {/* SKU */}
-            <TableCell className="py-2.5 font-mono text-xs text-muted-foreground/80">{v.sku}</TableCell>
 
             {/* empty (Variants col) */}
             <TableCell className="py-2.5" />
@@ -630,16 +633,16 @@ export default function FramesWorkspace() {
                           {/* Master row */}
                           <TableRow
                             key={m.frame_master_id}
-                            className={`cursor-pointer transition-colors border-l-[3px] ${isExpanded ? 'border-b-0 border-l-primary bg-muted/20 hover:bg-muted/30' : 'border-l-transparent hover:bg-muted/20'}`}
+                            className={`cursor-pointer transition-colors border-l-[3px] ${isExpanded ? 'border-b-0 border-l-primary bg-muted/40 hover:bg-muted/50' : 'border-l-transparent bg-muted/20 hover:bg-muted/30'}`}
                             onClick={() => toggleRow(m.frame_master_id)}
                           >
-                            <TableCell className="py-3 w-10">
+                            <TableCell className="py-3.5 w-10">
                               <RiArrowRightSLine className={`size-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                             </TableCell>
-                            <TableCell className="py-3">
+                            <TableCell className="py-3.5">
                               <div>
-                                <p className="font-semibold tracking-tight">{m.brand} {m.model_code}</p>
-                                <p className="text-xs text-muted-foreground">{m.frame_name}</p>
+                                <p className="font-bold tracking-tight text-foreground">{m.brand} <span className="font-semibold text-muted-foreground">{m.model_code}</span></p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{m.frame_name}</p>
                               </div>
                             </TableCell>
                             <TableCell className="py-2.5">
