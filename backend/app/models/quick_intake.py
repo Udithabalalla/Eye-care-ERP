@@ -5,7 +5,8 @@ from app.models.common import TimestampModel
 
 
 class QuickIntakeItem(BaseModel):
-    variant_id: str
+    variant_id: Optional[str] = None
+    product_id: Optional[str] = None
     sku: str
     variant_label: str = ""
     qty: int = Field(..., ge=1)
