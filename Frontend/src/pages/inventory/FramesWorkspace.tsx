@@ -112,8 +112,23 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
     )
   }
 
+  const subHeaderCls = 'py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50'
+
   return (
     <>
+      {/* Variant column sub-header */}
+      <TableRow className="border-b border-border/20 bg-muted/5 hover:bg-muted/5">
+        <TableCell className={`${subHeaderCls} w-10`} />
+        <TableCell className={`${subHeaderCls} pl-8`}>Color</TableCell>
+        <TableCell className={subHeaderCls}>Rim Type</TableCell>
+        <TableCell className={subHeaderCls}>Eye Size</TableCell>
+        <TableCell className={subHeaderCls}>Arm Length</TableCell>
+        <TableCell className={subHeaderCls}>SKU</TableCell>
+        <TableCell className={subHeaderCls}>Stock</TableCell>
+        <TableCell className={`${subHeaderCls} text-right`}>Price</TableCell>
+        <TableCell colSpan={2} />
+      </TableRow>
+
       {variants.map((v, i) => {
         const isLast = i === variants.length - 1
         return (
@@ -123,9 +138,7 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
           >
             {/* Tree connector + checkbox */}
             <TableCell className="py-0 w-10 p-0 relative" onClick={(e) => e.stopPropagation()}>
-              {/* vertical spine */}
               <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
-              {/* horizontal arm */}
               <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
               <div className="flex items-center justify-center h-full py-2.5 relative z-10">
                 <Checkbox
@@ -136,32 +149,40 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
               </div>
             </TableCell>
 
-            {/* Variant identity: color · eye size · rim type + SKU below */}
-            <TableCell className="py-2.5 pl-3" colSpan={3}>
-              <div className="flex items-center gap-2.5">
+            {/* Color */}
+            <TableCell className="py-2.5 pl-3">
+              <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
-                <div>
-                  <p className="font-medium text-sm leading-tight">
-                    {v.color}
-                    <span className="text-muted-foreground font-normal mx-1">·</span>
-                    {v.eye_size}mm
-                    <span className="text-muted-foreground font-normal mx-1">·</span>
-                    <span className="capitalize">{v.rim_type}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground/70 font-mono mt-0.5">{v.sku}</p>
-                </div>
+                <span className="text-sm font-medium">{v.color}</span>
               </div>
             </TableCell>
 
-            {/* empty (Variants col) */}
-            <TableCell className="py-2.5" />
+            {/* Rim Type */}
+            <TableCell className="py-2.5 text-sm capitalize text-muted-foreground">{v.rim_type}</TableCell>
+
+            {/* Eye Size */}
+            <TableCell className="py-2.5 text-sm tabular-nums">
+              {v.eye_size}<span className="text-xs text-muted-foreground ml-0.5">mm</span>
+            </TableCell>
+
+            {/* Arm Length (temple_length) */}
+            <TableCell className="py-2.5 text-sm tabular-nums">
+              {v.temple_length
+                ? <>{v.temple_length}<span className="text-xs text-muted-foreground ml-0.5">mm</span></>
+                : <span className="text-muted-foreground/40">—</span>}
+            </TableCell>
+
+            {/* SKU */}
+            <TableCell className="py-2.5">
+              <span className="font-mono text-xs text-muted-foreground/70">{v.sku}</span>
+            </TableCell>
 
             {/* Stock */}
             <TableCell className="py-2.5">
               <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
             </TableCell>
 
-            {/* Price — always visible, never swapped out */}
+            {/* Selling Price */}
             <TableCell className="py-2.5 text-right tabular-nums font-medium text-sm">
               {formatCurrency(v.selling_price)}
             </TableCell>
@@ -616,7 +637,7 @@ export default function FramesWorkspace() {
                       <TableHead>Brand / Model</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Material / Gender</TableHead>
-                      <TableHead>SKU / Color</TableHead>
+                      <TableHead>Rim Type</TableHead>
                       <TableHead>Variants</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead className="text-right">Price</TableHead>
