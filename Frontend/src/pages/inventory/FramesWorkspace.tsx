@@ -33,7 +33,7 @@ import { formatCurrency } from '@/utils/formatters'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
-import { ReceiveStockDrawer } from '@/components/inventory/ReceiveStockDrawer'
+import { CreatePODrawer } from '@/components/inventory/CreatePODrawer'
 import { AdjustStockDrawer } from '@/components/inventory/AdjustStockDrawer'
 import { PrintBarcodeDrawer } from '@/components/inventory/PrintBarcodeDrawer'
 import { VariantHistoryDrawer } from '@/components/inventory/VariantHistoryDrawer'
@@ -890,10 +890,10 @@ export default function FramesWorkspace() {
       </Dialog>
 
       {/* ── Side Drawers ───────────────────────────────────────────────────── */}
-      <ReceiveStockDrawer
+      <CreatePODrawer
         open={receiveOpen}
         onClose={() => { setReceiveOpen(false) }}
-        variant={drawerVariant}
+        subject={drawerVariant ? { kind: 'variant', item: drawerVariant } : null}
       />
       <AdjustStockDrawer
         open={adjustOpen}

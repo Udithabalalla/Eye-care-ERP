@@ -21,7 +21,7 @@ import Loading from '@/components/common/Loading'
 import Pagination from '@/components/common/Pagination'
 import ProductModal from '@/components/products/ProductModal'
 import StockAdjustmentModal from '@/components/products/StockAdjustmentModal'
-import { ProductReceiveDrawer } from '@/components/inventory/ProductReceiveDrawer'
+import { CreatePODrawer } from '@/components/inventory/CreatePODrawer'
 import QRScanner from '@/components/common/QRScanner'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
@@ -448,11 +448,11 @@ export default function GeneralInventory() {
         onSuccess={() => refetch()}
       />
 
-      {/* Receive Stock — sliding sheet, creates quick intake PO record */}
-      <ProductReceiveDrawer
+      {/* Receive Stock — creates a Draft PO for the selected product */}
+      <CreatePODrawer
         open={receiveDrawerOpen}
         onClose={() => { setReceiveDrawerOpen(false); setSelectedProduct(null) }}
-        product={selectedProduct}
+        subject={selectedProduct ? { kind: 'product', item: selectedProduct } : null}
         onSuccess={() => refetch()}
       />
 
