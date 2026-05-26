@@ -137,7 +137,7 @@ export function CreatePODrawer({ open, onClose, subject, onSuccess }: Props) {
       toast.success(
         (t) => (
           <span className="flex items-center gap-2">
-            {po.order_id} created as Draft
+            {po.id} created as Draft
             <button
               className="underline font-medium"
               onClick={() => { toast.dismiss(t.id); navigate('/purchase-orders') }}
