@@ -438,6 +438,18 @@ class SalesOrderService:
                             {"variant_id": item.product_id},
                             {"$set": {"sale_location": created_model.sale_location}},
                         )
+                    # Deduct frame stock — movement service resolves variant_id directly
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=item.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=created_model.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:
@@ -508,6 +520,19 @@ class SalesOrderService:
         if target_status != old_status and old_status == SalesOrderStatus.DRAFT and target_status != SalesOrderStatus.DRAFT:
             for item in updated.items:
                 if not getattr(item, "track_stock", False):
+                    continue
+                if getattr(item, "line_type", "product") == "frame":
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=item.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=updated.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:
