@@ -419,6 +419,7 @@ class SalesOrderService:
             tested_by=data.tested_by,
             expected_delivery_date=data.expected_delivery_date,
             notes=data.notes,
+            sale_location=data.sale_location,
             status=initial_status,
             created_by=created_by,
         )
@@ -429,6 +430,14 @@ class SalesOrderService:
             # Deduct inventory when SO is created with non-DRAFT status
             for item in created_model.items:
                 if not getattr(item, "track_stock", False):
+                    continue
+                if getattr(item, "line_type", "product") == "frame":
+                    # Write sale_location back to the frame variant for display on inventory page
+                    if created_model.sale_location:
+                        await self.db["frame_variants"].update_one(
+                            {"variant_id": item.product_id},
+                            {"$set": {"sale_location": created_model.sale_location}},
+                        )
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:

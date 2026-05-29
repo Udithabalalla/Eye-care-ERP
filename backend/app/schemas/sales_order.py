@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
-from app.models.sales_order import SalesOrderItemModel, StatusHistoryEntry
+from app.models.sales_order import SalesOrderItemModel, StatusHistoryEntry, SaleLocation
 from app.utils.constants import SalesOrderStatus
 
 
@@ -28,6 +28,7 @@ class SalesOrderCreate(BaseModel):
     expected_delivery_date: Optional[datetime] = None
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus = SalesOrderStatus.CONFIRMED
 
 
@@ -39,6 +40,7 @@ class SalesOrderUpdate(BaseModel):
     expected_delivery_date: Optional[datetime] = None
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: Optional[SalesOrderStatus] = None
 
 
@@ -62,6 +64,7 @@ class SalesOrderResponse(BaseModel):
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)
     created_by: str

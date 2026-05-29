@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from app.models.frame_variant import FrameMasterRef
 
@@ -18,6 +18,8 @@ class FrameVariantCreate(BaseModel):
     current_stock: int = Field(default=0, ge=0)
     reorder_level: int = Field(default=2, ge=0)
     supplier_id: Optional[str] = None
+    supplier_frame_no: Optional[str] = None
+    institute_stock_nos: Optional[List[int]] = None
 
 
 class FrameVariantBulkCreate(BaseModel):
@@ -47,6 +49,9 @@ class FrameVariantUpdate(BaseModel):
     mrp: Optional[float] = Field(None, ge=0)
     reorder_level: Optional[int] = Field(None, ge=0)
     supplier_id: Optional[str] = None
+    supplier_frame_no: Optional[str] = None
+    institute_stock_nos: Optional[List[int]] = None
+    sale_location: Optional[Literal["institute", "clinic"]] = None
     is_active: Optional[bool] = None
 
 
@@ -74,6 +79,9 @@ class FrameVariantResponse(BaseModel):
     current_stock: int
     reorder_level: int
     supplier_id: Optional[str]
+    supplier_frame_no: Optional[str] = None
+    institute_stock_nos: Optional[List[int]] = None
+    sale_location: Optional[Literal["institute", "clinic"]] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

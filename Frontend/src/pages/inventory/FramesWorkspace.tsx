@@ -177,9 +177,16 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
               <span className="font-mono text-xs text-muted-foreground/70">{v.sku}</span>
             </TableCell>
 
-            {/* Stock */}
+            {/* Stock / Sale Location */}
             <TableCell className="py-2.5">
-              <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
+              <div className="flex items-center gap-1.5">
+                <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
+                {v.current_stock === 0 && v.sale_location && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize border-muted-foreground/30 text-muted-foreground">
+                    {v.sale_location === 'institute' ? 'Institute' : 'Clinic'}
+                  </Badge>
+                )}
+              </div>
             </TableCell>
 
             {/* Selling Price */}
