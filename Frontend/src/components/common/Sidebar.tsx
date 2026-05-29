@@ -426,7 +426,7 @@ const AppSidebar = () => {
                   align="end"
                   sideOffset={4}
                 >
-                  <DropdownMenuItem onClick={logout} className="gap-2 text-destructive focus:text-destructive">
+                  <DropdownMenuItem onSelect={() => void logout()} className="gap-2 text-destructive focus:text-destructive">
                     <RiLogoutBoxRLine className="h-4 w-4" />
                     Sign out
                   </DropdownMenuItem>
