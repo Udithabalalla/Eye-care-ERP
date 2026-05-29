@@ -141,6 +141,7 @@ class SalesOrderService:
                 product_name = raw_item.get("product_name")
                 sku = raw_item.get("sku")
                 master_data_id = raw_item.get("master_data_id")
+                frame_variant_id = raw_item.get("frame_variant_id")
                 line_type = raw_item.get("line_type", "product")
                 track_stock = bool(raw_item.get("track_stock", line_type == "product"))
             else:
@@ -150,6 +151,7 @@ class SalesOrderService:
                 product_name = raw_item.product_name
                 sku = raw_item.sku
                 master_data_id = getattr(raw_item, "master_data_id", None)
+                frame_variant_id = getattr(raw_item, "frame_variant_id", None)
                 line_type = getattr(raw_item, "line_type", "product")
                 track_stock = getattr(raw_item, "track_stock", line_type == "product")
 
@@ -185,7 +187,11 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product_id
                     resolved_track_stock = False
             elif line_type == "frame":
-                variant = await self._resolve_frame_variant_by_identifier(master_data_id or product_id)
+                # Priority: frame_variant_id > product_id > master_data_id
+                # master_data_id is the frame_master_id (FM-xxx), not the variant_id
+                variant = await self._resolve_frame_variant_by_identifier(
+                    frame_variant_id or product_id or master_data_id
+                )
                 if variant:
                     resolved_product_id = variant.variant_id
                     resolved_name = product_name or f"{variant.frame_master_ref.brand} {variant.frame_master_ref.model_code}"
@@ -419,6 +425,7 @@ class SalesOrderService:
             tested_by=data.tested_by,
             expected_delivery_date=data.expected_delivery_date,
             notes=data.notes,
+            sale_location=data.sale_location,
             status=initial_status,
             created_by=created_by,
         )
@@ -429,6 +436,26 @@ class SalesOrderService:
             # Deduct inventory when SO is created with non-DRAFT status
             for item in created_model.items:
                 if not getattr(item, "track_stock", False):
+                    continue
+                if getattr(item, "line_type", "product") == "frame":
+                    # Write sale_location back to the frame variant for display on inventory page
+                    if created_model.sale_location:
+                        await self.db["frame_variants"].update_one(
+                            {"variant_id": item.product_id},
+                            {"$set": {"sale_location": created_model.sale_location}},
+                        )
+                    # Deduct frame stock — movement service resolves variant_id directly
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=item.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=created_model.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:
@@ -499,6 +526,19 @@ class SalesOrderService:
         if target_status != old_status and old_status == SalesOrderStatus.DRAFT and target_status != SalesOrderStatus.DRAFT:
             for item in updated.items:
                 if not getattr(item, "track_stock", False):
+                    continue
+                if getattr(item, "line_type", "product") == "frame":
+                    await self.inventory_movement_service.create_movement(
+                        InventoryMovementCreate(
+                            product_id=item.product_id,
+                            movement_type=InventoryMovementType.SALE_OUT,
+                            quantity=item.quantity,
+                            reference_type=LedgerReferenceType.SALES_ORDER,
+                            reference_id=updated.order_id,
+                        ),
+                        created_by=created_by,
+                        apply_stock_change=True,
+                    )
                     continue
                 product = await self._resolve_product_by_identifier(item.product_id)
                 if not product:

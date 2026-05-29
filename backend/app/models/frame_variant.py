@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Literal
 from app.models.common import TimestampModel
 
 
@@ -35,6 +35,9 @@ class FrameVariantModel(TimestampModel):
     reorder_level: int = Field(default=2, ge=0)
 
     supplier_id: Optional[str] = None
+    supplier_frame_no: Optional[str] = None
+    institute_stock_nos: Optional[List[int]] = None
+    sale_location: Optional[Literal["institute", "clinic"]] = None
     is_active: bool = True
 
     class Config:

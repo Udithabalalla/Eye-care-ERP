@@ -175,6 +175,7 @@ const salesOrderIntakeSchema = z
       invoiceNumber: z.string().optional().default(''),
     }),
     remarks: z.string().optional().default(''),
+    saleLocation: z.enum(['institute', 'clinic']).optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.patient.existingId && !value.patient.newData.gender) {
@@ -385,6 +386,7 @@ const defaultValues: SalesOrderIntakeValues = {
   expenses: [],
   totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
+  saleLocation: undefined,
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -533,6 +535,7 @@ const mapDraftToFormValues = (
       invoiceNumber:   '',
     },
     remarks: order.notes || '',
+    saleLocation: (order.sale_location as 'institute' | 'clinic' | undefined) ?? undefined,
   }
 }
 
@@ -593,6 +596,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const prescription = useWatch({ control, name: 'prescription' })
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
+  const saleLocation = useWatch({ control, name: 'saleLocation' })
 
   useEffect(() => {
     setMaxStepReached((prev) => Math.max(prev, currentStep))
@@ -1060,6 +1064,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         date_of_full_payment: `${values.salesOrder.dateOfFullPayment}T00:00:00Z`,
         notes: values.remarks.trim() || undefined,
         measurements: { order_date: values.salesOrder.orderDate, frame_total: values.frame.total, lens_total: values.lens.total },
+        sale_location: values.saleLocation || undefined,
         status: 'draft' as const,
         items: draftItems,
       })
@@ -1161,6 +1166,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
         measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
+        sale_location: values.saleLocation || undefined,
         status: 'created' as const,
         items: itemPayload,
       }
@@ -1391,6 +1397,31 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <Button type="button" variant="ghost" size="sm" onClick={unlinkPatient}>Unlink</Button>
                   </div>
                 )}
+
+                <Separator />
+
+                <div>
+                  <p className="text-sm font-medium mb-3">Sale Location</p>
+                  <div className="flex gap-3">
+                    {(['institute', 'clinic'] as const).map((loc) => {
+                      const isSelected = saleLocation === loc
+                      return (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => setValue('saleLocation', isSelected ? undefined : loc, { shouldDirty: true })}
+                          className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          }`}
+                        >
+                          {loc === 'institute' ? 'Institute' : 'Clinic'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -2188,6 +2219,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                 <Separator />
                 <CardContent className="pt-6">
                   <div className="divide-y divide-border">
+                    {saleLocation && (
+                      <div className="flex items-center justify-between py-2.5">
+                        <span className="text-sm text-muted-foreground">Sale Location</span>
+                        <span className="text-sm font-medium capitalize">{saleLocation === 'institute' ? 'Institute' : 'Clinic'}</span>
+                      </div>
+                    )}
                     <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
                     <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
                     <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
