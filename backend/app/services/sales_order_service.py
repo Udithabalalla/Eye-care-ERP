@@ -141,6 +141,7 @@ class SalesOrderService:
                 product_name = raw_item.get("product_name")
                 sku = raw_item.get("sku")
                 master_data_id = raw_item.get("master_data_id")
+                frame_variant_id = raw_item.get("frame_variant_id")
                 line_type = raw_item.get("line_type", "product")
                 track_stock = bool(raw_item.get("track_stock", line_type == "product"))
             else:
@@ -150,6 +151,7 @@ class SalesOrderService:
                 product_name = raw_item.product_name
                 sku = raw_item.sku
                 master_data_id = getattr(raw_item, "master_data_id", None)
+                frame_variant_id = getattr(raw_item, "frame_variant_id", None)
                 line_type = getattr(raw_item, "line_type", "product")
                 track_stock = getattr(raw_item, "track_stock", line_type == "product")
 
@@ -185,7 +187,11 @@ class SalesOrderService:
                     resolved_master_id = master_data_id or product_id
                     resolved_track_stock = False
             elif line_type == "frame":
-                variant = await self._resolve_frame_variant_by_identifier(master_data_id or product_id)
+                # Priority: frame_variant_id > product_id > master_data_id
+                # master_data_id is the frame_master_id (FM-xxx), not the variant_id
+                variant = await self._resolve_frame_variant_by_identifier(
+                    frame_variant_id or product_id or master_data_id
+                )
                 if variant:
                     resolved_product_id = variant.variant_id
                     resolved_name = product_name or f"{variant.frame_master_ref.brand} {variant.frame_master_ref.model_code}"
