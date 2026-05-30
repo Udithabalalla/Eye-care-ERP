@@ -153,6 +153,8 @@ export interface PurchaseOrderFormItem {
   frame_variant_id?: string
   item_type?: 'product' | 'frame_variant'
   description?: string
+  item_name?: string
+  item_sku?: string
   quantity: number
   unit_cost: number
 }
