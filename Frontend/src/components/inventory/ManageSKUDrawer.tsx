@@ -80,11 +80,11 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
 
   const { data: movementsData, isLoading: movementsLoading } = useQuery({
     queryKey: ['variant-movements', variant?.variant_id],
-    queryFn: () => inventoryMovementsApi.getAll({ page: 1, page_size: 50 }),
+    queryFn: () => inventoryMovementsApi.getAll({ product_id: variant!.variant_id, page: 1, page_size: 100 }),
     enabled: open && !!variant && tab === 'history',
     staleTime: 10_000,
   })
-  const movements = (movementsData?.data ?? []).filter((m) => m.variant_id === variant?.variant_id)
+  const movements = movementsData?.data ?? []
 
   const receiveMutation = useMutation({
     mutationFn: async () => {
