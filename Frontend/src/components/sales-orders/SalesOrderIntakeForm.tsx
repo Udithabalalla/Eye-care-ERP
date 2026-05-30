@@ -187,12 +187,7 @@ const salesOrderIntakeSchema = z
     }
     if (!value.salesOrder.isOld) {
       // Frame validation is handled in onSubmit (variant or catalog)
-      if (!value.frame.selectionId && !value.frame.model.trim() && !value.frame.barcode.trim()) {
-        // allow — variant picker sets selectionId; we validate in onSubmit
-      }
-      if (!value.lens.selectionId && !value.lens.lensType.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lens selection is required', path: ['lens', 'selectionId'] })
-      }
+      // Lens is optional — frame only = half order, frame + lens = full order
     }
   })
 
@@ -1105,7 +1100,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       const frameItem = resolvedFrame
       if (!values.salesOrder.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
-      if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
+      // Lens is optional — frame only = half order, frame + lens = full order
       if (!values.salesOrder.isOld) {
         const invalidExpense = (values.expenses || []).some((e) => !e.expenseTypeId || !expenseMasterData?.data.some((item) => item.id === e.expenseTypeId))
         if (invalidExpense) { toast.error('Expense type must come from master data'); return }
