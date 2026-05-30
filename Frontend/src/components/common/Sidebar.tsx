@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   RiHomeLine,
   RiTeamLine,
@@ -155,110 +155,147 @@ const AppSidebar = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    navigationSections.reduce<Record<string, boolean>>((acc, section) => {
-      if (section.title) acc[section.title] = true
-      return acc
-    }, {})
-  )
+  const activeSectionTitle = useMemo(() => {
+    for (const section of navigationSections) {
+      if (!section.title) continue
+      for (const item of section.items) {
+        if (item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)) {
+          return section.title
+        }
+        if (item.children?.some((child) => location.pathname.startsWith(child.path))) {
+          return section.title
+        }
+      }
+    }
+    return null
+  }, [location.pathname])
 
-  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
-    'Basic Data': true,
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const section of navigationSections) {
+      if (!section.title) continue
+      initial[section.title] = section.items.some((item) => {
+        if (item.path === '/') return location.pathname === '/'
+        if (location.pathname.startsWith(item.path)) return true
+        return item.children?.some((child) => location.pathname.startsWith(child.path)) ?? false
+      })
+    }
+    return initial
   })
 
-  const toggleGroup = (title: string) =>
-    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }))
+  useEffect(() => {
+    if (activeSectionTitle) {
+      setOpenGroups((prev) =>
+        {/* Navigation */}
+        <SidebarContent>
+          {navigationSections.map((section, sectionIdx) => (
+            <SidebarGroup key={sectionIdx}>
+              {section.title && (
+                <Collapsible
+                  open={!!openGroups[section.title]}
+                  onOpenChange={() => toggleGroup(section.title!)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel
+                      className={`flex w-full cursor-pointer items-center justify-between transition-colors select-none
+                        ${openGroups[section.title]
+                          ? 'text-foreground/70 hover:text-foreground'
+                          : 'text-muted-foreground/50 hover:text-muted-foreground'
+                        }`}
+                    >
+                      {section.title}
+                      <RiArrowDownSLine
+                        className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${openGroups[section.title] ? 'rotate-180' : ''}`}
+                      />
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenu>
+                      {section.items.map((item) => {
+                        if (item.children?.length) {
+                          const isSubmenuOpen = openSubMenus[item.name] ?? true
+                          const hasActiveChild = item.children.some((c) =>
+                            location.pathname.startsWith(c.path)
+                          )
+                          return (
+                            <Collapsible
+                              key={item.name}
+                              open={isSubmenuOpen}
+                              onOpenChange={() => toggleSubMenu(item.name)}
+                              asChild
+                            >
+                              <SidebarMenuItem>
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuButton
+                                    tooltip={item.name}
+                                    isActive={hasActiveChild}
+                                  >
+                                    <item.icon />
+                                    <span>{item.name}</span>
+                                    <RiArrowDownSLine className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                  </SidebarMenuButton>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <SidebarMenuSub>
+                                    {item.children.map((child) => (
+                                      <SidebarMenuSubItem key={child.path}>
+                                        <SidebarMenuSubButton asChild isActive={isActive(child.path)}>
+                                          <NavLink to={child.path}>
+                                            <child.icon />
+                                            <span>{child.name}</span>
+                                          </NavLink>
+                                        </SidebarMenuSubButton>
+                                      </SidebarMenuSubItem>
+                                    ))}
+                                  </SidebarMenuSub>
+                                </CollapsibleContent>
+                              </SidebarMenuItem>
+                            </Collapsible>
+                          )
+                        }
 
-  const toggleSubMenu = (name: string) =>
-    setOpenSubMenus((prev) => ({ ...prev, [name]: !prev[name] }))
-
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
-
-  return (
-    <ShadcnSidebar collapsible="icon">
-      {/* Brand */}
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <div className="flex items-center gap-3 cursor-default select-none">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <span className="text-sm font-bold">EC</span>
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Sequence</span>
-                  <span className="truncate text-xs text-muted-foreground">Eye Care ERP</span>
-                </div>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-
-      {/* Navigation */}
-      <SidebarContent>
-        {navigationSections.map((section, sectionIdx) => (
-          <SidebarGroup key={sectionIdx}>
-            {section.title && (
-              <Collapsible
-                open={openGroups[section.title]}
-                onOpenChange={() => toggleGroup(section.title!)}
-              >
-                <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex w-full cursor-pointer items-center justify-between hover:text-foreground transition-colors group/label">
-                    {section.title}
-                    <RiArrowDownSLine className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/label:rotate-180" />
-                  </SidebarGroupLabel>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenu>
-                    {section.items.map((item) => {
-                      if (item.children?.length) {
-                        const isSubmenuOpen = openSubMenus[item.name] ?? true
-                        const hasActiveChild = item.children.some((c) =>
-                          location.pathname.startsWith(c.path)
-                        )
                         return (
-                          <Collapsible
-                            key={item.name}
-                            open={isSubmenuOpen}
-                            onOpenChange={() => toggleSubMenu(item.name)}
-                            asChild
-                          >
-                            <SidebarMenuItem>
-                              <CollapsibleTrigger asChild>
-                                <SidebarMenuButton
-                                  tooltip={item.name}
-                                  isActive={hasActiveChild}
-                                >
-                                  <item.icon />
-                                  <span>{item.name}</span>
-                                  <RiArrowDownSLine className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                </SidebarMenuButton>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <SidebarMenuSub>
-                                  {item.children.map((child) => (
-                                    <SidebarMenuSubItem key={child.path}>
-                                      <SidebarMenuSubButton asChild isActive={isActive(child.path)}>
-                                        <NavLink to={child.path}>
-                                          <child.icon />
-                                          <span>{child.name}</span>
-                                        </NavLink>
-                                      </SidebarMenuSubButton>
-                                    </SidebarMenuSubItem>
-                                  ))}
-                                </SidebarMenuSub>
-                              </CollapsibleContent>
-                            </SidebarMenuItem>
-                          </Collapsible>
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              asChild
+                              tooltip={item.name}
+                              isActive={isActive(item.path)}
+                            >
+                              <NavLink to={item.path} end={item.path === '/'}>
+                                <item.icon />
+                                <span>{item.name}</span>
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
                         )
-                      }
+                      })}
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
 
-                      return (
-                        <SidebarMenuItem key={item.path}>
-                          <SidebarMenuButton
+              {/* Ungrouped section (Dashboard) */}
+              {!section.title && (
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <SidebarMenuItem key={item.path}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.name}
+                        isActive={isActive(item.path)}
+                      >
+                        <NavLink to={item.path} end>
+                          <item.icon />
+                          <span>{item.name}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              )}
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
                             asChild
                             tooltip={item.name}
                             isActive={isActive(item.path)}
