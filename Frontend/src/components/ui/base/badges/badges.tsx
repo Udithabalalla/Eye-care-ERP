@@ -5,6 +5,9 @@ import { cx } from "@/utils/cx";
 import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, FlagTypes, IconComponentType, Sizes } from "./badge-types";
 import { badgeTypes } from "./badge-types";
 
+type BadgeStyleSet = Record<BadgeColors, { root: string; addon: string; addonButton: string }>;
+type BadgeContainerSet = Record<BadgeTypes, { common: string; styles: BadgeStyleSet }>;
+
 export const filledColors: Record<BadgeColors, { root: string; addon: string; addonButton: string }> = {
     gray: {
         root: "bg-utility-gray-50 text-utility-gray-700 ring-utility-gray-200",
@@ -73,7 +76,7 @@ const addonOnlyColors = Object.fromEntries(Object.entries(filledColors).map(([ke
     { root: string; addon: string }
 >;
 
-const withPillTypes = {
+const withPillTypes: BadgeContainerSet = {
     [badgeTypes.pillColor]: {
         common: "size-max flex items-center whitespace-nowrap rounded-full ring-1 ring-inset",
         styles: filledColors,
@@ -90,11 +93,11 @@ const withPillTypes = {
                 addon: "text-gray-500",
                 addonButton: "hover:bg-utility-gray-100 text-utility-gray-400 hover:text-utility-gray-500",
             },
-        },
+        } as BadgeStyleSet,
     },
 };
 
-const withBadgeTypes = {
+const withBadgeTypes: BadgeContainerSet = {
     [badgeTypes.pillColor]: {
         common: "size-max flex items-center whitespace-nowrap rounded-full ring-1 ring-inset",
         styles: filledColors,
@@ -105,7 +108,7 @@ const withBadgeTypes = {
     },
     [badgeTypes.badgeModern]: {
         common: "size-max flex items-center whitespace-nowrap rounded-md ring-1 ring-inset bg-primary text-secondary ring-primary shadow-xs",
-        styles: addonOnlyColors,
+        styles: addonOnlyColors as BadgeStyleSet,
     },
 };
 
