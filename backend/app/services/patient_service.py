@@ -32,8 +32,8 @@ class PatientService:
         )
         
         total_pages = math.ceil(total / page_size)
-        
-        patient_responses = [PatientResponse(**p.dict()) for p in patients]
+
+        patient_responses = [self._to_response(p) for p in patients]
         
         return PaginatedResponse(
             data=patient_responses,
@@ -43,14 +43,19 @@ class PatientService:
             total_pages=total_pages
         )
     
+    def _to_response(self, patient: PatientModel) -> PatientResponse:
+        data = patient.dict()
+        data["age"] = calculate_age(patient.date_of_birth)
+        return PatientResponse(**data)
+
     async def get_patient(self, patient_id: str) -> PatientResponse:
         """Get patient by ID"""
         patient = await self.patient_repo.get_by_patient_id(patient_id)
-        
+
         if not patient:
             raise NotFoundException(f"Patient with ID {patient_id} not found")
-        
-        return PatientResponse(**patient.dict())
+
+        return self._to_response(patient)
     
     async def create_patient(self, patient_data: PatientCreate) -> PatientResponse:
         """Create a new patient"""
@@ -63,24 +68,16 @@ class PatientService:
         next_number = await self.patient_repo.get_next_patient_number()
         patient_id = generate_id("PAT", next_number)
         
-        # Convert date to datetime
         dob_datetime = date_to_datetime(patient_data.date_of_birth)
-        
-        # Calculate age
-        age = calculate_age(dob_datetime)
-        
-        # Create patient model
+
         patient_model = PatientModel(
             patient_id=patient_id,
-            date_of_birth=dob_datetime,  # Use datetime
-            age=age,
+            date_of_birth=dob_datetime,
             **patient_data.dict(exclude={'date_of_birth'})
         )
-        
-        # Save to database
+
         created_patient = await self.patient_repo.create_patient(patient_model)
-        
-        return PatientResponse(**created_patient.dict())
+        return self._to_response(created_patient)
     
     async def update_patient(
         self,
@@ -102,7 +99,7 @@ class PatientService:
         
         # Fetch and return updated patient
         updated_patient = await self.patient_repo.get_by_patient_id(patient_id)
-        return PatientResponse(**updated_patient.dict())
+        return self._to_response(updated_patient)
     
     async def delete_patient(self, patient_id: str):
         """Soft delete a patient"""

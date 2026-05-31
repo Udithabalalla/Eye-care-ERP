@@ -7,6 +7,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.doctor_repository import DoctorRepository
+from app.repositories.invoice_repository import InvoiceRepository
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, AppointmentResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.appointment import AppointmentModel
@@ -22,6 +23,7 @@ class AppointmentService:
         self.patient_repo = PatientRepository(db)
         self.user_repo = UserRepository(db)
         self.doctor_repo = DoctorRepository()
+        self.invoice_repo = InvoiceRepository(db)
     
     async def list_appointments(
         self,
@@ -72,10 +74,12 @@ class AppointmentService:
         current_user_id: str
     ) -> AppointmentResponse:
         """Create a new appointment"""
-        # Validate patient exists
+        # Validate patient exists and is active
         patient = await self.patient_repo.get_by_patient_id(appointment_data.patient_id)
         if not patient:
             raise NotFoundException(f"Patient with ID {appointment_data.patient_id} not found")
+        if not patient.is_active:
+            raise BadRequestException(f"Patient {appointment_data.patient_id} is inactive and cannot have new appointments")
         
         # Validate doctor exists - check doctors collection first, then users
         doctor = await self.doctor_repo.get_by_id(appointment_data.doctor_id)
@@ -152,7 +156,14 @@ class AppointmentService:
         existing = await self.appointment_repo.get_by_appointment_id(appointment_id)
         if not existing:
             raise NotFoundException(f"Appointment with ID {appointment_id} not found")
-        
+
+        linked_invoice = await self.invoice_repo.get_one({"appointment_id": appointment_id})
+        if linked_invoice:
+            raise BadRequestException(
+                f"Cannot cancel appointment {appointment_id}: a linked invoice exists. "
+                "Void the invoice first before cancelling the appointment."
+            )
+
         await self.appointment_repo.update_appointment(
             appointment_id,
             {

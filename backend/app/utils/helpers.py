@@ -37,3 +37,8 @@ def date_to_datetime(d: date) -> datetime:
 def now_utc() -> datetime:
     """Get current UTC datetime"""
     return datetime.now(timezone.utc)
+
+def is_prescription_valid(valid_until: datetime) -> bool:
+    """Return True if the prescription has not yet expired."""
+    expiry = valid_until if valid_until.tzinfo else valid_until.replace(tzinfo=timezone.utc)
+    return expiry >= datetime.now(timezone.utc)

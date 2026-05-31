@@ -12,7 +12,7 @@ from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrd
 from app.schemas.responses import PaginatedResponse
 from app.models.sales_order import SalesOrderModel, SalesOrderItemModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id
+from app.utils.helpers import generate_id, is_prescription_valid
 from app.services.audit_service import AuditService
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.transaction_service import TransactionService
@@ -434,6 +434,11 @@ class SalesOrderService:
             prescription = await self.prescription_repo.get_by_prescription_id(data.prescription_id)
             if not prescription:
                 raise NotFoundException(f"Prescription with ID {data.prescription_id} not found")
+            if not is_prescription_valid(prescription.valid_until):
+                raise BadRequestException(
+                    f"Prescription {data.prescription_id} has expired. "
+                    "Please issue a new prescription before creating this order."
+                )
 
         if data.status in {SalesOrderStatus.COMPLETED, SalesOrderStatus.CANCELLED}:
             raise BadRequestException("New sales orders must start in draft/active workflow states")
@@ -468,8 +473,10 @@ class SalesOrderService:
             for item in created_model.items:
                 if not getattr(item, "track_stock", False):
                     continue
+                line_type = getattr(item, "line_type", "product")
                 variant_id = getattr(item, "frame_variant_id", None)
-                if getattr(item, "line_type", "product") == "frame" and variant_id:
+                out_type = InventoryMovementType.COMPLIMENTARY_OUT if line_type == "complimentary" else InventoryMovementType.SALE_OUT
+                if line_type == "frame" and variant_id:
                     await self.inventory_movement_service.create_movement(
                         InventoryMovementCreate(
                             product_id=variant_id,
@@ -489,7 +496,7 @@ class SalesOrderService:
                     await self.inventory_movement_service.create_movement(
                         InventoryMovementCreate(
                             product_id=product.product_id,
-                            movement_type=InventoryMovementType.SALE_OUT,
+                            movement_type=out_type,
                             quantity=item.quantity,
                             reference_type=LedgerReferenceType.SALES_ORDER,
                             reference_id=created_model.order_id,
@@ -520,6 +527,11 @@ class SalesOrderService:
             prescription = await self.prescription_repo.get_by_prescription_id(data.prescription_id)
             if not prescription:
                 raise NotFoundException(f"Prescription with ID {data.prescription_id} not found")
+            if not is_prescription_valid(prescription.valid_until):
+                raise BadRequestException(
+                    f"Prescription {data.prescription_id} has expired. "
+                    "Please issue a new prescription before updating this order."
+                )
 
         update_dict = data.dict(exclude_unset=True)
         old_status = existing.status
@@ -553,8 +565,10 @@ class SalesOrderService:
             for item in updated.items:
                 if not getattr(item, "track_stock", False):
                     continue
+                line_type = getattr(item, "line_type", "product")
                 variant_id = getattr(item, "frame_variant_id", None)
-                if getattr(item, "line_type", "product") == "frame" and variant_id:
+                out_type = InventoryMovementType.COMPLIMENTARY_OUT if line_type == "complimentary" else InventoryMovementType.SALE_OUT
+                if line_type == "frame" and variant_id:
                     await self.inventory_movement_service.create_movement(
                         InventoryMovementCreate(
                             product_id=variant_id,
@@ -574,7 +588,7 @@ class SalesOrderService:
                     await self.inventory_movement_service.create_movement(
                         InventoryMovementCreate(
                             product_id=product.product_id,
-                            movement_type=InventoryMovementType.SALE_OUT,
+                            movement_type=out_type,
                             quantity=item.quantity,
                             reference_type=LedgerReferenceType.SALES_ORDER,
                             reference_id=updated.order_id,

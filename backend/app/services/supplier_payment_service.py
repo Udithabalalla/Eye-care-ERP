@@ -30,13 +30,10 @@ class SupplierPaymentService:
         payments, total = await self.repo.list_payments(skip=skip, limit=page_size, invoice_id=invoice_id)
         total_pages = math.ceil(total / page_size)
 
-        # Build invoice lookup to avoid N+1 queries
+        # Batch-fetch all invoices in one $in query to avoid N+1
         unique_invoice_ids = list({p.invoice_id for p in payments})
-        invoice_map: dict[str, str] = {}
-        for iid in unique_invoice_ids:
-            inv = await self.invoice_repo.get_by_invoice_id(iid)
-            if inv:
-                invoice_map[iid] = inv.invoice_number
+        invoices_by_id = await self.invoice_repo.get_many_by_ids(unique_invoice_ids)
+        invoice_map: dict[str, str] = {iid: inv.invoice_number for iid, inv in invoices_by_id.items()}
 
         def _make_response(payment: SupplierPaymentModel) -> SupplierPaymentResponse:
             data = payment.dict()

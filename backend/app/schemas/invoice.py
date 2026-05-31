@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, List, Literal
 from datetime import date, datetime
 from app.utils.constants import PaymentStatus, PaymentMethod
@@ -14,6 +14,12 @@ class InvoiceCreate(BaseModel):
     sales_order_id: Optional[str] = None
     appointment_id: Optional[str] = None
     notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def due_date_after_invoice_date(self) -> "InvoiceCreate":
+        if self.due_date < self.invoice_date:
+            raise ValueError("due_date must be on or after invoice_date")
+        return self
 
 class InvoiceUpdate(BaseModel):
     """Schema for updating an invoice"""
@@ -53,5 +59,8 @@ class InvoiceResponse(BaseModel):
     payment_date: Optional[datetime]
     prescription_id: Optional[str]
     sales_order_id: Optional[str]
+    appointment_id: Optional[str] = None
+    notes: Optional[str] = None
     created_by: str
     created_at: datetime
+    updated_at: Optional[datetime] = None
