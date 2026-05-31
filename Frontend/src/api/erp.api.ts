@@ -79,7 +79,7 @@ export const inventoryMovementsApi = {
 }
 
 export const auditLogsApi = {
-  getAll: async (params?: { page?: number; page_size?: number; user_id?: string; entity_type?: string }) => {
+  getAll: async (params?: { page?: number; page_size?: number; user_id?: string; entity_type?: string; entity_id?: string }) => {
     const response = await axiosInstance.get<PaginatedResponse<AuditLog>>('/audit-logs', { params })
     return response.data
   },

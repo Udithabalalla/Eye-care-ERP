@@ -537,7 +537,7 @@ const mapDraftToFormValues = (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
+const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: string; reorderFromId?: string }) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
@@ -548,6 +548,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [freshMatchedPatient, setFreshMatchedPatient] = useState<Patient | null>(null)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [localDraftRestored, setLocalDraftRestored] = useState(false)
+  const [showLocalDraftBanner, setShowLocalDraftBanner] = useState(false)
+
+  // localStorage auto-save key — scoped to new orders only (not drafts or reorders)
+  const LOCAL_DRAFT_KEY = 'so_intake_local_draft'
 
   // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
@@ -625,6 +630,29 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [isFormDirty])
+
+  // Auto-save to localStorage on every step advance (new orders only)
+  useEffect(() => {
+    if (draftOrderId || reorderFromId || savedOrderNumber) return
+    if (!isFormDirty) return
+    try {
+      localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({ values: getValues(), savedAt: new Date().toISOString() }))
+    } catch { /* storage full — ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep])
+
+  // On mount check for a saved local draft (only for brand-new SO flows)
+  useEffect(() => {
+    if (draftOrderId || reorderFromId || localDraftRestored) return
+    try {
+      const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed?.values?.patient?.newData?.fullName) setShowLocalDraftBanner(true)
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleLeaveConfirm = () => {
     setShowLeaveDialog(false)
@@ -834,6 +862,56 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
+  // Reorder pre-fill — load original order and copy patient + items into a fresh form
+  const { data: reorderSource, isLoading: isLoadingReorder } = useQuery({
+    queryKey: ['sales-order-reorder-source', reorderFromId],
+    queryFn: () => salesOrdersApi.getById(reorderFromId!),
+    enabled: !!reorderFromId,
+    staleTime: Infinity,
+  })
+  const { data: reorderPatient } = useQuery({
+    queryKey: ['patient', reorderSource?.patient_id],
+    queryFn: () => patientsApi.getById(reorderSource!.patient_id),
+    enabled: !!reorderSource?.patient_id,
+    staleTime: Infinity,
+  })
+  const reorderLoaded = !!reorderSource && !!reorderPatient
+  useEffect(() => {
+    if (!reorderLoaded) return
+    const src = reorderSource
+    const pat = reorderPatient!
+    const frameItem = src.items.find((i) => i.line_type === 'frame' || i.line_type === 'product')
+    const lensItem  = src.items.find((i) => i.line_type === 'lens')
+    const expItems  = src.items.filter((i) => i.line_type === 'expense')
+    reset({
+      ...defaultValues,
+      patient: {
+        existingId: pat.patient_id,
+        newData: { fullName: pat.name, email: pat.email || '', phone: pat.phone, age: pat.age, gender: pat.gender as any, address: formatAddress(pat) },
+      },
+      frame: frameItem ? {
+        selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
+        color: '', size: '', frameId: frameItem.sku || '', total: frameItem.unit_price,
+      } : defaultValues.frame,
+      lens: lensItem ? {
+        selectionId: lensItem.master_data_id || '', lensType: lensItem.product_name || '',
+        color: '', size: '', lensId: lensItem.sku || '', total: lensItem.unit_price,
+      } : defaultValues.lens,
+      expenses: expItems.map((e) => ({
+        expenseTypeId: e.master_data_id || e.product_id || '',
+        expenseTypeName: e.product_name || '',
+        qty: e.quantity, unitCost: e.unit_price, discount: 0, total: e.total,
+      })),
+      salesOrder: { ...defaultValues.salesOrder, isOld: false },
+    }, { keepDirty: false })
+    // Try to restore the frame variant if it was one
+    if (frameItem?.frame_variant_id) {
+      setFrameSource('variant')
+      frameVariantsApi.getById(frameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reorderLoaded])
+
   // Mutations
   const createPatientMutation = useMutation({ mutationFn: (p: Parameters<typeof patientsApi.create>[0]) => patientsApi.create(p) })
   const createPrescriptionMutation = useMutation({ mutationFn: (p: Parameters<typeof prescriptionsApi.create>[0]) => prescriptionsApi.create(p) })
@@ -983,7 +1061,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
-  const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0) }
+  const handleReset = () => {
+    localStorage.removeItem(LOCAL_DRAFT_KEY)
+    reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
+  }
 
   const handleSubmitClick = async () => {
     const isValid = await trigger()
@@ -1180,6 +1261,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       const savedOrder = draftOrderId
         ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'created' } })
         : await createSalesOrderMutation.mutateAsync(orderPayload)
+      localStorage.removeItem(LOCAL_DRAFT_KEY)
       setSavedOrderNumber(savedOrder.order_number)
       setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
@@ -1216,10 +1298,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     }
   }
 
-  if (isLoadingProducts || (draftOrderId && isLoadingDraft)) {
+  if (isLoadingProducts || (draftOrderId && isLoadingDraft) || (reorderFromId && isLoadingReorder)) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center rounded-lg border border-border bg-card">
-        <Loading text={isLoadingDraft ? 'Loading draft order...' : 'Loading sales order masters...'} />
+        <Loading text={isLoadingDraft ? 'Loading draft order...' : isLoadingReorder ? 'Loading order for reorder...' : 'Loading sales order masters...'} />
       </div>
     )
   }
@@ -1333,6 +1415,44 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                 Complete all steps and click "Create Order" to confirm this order and generate an invoice.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Local draft restore banner */}
+        {showLocalDraftBanner && !localDraftRestored && (
+          <div className="flex items-center justify-between rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 dark:border-blue-700 dark:bg-blue-950/30">
+            <div className="flex items-center gap-3">
+              <RiSaveLine className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Unsaved progress found</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">You have an unfinished order from a previous session.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                type="button" variant="outline" size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300"
+                onClick={() => {
+                  try {
+                    const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
+                    if (saved) {
+                      const parsed = JSON.parse(saved)
+                      reset(parsed.values, { keepDirty: true })
+                      setLocalDraftRestored(true)
+                      setShowLocalDraftBanner(false)
+                    }
+                  } catch { setShowLocalDraftBanner(false) }
+                }}
+              >
+                Restore
+              </Button>
+              <Button
+                type="button" variant="ghost" size="sm" className="text-blue-600"
+                onClick={() => { localStorage.removeItem(LOCAL_DRAFT_KEY); setShowLocalDraftBanner(false) }}
+              >
+                Discard
+              </Button>
             </div>
           </div>
         )}

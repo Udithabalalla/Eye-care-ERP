@@ -4,6 +4,48 @@ import {
   RiAddLine, RiEditLine, RiDeleteBinLine, RiPrinterLine,
   RiSearchLine, RiQrCodeLine, RiAlertLine, RiFilterLine,
 } from '@remixicon/react'
+import { frameVariantsApi as _fvApi } from '@/api/frames.api'
+import type { FrameVariant as _FV } from '@/types/frames.types'
+import { formatCurrency as _fc } from '@/utils/formatters'
+
+function printFrameLabel(variant: _FV) {
+  const barcodeUrl = _fvApi.getBarcodeUrl(variant.variant_id)
+  const price = _fc(variant.selling_price)
+  const title = `${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`
+  const sub = `${variant.color} · Size ${variant.eye_size} · ${variant.rim_type}`
+
+  const win = window.open('', '_blank', 'width=400,height=300')
+  if (!win) { return }
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Label — ${variant.sku}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+  .label { border:1px solid #ccc; border-radius:6px; padding:12px 16px; width:240px; text-align:center; }
+  .brand { font-size:13px; font-weight:700; }
+  .sub { font-size:10px; color:#555; margin-top:2px; }
+  .barcode { margin:8px auto 4px; max-width:200px; }
+  .barcode img { width:100%; }
+  .sku { font-family:monospace; font-size:9px; color:#888; }
+  .price { font-size:16px; font-weight:800; margin-top:4px; }
+  @media print { body { margin:0; } .label { border:none; } }
+</style>
+</head>
+<body>
+<div class="label">
+  <div class="brand">${title}</div>
+  <div class="sub">${sub}</div>
+  <div class="barcode"><img src="${barcodeUrl}" alt="barcode" onload="window.print()" onerror="window.print()"/></div>
+  <div class="sku">${variant.sku}</div>
+  <div class="price">${price}</div>
+</div>
+</body>
+</html>`)
+  win.document.close()
+}
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -289,14 +331,7 @@ export default function FrameVariants() {
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost" size="sm"
-                                    onClick={async () => {
-                                      try {
-                                        const pdf = await frameVariantsApi.getLabelPdf(v.variant_id, 'frame_tag')
-                                        const url = URL.createObjectURL(pdf)
-                                        window.open(url, '_blank')
-                                        setTimeout(() => URL.revokeObjectURL(url), 100)
-                                      } catch { toast.error('Label error') }
-                                    }}
+                                    onClick={() => printFrameLabel(v)}
                                   >
                                     <RiPrinterLine className="size-3.5" />
                                   </Button>

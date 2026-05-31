@@ -87,12 +87,25 @@ export function SalesOrderWorkflowActions({
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
       salesOrdersApi.updateStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey })
+      await queryClient.cancelQueries({ queryKey: ['sales-orders'] })
+      const previousData = queryClient.getQueryData(queryKey)
+      queryClient.setQueriesData({ queryKey: ['sales-orders'] }, (old: any) => {
+        if (!old?.data) return old
+        return { ...old, data: old.data.map((o: SalesOrder) => o.order_id === id ? { ...o, status } : o) }
+      })
+      queryClient.setQueryData(['sales-order', id], (old: any) => old ? { ...old, status } : old)
+      return { previousData }
+    },
+    onError: (error: any, _vars, context: any) => {
+      if (context?.previousData) queryClient.setQueryData(queryKey, context.previousData)
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      toast.error(error?.response?.data?.detail || 'Status update failed')
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.detail || 'Status update failed')
     },
   })
 

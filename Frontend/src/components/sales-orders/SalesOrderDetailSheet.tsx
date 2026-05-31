@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { salesOrdersApi } from '@/api/erp.api'
+import { salesOrdersApi, auditLogsApi } from '@/api/erp.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
+import { AuditLog } from '@/types/erp.types'
 import { SalesOrderStatus } from '@/types/erp.types'
 import { Prescription } from '@/types/prescription.types'
 import {
@@ -29,6 +30,8 @@ import {
   RiStickyNoteLine,
   RiEyeLine,
   RiMoneyDollarCircleLine,
+  RiRefreshLine,
+  RiHistoryLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -80,15 +83,37 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     staleTime: 0,
   })
 
+  // Audit trail for this order
+  const { data: auditData } = useQuery({
+    queryKey: ['audit-logs', 'sales-order', orderId],
+    queryFn: () => auditLogsApi.getAll({ page: 1, page_size: 50, entity_type: 'sales_order', entity_id: orderId! }),
+    enabled: open && !!orderId,
+    staleTime: 30_000,
+  })
+  const auditLogs = auditData?.data ?? []
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
       salesOrdersApi.updateStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['sales-order', id] })
+      const previous = queryClient.getQueryData(['sales-order', id])
+      queryClient.setQueryData(['sales-order', id], (old: any) => old ? { ...old, status } : old)
+      queryClient.setQueriesData({ queryKey: ['sales-orders'] }, (old: any) => {
+        if (!old?.data) return old
+        return { ...old, data: old.data.map((o: any) => o.order_id === id ? { ...o, status } : o) }
+      })
+      return { previous }
+    },
+    onError: (error: any, { id }, context: any) => {
+      if (context?.previous) queryClient.setQueryData(['sales-order', id], context.previous)
+      queryClient.invalidateQueries({ queryKey: ['sales-order', id] })
+      toast.error(error?.response?.data?.detail || 'Status update failed')
+    },
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
       queryClient.invalidateQueries({ queryKey: ['sales-order', id] })
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.detail || 'Status update failed')
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-ready-count'] })
     },
   })
 
@@ -304,6 +329,13 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                 createdBy={order.created_by}
               />
             </Section>
+
+            {/* Audit trail */}
+            {auditLogs.length > 0 && (
+              <Section icon={RiHistoryLine} title="Audit Trail">
+                <AuditTrail logs={auditLogs} />
+              </Section>
+            )}
           </div>}
         </div>
 
@@ -400,6 +432,17 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
             >
               <RiFileEditLine className="size-4" />
               Edit Order
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 gap-1.5"
+              onClick={() => {
+                onOpenChange(false)
+                navigate(`/sales-orders/assistant?reorder=${order?.order_id}`)
+              }}
+            >
+              <RiRefreshLine className="size-4" />
+              Reorder
             </Button>
             {order?.invoice_id && (
               <Button
@@ -522,6 +565,42 @@ function EyeRow({
       <td className="py-2 px-2 tabular-nums">{eye.add !== 0 ? fmt(eye.add) : '—'}</td>
       <td className="py-2 px-2 tabular-nums">{eye.pupillary_distance || '—'}</td>
     </tr>
+  )
+}
+
+// ── Audit Trail ───────────────────────────────────────────────────────────────
+
+function AuditTrail({ logs }: { logs: AuditLog[] }) {
+  return (
+    <div className="space-y-2">
+      {logs.map((log) => {
+        const action = log.action.replace(/_/g, ' ').toLowerCase()
+        return (
+          <div key={log.log_id} className="flex items-start gap-2.5 text-xs">
+            <div className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mt-1.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-medium text-foreground capitalize">{action}</span>
+                {log.user_id && (
+                  <span className="text-muted-foreground">by <span className="font-mono text-[10px]">{log.user_id}</span></span>
+                )}
+              </div>
+              <p className="text-muted-foreground/70 mt-0.5">
+                {log.timestamp ? new Date(log.timestamp).toLocaleString() : new Date(log.created_at).toLocaleString()}
+              </p>
+              {log.new_value != null && typeof log.new_value === 'object' && (() => {
+                const str = JSON.stringify(log.new_value as Record<string, unknown>)
+                return (
+                  <div className="mt-1 rounded border border-border/50 bg-muted/30 px-2 py-1 font-mono text-[10px] text-muted-foreground overflow-hidden">
+                    {str.slice(0, 120)}{str.length > 120 ? '…' : ''}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
