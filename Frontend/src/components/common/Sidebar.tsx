@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   RiHomeLine,
   RiTeamLine,
@@ -190,19 +190,46 @@ const AppSidebar = () => {
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [draftOrder, setDraftOrder] = useState<string[]>([])
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    ALL_SECTIONS.reduce<Record<string, boolean>>((acc, section) => {
-      if (section.title) acc[section.title] = true
-      return acc
-    }, {})
-  )
+  // Derive which section contains the active route so we can auto-expand it
+  const activeSectionId = useMemo(() => {
+    for (const s of ALL_SECTIONS) {
+      for (const item of s.items) {
+        if (item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)) return s.id
+        if (item.children?.some((c) => location.pathname.startsWith(c.path))) return s.id
+      }
+    }
+    return null
+  }, [location.pathname])
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const s of ALL_SECTIONS) {
+      if (s.title) {
+        // auto-expand section containing the current route; collapse others
+        const hasActive = s.items.some((item) => {
+          if (item.path === '/') return location.pathname === '/'
+          if (location.pathname.startsWith(item.path)) return true
+          return item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false
+        })
+        initial[s.id] = hasActive
+      }
+    }
+    return initial
+  })
+
+  // Auto-expand section when navigating into it from somewhere else
+  useEffect(() => {
+    if (activeSectionId) {
+      setOpenGroups((prev) => prev[activeSectionId] ? prev : { ...prev, [activeSectionId]: true })
+    }
+  }, [activeSectionId])
 
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
     'Basic Data': true,
   })
 
-  const toggleGroup = (title: string) =>
-    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }))
+  const toggleGroup = (id: string) =>
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
   const toggleSubMenu = (name: string) =>
     setOpenSubMenus((prev) => ({ ...prev, [name]: !prev[name] }))
@@ -299,13 +326,21 @@ const AppSidebar = () => {
             <SidebarGroup key={sectionIdx}>
               {section.title && (
                 <Collapsible
-                  open={openGroups[section.title]}
-                  onOpenChange={() => toggleGroup(section.title!)}
+                  open={!!openGroups[section.id]}
+                  onOpenChange={() => toggleGroup(section.id)}
                 >
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className="flex w-full cursor-pointer items-center justify-between hover:text-foreground transition-colors group/label">
+                    <SidebarGroupLabel
+                      className={`flex w-full cursor-pointer items-center justify-between transition-colors select-none
+                        ${openGroups[section.id]
+                          ? 'text-foreground/70 hover:text-foreground'
+                          : 'text-muted-foreground/50 hover:text-muted-foreground'
+                        }`}
+                    >
                       {section.title}
-                      <RiArrowDownSLine className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/label:rotate-180" />
+                      <RiArrowDownSLine
+                        className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${openGroups[section.id] ? 'rotate-180' : ''}`}
+                      />
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
