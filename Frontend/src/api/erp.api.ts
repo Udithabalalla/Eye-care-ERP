@@ -72,14 +72,14 @@ export const paymentsApi = {
 }
 
 export const inventoryMovementsApi = {
-  getAll: async (params?: { page?: number; page_size?: number; product_id?: string; reference_type?: LedgerReferenceType | ''; movement_type?: string }) => {
+  getAll: async (params?: { page?: number; page_size?: number; product_id?: string; variant_id?: string; reference_type?: LedgerReferenceType | ''; movement_type?: string | '' }) => {
     const response = await axiosInstance.get<PaginatedResponse<InventoryMovement>>('/inventory-movements', { params })
     return response.data
   },
 }
 
 export const auditLogsApi = {
-  getAll: async (params?: { page?: number; page_size?: number; user_id?: string; entity_type?: string }) => {
+  getAll: async (params?: { page?: number; page_size?: number; user_id?: string; entity_type?: string; entity_id?: string }) => {
     const response = await axiosInstance.get<PaginatedResponse<AuditLog>>('/audit-logs', { params })
     return response.data
   },

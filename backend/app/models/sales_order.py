@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
+SaleLocation = Literal["institute", "clinic"]
+
 from app.models.common import TimestampModel
 from app.utils.constants import SalesOrderStatus
 
@@ -23,7 +25,7 @@ class SalesOrderItemModel(BaseModel):
     total: float = Field(..., ge=0)
     master_data_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
-    line_type: Literal["product", "lens", "expense", "complimentary", "frame"] = "product"
+    line_type: Literal["product", "frame", "lens", "expense", "complimentary"] = "product"
     track_stock: bool = True
 
 
@@ -42,6 +44,7 @@ class SalesOrderModel(TimestampModel):
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus = Field(default=SalesOrderStatus.DRAFT)
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)
     created_by: str

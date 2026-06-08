@@ -45,12 +45,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function VariantHistoryDrawer({ open, onClose, variant }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ['variant-movements', variant?.variant_id],
-    queryFn: () => inventoryMovementsApi.getAll({ page: 1, page_size: 50 }),
+    queryFn: () => inventoryMovementsApi.getAll({ product_id: variant!.variant_id, page: 1, page_size: 100 }),
     enabled: open && !!variant,
     staleTime: 10_000,
   })
 
-  const rows = (data?.data ?? []).filter((m) => m.variant_id === variant?.variant_id)
+  const rows = data?.data ?? []
 
   if (!variant) return null
 

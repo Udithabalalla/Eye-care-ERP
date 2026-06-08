@@ -13,8 +13,10 @@ router = APIRouter()
 
 
 @router.get("", response_model=PaginatedResponse[InventoryMovementResponse])
-async def list_inventory_movements(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=500), product_id: Optional[str] = None, reference_type: Optional[str] = None, movement_type: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
-    return await InventoryMovementService(db).list_movements(page, page_size, product_id, reference_type, movement_type)
+async def list_inventory_movements(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), product_id: Optional[str] = None, variant_id: Optional[str] = None, reference_type: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    # variant_id is an alias for product_id — frame variant IDs are stored as product_id on movements
+    resolved_product_id = product_id or variant_id
+    return await InventoryMovementService(db).list_movements(page, page_size, resolved_product_id, reference_type)
 
 
 @router.post("", response_model=ResponseModel[InventoryMovementResponse])

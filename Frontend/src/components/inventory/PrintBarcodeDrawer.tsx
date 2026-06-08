@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RiPrinterLine, RiLoader4Line, RiBox3Line, RiQrCodeLine } from '@remixicon/react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import toast from 'react-hot-toast'
 import { frameVariantsApi } from '@/api/frames.api'
+import { axiosInstance } from '@/api/axios'
 import { FrameVariant } from '@/types/frames.types'
 
 interface Props {
@@ -46,6 +47,19 @@ export function PrintBarcodeDrawer({ open, onClose, variant }: Props) {
   const [labelType, setLabelType] = useState('frame_tag')
   const [copies, setCopies] = useState('1')
   const [isPrinting, setIsPrinting] = useState(false)
+  const [barcodeObjectUrl, setBarcodeObjectUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !variant) { setBarcodeObjectUrl(null); return }
+    let cancelled = false
+    axiosInstance.get<Blob>(`/frame-variants/${variant.variant_id}/barcode`, { responseType: 'blob' })
+      .then((res) => {
+        if (cancelled) return
+        setBarcodeObjectUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(res.data) })
+      })
+      .catch(() => { if (!cancelled) setBarcodeObjectUrl(null) })
+    return () => { cancelled = true }
+  }, [open, variant?.variant_id])
 
   const handlePrint = async () => {
     if (!variant) return
@@ -64,8 +78,6 @@ export function PrintBarcodeDrawer({ open, onClose, variant }: Props) {
   }
 
   if (!variant) return null
-
-  const barcodeUrl = frameVariantsApi.getBarcodeUrl(variant.variant_id)
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -96,12 +108,13 @@ export function PrintBarcodeDrawer({ open, onClose, variant }: Props) {
 
             <Section icon={RiQrCodeLine} title="Barcode Preview">
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 p-6 bg-muted/20">
-                <img
-                  src={barcodeUrl}
-                  alt={variant.sku}
-                  className="max-h-20 object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
+                {barcodeObjectUrl && (
+                  <img
+                    src={barcodeObjectUrl}
+                    alt={variant.sku}
+                    className="max-h-20 object-contain"
+                  />
+                )}
                 <p className="font-mono text-sm font-medium tracking-wider">{variant.sku}</p>
               </div>
             </Section>

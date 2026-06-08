@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   RiAddLine, RiEditLine, RiDeleteBinLine, RiPrinterLine,
   RiSearchLine, RiQrCodeLine, RiFilterLine,
-  RiArrowDownSLine, RiArrowRightSLine, RiGridLine, RiBox3Line,
+  RiArrowRightSLine, RiGridLine, RiBox3Line,
   RiStackLine, RiArrowDownCircleLine, RiEqualizer2Line, RiHistoryLine,
   RiAlertLine, RiCloseLine, RiMore2Line,
 } from '@remixicon/react'
@@ -33,7 +33,7 @@ import { formatCurrency } from '@/utils/formatters'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
-import { ReceiveStockDrawer } from '@/components/inventory/ReceiveStockDrawer'
+import { CreatePODrawer } from '@/components/inventory/CreatePODrawer'
 import { AdjustStockDrawer } from '@/components/inventory/AdjustStockDrawer'
 import { PrintBarcodeDrawer } from '@/components/inventory/PrintBarcodeDrawer'
 import { VariantHistoryDrawer } from '@/components/inventory/VariantHistoryDrawer'
@@ -112,8 +112,23 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
     )
   }
 
+  const subHeaderCls = 'py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50'
+
   return (
     <>
+      {/* Variant column sub-header */}
+      <TableRow className="border-b border-border/20 bg-muted/5 hover:bg-muted/5">
+        <TableCell className={`${subHeaderCls} w-10`} />
+        <TableCell className={`${subHeaderCls} pl-8`}>Color</TableCell>
+        <TableCell className={subHeaderCls}>Rim Type</TableCell>
+        <TableCell className={subHeaderCls}>Eye Size</TableCell>
+        <TableCell className={subHeaderCls}>Arm Length</TableCell>
+        <TableCell className={subHeaderCls}>SKU</TableCell>
+        <TableCell className={subHeaderCls}>Stock</TableCell>
+        <TableCell className={`${subHeaderCls} text-right`}>Price</TableCell>
+        <TableCell colSpan={2} />
+      </TableRow>
+
       {variants.map((v, i) => {
         const isLast = i === variants.length - 1
         return (
@@ -123,9 +138,7 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
           >
             {/* Tree connector + checkbox */}
             <TableCell className="py-0 w-10 p-0 relative" onClick={(e) => e.stopPropagation()}>
-              {/* vertical spine */}
               <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
-              {/* horizontal arm */}
               <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
               <div className="flex items-center justify-center h-full py-2.5 relative z-10">
                 <Checkbox
@@ -136,29 +149,47 @@ function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDel
               </div>
             </TableCell>
 
-            {/* Variant color / label — indented */}
-            <TableCell className="py-2.5 pl-3" colSpan={2}>
-              <div className="flex items-center gap-2.5">
+            {/* Color */}
+            <TableCell className="py-2.5 pl-3">
+              <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
-                <div>
-                  <p className="font-medium text-sm leading-tight">{v.color}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">eye {v.eye_size}mm · {v.rim_type}</p>
-                </div>
+                <span className="text-sm font-medium">{v.color}</span>
               </div>
             </TableCell>
 
-            {/* SKU */}
-            <TableCell className="py-2.5 font-mono text-xs text-muted-foreground/80">{v.sku}</TableCell>
+            {/* Rim Type */}
+            <TableCell className="py-2.5 text-sm capitalize text-muted-foreground">{v.rim_type}</TableCell>
 
-            {/* empty (Variants col) */}
-            <TableCell className="py-2.5" />
-
-            {/* Stock */}
-            <TableCell className="py-2.5">
-              <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
+            {/* Eye Size */}
+            <TableCell className="py-2.5 text-sm tabular-nums">
+              {v.eye_size}<span className="text-xs text-muted-foreground ml-0.5">mm</span>
             </TableCell>
 
-            {/* Price — always visible, never swapped out */}
+            {/* Arm Length (temple_length) */}
+            <TableCell className="py-2.5 text-sm tabular-nums">
+              {v.temple_length
+                ? <>{v.temple_length}<span className="text-xs text-muted-foreground ml-0.5">mm</span></>
+                : <span className="text-muted-foreground/40">—</span>}
+            </TableCell>
+
+            {/* SKU */}
+            <TableCell className="py-2.5">
+              <span className="font-mono text-xs text-muted-foreground/70">{v.sku}</span>
+            </TableCell>
+
+            {/* Stock / Sale Location */}
+            <TableCell className="py-2.5">
+              <div className="flex items-center gap-1.5">
+                <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
+                {v.current_stock === 0 && v.sale_location && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize border-muted-foreground/30 text-muted-foreground">
+                    {v.sale_location === 'institute' ? 'Institute' : 'Clinic'}
+                  </Badge>
+                )}
+              </div>
+            </TableCell>
+
+            {/* Selling Price */}
             <TableCell className="py-2.5 text-right tabular-nums font-medium text-sm">
               {formatCurrency(v.selling_price)}
             </TableCell>
@@ -613,7 +644,7 @@ export default function FramesWorkspace() {
                       <TableHead>Brand / Model</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Material / Gender</TableHead>
-                      <TableHead>SKU / Color</TableHead>
+                      <TableHead>Rim Type</TableHead>
                       <TableHead>Variants</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead className="text-right">Price</TableHead>
@@ -630,18 +661,16 @@ export default function FramesWorkspace() {
                           {/* Master row */}
                           <TableRow
                             key={m.frame_master_id}
-                            className={`cursor-pointer transition-colors ${isExpanded ? 'border-b-0' : ''} ${isSelected ? 'bg-primary/[0.04] hover:bg-primary/[0.07]' : 'hover:bg-muted/30'}`}
+                            className={`cursor-pointer transition-colors border-l-[3px] ${isExpanded ? 'border-b-0 border-l-primary bg-muted/40 hover:bg-muted/50' : 'border-l-transparent bg-muted/20 hover:bg-muted/30'}`}
                             onClick={() => toggleRow(m.frame_master_id)}
                           >
-                            <TableCell className="py-2.5 w-10">
-                              {isExpanded
-                                ? <RiArrowDownSLine className="size-4 text-muted-foreground" />
-                                : <RiArrowRightSLine className="size-4 text-muted-foreground" />}
+                            <TableCell className="py-3.5 w-10">
+                              <RiArrowRightSLine className={`size-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                             </TableCell>
-                            <TableCell className="py-2.5">
+                            <TableCell className="py-3.5">
                               <div>
-                                <p className="font-semibold">{m.brand} {m.model_code}</p>
-                                <p className="text-xs text-muted-foreground">{m.frame_name}</p>
+                                <p className="font-bold tracking-tight text-foreground">{m.brand} <span className="font-semibold text-muted-foreground">{m.model_code}</span></p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{m.frame_name}</p>
                               </div>
                             </TableCell>
                             <TableCell className="py-2.5">
@@ -862,7 +891,7 @@ export default function FramesWorkspace() {
                   </FormItem>
                 )} />
                 <FormField control={variantForm.control} name="bridge_size" render={({ field }) => (
-                  <FormItem><FormLabel>Bridge Size</FormLabel><FormControl><Input type="number" {...field} placeholder="18" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Arm Length</FormLabel><FormControl><Input type="number" {...field} placeholder="18" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={variantForm.control} name="cost_price" render={({ field }) => (
                   <FormItem><FormLabel>Cost Price *</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
@@ -889,10 +918,10 @@ export default function FramesWorkspace() {
       </Dialog>
 
       {/* ── Side Drawers ───────────────────────────────────────────────────── */}
-      <ReceiveStockDrawer
+      <CreatePODrawer
         open={receiveOpen}
         onClose={() => { setReceiveOpen(false) }}
-        variant={drawerVariant}
+        subject={drawerVariant ? { kind: 'variant', item: drawerVariant } : null}
       />
       <AdjustStockDrawer
         open={adjustOpen}

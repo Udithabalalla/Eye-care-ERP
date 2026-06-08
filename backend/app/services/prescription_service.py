@@ -86,9 +86,11 @@ class PrescriptionService:
         next_number = await self.prescription_repo.get_next_prescription_number()
         prescription_id = generate_id("PRE", next_number)
         
-        # Convert dates to datetime
+        # Convert dates to datetime; default valid_until to 1 year after prescription date
+        from datetime import timedelta
         prescription_date_dt = date_to_datetime(prescription_data.prescription_date)
-        valid_until_dt = date_to_datetime(prescription_data.valid_until)
+        valid_until_date = prescription_data.valid_until or (prescription_data.prescription_date + timedelta(days=365))
+        valid_until_dt = date_to_datetime(valid_until_date)
         
         # Create prescription model
         prescription_model = PrescriptionModel(

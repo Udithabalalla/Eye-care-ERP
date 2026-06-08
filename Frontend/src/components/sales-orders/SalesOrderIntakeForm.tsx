@@ -124,7 +124,7 @@ const salesOrderIntakeSchema = z
       existingId: z.string().optional().default(''),
       newData: z.object({
         fullName: z.string().min(2, 'Full name is required'),
-        email: z.string().email('Invalid email address').optional().default(''),
+        email: z.union([z.literal(''), z.string().email('Invalid email address')]).optional().default(''),
         phone: z.string().min(10, 'Phone is required'),
         age: optionalNumber(),
         gender: z.nativeEnum(Gender).optional(),
@@ -176,6 +176,7 @@ const salesOrderIntakeSchema = z
       invoiceNumber: z.string().optional().default(''),
     }),
     remarks: z.string().optional().default(''),
+    saleLocation: z.enum(['institute', 'clinic']).optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.patient.existingId && !value.patient.newData.gender) {
@@ -187,12 +188,7 @@ const salesOrderIntakeSchema = z
     }
     if (!value.salesOrder.isOld) {
       // Frame validation is handled in onSubmit (variant or catalog)
-      if (!value.frame.selectionId && !value.frame.model.trim() && !value.frame.barcode.trim()) {
-        // allow — variant picker sets selectionId; we validate in onSubmit
-      }
-      if (!value.lens.selectionId && !value.lens.lensType.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lens selection is required', path: ['lens', 'selectionId'] })
-      }
+      // Lens is optional — frame only = half order, frame + lens = full order
     }
   })
 
@@ -386,6 +382,7 @@ const defaultValues: SalesOrderIntakeValues = {
   expenses: [],
   totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
+  saleLocation: undefined,
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -404,18 +401,18 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
   diagnosis: rx.diagnosis || '',
   notes: rx.notes || '',
   rightEye: {
-    sphere: rx.eye_prescription?.right_eye?.sphere ?? 0,
-    cylinder: rx.eye_prescription?.right_eye?.cylinder ?? 0,
-    axis: rx.eye_prescription?.right_eye?.axis ?? 0,
-    add: rx.eye_prescription?.right_eye?.add ?? 0,
-    pd: rx.eye_prescription?.right_eye?.pupillary_distance ?? 0,
+    sphere: Number(rx.eye_prescription?.right_eye?.sphere ?? 0),
+    cylinder: Number(rx.eye_prescription?.right_eye?.cylinder ?? 0),
+    axis: Number(rx.eye_prescription?.right_eye?.axis ?? 0),
+    add: Number(rx.eye_prescription?.right_eye?.add ?? 0),
+    pd: Number(rx.eye_prescription?.right_eye?.pupillary_distance ?? 0),
   },
   leftEye: {
-    sphere: rx.eye_prescription?.left_eye?.sphere ?? 0,
-    cylinder: rx.eye_prescription?.left_eye?.cylinder ?? 0,
-    axis: rx.eye_prescription?.left_eye?.axis ?? 0,
-    add: rx.eye_prescription?.left_eye?.add ?? 0,
-    pd: rx.eye_prescription?.left_eye?.pupillary_distance ?? 0,
+    sphere: Number(rx.eye_prescription?.left_eye?.sphere ?? 0),
+    cylinder: Number(rx.eye_prescription?.left_eye?.cylinder ?? 0),
+    axis: Number(rx.eye_prescription?.left_eye?.axis ?? 0),
+    add: Number(rx.eye_prescription?.left_eye?.add ?? 0),
+    pd: Number(rx.eye_prescription?.left_eye?.pupillary_distance ?? 0),
   },
 })
 
@@ -534,12 +531,13 @@ const mapDraftToFormValues = (
       invoiceNumber:   '',
     },
     remarks: order.notes || '',
+    saleLocation: (order.sale_location as 'institute' | 'clinic' | undefined) ?? undefined,
   }
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
+const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: string; reorderFromId?: string }) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
@@ -550,6 +548,11 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [freshMatchedPatient, setFreshMatchedPatient] = useState<Patient | null>(null)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [localDraftRestored, setLocalDraftRestored] = useState(false)
+  const [showLocalDraftBanner, setShowLocalDraftBanner] = useState(false)
+
+  // localStorage auto-save key — scoped to new orders only (not drafts or reorders)
+  const LOCAL_DRAFT_KEY = 'so_intake_local_draft'
 
   // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
@@ -594,6 +597,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   const prescription = useWatch({ control, name: 'prescription' })
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
+  const saleLocation = useWatch({ control, name: 'saleLocation' })
 
   useEffect(() => {
     setMaxStepReached((prev) => Math.max(prev, currentStep))
@@ -626,6 +630,29 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [isFormDirty])
+
+  // Auto-save to localStorage on every step advance (new orders only)
+  useEffect(() => {
+    if (draftOrderId || reorderFromId || savedOrderNumber) return
+    if (!isFormDirty) return
+    try {
+      localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({ values: getValues(), savedAt: new Date().toISOString() }))
+    } catch { /* storage full — ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep])
+
+  // On mount check for a saved local draft (only for brand-new SO flows)
+  useEffect(() => {
+    if (draftOrderId || reorderFromId || localDraftRestored) return
+    try {
+      const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed?.values?.patient?.newData?.fullName) setShowLocalDraftBanner(true)
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleLeaveConfirm = () => {
     setShowLeaveDialog(false)
@@ -835,6 +862,56 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
+  // Reorder pre-fill — load original order and copy patient + items into a fresh form
+  const { data: reorderSource, isLoading: isLoadingReorder } = useQuery({
+    queryKey: ['sales-order-reorder-source', reorderFromId],
+    queryFn: () => salesOrdersApi.getById(reorderFromId!),
+    enabled: !!reorderFromId,
+    staleTime: Infinity,
+  })
+  const { data: reorderPatient } = useQuery({
+    queryKey: ['patient', reorderSource?.patient_id],
+    queryFn: () => patientsApi.getById(reorderSource!.patient_id),
+    enabled: !!reorderSource?.patient_id,
+    staleTime: Infinity,
+  })
+  const reorderLoaded = !!reorderSource && !!reorderPatient
+  useEffect(() => {
+    if (!reorderLoaded) return
+    const src = reorderSource
+    const pat = reorderPatient!
+    const frameItem = src.items.find((i) => i.line_type === 'frame' || i.line_type === 'product')
+    const lensItem  = src.items.find((i) => i.line_type === 'lens')
+    const expItems  = src.items.filter((i) => i.line_type === 'expense')
+    reset({
+      ...defaultValues,
+      patient: {
+        existingId: pat.patient_id,
+        newData: { fullName: pat.name, email: pat.email || '', phone: pat.phone, age: pat.age, gender: pat.gender as any, address: formatAddress(pat) },
+      },
+      frame: frameItem ? {
+        selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
+        color: '', size: '', frameId: frameItem.sku || '', total: frameItem.unit_price,
+      } : defaultValues.frame,
+      lens: lensItem ? {
+        selectionId: lensItem.master_data_id || '', lensType: lensItem.product_name || '',
+        color: '', size: '', lensId: lensItem.sku || '', total: lensItem.unit_price,
+      } : defaultValues.lens,
+      expenses: expItems.map((e) => ({
+        expenseTypeId: e.master_data_id || e.product_id || '',
+        expenseTypeName: e.product_name || '',
+        qty: e.quantity, unitCost: e.unit_price, discount: 0, total: e.total,
+      })),
+      salesOrder: { ...defaultValues.salesOrder, isOld: false },
+    }, { keepDirty: false })
+    // Try to restore the frame variant if it was one
+    if (frameItem?.frame_variant_id) {
+      setFrameSource('variant')
+      frameVariantsApi.getById(frameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reorderLoaded])
+
   // Mutations
   const createPatientMutation = useMutation({ mutationFn: (p: Parameters<typeof patientsApi.create>[0]) => patientsApi.create(p) })
   const createPrescriptionMutation = useMutation({ mutationFn: (p: Parameters<typeof prescriptionsApi.create>[0]) => prescriptionsApi.create(p) })
@@ -984,7 +1061,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
-  const handleReset = () => { reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0) }
+  const handleReset = () => {
+    localStorage.removeItem(LOCAL_DRAFT_KEY)
+    reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
+  }
 
   const handleSubmitClick = async () => {
     const isValid = await trigger()
@@ -1066,6 +1146,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         date_of_full_payment: `${values.salesOrder.dateOfFullPayment}T00:00:00Z`,
         notes: values.remarks.trim() || undefined,
         measurements: { order_date: values.salesOrder.orderDate, frame_total: values.frame.total, lens_total: values.lens.total },
+        sale_location: values.saleLocation || undefined,
         status: 'draft' as const,
         items: draftItems,
       })
@@ -1106,7 +1187,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       const frameItem = resolvedFrame
       if (!values.salesOrder.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
-      if (!values.salesOrder.isOld && !lensItem) { toast.error('Lens selection is required'); return }
+      // Lens is optional — frame only = half order, frame + lens = full order
       if (!values.salesOrder.isOld) {
         const invalidExpense = (values.expenses || []).some((e) => !e.expenseTypeId || !expenseMasterData?.data.some((item) => item.id === e.expenseTypeId))
         if (invalidExpense) { toast.error('Expense type must come from master data'); return }
@@ -1172,6 +1253,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
         measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
+        sale_location: values.saleLocation || undefined,
         status: 'created' as const,
         items: itemPayload,
       }
@@ -1179,6 +1261,7 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
       const savedOrder = draftOrderId
         ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'created' } })
         : await createSalesOrderMutation.mutateAsync(orderPayload)
+      localStorage.removeItem(LOCAL_DRAFT_KEY)
       setSavedOrderNumber(savedOrder.order_number)
       setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
@@ -1215,10 +1298,10 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
     }
   }
 
-  if (isLoadingProducts || (draftOrderId && isLoadingDraft)) {
+  if (isLoadingProducts || (draftOrderId && isLoadingDraft) || (reorderFromId && isLoadingReorder)) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center rounded-lg border border-border bg-card">
-        <Loading text={isLoadingDraft ? 'Loading draft order...' : 'Loading sales order masters...'} />
+        <Loading text={isLoadingDraft ? 'Loading draft order...' : isLoadingReorder ? 'Loading order for reorder...' : 'Loading sales order masters...'} />
       </div>
     )
   }
@@ -1336,6 +1419,44 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
           </div>
         )}
 
+        {/* Local draft restore banner */}
+        {showLocalDraftBanner && !localDraftRestored && (
+          <div className="flex items-center justify-between rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 dark:border-blue-700 dark:bg-blue-950/30">
+            <div className="flex items-center gap-3">
+              <RiSaveLine className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Unsaved progress found</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">You have an unfinished order from a previous session.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                type="button" variant="outline" size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300"
+                onClick={() => {
+                  try {
+                    const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
+                    if (saved) {
+                      const parsed = JSON.parse(saved)
+                      reset(parsed.values, { keepDirty: true })
+                      setLocalDraftRestored(true)
+                      setShowLocalDraftBanner(false)
+                    }
+                  } catch { setShowLocalDraftBanner(false) }
+                }}
+              >
+                Restore
+              </Button>
+              <Button
+                type="button" variant="ghost" size="sm" className="text-blue-600"
+                onClick={() => { localStorage.removeItem(LOCAL_DRAFT_KEY); setShowLocalDraftBanner(false) }}
+              >
+                Discard
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Historical record toggle */}
         <div
           className={`flex items-center justify-between rounded-xl border px-4 py-3 cursor-pointer select-none transition-all ${
@@ -1434,6 +1555,31 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                     <Button type="button" variant="ghost" size="sm" onClick={unlinkPatient}>Unlink</Button>
                   </div>
                 )}
+
+                <Separator />
+
+                <div>
+                  <p className="text-sm font-medium mb-3">Sale Location</p>
+                  <div className="flex gap-3">
+                    {(['institute', 'clinic'] as const).map((loc) => {
+                      const isSelected = saleLocation === loc
+                      return (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => setValue('saleLocation', isSelected ? undefined : loc, { shouldDirty: true })}
+                          className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          }`}
+                        >
+                          {loc === 'institute' ? 'Institute' : 'Clinic'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1873,77 +2019,6 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                   </>
                 )}
 
-                <Separator />
-
-                {/* General Inventory */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <RiBox3Line className="size-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold">General Inventory</span>
-                    <span className="text-xs text-muted-foreground">(lenses, drops, accessories...)</span>
-                  </div>
-                  <SearchableLOV
-                    placeholder="Search general inventory…"
-                    value=""
-                    onChange={(value) => {
-                      const product = productData?.data.find((p) => p.product_id === value)
-                      if (!product) return
-                      setGeneralItems((prev) => {
-                        const existing = prev.findIndex((i) => i.productId === value)
-                        if (existing >= 0) {
-                          const next = [...prev]
-                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
-                          return next
-                        }
-                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
-                      })
-                    }}
-                    options={generalInventoryOptions}
-                  />
-                  {generalItems.length > 0 && (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border">
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
-                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
-                            <th className="w-10" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {generalItems.map((item, i) => (
-                            <tr key={item.productId}>
-                              <td className="px-4 py-2.5">
-                                <p className="font-medium text-sm">{item.productName}</p>
-                                <p className="text-xs text-muted-foreground">{item.sku}</p>
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <Input
-                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
-                                  value={item.qty}
-                                  onFocus={(e) => e.target.select()}
-                                  onChange={(e) => {
-                                    const next = [...generalItems]
-                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
-                                    setGeneralItems(next)
-                                  }}
-                                />
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
-                              <td className="px-4 py-2.5 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
-                                  <RiDeleteBin6Line className="size-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
           )}
@@ -2028,70 +2103,86 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
           {/* ── Step 4: Expenses ────────────────────────────────────────────── */}
           {currentStep === 4 && (
             <div className="space-y-4">
+
+              {/* General Inventory Items */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiReceiptLine className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Other Expenses</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiBox3Line className="h-5 w-5 text-primary" />
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
-                      <RiAddLine className="mr-1.5 h-4 w-4" />
-                      Add Expense
-                    </Button>
+                    <div>
+                      <CardTitle>General Inventory Items</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Accessories, drops, solutions and other stocked products</p>
+                    </div>
                   </div>
                 </CardHeader>
                 <Separator />
-                <CardContent className="pt-6">
-                  {expenseFields.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto rounded-lg border border-border">
+                <CardContent className="pt-6 space-y-3">
+                  <SearchableLOV
+                    placeholder="Search general inventory…"
+                    value=""
+                    onChange={(value) => {
+                      const product = productData?.data.find((p) => p.product_id === value)
+                      if (!product) return
+                      setGeneralItems((prev) => {
+                        const existing = prev.findIndex((i) => i.productId === value)
+                        if (existing >= 0) {
+                          const next = [...prev]
+                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
+                          return next
+                        }
+                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
+                      })
+                    }}
+                    options={generalInventoryOptions}
+                  />
+                  {generalItems.length > 0 ? (
+                    <div className="rounded-lg border border-border overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-border bg-muted/50">
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
-                            <th className="w-12" />
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
+                            <th className="w-10" />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                          {expenseFields.map((field, index) => (
-                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-4 py-3">
-                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                          {generalItems.map((item, i) => (
+                            <tr key={item.productId}>
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium text-sm">{item.productName}</p>
+                                <p className="text-xs text-muted-foreground">{item.sku}</p>
                               </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                              <td className="px-4 py-2.5">
+                                <Input
+                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
+                                  value={item.qty}
+                                  onChange={(e) => {
+                                    const next = [...generalItems]
+                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
+                                    setGeneralItems(next)
+                                  }}
+                                />
                               </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
-                              <td className="px-4 py-3 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                                  <RiDeleteBin6Line className="h-4 w-4" />
+                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
+                                  <RiDeleteBin6Line className="size-3.5" />
                                 </Button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center">
+                      <RiBox3Line className="mb-2 h-6 w-6 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No items added</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground/70">Search above to add accessories or supplies</p>
                     </div>
                   )}
                 </CardContent>
@@ -2189,6 +2280,76 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                 </Card>
               )}
 
+              {/* Other Expenses */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <RiReceiptLine className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Other Expenses</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
+                      <RiAddLine className="mr-1.5 h-4 w-4" />
+                      Add Expense
+                    </Button>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-6">
+                  {expenseFields.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
+                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/50">
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
+                            <th className="w-12" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {expenseFields.map((field, index) => (
+                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3">
+                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                  <RiDeleteBin6Line className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader><CardTitle className="text-base">Remarks & Notes</CardTitle></CardHeader>
                 <Separator />
@@ -2269,6 +2430,12 @@ const SalesOrderIntakeForm = ({ draftOrderId }: { draftOrderId?: string }) => {
                 <Separator />
                 <CardContent className="pt-6">
                   <div className="divide-y divide-border">
+                    {saleLocation && (
+                      <div className="flex items-center justify-between py-2.5">
+                        <span className="text-sm text-muted-foreground">Sale Location</span>
+                        <span className="text-sm font-medium capitalize">{saleLocation === 'institute' ? 'Institute' : 'Clinic'}</span>
+                      </div>
+                    )}
                     <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
                     <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
                     <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />

@@ -53,6 +53,8 @@ export interface FrameMasterRef {
   shape?: string
 }
 
+export type SaleLocation = 'institute' | 'clinic'
+
 export interface FrameVariant {
   variant_id: string
   sku: string
@@ -71,6 +73,9 @@ export interface FrameVariant {
   current_stock: number
   reorder_level: number
   supplier_id?: string
+  supplier_frame_no?: string
+  institute_stock_nos?: number[]
+  sale_location?: SaleLocation
   is_active: boolean
   created_at: string
   updated_at: string
@@ -90,6 +95,8 @@ export interface FrameVariantFormData {
   current_stock?: number
   reorder_level?: number
   supplier_id?: string
+  supplier_frame_no?: string
+  institute_stock_nos?: number[]
 }
 
 export interface BulkVariantCreate {
@@ -142,7 +149,8 @@ export interface GoodsReceiptFormData {
 }
 
 export interface QuickIntakeItem {
-  variant_id: string
+  variant_id?: string
+  product_id?: string
   sku: string
   variant_label: string
   qty: number
@@ -167,6 +175,8 @@ export interface QuickIntake {
 
 export interface QuickIntakeFormData {
   supplier_id?: string
+  intake_date?: string
+  reference_no?: string
   items?: Omit<QuickIntakeItem, 'variant_label'>[]
   notes?: string
 }

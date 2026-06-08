@@ -27,6 +27,7 @@ interface SearchableLOVProps {
   error?: string
   disabled?: boolean
   required?: boolean
+  onSearch?: (query: string) => void
 }
 
 const SearchableLOV = ({
@@ -38,6 +39,7 @@ const SearchableLOV = ({
   error,
   disabled = false,
   required = false,
+  onSearch,
 }: SearchableLOVProps) => {
   const [open, setOpen] = useState(false)
 
@@ -101,7 +103,7 @@ const SearchableLOV = ({
 
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search..." />
+            <CommandInput placeholder="Search..." onValueChange={onSearch} />
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
               <CommandGroup>

@@ -17,13 +17,13 @@ import { Badge } from '@/components/ui/badge'
 import toast from 'react-hot-toast'
 import { suppliersApi } from '@/api/suppliers.api'
 import { quickIntakesApi } from '@/api/frames.api'
-import { FrameVariant } from '@/types/frames.types'
+import { Product } from '@/types/product.types'
 import { formatCurrency } from '@/utils/formatters'
 
 interface Props {
   open: boolean
   onClose: () => void
-  variant: FrameVariant | null
+  product: Product | null
   onSuccess?: () => void
 }
 
@@ -58,7 +58,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props) {
+export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Props) {
   const qc = useQueryClient()
   const [qty, setQty] = useState('1')
   const [cost, setCost] = useState('')
@@ -76,14 +76,19 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
   const suppliers = suppliersData?.data ?? []
 
   const qtyNum = parseInt(qty, 10) || 0
-  const effectiveCost = cost !== '' ? parseFloat(cost) : (variant?.cost_price ?? 0)
-  const newTotal = (variant?.current_stock ?? 0) + qtyNum
+  const effectiveCost = cost !== '' ? parseFloat(cost) : (product?.cost_price ?? 0)
+  const newTotal = (product?.current_stock ?? 0) + qtyNum
 
   const isValid = qtyNum >= 1 && effectiveCost >= 0 && !!intakeDate
 
+  const resetForm = () => {
+    setQty('1'); setCost(''); setSupplierId(''); setReferenceNo('')
+    setIntakeDate(today()); setNotes('')
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!variant) throw new Error('No variant selected')
+      if (!product) throw new Error('No product')
       if (qtyNum < 1) throw new Error('Quantity must be at least 1')
       const created = await quickIntakesApi.create({
         supplier_id: supplierId || undefined,
@@ -91,8 +96,8 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
         reference_no: referenceNo || undefined,
         notes: notes || undefined,
         items: [{
-          variant_id: variant.variant_id,
-          sku: variant.sku,
+          product_id: product.product_id,
+          sku: product.sku ?? '',
           qty: qtyNum,
           cost_price: effectiveCost,
         }],
@@ -101,8 +106,7 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
     },
     onSuccess: () => {
       toast.success(`${qty} units received — stock updated`)
-      qc.invalidateQueries({ queryKey: ['frame-variants-for-master'] })
-      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['quick-intakes'] })
       resetForm()
       onSuccess?.()
@@ -111,14 +115,9 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Receive failed'),
   })
 
-  const resetForm = () => {
-    setQty('1'); setCost(''); setSupplierId(''); setReferenceNo('')
-    setIntakeDate(today()); setNotes('')
-  }
-
   const handleClose = () => { resetForm(); onClose() }
 
-  if (!variant) return null
+  if (!product) return null
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -138,21 +137,17 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
         <div className="flex-1 overflow-y-auto">
           <div className="divide-y divide-border">
 
-            {/* Item summary */}
-            <Section icon={RiBox3Line} title="Item">
-              <Row label="Frame">
-                {variant.frame_master_ref?.brand} {variant.frame_master_ref?.model_code}
-              </Row>
-              <Row label="Variant">{variant.color} · {variant.eye_size}mm · <span className="capitalize">{variant.rim_type}</span></Row>
+            <Section icon={RiBox3Line} title="Product">
+              <Row label="Name">{product.name}</Row>
               <Row label="SKU">
-                <Badge variant="outline" className="font-mono text-xs">{variant.sku}</Badge>
+                <Badge variant="outline" className="font-mono text-xs">{product.sku}</Badge>
               </Row>
+              {product.brand && <Row label="Brand">{product.brand}</Row>}
               <Row label="Current Stock">
-                <span className="tabular-nums">{variant.current_stock} units</span>
+                <span className="tabular-nums">{product.current_stock} units</span>
               </Row>
             </Section>
 
-            {/* Receive details */}
             <Section icon={RiArrowDownCircleLine} title="Receive Details">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -175,23 +170,22 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
                     min={0}
                     value={cost}
                     onChange={(e) => setCost(e.target.value)}
-                    placeholder={String(variant.cost_price)}
+                    placeholder={String(product.cost_price)}
                   />
-                  <p className="text-xs text-muted-foreground">Default: {formatCurrency(variant.cost_price)}</p>
+                  <p className="text-xs text-muted-foreground">Default: {formatCurrency(product.cost_price)}</p>
                 </div>
               </div>
               {qtyNum > 0 && (
                 <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
                   <p className="text-xs text-muted-foreground mb-1">After receiving</p>
                   <p className="font-semibold text-lg tabular-nums">
-                    {variant.current_stock} + {qtyNum} ={' '}
+                    {product.current_stock} + {qtyNum} ={' '}
                     <span className="text-green-600 dark:text-green-400">{newTotal} units</span>
                   </p>
                 </div>
               )}
             </Section>
 
-            {/* PO / receipt info */}
             <Section icon={RiCalendarLine} title="Receipt Info">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -214,7 +208,6 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
               </div>
             </Section>
 
-            {/* Supplier */}
             <Section icon={RiTruckLine} title="Supplier">
               <Select value={supplierId || 'none'} onValueChange={(v) => setSupplierId(v === 'none' ? '' : v)}>
                 <SelectTrigger>
@@ -231,7 +224,6 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
               </Select>
             </Section>
 
-            {/* Notes */}
             <Section icon={RiStickyNoteLine} title="Notes">
               <Input
                 value={notes}
@@ -240,7 +232,6 @@ export function ReceiveStockDrawer({ open, onClose, variant, onSuccess }: Props)
               />
             </Section>
 
-            {/* Summary */}
             <Section icon={RiMoneyDollarCircleLine} title="Summary">
               <Row label="Unit Cost">{formatCurrency(effectiveCost)}</Row>
               <Row label="Qty">{qtyNum} units</Row>

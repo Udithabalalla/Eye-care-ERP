@@ -29,12 +29,12 @@ DB_NAME   = os.getenv("MONGODB_DB_NAME", "eyecare_erp")
 # ─── PDF data ──────────────────────────────────────────────────────────────────
 # (supplier_code, institute_stock_no, brand, model_code, temple, color, rim, eye_size, selling_price, sold_location)
 ROWS = [
-    ("Neat", 1247, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "institute"),
-    ("Neat", 1248, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  None),
-    ("Neat", 1249, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "clinic"),
-    ("Neat", 1250, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "clinic"),
-    ("Neat", 1251, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  None),
-    ("Neat", 1252, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "institute"),
+    ("N",    1247, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "institute"),
+    ("N",    1248, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  None),
+    ("N",    1249, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "clinic"),
+    ("N",    1250, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "clinic"),
+    ("N",    1251, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  None),
+    ("N",    1252, "2 Star",         "2236",  138, "Brown",   "full", 51, 4000,  "institute"),
     ("SI",   1253, "Dior",           "9525",  142, "Black",   "full", 52, 10000, None),
     ("SI",   1254, "Dior",           "9525",  142, "Merun",   "full", 52, 10000, "institute"),
     ("SI",   1255, "Ray Ban",        "9880",  143, "Black",   "full", 52, 10000, None),
@@ -109,6 +109,7 @@ ROWS = [
 ]
 
 SUPPLIER_DEFS = {
+    "N":    {"supplier_name": "Nilan",      "company_name": "Nilan Opticals"},
     "SI":   {"supplier_name": "SI Optics",  "company_name": "SI Optics"},
     "Neat": {"supplier_name": "Neat Optics","company_name": "Neat Optics"},
 }
@@ -235,12 +236,13 @@ async def run():
         rim_type    = vd["rim_type"]
         temple      = vd["temple_length"]
         selling     = vd["selling_price"]
-        cost        = round(selling / 6)
+        cost        = round(selling / 6, 2)
         stock_nos   = vd["stock_nos"]
         sold_locs   = vd["sold_locs"]
+        sold_count  = len(sold_locs)
         total_units = len(stock_nos)
-        in_stock    = total_units   # all units added as opening stock; sales recorded separately
-        sale_loc    = Counter(vd["sold_locs"]).most_common(1)[0][0] if vd["sold_locs"] else None
+        in_stock    = max(0, total_units - sold_count)
+        sale_loc    = Counter(sold_locs).most_common(1)[0][0] if sold_locs else None
         sup_code    = vd["sup_code"]
         sup_id      = sup_id_map[sup_code]
         sku         = _sku(brand, model_code, color, eye_size, rim_type)
@@ -328,7 +330,7 @@ async def run():
         items = []
         total = 0.0
         for idx, v in enumerate(variants, start=1):
-            line_total = round(v["cost"] * v["qty"])
+            line_total = round(v["cost"] * v["qty"], 2)
             total += line_total
             items.append({
                 "id": f"{po_id}-{idx:03d}",
@@ -342,7 +344,7 @@ async def run():
                 "line_discount_amount": 0.0,
                 "total_price": line_total,
             })
-        total = round(total)
+        total = round(total, 2)
 
         await db["purchase_orders"].insert_one({
             "id": po_id,
@@ -375,7 +377,7 @@ async def run():
                 "total_amount": total,
             },
             "payment_terms": None,
-            "notes": {"internal_notes": f"Opening stock import from PDF ledger (frames 1247-1323, {sup_name})"},
+            "notes": {"internal_notes": "Opening stock import from PDF ledger (frames 1247-1323)"},
             "authorization": None,
             "footer": None,
             "receipt_summary": None,

@@ -8,20 +8,22 @@ const SalesOrderAssistant = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const draftOrderId = searchParams.get('draft') || undefined
+  const reorderFromId = searchParams.get('reorder') || undefined
+
+  const title = draftOrderId ? 'Continue Draft Order' : reorderFromId ? 'Reorder' : 'Sales Order Assistant'
+  const subtitle = draftOrderId
+    ? 'Pick up where you left off and complete this draft.'
+    : reorderFromId
+      ? 'Pre-filled from a previous order — review and confirm details.'
+      : 'Use the guided assistant to create a new sales order.'
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-background px-5 py-4 shadow-xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              {draftOrderId ? 'Continue Draft Order' : 'Sales Order Assistant'}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {draftOrderId
-                ? 'Pick up where you left off and complete this draft.'
-                : 'Use the guided assistant to create a new sales order.'}
-            </p>
+            <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate('/sales-orders')}>
             <RiArrowLeftSLine className="size-4 mr-1" />
@@ -31,7 +33,7 @@ const SalesOrderAssistant = () => {
       </div>
 
       <ErrorBoundary>
-        <SalesOrderIntakeForm draftOrderId={draftOrderId} />
+        <SalesOrderIntakeForm draftOrderId={draftOrderId} reorderFromId={reorderFromId} />
       </ErrorBoundary>
     </div>
   )

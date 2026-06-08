@@ -145,14 +145,26 @@ const SalesOrders = () => {
   const rowStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
       salesOrdersApi.updateStatus(id, status),
-    onMutate: ({ id }) => setPendingRowId(id),
-    onSettled: () => setPendingRowId(null),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-      setSelectedOrderIds((prev) => prev.filter((sid) => sid !== id))
+    onMutate: async ({ id, status }) => {
+      setPendingRowId(id)
+      await queryClient.cancelQueries({ queryKey: ['sales-orders'] })
+      const previousData = queryClient.getQueryData(['sales-orders', page, pageSize, statusFilter])
+      queryClient.setQueriesData({ queryKey: ['sales-orders'] }, (old: any) => {
+        if (!old?.data) return old
+        return { ...old, data: old.data.map((o: SalesOrder) => o.order_id === id ? { ...o, status } : o) }
+      })
+      return { previousData }
     },
-    onError: (error: any) => {
+    onError: (error: any, _vars, context: any) => {
+      if (context?.previousData) queryClient.setQueryData(['sales-orders', page, pageSize, statusFilter], context.previousData)
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
       toast.error(error?.response?.data?.detail || 'Status update failed')
+    },
+    onSettled: (_data, _err, { id }) => {
+      setPendingRowId(null)
+      setSelectedOrderIds((prev) => prev.filter((sid) => sid !== id))
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-ready-count'] })
     },
   })
 
@@ -174,6 +186,13 @@ const SalesOrders = () => {
     queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 10, status: 'draft' }),
   })
   const drafts = draftsData?.data || []
+
+  const { data: readyCountData } = useQuery({
+    queryKey: ['sales-orders-ready-count'],
+    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 1, status: 'ready' }),
+    refetchInterval: 60_000,
+  })
+  const readyCount = readyCountData?.total ?? 0
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-orders', page, pageSize, statusFilter],
@@ -563,22 +582,35 @@ const SalesOrders = () => {
 
       {/* Lifecycle quick-filter tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {LIFECYCLE_FILTER_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setStatusFilter(tab.id === 'all' ? '' : (tab.id as SalesOrderStatus))
-              setPage(1)
-            }}
-            className={`flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {LIFECYCLE_FILTER_TABS.map((tab) => {
+          const isActive = (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
+          const isReady = tab.id === 'ready'
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setStatusFilter(tab.id === 'all' ? '' : (tab.id as SalesOrderStatus))
+                setPage(1)
+              }}
+              className={`relative flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                isActive
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : isReady && readyCount > 0
+                    ? 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+              {isReady && readyCount > 0 && (
+                <span className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                }`}>
+                  {readyCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       <Card className="border-border/60">

@@ -7,8 +7,8 @@ import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import AddProductAssistant from '@/components/products/AddProductAssistant'
 import { VariantPicker } from '@/components/frames/VariantPicker'
-import { CreateVariantDialog } from './CreateVariantDialog'
-import { ProductPicker } from './ProductPicker'
+import { QuickAddVariantDialog } from '@/components/frames/QuickAddVariantDialog'
+import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { extractApiErrorMessage } from '@/api/axios'
 import { companyProfileApi } from '@/api/company-profile.api'
@@ -27,7 +27,6 @@ interface CreatePurchaseOrderAssistantProps {
 type DraftItem = PurchaseOrderAssistantItem & {
   _key: string
   variantObj?: FrameVariant
-  productObj?: Product
 }
 
 type PurchaseOrderDraft = {
@@ -73,10 +72,11 @@ const createDraft = (): PurchaseOrderDraft => ({
 const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: CreatePurchaseOrderAssistantProps) => {
   const queryClient = useQueryClient()
   const { data: suppliers } = useQuery({ queryKey: ['suppliers', 'all'], queryFn: () => suppliersApi.getAll({ page: 1, page_size: 100 }) })
+  const { data: products } = useQuery({ queryKey: ['products', 'all'], queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }) })
   const { data: companyProfile } = useQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get() })
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft())
   const [productPickerOpen, setProductPickerOpen] = useState(false)
-  const [variantCreateOpen, setVariantCreateOpen] = useState(false)
+  const [variantPickerOpen, setVariantPickerOpen] = useState(false)
   const [targetItemKey, setTargetItemKey] = useState<string | null>(null)
 
   useEffect(() => {
@@ -106,7 +106,7 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
     setDraft((cur) => ({ ...cur, items: cur.items.map((i) => i._key === key ? { ...i, ...patch } : i) }))
 
   const setItemType = (key: string, type: 'product' | 'frame_variant') =>
-    patchItem(key, { item_type: type, product_id: undefined, frame_variant_id: undefined, variantObj: undefined, productObj: undefined, description: '', unit_cost: 0 })
+    patchItem(key, { item_type: type, product_id: undefined, frame_variant_id: undefined, variantObj: undefined, description: '', unit_cost: 0 })
 
   const setVariant = (key: string, v: FrameVariant | null) => {
     if (!v) { patchItem(key, { frame_variant_id: undefined, variantObj: undefined, description: '', unit_cost: 0 }); return }
@@ -118,13 +118,12 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
     })
   }
 
-  const setProduct = (key: string, product: Product | null) => {
-    if (!product) { patchItem(key, { product_id: undefined, productObj: undefined, description: '', unit_cost: 0 }); return }
+  const setProduct = (key: string, productId: string) => {
+    const product = products?.data.find((p) => p.product_id === productId)
     patchItem(key, {
-      product_id: product.product_id,
-      productObj: product,
-      description: product.description || product.name,
-      unit_cost: product.cost_price ?? 0,
+      product_id: productId,
+      description: product?.description || product?.name || '',
+      unit_cost: product?.cost_price ?? 0,
     })
   }
 
@@ -132,25 +131,18 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
     if (!product || !targetItemKey) return
     patchItem(targetItemKey, {
       product_id: product.product_id,
-      productObj: product,
       description: product.description || product.name,
       unit_cost: product.cost_price,
     })
-    queryClient.invalidateQueries({ queryKey: ['product-picker'] })
     setTargetItemKey(null)
     setProductPickerOpen(false)
   }
 
   const handleVariantCreated = (variant: FrameVariant) => {
     if (!targetItemKey) return
-    patchItem(targetItemKey, {
-      frame_variant_id: variant.variant_id,
-      variantObj: variant,
-      description: `${variant.frame_master_ref?.brand ?? ''} ${variant.frame_master_ref?.model_code ?? ''} / ${variant.color} / ${variant.eye_size}`.trim(),
-      unit_cost: variant.cost_price ?? 0,
-    })
+    setVariant(targetItemKey, variant)
     setTargetItemKey(null)
-    setVariantCreateOpen(false)
+    setVariantPickerOpen(false)
   }
 
   const createMutation = useMutation({
@@ -311,20 +303,24 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
                           </div>
                           <button
                             type="button"
-                            className="shrink-0 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted transition-colors h-9"
-                            onClick={() => { setTargetItemKey(item._key); setVariantCreateOpen(true) }}
+                            className="shrink-0 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors h-9"
+                            onClick={() => { setTargetItemKey(item._key); setVariantPickerOpen(true) }}
                           >
                             + New
                           </button>
                         </div>
                       ) : (
                         <div className="flex min-w-0 gap-2">
-                          <div className="flex-1 min-w-0">
-                            <ProductPicker
-                              value={item.productObj ?? null}
-                              onChange={(p) => setProduct(item._key, p)}
-                            />
-                          </div>
+                          <select
+                            className="input flex-1 min-w-0"
+                            value={item.product_id || ''}
+                            onChange={(e) => setProduct(item._key, e.target.value)}
+                          >
+                            <option value="">Select product…</option>
+                            {products?.data.map((p) => (
+                              <option key={p.product_id} value={p.product_id}>{p.name}</option>
+                            ))}
+                          </select>
                           <button
                             type="button"
                             className="shrink-0 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted transition-colors h-9"
@@ -422,6 +418,12 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
         </div>
       </Modal>
 
+      <QuickAddVariantDialog
+        open={variantPickerOpen && !!targetItemKey}
+        onClose={() => { setVariantPickerOpen(false); setTargetItemKey(null) }}
+        onCreated={handleVariantCreated}
+      />
+
       {productPickerOpen && targetItemKey && (
         <Modal
           isOpen={productPickerOpen}
@@ -438,13 +440,6 @@ const CreatePurchaseOrderAssistant = ({ isOpen, onClose, onSuccess, order }: Cre
           />
         </Modal>
       )}
-
-      <CreateVariantDialog
-        open={variantCreateOpen && !!targetItemKey}
-        onClose={() => { setVariantCreateOpen(false); setTargetItemKey(null) }}
-        onSuccess={handleVariantCreated}
-        supplierId={draft.supplier_id || undefined}
-      />
     </>
   )
 }

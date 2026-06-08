@@ -211,7 +211,7 @@ const AppSidebar = () => {
           if (location.pathname.startsWith(item.path)) return true
           return item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false
         })
-        initial[s.id] = hasActive
+        initial[s.id] = true
       }
     }
     return initial

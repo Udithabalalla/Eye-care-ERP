@@ -117,6 +117,7 @@ export interface PurchaseOrderSummary {
 
 export interface PurchaseOrder {
   id: string
+  order_number?: string
   supplier_id: string
   order_date: string
   expected_delivery_date?: string

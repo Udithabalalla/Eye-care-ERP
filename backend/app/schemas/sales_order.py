@@ -2,12 +2,12 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
-from app.models.sales_order import SalesOrderItemModel, StatusHistoryEntry
+from app.models.sales_order import SalesOrderItemModel, StatusHistoryEntry, SaleLocation
 from app.utils.constants import SalesOrderStatus
 
 
 class SalesOrderItemCreate(BaseModel):
-    product_id: Optional[str] = None
+    product_id: str
     product_name: Optional[str] = None
     sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
@@ -15,7 +15,7 @@ class SalesOrderItemCreate(BaseModel):
     total: Optional[float] = Field(default=None, ge=0)
     master_data_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
-    line_type: Literal["product", "lens", "expense", "complimentary", "frame"] = "product"
+    line_type: Literal["product", "frame", "lens", "expense", "complimentary"] = "product"
     track_stock: bool = True
 
 
@@ -28,6 +28,7 @@ class SalesOrderCreate(BaseModel):
     expected_delivery_date: Optional[datetime] = None
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus = SalesOrderStatus.CONFIRMED
 
 
@@ -39,6 +40,7 @@ class SalesOrderUpdate(BaseModel):
     expected_delivery_date: Optional[datetime] = None
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: Optional[SalesOrderStatus] = None
 
 
@@ -62,6 +64,7 @@ class SalesOrderResponse(BaseModel):
     date_of_full_payment: Optional[datetime] = None
     notes: Optional[str] = None
     invoice_id: Optional[str] = None
+    sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)
     created_by: str

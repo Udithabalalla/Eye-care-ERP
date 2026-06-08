@@ -11,7 +11,7 @@ class PrescriptionCreate(BaseModel):
     patient_id: str
     doctor_id: str
     prescription_date: date
-    valid_until: date
+    valid_until: Optional[date] = None
     eye_prescription: Optional[EyePrescription] = None
     medications: List[Medication] = Field(default_factory=list)
     contact_lenses: Optional[ContactLenses] = None

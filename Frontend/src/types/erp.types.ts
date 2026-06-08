@@ -1,4 +1,5 @@
 import { PaymentMethod } from './common.types'
+import { SaleLocation } from './frames.types'
 
 export type SalesOrderStatus =
   | 'draft'
@@ -33,7 +34,7 @@ export interface SalesOrderItem {
   total: number
   master_data_id?: string
   frame_variant_id?: string
-  line_type?: 'product' | 'lens' | 'expense' | 'complimentary' | 'frame'
+  line_type?: 'product' | 'frame' | 'lens' | 'expense' | 'complimentary'
   track_stock?: boolean
 }
 
@@ -45,6 +46,7 @@ export interface SalesOrderCreatePayload {
   expected_delivery_date?: string
   date_of_full_payment?: string
   notes?: string
+  sale_location?: SaleLocation
   status?: SalesOrderStatus
   items: SalesOrderItem[]
 }
@@ -56,6 +58,7 @@ export interface SalesOrderUpdatePayload {
   expected_delivery_date?: string
   date_of_full_payment?: string
   notes?: string
+  sale_location?: SaleLocation
   status?: SalesOrderStatus
   items?: SalesOrderItem[]
 }
@@ -75,6 +78,7 @@ export interface SalesOrder {
   date_of_full_payment?: string
   notes?: string
   invoice_id?: string
+  sale_location?: SaleLocation
   status: SalesOrderStatus
   status_history?: StatusHistoryEntry[]
   created_by: string
