@@ -401,18 +401,18 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
   diagnosis: rx.diagnosis || '',
   notes: rx.notes || '',
   rightEye: {
-    sphere: rx.eye_prescription?.right_eye?.sphere ?? 0,
-    cylinder: rx.eye_prescription?.right_eye?.cylinder ?? 0,
-    axis: rx.eye_prescription?.right_eye?.axis ?? 0,
-    add: rx.eye_prescription?.right_eye?.add ?? 0,
-    pd: rx.eye_prescription?.right_eye?.pupillary_distance ?? 0,
+    sphere: Number(rx.eye_prescription?.right_eye?.sphere ?? 0),
+    cylinder: Number(rx.eye_prescription?.right_eye?.cylinder ?? 0),
+    axis: Number(rx.eye_prescription?.right_eye?.axis ?? 0),
+    add: Number(rx.eye_prescription?.right_eye?.add ?? 0),
+    pd: Number(rx.eye_prescription?.right_eye?.pupillary_distance ?? 0),
   },
   leftEye: {
-    sphere: rx.eye_prescription?.left_eye?.sphere ?? 0,
-    cylinder: rx.eye_prescription?.left_eye?.cylinder ?? 0,
-    axis: rx.eye_prescription?.left_eye?.axis ?? 0,
-    add: rx.eye_prescription?.left_eye?.add ?? 0,
-    pd: rx.eye_prescription?.left_eye?.pupillary_distance ?? 0,
+    sphere: Number(rx.eye_prescription?.left_eye?.sphere ?? 0),
+    cylinder: Number(rx.eye_prescription?.left_eye?.cylinder ?? 0),
+    axis: Number(rx.eye_prescription?.left_eye?.axis ?? 0),
+    add: Number(rx.eye_prescription?.left_eye?.add ?? 0),
+    pd: Number(rx.eye_prescription?.left_eye?.pupillary_distance ?? 0),
   },
 })
 

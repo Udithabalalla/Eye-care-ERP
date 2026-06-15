@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.quick_intake_repository import QuickIntakeRepository
 from app.repositories.frame_variant_repository import FrameVariantRepository
+from app.repositories.product_repository import ProductRepository
 from app.schemas.quick_intake import QuickIntakeCreate, QuickIntakeUpdate, QuickIntakeResponse
 from app.schemas.responses import PaginatedResponse
 from app.models.quick_intake import QuickIntakeModel
@@ -15,6 +16,7 @@ class QuickIntakeService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.repo = QuickIntakeRepository(db)
         self.variant_repo = FrameVariantRepository(db)
+        self.product_repo = ProductRepository(db)
 
     def _to_response(self, qi: QuickIntakeModel) -> QuickIntakeResponse:
         d = qi.dict()
@@ -43,6 +45,7 @@ class QuickIntakeService:
             intake_id=intake_id,
             supplier_id=data.supplier_id,
             intake_date=intake_date,
+            reference_no=data.reference_no,
             items=data.items,
             status="draft",
             notes=data.notes,
@@ -79,10 +82,18 @@ class QuickIntakeService:
             raise BadRequestException("Cannot commit an empty intake")
 
         for item in qi.items:
-            v = await self.variant_repo.get_by_variant_id(item.variant_id)
-            if not v:
-                raise NotFoundException(f"Variant {item.variant_id} not found")
-            await self.variant_repo.increment_stock_atomic(item.variant_id, item.qty)
+            if item.product_id:
+                p = await self.product_repo.get_by_product_id(item.product_id)
+                if not p:
+                    raise NotFoundException(f"Product {item.product_id} not found")
+                await self.product_repo.increment_stock_atomic(item.product_id, item.qty)
+            elif item.variant_id:
+                v = await self.variant_repo.get_by_variant_id(item.variant_id)
+                if not v:
+                    raise NotFoundException(f"Variant {item.variant_id} not found")
+                await self.variant_repo.increment_stock_atomic(item.variant_id, item.qty)
+            else:
+                raise BadRequestException("Each item must have either variant_id or product_id")
 
         await self.repo.update_intake(intake_id, {
             "status": "committed",

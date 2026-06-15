@@ -76,6 +76,7 @@ class PurchaseOrderSummaryResponse(BaseModel):
 class PurchaseOrderItemCreate(BaseModel):
     product_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
+    supplier_sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
     line_discount_type: Optional[str] = None
@@ -107,6 +108,7 @@ class PurchaseOrderItemResponse(BaseModel):
     purchase_order_id: str
     product_id: str
     frame_variant_id: Optional[str] = None
+    supplier_sku: Optional[str] = None
     quantity: int
     unit_cost: float
     line_discount_type: Optional[str] = None

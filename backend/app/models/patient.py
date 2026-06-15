@@ -28,7 +28,7 @@ class PatientModel(TimestampModel):
     patient_id: str = Field(..., description="Unique patient number")
     name: str = Field(..., description="Patient full name")
     date_of_birth: datetime = Field(..., description="Date of birth")  # Changed from date to datetime
-    age: int = Field(..., description="Current age")
+    age: Optional[int] = Field(None, description="Deprecated: computed from date_of_birth at read time")
     gender: Gender = Field(..., description="Gender")
     phone: str = Field(..., description="Contact phone")
     email: Optional[EmailStr] = None

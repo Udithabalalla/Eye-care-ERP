@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  RiAddLine, RiCheckLine, RiSearchLine,
+  RiAddLine, RiCheckLine, RiSearchLine, RiDownloadLine,
 } from '@remixicon/react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -63,6 +63,29 @@ export default function GoodsReceipts() {
     staleTime: 60_000,
   })
   const suppliers = suppliersData?.data ?? []
+
+  const { data: purchaseOrdersData } = useQuery({
+    queryKey: ['purchase-orders-ordered'],
+    queryFn: () => suppliersApi.getPurchaseOrders({ page_size: 200, status: 'Ordered' }),
+    staleTime: 60_000,
+  })
+  const openPOs = purchaseOrdersData?.data ?? []
+
+  const [isLoadingPO, setIsLoadingPO] = useState(false)
+  const handleLoadFromPO = async () => {
+    if (!poId) { toast.error('Select a PO first'); return }
+    setIsLoadingPO(true)
+    try {
+      const prefill = await goodsReceiptsApi.prefillFromPo(poId)
+      setSupplierId(prefill.supplier_id)
+      setLines(prefill.items.map((item) => ({ ...item, _id: crypto.randomUUID() })))
+      toast.success(`Loaded ${prefill.items.length} line(s) from PO`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail ?? 'Could not load PO')
+    } finally {
+      setIsLoadingPO(false)
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: goodsReceiptsApi.create,
@@ -151,7 +174,7 @@ export default function GoodsReceipts() {
                       <TableRow key={g.grn_number}>
                         <TableCell className="font-mono text-sm">{g.grn_number}</TableCell>
                         <TableCell>{format(new Date(g.receipt_date), 'dd MMM yyyy')}</TableCell>
-                        <TableCell>{g.supplier_id}</TableCell>
+                        <TableCell>{suppliers.find((s) => s.id === g.supplier_id)?.supplier_name ?? g.supplier_id}</TableCell>
                         <TableCell className="tabular-nums">{g.items.length}</TableCell>
                         <TableCell>
                           <Badge variant={statusColor[g.status] ?? 'outline'}>{g.status}</Badge>
@@ -206,9 +229,30 @@ export default function GoodsReceipts() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">PO Reference (optional)</label>
-                <Input value={poId} onChange={(e) => setPoId(e.target.value)} placeholder="PO-2026-0001" />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium block">PO Reference (optional)</label>
+                <div className="flex gap-2">
+                  <Select value={poId || 'none'} onValueChange={(v) => setPoId(v === 'none' ? '' : v)}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Select open PO…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— none —</SelectItem>
+                      {openPOs.map((po) => (
+                        <SelectItem key={po.id} value={po.id}>
+                          {po.id}{po.supplier_information?.supplier_name ? ` · ${po.supplier_information.supplier_name}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={handleLoadFromPO}
+                    disabled={!poId || isLoadingPO}
+                    title="Auto-fill lines from this PO"
+                  >
+                    <RiDownloadLine className="size-4" />
+                    {isLoadingPO ? 'Loading…' : 'Load'}
+                  </Button>
+                </div>
               </div>
             </div>
 

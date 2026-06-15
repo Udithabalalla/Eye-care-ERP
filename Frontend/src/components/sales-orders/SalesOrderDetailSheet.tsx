@@ -559,10 +559,10 @@ function EyeRow({
   return (
     <tr className={cn('text-center', !isLast && 'border-b border-border/50')}>
       <td className="py-2 px-2 font-bold text-left text-foreground">{label}</td>
-      <td className="py-2 px-2 tabular-nums">{fmt(eye.sphere)}</td>
-      <td className="py-2 px-2 tabular-nums">{fmt(eye.cylinder)}</td>
+      <td className="py-2 px-2 tabular-nums">{fmt(Number(eye.sphere))}</td>
+      <td className="py-2 px-2 tabular-nums">{fmt(Number(eye.cylinder))}</td>
       <td className="py-2 px-2 tabular-nums">{eye.axis}°</td>
-      <td className="py-2 px-2 tabular-nums">{eye.add !== 0 ? fmt(eye.add) : '—'}</td>
+      <td className="py-2 px-2 tabular-nums">{Number(eye.add) !== 0 ? fmt(Number(eye.add)) : '—'}</td>
       <td className="py-2 px-2 tabular-nums">{eye.pupillary_distance || '—'}</td>
     </tr>
   )

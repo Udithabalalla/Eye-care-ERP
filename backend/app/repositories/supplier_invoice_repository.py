@@ -1,5 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from app.repositories.base import BaseRepository
 from app.models.supplier_invoice import SupplierInvoiceModel
 
@@ -26,6 +26,11 @@ class SupplierInvoiceRepository(BaseRepository):
         docs, total = await self.get_many_with_count(filter_query, skip, limit, sort=[("created_at", -1)])
         invoices = [SupplierInvoiceModel(**d) for d in docs]
         return invoices, total
+
+    async def get_many_by_ids(self, invoice_ids: List[str]) -> Dict[str, SupplierInvoiceModel]:
+        """Fetch multiple invoices by ID in a single $in query. Returns a dict keyed by invoice id."""
+        docs = await self.get_many({"id": {"$in": invoice_ids}}, limit=len(invoice_ids) + 1)
+        return {doc["id"]: SupplierInvoiceModel(**doc) for doc in docs}
 
     async def update_invoice_status(self, invoice_id: str, status: str) -> bool:
         return await self.update({"id": invoice_id}, {"status": status})

@@ -1,9 +1,9 @@
 export interface EyeMeasurement {
-  sphere: number
-  cylinder: number
-  axis: number
-  add: number
-  pupillary_distance: number
+  sphere: number | ''
+  cylinder: number | ''
+  axis: number | ''
+  add: number | ''
+  pupillary_distance: number | ''
 }
 
 export interface EyePrescription {
@@ -56,7 +56,6 @@ export interface PrescriptionFormData {
   patient_id: string
   doctor_id: string
   prescription_date: string
-  valid_until: string
   eye_prescription?: EyePrescription
   medications?: Medication[]
   contact_lenses?: ContactLenses

@@ -7,11 +7,12 @@ from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.sales_order_repository import SalesOrderRepository
+from app.repositories.prescription_repository import PrescriptionRepository
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaymentRecord
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id, date_to_datetime
+from app.utils.helpers import generate_id, date_to_datetime, is_prescription_valid
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.audit_service import AuditService
 from app.services.payment_service import PaymentService
@@ -27,6 +28,7 @@ class InvoiceService:
         self.patient_repo = PatientRepository(db)
         self.product_repo = ProductRepository(db)
         self.sales_order_repo = SalesOrderRepository(db)
+        self.prescription_repo = PrescriptionRepository(db)
         self.inventory_service = InventoryMovementService(db)
         self.audit_service = AuditService(db)
         self.payment_service = PaymentService(db)
@@ -96,10 +98,22 @@ class InvoiceService:
                     f"Insufficient stock for {product.name}. Available: {product.current_stock}, requested: {item.quantity}"
                 )
 
-        # Validate patient exists
+        # Validate patient exists and is active
         patient = await self.patient_repo.get_by_patient_id(invoice_data.patient_id)
         if not patient:
             raise NotFoundException(f"Patient with ID {invoice_data.patient_id} not found")
+        if not patient.is_active:
+            raise BadRequestException(f"Patient {invoice_data.patient_id} is inactive and cannot be invoiced")
+
+        if invoice_data.prescription_id:
+            prescription = await self.prescription_repo.get_by_prescription_id(invoice_data.prescription_id)
+            if not prescription:
+                raise NotFoundException(f"Prescription with ID {invoice_data.prescription_id} not found")
+            if not is_prescription_valid(prescription.valid_until):
+                raise BadRequestException(
+                    f"Prescription {invoice_data.prescription_id} has expired. "
+                    "Please issue a new prescription before creating this invoice."
+                )
 
         if invoice_data.sales_order_id:
             sales_order = await self.sales_order_repo.get_by_order_id(invoice_data.sales_order_id)

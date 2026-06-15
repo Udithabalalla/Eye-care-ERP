@@ -1,22 +1,18 @@
 import type { HTMLAttributes } from "react";
+import { cx } from "@/utils/cx";
 
-const sizes = {
-    sm: {
-        wh: 8,
-        c: 4,
-        r: 2.5,
-    },
-    md: {
-        wh: 10,
-        c: 5,
-        r: 4,
-    },
-};
+interface DotProps extends HTMLAttributes<HTMLSpanElement> {
+    size?: "sm" | "md";
+}
 
-export const Dot = ({ size = "md", ...props }: HTMLAttributes<HTMLOrSVGElement> & { size?: "sm" | "md" }) => {
-    return (
-        <svg width={sizes[size].wh} height={sizes[size].wh} viewBox={`0 0 ${sizes[size].wh} ${sizes[size].wh}`} fill="none" {...props}>
-            <circle cx={sizes[size].c} cy={sizes[size].c} r={sizes[size].r} fill="currentColor" stroke="currentColor" />
-        </svg>
-    );
-};
+export const Dot = ({ size = "md", className, ...props }: DotProps) => (
+    <span
+        aria-hidden="true"
+        {...props}
+        className={cx(
+            "inline-block rounded-full bg-current",
+            size === "sm" ? "size-1.5" : "size-2",
+            className,
+        )}
+    />
+);

@@ -210,6 +210,17 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none; /* Safari/Chrome */
   }
+
+  /* Ensure date input calendar icon is visible in light mode on Webkit browsers */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+    filter: invert(0);
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
 }
 
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import date, time, datetime
 from app.utils.constants import AppointmentStatus, AppointmentType
@@ -13,6 +13,13 @@ class AppointmentCreate(BaseModel):
     type: AppointmentType
     reason: str = Field(..., min_length=5)
     notes: Optional[str] = None
+
+    @field_validator("appointment_date")
+    @classmethod
+    def date_must_be_future(cls, v: date) -> date:
+        if v < date.today():
+            raise ValueError("appointment_date must be today or a future date")
+        return v
 
 class AppointmentUpdate(BaseModel):
     """Schema for updating an appointment"""

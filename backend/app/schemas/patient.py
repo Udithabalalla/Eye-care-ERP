@@ -35,7 +35,7 @@ class PatientResponse(BaseModel):
     patient_id: str
     name: str
     date_of_birth: datetime  # Return as datetime
-    age: int
+    age: int  # Computed from date_of_birth at read time — always current
     gender: Gender
     phone: str
     email: Optional[EmailStr] = None

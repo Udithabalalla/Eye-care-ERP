@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Button from '@/components/common/Button'
@@ -9,6 +9,7 @@ import type { CompanyProfileFormData } from '@/types/company-profile.types'
 const ClinicSettings = () => {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<CompanyProfileFormData>({})
+  const initialized = useRef(false)
 
   const { data } = useQuery({
     queryKey: ['company-profile'],
@@ -16,7 +17,8 @@ const ClinicSettings = () => {
   })
 
   useEffect(() => {
-    if (data) {
+    if (data && !initialized.current) {
+      initialized.current = true
       setForm({
         company_name: data.company_name,
         company_logo: data.company_logo || 'Logo.png',
@@ -24,7 +26,6 @@ const ClinicSettings = () => {
         phone: data.phone,
         email: data.email,
         tax_number: data.tax_number,
-        default_ship_to_location: data.default_ship_to_location,
         default_delivery_address: data.default_delivery_address,
         default_receiving_department: data.default_receiving_department,
         default_delivery_instructions: data.default_delivery_instructions,
@@ -42,10 +43,6 @@ const ClinicSettings = () => {
   })
 
   const handleSave = () => {
-    if (!form.default_ship_to_location?.trim()) {
-      toast.error('Default ship to location is required')
-      return
-    }
     if (!form.default_delivery_address?.trim()) {
       toast.error('Default delivery address is required')
       return
@@ -62,7 +59,6 @@ const ClinicSettings = () => {
       phone: form.phone,
       email: form.email,
       tax_number: form.tax_number,
-      default_ship_to_location: form.default_ship_to_location?.trim(),
       default_delivery_address: form.default_delivery_address?.trim(),
       default_receiving_department: form.default_receiving_department?.trim(),
       default_delivery_instructions: form.default_delivery_instructions?.trim(),
@@ -118,12 +114,6 @@ const ClinicSettings = () => {
             placeholder="TIN-10928374"
           />
           <Input
-            label="* Default Ship To Location"
-            value={form.default_ship_to_location || ''}
-            onChange={(e) => setForm({ ...form, default_ship_to_location: e.target.value })}
-            placeholder="Main Warehouse"
-          />
-          <Input
             label="* Default Delivery Address"
             value={form.default_delivery_address || ''}
             onChange={(e) => setForm({ ...form, default_delivery_address: e.target.value })}
@@ -152,7 +142,6 @@ const ClinicSettings = () => {
             phone: data.phone,
             email: data.email,
             tax_number: data.tax_number,
-            default_ship_to_location: data.default_ship_to_location,
             default_delivery_address: data.default_delivery_address,
             default_receiving_department: data.default_receiving_department,
             default_delivery_instructions: data.default_delivery_instructions,
@@ -168,7 +157,6 @@ const ClinicSettings = () => {
           <p><span className="font-medium text-foreground">Phone:</span> {form.phone || '-'}</p>
           <p><span className="font-medium text-foreground">Email:</span> {form.email || '-'}</p>
           <p><span className="font-medium text-foreground">Tax Number:</span> {form.tax_number || '-'}</p>
-          <p><span className="font-medium text-foreground">Default Ship To:</span> {form.default_ship_to_location || '-'}</p>
           <p><span className="font-medium text-foreground">Default Delivery Address:</span> {form.default_delivery_address || '-'}</p>
           <p><span className="font-medium text-foreground">Default Receiving Department:</span> {form.default_receiving_department || '-'}</p>
           <p><span className="font-medium text-foreground">Default Delivery Instructions:</span> {form.default_delivery_instructions || '-'}</p>

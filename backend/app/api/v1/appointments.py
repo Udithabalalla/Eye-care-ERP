@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 from datetime import date
+from pydantic import BaseModel
 
 from app.config.database import get_database
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, AppointmentResponse
@@ -9,6 +10,10 @@ from app.schemas.responses import ResponseModel, PaginatedResponse
 from app.services.appointment_service import AppointmentService
 from app.api.deps import get_current_user
 from app.models.user import UserModel
+
+
+class AppointmentCancelBody(BaseModel):
+    reason: str = "Cancelled by user"
 
 router = APIRouter()
 
@@ -73,13 +78,14 @@ async def update_appointment(
         data=appointment
     )
 
-@router.delete("/{appointment_id}")
+@router.post("/{appointment_id}/cancel")
 async def cancel_appointment(
     appointment_id: str,
+    body: AppointmentCancelBody = AppointmentCancelBody(),
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """Cancel an appointment"""
+    """Cancel an appointment with an optional reason"""
     appointment_service = AppointmentService(db)
-    await appointment_service.cancel_appointment(appointment_id)
+    await appointment_service.cancel_appointment(appointment_id, reason=body.reason)
     return ResponseModel(message="Appointment cancelled successfully")

@@ -142,7 +142,6 @@ async def delete_frame_variant(
 async def get_variant_barcode_png(
     variant_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user),
 ):
     """Return Code128 barcode as PNG image."""
     service = FrameVariantService(db)

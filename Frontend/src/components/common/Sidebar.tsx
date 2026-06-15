@@ -204,15 +204,7 @@ const AppSidebar = () => {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     for (const s of ALL_SECTIONS) {
-      if (s.title) {
-        // auto-expand section containing the current route; collapse others
-        const hasActive = s.items.some((item) => {
-          if (item.path === '/') return location.pathname === '/'
-          if (location.pathname.startsWith(item.path)) return true
-          return item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false
-        })
-        initial[s.id] = hasActive
-      }
+      if (s.title) initial[s.id] = true
     }
     return initial
   })

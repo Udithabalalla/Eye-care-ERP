@@ -70,6 +70,7 @@ class InventoryMovementType(str, Enum):
     SALE_OUT = "SALE_OUT"
     ADJUSTMENT = "ADJUSTMENT"
     RETURN = "RETURN"
+    COMPLIMENTARY_OUT = "COMPLIMENTARY_OUT"
 
 
 class SalesOrderStatus(str, Enum):

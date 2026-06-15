@@ -177,6 +177,11 @@ export const goodsReceiptsApi = {
     const res = await axiosInstance.post<ApiResponse<GoodsReceipt>>(`/goods-receipts/${grnNumber}/commit`)
     return res.data.data
   },
+
+  prefillFromPo: async (poId: string): Promise<{ supplier_id: string; purchase_order_id: string; items: GoodsReceipt['items'] }> => {
+    const res = await axiosInstance.get<ApiResponse<{ supplier_id: string; purchase_order_id: string; items: GoodsReceipt['items'] }>>(`/goods-receipts/prefill-from-po/${poId}`)
+    return res.data.data
+  },
 }
 
 // ─── Quick Intakes ───────────────────────────────────────────────────────────

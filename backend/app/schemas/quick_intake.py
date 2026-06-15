@@ -7,12 +7,15 @@ from app.models.quick_intake import QuickIntakeItem
 class QuickIntakeCreate(BaseModel):
     supplier_id: Optional[str] = None
     intake_date: Optional[datetime] = None
+    reference_no: Optional[str] = None
     items: List[QuickIntakeItem] = Field(default_factory=list)
     notes: Optional[str] = None
 
 
 class QuickIntakeUpdate(BaseModel):
     supplier_id: Optional[str] = None
+    intake_date: Optional[datetime] = None
+    reference_no: Optional[str] = None
     items: Optional[List[QuickIntakeItem]] = None
     notes: Optional[str] = None
 
@@ -22,6 +25,7 @@ class QuickIntakeResponse(BaseModel):
     intake_id: str
     supplier_id: Optional[str]
     intake_date: datetime
+    reference_no: Optional[str] = None
     items: List[QuickIntakeItem]
     status: str
     notes: Optional[str]
