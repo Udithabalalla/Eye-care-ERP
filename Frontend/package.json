@@ -41,6 +41,9 @@
     "zod": "^3.23.8",
     "zustand": "^4.5.5"
   },
+  "overrides": {
+    "node-domexception": "file:./stubs/node-domexception"
+  },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/react": "^18.3.5",

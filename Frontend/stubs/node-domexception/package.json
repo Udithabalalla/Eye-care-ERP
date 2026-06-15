@@ -1,0 +1,12 @@
+{
+  "name": "node-domexception",
+  "version": "1.0.0",
+  "description": "Local stub — forwards to globalThis.DOMException (Node 18+)",
+  "main": "index.cjs",
+  "exports": {
+    ".": {
+      "require": "./index.cjs",
+      "import": "./index.mjs"
+    }
+  }
+}
