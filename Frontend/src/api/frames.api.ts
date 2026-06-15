@@ -1,13 +1,11 @@
 import { axiosInstance } from './axios'
-import { suppliersApi } from './suppliers.api'
 import {
   FrameMaster, FrameMasterFormData,
   FrameVariant, FrameVariantFormData, BulkVariantCreate,
-  GoodsReceipt, GoodsReceiptFormData, GoodsReceiptItem,
+  GoodsReceipt, GoodsReceiptFormData,
   QuickIntake, QuickIntakeFormData,
 } from '@/types/frames.types'
 import { ApiResponse, PaginatedResponse } from '@/types/common.types'
-import { PurchaseOrder } from '@/types/supplier.types'
 
 // ─── Frame Masters ───────────────────────────────────────────────────────────
 
@@ -137,35 +135,6 @@ export const goodsReceiptsApi = {
   create: async (data: GoodsReceiptFormData): Promise<GoodsReceipt> => {
     const res = await axiosInstance.post<ApiResponse<GoodsReceipt>>('/goods-receipts', data)
     return res.data.data
-  },
-
-  prefillFromPo: async (purchaseOrderId: string): Promise<{ supplier_id: string; items: GoodsReceiptItem[] }> => {
-    const po = await suppliersApi.getPurchaseOrder(purchaseOrderId) as PurchaseOrder
-
-    const items = await Promise.all(
-      po.items
-        .filter((item) => item.frame_variant_id)
-        .map(async (item) => {
-          const variant = await frameVariantsApi.getById(item.frame_variant_id!)
-          return {
-            variant_id: variant.variant_id,
-            sku: variant.sku,
-            variant_label: `${variant.frame_master_ref?.brand ?? ''} ${variant.frame_master_ref?.model_code ?? ''} / ${variant.color} / ${variant.eye_size}`.trim(),
-            expected_qty: item.quantity,
-            received_qty: item.quantity,
-            damaged_qty: 0,
-            missing_qty: 0,
-            extra_qty: 0,
-            cost_price: item.unit_cost,
-            notes: '',
-          }
-        }),
-    )
-
-    return {
-      supplier_id: po.supplier_id,
-      items,
-    }
   },
 
   update: async (grnNumber: string, data: Partial<GoodsReceiptFormData>): Promise<GoodsReceipt> => {
