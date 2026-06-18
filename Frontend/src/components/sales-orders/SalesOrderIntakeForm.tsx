@@ -894,10 +894,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
         newData: { fullName: pat.name, email: pat.email || '', phone: pat.phone, age: pat.age, gender: pat.gender as any, address: formatAddress(pat) },
       },
       frame: frameItem ? {
+        isOld: frameItem.product_id === 'HISTORICAL_FRAME',
         selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
         color: '', size: '', frameId: frameItem.sku || '', total: frameItem.unit_price,
       } : defaultValues.frame,
       lens: lensItem ? {
+        isOld: lensItem.product_id === 'HISTORICAL_LENS',
         selectionId: lensItem.master_data_id || '', lensType: lensItem.product_name || '',
         color: '', size: '', lensId: lensItem.sku || '', total: lensItem.unit_price,
       } : defaultValues.lens,
