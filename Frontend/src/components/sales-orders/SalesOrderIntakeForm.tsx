@@ -1493,16 +1493,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               </p>
             </div>
           </div>
-          <Checkbox
-            checked={salesOrder.isOld}
-            onCheckedChange={(v) => {
-              setValue('salesOrder.isOld', !!v, { shouldDirty: true, shouldValidate: true })
-              setValue('frame.isOld', !!v, { shouldDirty: true })
-              setValue('lens.isOld', !!v, { shouldDirty: true })
-            }}
+          <div
+            role="checkbox"
+            aria-checked={salesOrder.isOld}
             onClick={(e) => e.stopPropagation()}
-            className="h-5 w-5"
-          />
+            className={`h-5 w-5 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+              salesOrder.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
+            }`}
+          >
+            {salesOrder.isOld && <RiCheckLine className="h-3 w-3 text-white" />}
+          </div>
         </div>
 
         {/* Progress stepper */}
@@ -1978,12 +1978,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                       </p>
                     </div>
                   </div>
-                  <Checkbox
-                    checked={frame.isOld}
-                    onCheckedChange={(v) => setValue('frame.isOld', !!v, { shouldDirty: true })}
+                  <div
+                    role="checkbox"
+                    aria-checked={frame.isOld}
                     onClick={(e) => e.stopPropagation()}
-                    className="h-4 w-4"
-                  />
+                    className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      frame.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
+                    }`}
+                  >
+                    {frame.isOld && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
+                  </div>
                 </div>
 
                 {frame.isOld ? (
@@ -2096,12 +2100,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                       </p>
                     </div>
                   </div>
-                  <Checkbox
-                    checked={lens.isOld}
-                    onCheckedChange={(v) => setValue('lens.isOld', !!v, { shouldDirty: true })}
+                  <div
+                    role="checkbox"
+                    aria-checked={lens.isOld}
                     onClick={(e) => e.stopPropagation()}
-                    className="h-4 w-4"
-                  />
+                    className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      lens.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
+                    }`}
+                  >
+                    {lens.isOld && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
+                  </div>
                 </div>
 
                 {lens.isOld ? (
