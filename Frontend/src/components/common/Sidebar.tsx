@@ -56,11 +56,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -317,25 +312,22 @@ const AppSidebar = () => {
           {orderedSections.map((section, sectionIdx) => (
             <SidebarGroup key={sectionIdx}>
               {section.title && (
-                <Collapsible
-                  open={!!openGroups[section.id]}
-                  onOpenChange={() => toggleGroup(section.id)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel
-                      className={`flex w-full cursor-pointer items-center justify-between transition-colors select-none
-                        ${openGroups[section.id]
-                          ? 'text-foreground/70 hover:text-foreground'
-                          : 'text-muted-foreground/50 hover:text-muted-foreground'
-                        }`}
-                    >
-                      {section.title}
-                      <RiArrowDownSLine
-                        className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${openGroups[section.id] ? 'rotate-180' : ''}`}
-                      />
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
+                <>
+                  <SidebarGroupLabel
+                    className={`flex w-full cursor-pointer items-center justify-between transition-colors select-none
+                      ${openGroups[section.id]
+                        ? 'text-foreground/70 hover:text-foreground'
+                        : 'text-muted-foreground/50 hover:text-muted-foreground'
+                      }`}
+                    onClick={() => toggleGroup(section.id)}
+                  >
+                    {section.title}
+                    <RiArrowDownSLine
+                      className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${openGroups[section.id] ? 'rotate-180' : ''}`}
+                    />
+                  </SidebarGroupLabel>
+
+                  {openGroups[section.id] && (
                     <SidebarMenu>
                       {section.items.map((item) => {
                         if (item.children?.length) {
@@ -344,39 +336,31 @@ const AppSidebar = () => {
                             location.pathname.startsWith(c.path)
                           )
                           return (
-                            <Collapsible
-                              key={item.name}
-                              open={isSubmenuOpen}
-                              onOpenChange={() => toggleSubMenu(item.name)}
-                              asChild
-                            >
-                              <SidebarMenuItem>
-                                <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton
-                                    tooltip={item.name}
-                                    isActive={hasActiveChild}
-                                  >
-                                    <item.icon />
-                                    <span>{item.name}</span>
-                                    <RiArrowDownSLine className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                  </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                  <SidebarMenuSub>
-                                    {item.children.map((child) => (
-                                      <SidebarMenuSubItem key={child.path}>
-                                        <SidebarMenuSubButton asChild isActive={isActive(child.path)}>
-                                          <NavLink to={child.path} onClick={handleNavClick}>
-                                            <child.icon />
-                                            <span>{child.name}</span>
-                                          </NavLink>
-                                        </SidebarMenuSubButton>
-                                      </SidebarMenuSubItem>
-                                    ))}
-                                  </SidebarMenuSub>
-                                </CollapsibleContent>
-                              </SidebarMenuItem>
-                            </Collapsible>
+                            <SidebarMenuItem key={item.name}>
+                              <SidebarMenuButton
+                                tooltip={item.name}
+                                isActive={hasActiveChild}
+                                onClick={() => toggleSubMenu(item.name)}
+                              >
+                                <item.icon />
+                                <span>{item.name}</span>
+                                <RiArrowDownSLine className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
+                              </SidebarMenuButton>
+                              {isSubmenuOpen && (
+                                <SidebarMenuSub>
+                                  {item.children.map((child) => (
+                                    <SidebarMenuSubItem key={child.path}>
+                                      <SidebarMenuSubButton asChild isActive={isActive(child.path)}>
+                                        <NavLink to={child.path} onClick={handleNavClick}>
+                                          <child.icon />
+                                          <span>{child.name}</span>
+                                        </NavLink>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </SidebarMenuSub>
+                              )}
+                            </SidebarMenuItem>
                           )
                         }
 
@@ -396,8 +380,8 @@ const AppSidebar = () => {
                         )
                       })}
                     </SidebarMenu>
-                  </CollapsibleContent>
-                </Collapsible>
+                  )}
+                </>
               )}
 
               {/* Ungrouped section (Dashboard) */}
