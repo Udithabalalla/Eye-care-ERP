@@ -151,6 +151,7 @@ const salesOrderIntakeSchema = z
       orderDate: z.string().min(1, 'Order date is required'),
     }),
     frame: z.object({
+      isOld: z.boolean().default(false),
       selectionId: z.string().optional().default(''),
       barcode: z.string().optional().default(''),
       model: z.string().optional().default(''),
@@ -160,6 +161,7 @@ const salesOrderIntakeSchema = z
       total: requiredMoney.default(0),
     }),
     lens: z.object({
+      isOld: z.boolean().default(false),
       selectionId: z.string().optional().default(''),
       lensType: z.string().optional().default(''),
       color: z.string().optional().default(''),
@@ -377,8 +379,8 @@ const defaultValues: SalesOrderIntakeValues = {
     },
   },
   salesOrder: { isOld: false, deliveryDate: today, dateOfFullPayment: today, orderNumber: '', testedBy: '', orderDate: today },
-  frame: { selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
-  lens: { selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
+  frame: { isOld: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
+  lens: { isOld: false, selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
   totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
@@ -491,7 +493,8 @@ const mapDraftToFormValues = (
       newData: prescription ? mapPrescriptionToForm(prescription) : defaultValues.prescription.newData,
     },
     frame: frameItem ? {
-      selectionId: frameItem.product_id,
+      isOld:       frameItem.product_id === 'HISTORICAL_FRAME',
+      selectionId: frameItem.product_id === 'HISTORICAL_FRAME' ? '' : frameItem.product_id,
       barcode:     frameItem.sku || '',
       model:       frameItem.product_name || '',
       color:       '',
@@ -500,11 +503,12 @@ const mapDraftToFormValues = (
       total:       frameItem.unit_price,
     } : defaultValues.frame,
     lens: lensItem ? {
-      selectionId: lensItem.master_data_id || lensItem.product_id,
+      isOld:       lensItem.product_id === 'HISTORICAL_LENS',
+      selectionId: lensItem.product_id === 'HISTORICAL_LENS' ? '' : (lensItem.master_data_id || lensItem.product_id),
       lensType:    lensItem.product_name || '',
       color:       '',
       size:        '',
-      lensId:      lensItem.sku || '',
+      lensId:      lensItem.sku === 'MANUAL' ? '' : (lensItem.sku || ''),
       total:       lensItem.unit_price,
     } : defaultValues.lens,
     expenses: expItems.map((e) => ({
@@ -920,12 +924,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
   const generateInvoiceMutation = useMutation({ mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId) })
 
   // Handlers
-  const applyFrameSelection = (product: Product) => setValue('frame', mapProductToFrame(product), { shouldDirty: true, shouldValidate: true })
+  const applyFrameSelection = (product: Product) => setValue('frame', { isOld: false, ...mapProductToFrame(product) }, { shouldDirty: true, shouldValidate: true })
 
   const applyFrameVariantSelection = (variant: FrameVariant | null) => {
     setSelectedFrameVariant(variant)
     if (variant) {
       setValue('frame', {
+        isOld: false,
         selectionId: variant.variant_id,
         barcode: variant.barcode || variant.sku,
         model: `${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`,
@@ -1185,7 +1190,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       }
 
       const frameItem = resolvedFrame
-      if (!values.salesOrder.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
+      if (!values.frame.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
       // Lens is optional — frame only = half order, frame + lens = full order
       if (!values.salesOrder.isOld) {
@@ -1209,13 +1214,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
         })
       } else if (frameItem) {
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
-      } else if (values.salesOrder.isOld && (values.frame.model || values.frame.frameId)) {
+      } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
         const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
         itemPayload.push({ product_id: 'HISTORICAL_FRAME', product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: Number(values.frame.total || 0), total: Number(values.frame.total || 0), line_type: 'product' as const, track_stock: false })
       }
       if (lensItem) {
         itemPayload.push({ product_id: lensItem.id, product_name: values.lens.lensType || lensItem.lens_type, sku: values.lens.lensId || lensItem.lens_code, quantity: 1, unit_price: Number(values.lens.total || lensItem.price), total: Number(values.lens.total || lensItem.price), master_data_id: lensItem.id, line_type: 'lens' as const, track_stock: false })
-      } else if (values.salesOrder.isOld && values.lens.lensType) {
+      } else if (values.lens.isOld && values.lens.lensType) {
         itemPayload.push({ product_id: 'HISTORICAL_LENS', product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: Number(values.lens.total || 0), total: Number(values.lens.total || 0), line_type: 'lens' as const, track_stock: false })
       }
       itemPayload.push(...(values.expenses || []).filter((expense) => Number(expense.qty || 0) > 0).map((expense) => {
@@ -1464,7 +1469,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
               : 'border-border bg-card hover:bg-muted/30'
           }`}
-          onClick={() => setValue('salesOrder.isOld', !salesOrder.isOld, { shouldDirty: true, shouldValidate: true })}
+          onClick={() => {
+            const next = !salesOrder.isOld
+            setValue('salesOrder.isOld', next, { shouldDirty: true, shouldValidate: true })
+            setValue('frame.isOld', next, { shouldDirty: true })
+            setValue('lens.isOld', next, { shouldDirty: true })
+          }}
         >
           <div className="flex items-center gap-3">
             <div className={`flex h-9 w-9 items-center justify-center rounded-full ${salesOrder.isOld ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-muted'}`}>
@@ -1476,14 +1486,18 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               </p>
               <p className={`text-xs mt-0.5 ${salesOrder.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
                 {salesOrder.isOld
-                  ? 'Frame & lens entered manually — no stock deduction, no invoice generated'
+                  ? 'Frame & lens default to manual entry — override individually on each step'
                   : 'Toggle on if entering a past order from paper records'}
               </p>
             </div>
           </div>
           <Checkbox
             checked={salesOrder.isOld}
-            onCheckedChange={(v) => setValue('salesOrder.isOld', !!v, { shouldDirty: true, shouldValidate: true })}
+            onCheckedChange={(v) => {
+              setValue('salesOrder.isOld', !!v, { shouldDirty: true, shouldValidate: true })
+              setValue('frame.isOld', !!v, { shouldDirty: true })
+              setValue('lens.isOld', !!v, { shouldDirty: true })
+            }}
             onClick={(e) => e.stopPropagation()}
             className="h-5 w-5"
           />
@@ -1942,28 +1956,49 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
-                {salesOrder.isOld ? (
-                  /* Historical mode: manual text entry only, no stock lookup */
-                  <div className="space-y-4">
-                    <InlineAlert
-                      type="warning"
-                      title="Historical frame entry"
-                      description="Enter frame details manually. No stock will be deducted."
-                    />
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Brand"><Input {...register('frame.frameId')} placeholder="e.g. Ray-Ban" /></Field>
-                      <Field label="Model / Name"><Input {...register('frame.model')} placeholder="e.g. Aviator" /></Field>
-                      <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
-                      <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
-                      <Field label="Barcode / Ref"><Input {...register('frame.barcode')} placeholder="Barcode or reference" /></Field>
-                      <Field label="Price">
-                        <Input
-                          type="number" step="0.01" placeholder="0.00"
-                          onFocus={(e) => e.target.select()}
-                          {...register('frame.total', { valueAsNumber: true })}
-                        />
-                      </Field>
+                {/* Per-step historical toggle */}
+                <div
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer select-none transition-all ${
+                    frame.isOld
+                      ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
+                      : 'border-border bg-muted/20 hover:bg-muted/40'
+                  }`}
+                  onClick={() => setValue('frame.isOld', !frame.isOld, { shouldDirty: true })}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <RiHistoryLine className={`h-4 w-4 ${frame.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                    <div>
+                      <p className={`text-xs font-semibold ${frame.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
+                        Historical frame
+                      </p>
+                      <p className={`text-xs ${frame.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                        {frame.isOld ? 'Manual entry — no stock deducted' : 'Frame not in inventory — enter manually'}
+                      </p>
                     </div>
+                  </div>
+                  <Checkbox
+                    checked={frame.isOld}
+                    onCheckedChange={(v) => setValue('frame.isOld', !!v, { shouldDirty: true })}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4"
+                  />
+                </div>
+
+                {frame.isOld ? (
+                  /* Historical mode: manual text entry only, no stock lookup */
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Brand"><Input {...register('frame.frameId')} placeholder="e.g. Ray-Ban" /></Field>
+                    <Field label="Model / Name"><Input {...register('frame.model')} placeholder="e.g. Aviator" /></Field>
+                    <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                    <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                    <Field label="Barcode / Ref"><Input {...register('frame.barcode')} placeholder="Barcode or reference" /></Field>
+                    <Field label="Price">
+                      <Input
+                        type="number" step="0.01" placeholder="0.00"
+                        onFocus={(e) => e.target.select()}
+                        {...register('frame.total', { valueAsNumber: true })}
+                      />
+                    </Field>
                   </div>
                 ) : (
                   <>
@@ -2039,27 +2074,48 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
-                {salesOrder.isOld ? (
-                  /* Historical mode: manual text entry only */
-                  <div className="space-y-4">
-                    <InlineAlert
-                      type="warning"
-                      title="Historical lens entry"
-                      description="Enter lens details manually. No stock will be deducted."
-                    />
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
-                      <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
-                      <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
-                      <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
-                      <Field label="Price">
-                        <Input
-                          type="number" step="0.01" placeholder="0.00"
-                          onFocus={(e) => e.target.select()}
-                          {...register('lens.total', { valueAsNumber: true })}
-                        />
-                      </Field>
+                {/* Per-step historical toggle */}
+                <div
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer select-none transition-all ${
+                    lens.isOld
+                      ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
+                      : 'border-border bg-muted/20 hover:bg-muted/40'
+                  }`}
+                  onClick={() => setValue('lens.isOld', !lens.isOld, { shouldDirty: true })}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <RiHistoryLine className={`h-4 w-4 ${lens.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                    <div>
+                      <p className={`text-xs font-semibold ${lens.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
+                        Historical lens
+                      </p>
+                      <p className={`text-xs ${lens.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                        {lens.isOld ? 'Manual entry — no stock deducted' : 'Lens not in catalog — enter manually'}
+                      </p>
                     </div>
+                  </div>
+                  <Checkbox
+                    checked={lens.isOld}
+                    onCheckedChange={(v) => setValue('lens.isOld', !!v, { shouldDirty: true })}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4"
+                  />
+                </div>
+
+                {lens.isOld ? (
+                  /* Historical mode: manual text entry only */
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
+                    <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
+                    <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
+                    <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
+                    <Field label="Price">
+                      <Input
+                        type="number" step="0.01" placeholder="0.00"
+                        onFocus={(e) => e.target.select()}
+                        {...register('lens.total', { valueAsNumber: true })}
+                      />
+                    </Field>
                   </div>
                 ) : (
                   <>
