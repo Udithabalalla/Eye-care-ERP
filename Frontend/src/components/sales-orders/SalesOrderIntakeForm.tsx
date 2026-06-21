@@ -152,6 +152,7 @@ const salesOrderIntakeSchema = z
     }),
     frame: z.object({
       isOld: z.boolean().default(false),
+      isReference: z.boolean().default(false),
       selectionId: z.string().optional().default(''),
       barcode: z.string().optional().default(''),
       model: z.string().optional().default(''),
@@ -162,6 +163,7 @@ const salesOrderIntakeSchema = z
     }),
     lens: z.object({
       isOld: z.boolean().default(false),
+      isReference: z.boolean().default(false),
       selectionId: z.string().optional().default(''),
       lensType: z.string().optional().default(''),
       color: z.string().optional().default(''),
@@ -379,8 +381,8 @@ const defaultValues: SalesOrderIntakeValues = {
     },
   },
   salesOrder: { isOld: false, deliveryDate: today, dateOfFullPayment: today, orderNumber: '', testedBy: '', orderDate: today },
-  frame: { isOld: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
-  lens: { isOld: false, selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
+  frame: { isOld: false, isReference: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
+  lens: { isOld: false, isReference: false, selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
   totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
@@ -493,23 +495,25 @@ const mapDraftToFormValues = (
       newData: prescription ? mapPrescriptionToForm(prescription) : defaultValues.prescription.newData,
     },
     frame: frameItem ? {
-      isOld:       frameItem.product_id === 'HISTORICAL_FRAME',
-      selectionId: frameItem.product_id === 'HISTORICAL_FRAME' ? '' : frameItem.product_id,
-      barcode:     frameItem.sku || '',
-      model:       frameItem.product_name || '',
-      color:       '',
-      size:        '',
-      frameId:     frameItem.sku || '',
-      total:       frameItem.unit_price,
+      isOld:        ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id),
+      isReference:  frameItem.product_id === 'REF_FRAME',
+      selectionId:  ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id) ? '' : frameItem.product_id,
+      barcode:      frameItem.sku || '',
+      model:        frameItem.product_name || '',
+      color:        '',
+      size:         '',
+      frameId:      frameItem.sku || '',
+      total:        frameItem.unit_price,
     } : defaultValues.frame,
     lens: lensItem ? {
-      isOld:       lensItem.product_id === 'HISTORICAL_LENS',
-      selectionId: lensItem.product_id === 'HISTORICAL_LENS' ? '' : (lensItem.master_data_id || lensItem.product_id),
-      lensType:    lensItem.product_name || '',
-      color:       '',
-      size:        '',
-      lensId:      lensItem.sku === 'MANUAL' ? '' : (lensItem.sku || ''),
-      total:       lensItem.unit_price,
+      isOld:        ['HISTORICAL_LENS', 'REF_LENS'].includes(lensItem.product_id),
+      isReference:  lensItem.product_id === 'REF_LENS',
+      selectionId:  ['HISTORICAL_LENS', 'REF_LENS'].includes(lensItem.product_id) ? '' : (lensItem.master_data_id || lensItem.product_id),
+      lensType:     lensItem.product_name || '',
+      color:        '',
+      size:         '',
+      lensId:       lensItem.sku === 'MANUAL' ? '' : (lensItem.sku || ''),
+      total:        lensItem.unit_price,
     } : defaultValues.lens,
     expenses: expItems.map((e) => ({
       expenseTypeId:   e.master_data_id || e.product_id || '',
@@ -894,12 +898,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
         newData: { fullName: pat.name, email: pat.email || '', phone: pat.phone, age: pat.age, gender: pat.gender as any, address: formatAddress(pat) },
       },
       frame: frameItem ? {
-        isOld: frameItem.product_id === 'HISTORICAL_FRAME',
+        isOld:       ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id),
+        isReference: frameItem.product_id === 'REF_FRAME',
         selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
         color: '', size: '', frameId: frameItem.sku || '', total: frameItem.unit_price,
       } : defaultValues.frame,
       lens: lensItem ? {
-        isOld: lensItem.product_id === 'HISTORICAL_LENS',
+        isOld:       ['HISTORICAL_LENS', 'REF_LENS'].includes(lensItem.product_id),
+        isReference: lensItem.product_id === 'REF_LENS',
         selectionId: lensItem.master_data_id || '', lensType: lensItem.product_name || '',
         color: '', size: '', lensId: lensItem.sku || '', total: lensItem.unit_price,
       } : defaultValues.lens,
@@ -926,13 +932,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
   const generateInvoiceMutation = useMutation({ mutationFn: (orderId: string) => salesOrdersApi.generateInvoice(orderId) })
 
   // Handlers
-  const applyFrameSelection = (product: Product) => setValue('frame', { isOld: false, ...mapProductToFrame(product) }, { shouldDirty: true, shouldValidate: true })
+  const applyFrameSelection = (product: Product) => setValue('frame', { isOld: false, isReference: false, ...mapProductToFrame(product) }, { shouldDirty: true, shouldValidate: true })
 
   const applyFrameVariantSelection = (variant: FrameVariant | null) => {
     setSelectedFrameVariant(variant)
     if (variant) {
       setValue('frame', {
         isOld: false,
+        isReference: false,
         selectionId: variant.variant_id,
         barcode: variant.barcode || variant.sku,
         model: `${variant.frame_master_ref.brand} ${variant.frame_master_ref.model_code}`,
@@ -1108,14 +1115,18 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       draftItems.push({ product_id: selectedFrameVariant.variant_id, product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`, sku: selectedFrameVariant.sku, quantity: 1, unit_price: Number(values.frame.total || selectedFrameVariant.selling_price), total: Number(values.frame.total || selectedFrameVariant.selling_price), master_data_id: selectedFrameVariant.frame_master_id, frame_variant_id: selectedFrameVariant.variant_id, line_type: 'frame', track_stock: true })
     } else if (resolvedFrame) {
       draftItems.push({ product_id: resolvedFrame.product_id, product_name: values.frame.model || resolvedFrame.name, sku: values.frame.frameId || resolvedFrame.sku, quantity: 1, unit_price: Number(values.frame.total || resolvedFrame.selling_price), total: Number(values.frame.total || resolvedFrame.selling_price), master_data_id: resolvedFrame.product_id, line_type: 'product', track_stock: true })
-    } else if (values.salesOrder.isOld && (values.frame.model || values.frame.frameId)) {
+    } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
       const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
-      draftItems.push({ product_id: 'HISTORICAL_FRAME', product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: Number(values.frame.total || 0), total: Number(values.frame.total || 0), line_type: 'product', track_stock: false })
+      const frameProductId = values.frame.isReference ? 'REF_FRAME' : 'HISTORICAL_FRAME'
+      const frameTotal = values.frame.isReference ? 0 : Number(values.frame.total || 0)
+      draftItems.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame', track_stock: false })
     }
     if (resolvedLens) {
       draftItems.push({ product_id: resolvedLens.id, product_name: values.lens.lensType || resolvedLens.lens_type, sku: values.lens.lensId || resolvedLens.lens_code, quantity: 1, unit_price: Number(values.lens.total || resolvedLens.price), total: Number(values.lens.total || resolvedLens.price), master_data_id: resolvedLens.id, line_type: 'lens', track_stock: false })
-    } else if (values.salesOrder.isOld && values.lens.lensType) {
-      draftItems.push({ product_id: 'HISTORICAL_LENS', product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: Number(values.lens.total || 0), total: Number(values.lens.total || 0), line_type: 'lens', track_stock: false })
+    } else if (values.lens.isOld && values.lens.lensType) {
+      const lensProductId = values.lens.isReference ? 'REF_LENS' : 'HISTORICAL_LENS'
+      const lensTotal = values.lens.isReference ? 0 : Number(values.lens.total || 0)
+      draftItems.push({ product_id: lensProductId, product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: lensTotal, total: lensTotal, line_type: 'lens', track_stock: false })
     }
     values.expenses.forEach((expense) => {
       if (!expense.expenseTypeId && !expense.expenseTypeName) return
@@ -1218,12 +1229,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
       } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
         const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
-        itemPayload.push({ product_id: 'HISTORICAL_FRAME', product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: Number(values.frame.total || 0), total: Number(values.frame.total || 0), line_type: 'product' as const, track_stock: false })
+        const frameProductId = values.frame.isReference ? 'REF_FRAME' : 'HISTORICAL_FRAME'
+        const frameTotal = values.frame.isReference ? 0 : Number(values.frame.total || 0)
+        itemPayload.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame' as const, track_stock: false })
       }
       if (lensItem) {
         itemPayload.push({ product_id: lensItem.id, product_name: values.lens.lensType || lensItem.lens_type, sku: values.lens.lensId || lensItem.lens_code, quantity: 1, unit_price: Number(values.lens.total || lensItem.price), total: Number(values.lens.total || lensItem.price), master_data_id: lensItem.id, line_type: 'lens' as const, track_stock: false })
       } else if (values.lens.isOld && values.lens.lensType) {
-        itemPayload.push({ product_id: 'HISTORICAL_LENS', product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: Number(values.lens.total || 0), total: Number(values.lens.total || 0), line_type: 'lens' as const, track_stock: false })
+        const lensProductId = values.lens.isReference ? 'REF_LENS' : 'HISTORICAL_LENS'
+        const lensTotal = values.lens.isReference ? 0 : Number(values.lens.total || 0)
+        itemPayload.push({ product_id: lensProductId, product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: lensTotal, total: lensTotal, line_type: 'lens' as const, track_stock: false })
       }
       itemPayload.push(...(values.expenses || []).filter((expense) => Number(expense.qty || 0) > 0).map((expense) => {
         const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
@@ -1475,7 +1490,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
             const next = !salesOrder.isOld
             setValue('salesOrder.isOld', next, { shouldDirty: true, shouldValidate: true })
             setValue('frame.isOld', next, { shouldDirty: true })
+            setValue('frame.isReference', false, { shouldDirty: true })
             setValue('lens.isOld', next, { shouldDirty: true })
+            setValue('lens.isReference', false, { shouldDirty: true })
           }}
         >
           <div className="flex items-center gap-3">
@@ -1965,16 +1982,20 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                       ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
                       : 'border-border bg-muted/20 hover:bg-muted/40'
                   }`}
-                  onClick={() => setValue('frame.isOld', !frame.isOld, { shouldDirty: true })}
+                  onClick={() => {
+                    const next = !frame.isOld
+                    setValue('frame.isOld', next, { shouldDirty: true })
+                    if (!next) setValue('frame.isReference', false, { shouldDirty: true })
+                  }}
                 >
                   <div className="flex items-center gap-2.5">
                     <RiHistoryLine className={`h-4 w-4 ${frame.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
                     <div>
                       <p className={`text-xs font-semibold ${frame.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
-                        Historical frame
+                        Manual / Historical frame
                       </p>
                       <p className={`text-xs ${frame.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                        {frame.isOld ? 'Manual entry — no stock deducted' : 'Frame not in inventory — enter manually'}
+                        {frame.isOld ? 'Enter frame details manually — no stock deducted' : 'Frame not in inventory — enter manually'}
                       </p>
                     </div>
                   </div>
@@ -1991,20 +2012,58 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                 </div>
 
                 {frame.isOld ? (
-                  /* Historical mode: manual text entry only, no stock lookup */
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <Field label="Brand"><Input {...register('frame.frameId')} placeholder="e.g. Ray-Ban" /></Field>
-                    <Field label="Model / Name"><Input {...register('frame.model')} placeholder="e.g. Aviator" /></Field>
-                    <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
-                    <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
-                    <Field label="Barcode / Ref"><Input {...register('frame.barcode')} placeholder="Barcode or reference" /></Field>
-                    <Field label="Price">
-                      <Input
-                        type="number" step="0.01" placeholder="0.00"
-                        onFocus={(e) => e.target.select()}
-                        {...register('frame.total', { valueAsNumber: true })}
-                      />
-                    </Field>
+                  /* Manual mode: historical (with price) or reference-only (no charge) */
+                  <div className="space-y-3">
+                    {/* Reference-only sub-toggle */}
+                    <div
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
+                        frame.isReference
+                          ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30'
+                          : 'border-border bg-muted/10 hover:bg-muted/30'
+                      }`}
+                      onClick={() => {
+                        const next = !frame.isReference
+                        setValue('frame.isReference', next, { shouldDirty: true })
+                        if (next) setValue('frame.total', 0, { shouldDirty: true })
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <RiFileTextLine className={`h-3.5 w-3.5 ${frame.isReference ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
+                        <div>
+                          <p className={`text-xs font-semibold ${frame.isReference ? 'text-blue-800 dark:text-blue-300' : 'text-foreground'}`}>
+                            Reference only — no charge
+                          </p>
+                          <p className={`text-xs ${frame.isReference ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>
+                            {frame.isReference ? 'Existing frame noted for records — $0, no stock change' : 'Toggle on if noting an existing frame the patient already has (e.g. lens-change visit)'}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        role="checkbox"
+                        aria-checked={frame.isReference}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          frame.isReference ? 'bg-blue-500 border-blue-500' : 'border-blue-400/60 bg-transparent'
+                        }`}
+                      >
+                        {frame.isReference && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Field label="Brand"><Input {...register('frame.frameId')} placeholder="e.g. Ray-Ban" /></Field>
+                      <Field label="Model / Name"><Input {...register('frame.model')} placeholder="e.g. Aviator" /></Field>
+                      <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                      <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                      <Field label="Barcode / Ref"><Input {...register('frame.barcode')} placeholder="Barcode or reference" /></Field>
+                      <Field label="Price">
+                        <Input
+                          type="number" step="0.01" placeholder="0.00"
+                          disabled={frame.isReference}
+                          onFocus={(e) => e.target.select()}
+                          {...register('frame.total', { valueAsNumber: true })}
+                        />
+                      </Field>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -2087,16 +2146,20 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                       ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
                       : 'border-border bg-muted/20 hover:bg-muted/40'
                   }`}
-                  onClick={() => setValue('lens.isOld', !lens.isOld, { shouldDirty: true })}
+                  onClick={() => {
+                    const next = !lens.isOld
+                    setValue('lens.isOld', next, { shouldDirty: true })
+                    if (!next) setValue('lens.isReference', false, { shouldDirty: true })
+                  }}
                 >
                   <div className="flex items-center gap-2.5">
                     <RiHistoryLine className={`h-4 w-4 ${lens.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
                     <div>
                       <p className={`text-xs font-semibold ${lens.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
-                        Historical lens
+                        Manual / Historical lens
                       </p>
                       <p className={`text-xs ${lens.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                        {lens.isOld ? 'Manual entry — no stock deducted' : 'Lens not in catalog — enter manually'}
+                        {lens.isOld ? 'Enter lens details manually — no stock deducted' : 'Lens not in catalog — enter manually'}
                       </p>
                     </div>
                   </div>
@@ -2113,19 +2176,57 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                 </div>
 
                 {lens.isOld ? (
-                  /* Historical mode: manual text entry only */
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
-                    <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
-                    <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
-                    <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
-                    <Field label="Price">
-                      <Input
-                        type="number" step="0.01" placeholder="0.00"
-                        onFocus={(e) => e.target.select()}
-                        {...register('lens.total', { valueAsNumber: true })}
-                      />
-                    </Field>
+                  /* Manual mode: historical (with price) or reference-only (no charge) */
+                  <div className="space-y-3">
+                    {/* Reference-only sub-toggle */}
+                    <div
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
+                        lens.isReference
+                          ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30'
+                          : 'border-border bg-muted/10 hover:bg-muted/30'
+                      }`}
+                      onClick={() => {
+                        const next = !lens.isReference
+                        setValue('lens.isReference', next, { shouldDirty: true })
+                        if (next) setValue('lens.total', 0, { shouldDirty: true })
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <RiFileTextLine className={`h-3.5 w-3.5 ${lens.isReference ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
+                        <div>
+                          <p className={`text-xs font-semibold ${lens.isReference ? 'text-blue-800 dark:text-blue-300' : 'text-foreground'}`}>
+                            Reference only — no charge
+                          </p>
+                          <p className={`text-xs ${lens.isReference ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>
+                            {lens.isReference ? 'Existing lens noted for records — $0, no stock change' : 'Toggle on if noting an existing lens the patient already has (e.g. frame-change visit)'}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        role="checkbox"
+                        aria-checked={lens.isReference}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          lens.isReference ? 'bg-blue-500 border-blue-500' : 'border-blue-400/60 bg-transparent'
+                        }`}
+                      >
+                        {lens.isReference && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
+                      <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
+                      <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
+                      <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
+                      <Field label="Price">
+                        <Input
+                          type="number" step="0.01" placeholder="0.00"
+                          disabled={lens.isReference}
+                          onFocus={(e) => e.target.select()}
+                          {...register('lens.total', { valueAsNumber: true })}
+                        />
+                      </Field>
+                    </div>
                   </div>
                 ) : (
                   <>
