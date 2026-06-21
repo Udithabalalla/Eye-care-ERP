@@ -109,11 +109,8 @@ class InvoiceService:
             prescription = await self.prescription_repo.get_by_prescription_id(invoice_data.prescription_id)
             if not prescription:
                 raise NotFoundException(f"Prescription with ID {invoice_data.prescription_id} not found")
-            if not is_prescription_valid(prescription.valid_until):
-                raise BadRequestException(
-                    f"Prescription {invoice_data.prescription_id} has expired. "
-                    "Please issue a new prescription before creating this invoice."
-                )
+            # Prescriptions are not expired in this system — they are renewed.
+            # No expiry check.
 
         if invoice_data.sales_order_id:
             sales_order = await self.sales_order_repo.get_by_order_id(invoice_data.sales_order_id)

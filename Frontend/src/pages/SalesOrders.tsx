@@ -385,7 +385,18 @@ const SalesOrders = () => {
       {
         accessorKey: 'created_at',
         header: 'Created',
-        cell: ({ row }) => formatDate(row.original.created_at),
+        cell: ({ row }) => {
+          const d = row.original.created_at ? new Date(row.original.created_at) : null
+          if (!d) return '-'
+          return (
+            <div className="flex flex-col">
+              <span>{formatDate(d)}</span>
+              <span className="text-xs text-muted-foreground">
+                {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          )
+        },
       },
       {
         id: 'invoice',
