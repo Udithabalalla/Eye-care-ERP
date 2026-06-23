@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1007,6 +1008,25 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const addExpenseRow = () => append({ expenseTypeId: '', expenseTypeName: '', qty: 1, unitCost: 0, discount: 0, total: 0 })
 
+  // Inline new expense type dialog
+  const [newExpenseDialogOpen, setNewExpenseDialogOpen] = useState(false)
+  const [newExpenseName, setNewExpenseName] = useState('')
+  const [newExpenseCost, setNewExpenseCost] = useState(0)
+  const createExpenseTypeMutation = useMutation({
+    mutationFn: (data: { name: string; default_cost: number }) =>
+      basicDataApi.createOtherExpense({ ...data, is_active: true }),
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ['other-expenses'] })
+      setNewExpenseDialogOpen(false)
+      setNewExpenseName('')
+      setNewExpenseCost(0)
+      // Add a row pre-filled with the newly created type
+      append({ expenseTypeId: created.id, expenseTypeName: created.name, qty: 1, unitCost: created.default_cost, discount: 0, total: created.default_cost })
+      toast.success(`Expense type "${created.name}" created`)
+    },
+    onError: () => toast.error('Failed to create expense type'),
+  })
+
   const updateExpenseRow = (index: number, field: keyof SalesOrderIntakeValues['expenses'][number], value: string | number) => {
     const current = getValues('expenses')
     const next = [...current]
@@ -1837,13 +1857,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         <tbody>
                           {/* OD — Right Eye */}
                           <tr className="border-b border-border/40 bg-primary/5">
-                            <td className="pl-4 pr-2 py-3">
+                            <td className="pl-4 pr-2 py-3 align-top pt-3">
                               <div className="flex flex-col gap-0.5">
                                 <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-bold text-xs w-fit">OD</Badge>
                                 <span className="text-[10px] text-muted-foreground">Right</span>
                               </div>
                             </td>
-                            <td className="px-2 py-3">
+                            {/* Sphere — has PL/NPL shortcuts below the input */}
+                            <td className="px-2 py-3 align-top">
                               <div className="space-y-1">
                                 <Input
                                   type="text"
@@ -1862,7 +1883,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1871,7 +1892,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', v - 0.25) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
                                 {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1880,7 +1901,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', v === 0 ? 180 : v - 1) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1889,7 +1910,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(v - 0.25, 0)) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1902,13 +1923,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
                           {/* OS — Left Eye */}
                           <tr className="bg-blue-50/40 dark:bg-blue-950/20">
-                            <td className="pl-4 pr-2 py-3">
+                            <td className="pl-4 pr-2 py-3 align-top pt-3">
                               <div className="flex flex-col gap-0.5">
                                 <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-bold text-xs w-fit">OS</Badge>
                                 <span className="text-[10px] text-muted-foreground">Left</span>
                               </div>
                             </td>
-                            <td className="px-2 py-3">
+                            {/* Sphere */}
+                            <td className="px-2 py-3 align-top">
                               <div className="space-y-1">
                                 <Input
                                   type="text"
@@ -1927,7 +1949,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1936,7 +1958,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', v - 0.25) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
                                 {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1945,7 +1967,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', v === 0 ? 180 : v - 1) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1954,7 +1976,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.max(v - 0.25, 0)) }
                                 }} />
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -1967,7 +1989,31 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         </tbody>
                       </table>
                     </div>
-                    <p className="text-xs text-muted-foreground">Use <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↑</kbd> <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↓</kbd> arrow keys to step values in any field.</p>
+
+                    {/* Prescription helpers row */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-xs text-muted-foreground">
+                        Use <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↑</kbd> <kbd className="px-1 py-0.5 rounded border border-border/60 bg-muted text-[10px] font-mono">↓</kbd> arrow keys to step values. <span className="hidden sm:inline">PL = Plano · NPL = No Perception of Light</span>
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={prescriptionIsLinked}
+                        onClick={() => {
+                          const od = getValues('prescription.newData.rightEye')
+                          setValue('prescription.newData.leftEye.sphere', od.sphere, { shouldDirty: true })
+                          setValue('prescription.newData.leftEye.cylinder', od.cylinder, { shouldDirty: true })
+                          setValue('prescription.newData.leftEye.axis', od.axis, { shouldDirty: true })
+                          setValue('prescription.newData.leftEye.add', od.add, { shouldDirty: true })
+                          setValue('prescription.newData.leftEye.pd', od.pd, { shouldDirty: true })
+                          toast.success('OD values copied to OS')
+                        }}
+                        className="text-xs shrink-0"
+                      >
+                        Copy OD → OS
+                      </Button>
+                    </div>
 
                     {/* Clinical Notes Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
@@ -2497,10 +2543,15 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
                       </div>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
-                      <RiAddLine className="mr-1.5 h-4 w-4" />
-                      Add Expense
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => { setNewExpenseName(''); setNewExpenseCost(0); setNewExpenseDialogOpen(true) }}>
+                        + New Type
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
+                        <RiAddLine className="mr-1.5 h-4 w-4" />
+                        Add Expense
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <Separator />
@@ -2553,6 +2604,35 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Inline create expense type dialog */}
+              <Dialog open={newExpenseDialogOpen} onOpenChange={(open) => !open && setNewExpenseDialogOpen(false)}>
+                <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>New Expense Type</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-expense-name">Name</Label>
+                      <Input id="new-expense-name" placeholder="e.g. Lens Coating" value={newExpenseName} onChange={(e) => setNewExpenseName(e.target.value)} autoFocus />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-expense-cost">Default Cost</Label>
+                      <Input id="new-expense-cost" type="number" min={0} step="0.01" placeholder="0.00" value={newExpenseCost || ''} onChange={(e) => setNewExpenseCost(Number(e.target.value))} />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" type="button" onClick={() => setNewExpenseDialogOpen(false)}>Cancel</Button>
+                    <Button
+                      type="button"
+                      disabled={!newExpenseName.trim() || createExpenseTypeMutation.isPending}
+                      onClick={() => createExpenseTypeMutation.mutate({ name: newExpenseName.trim(), default_cost: newExpenseCost })}
+                    >
+                      {createExpenseTypeMutation.isPending ? 'Creating…' : 'Create & Add'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Remarks & Notes</CardTitle></CardHeader>
