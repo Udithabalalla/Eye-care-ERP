@@ -139,6 +139,7 @@ const SalesOrders = () => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [draftToDelete, setDraftToDelete] = useState<SalesOrder | null>(null)
+  const [orderToEdit, setOrderToEdit] = useState<SalesOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
 
@@ -286,7 +287,14 @@ const SalesOrders = () => {
       id: 'edit-order',
       label: 'Edit / Continue',
       icon: RiFileEditLine,
-      onClick: (rows) => navigate(`/sales-orders/assistant?draft=${rows[0].order_id}`),
+      onClick: (rows) => {
+        const order = rows[0]
+        if (order.status === 'draft') {
+          navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+        } else {
+          setOrderToEdit(order)
+        }
+      },
       showWhen: 'single',
       primary: !commonNextAction,
     })
@@ -299,6 +307,16 @@ const SalesOrders = () => {
         onClick: (rows) => {
           if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`)
         },
+        showWhen: 'single',
+      })
+    }
+
+    if (selectedRows.length === 1 && selectedRows[0]?.status === 'draft' && !selectedRows[0]?.invoice_id) {
+      actions.push({
+        id: 'delete-order',
+        label: 'Delete Draft',
+        icon: RiDeleteBin6Line,
+        onClick: (rows) => setDraftToDelete(rows[0]),
         showWhen: 'single',
       })
     }
@@ -479,7 +497,13 @@ const SalesOrders = () => {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => navigate(`/sales-orders/assistant?draft=${order.order_id}`)}
+                    onClick={() => {
+                      if (order.status === 'draft') {
+                        navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+                      } else {
+                        setOrderToEdit(order)
+                      }
+                    }}
                   >
                     <RiFileEditLine className="size-4" />
                     Edit Order
@@ -537,6 +561,31 @@ const SalesOrders = () => {
           </div>
         </div>
       )}
+
+      {/* Edit order confirmation (non-draft orders) */}
+      <AlertDialog open={!!orderToEdit} onOpenChange={(open) => { if (!open) setOrderToEdit(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit this sales order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{orderToEdit?.order_number}</strong> has already been processed (status:{' '}
+              <strong>{orderToEdit?.status?.replace(/_/g, ' ')}</strong>). Editing it may affect
+              linked inventory, prescriptions, or invoices. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToEdit(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (orderToEdit) navigate(`/sales-orders/assistant?draft=${orderToEdit.order_id}`)
+                setOrderToEdit(null)
+              }}
+            >
+              Edit Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete draft dialog */}
       <AlertDialog

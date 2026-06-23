@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { salesOrdersApi, auditLogsApi } from '@/api/erp.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
@@ -32,6 +42,7 @@ import {
   RiMoneyDollarCircleLine,
   RiRefreshLine,
   RiHistoryLine,
+  RiDeleteBin6Line,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -60,6 +71,21 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => salesOrdersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
+      onOpenChange(false)
+      toast.success('Draft order deleted')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Failed to delete order')
+    },
+  })
 
   const { data: order } = useQuery({
     queryKey: ['sales-order', orderId],
@@ -426,8 +452,12 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
               variant="outline"
               className="flex-1 gap-1.5"
               onClick={() => {
-                onOpenChange(false)
-                navigate(`/sales-orders/assistant?draft=${order?.order_id}`)
+                if (order?.status === 'draft') {
+                  onOpenChange(false)
+                  navigate(`/sales-orders/assistant?draft=${order?.order_id}`)
+                } else {
+                  setEditConfirmOpen(true)
+                }
               }}
             >
               <RiFileEditLine className="size-4" />
@@ -457,10 +487,69 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                 Invoice
               </Button>
             )}
+            {order?.status === 'draft' && !order?.invoice_id && (
+              <Button
+                variant="outline"
+                className="flex-1 gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <RiDeleteBin6Line className="size-4" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Edit confirmation (non-draft orders) */}
+    <AlertDialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Edit this sales order?</AlertDialogTitle>
+          <AlertDialogDescription>
+            <strong>{order?.order_number}</strong> has already been processed (status:{' '}
+            <strong>{order?.status?.replace(/_/g, ' ')}</strong>). Editing it may affect linked
+            inventory, prescriptions, or invoices. Are you sure you want to continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setEditConfirmOpen(false)
+              onOpenChange(false)
+              navigate(`/sales-orders/assistant?draft=${order?.order_id}`)
+            }}
+          >
+            Edit Order
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Delete draft confirmation */}
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete draft order?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently remove draft <strong>{order?.order_number}</strong> and all its
+            unsaved progress. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => order && deleteMutation.mutate(order.order_id)}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Deleting…' : 'Delete Draft'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     {/* Payment dialog */}
     {order && invoice && (
