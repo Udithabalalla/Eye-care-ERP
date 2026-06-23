@@ -11,7 +11,6 @@ import {
   RiFileTextLine,
   RiMoneyDollarCircleLine,
   RiMore2Line,
-  RiReceiptLine,
 } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,18 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { DataTable, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
 import PaymentModal from '@/components/invoices/PaymentModal'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
-import InvoiceDetail from '@/components/invoices/InvoiceDetail'
+import { InvoiceDetailSheet } from '@/components/invoices/InvoiceDetailSheet'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import { downloadFile } from '@/utils/helpers'
 import { Invoice } from '@/types/invoice.types'
@@ -65,7 +58,7 @@ const Invoices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [detailInvoiceId, setDetailInvoiceId] = useState<string | null>(null)
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -99,28 +92,15 @@ const Invoices = () => {
 
   useEffect(() => {
     const detailId = searchParams.get('detail')
-    if (!detailId) return
-    let active = true
-    invoicesApi.getById(detailId).then((inv) => {
-      if (!active) return
-      setSelectedInvoice(inv)
-      setIsDetailOpen(true)
-    }).catch(() => {
-      if (!active) return
-      toast.error('Failed to load invoice details')
-      setSearchParams({}, { replace: true })
-    })
-    return () => { active = false }
-  }, [searchParams, setSearchParams])
+    if (detailId) setDetailInvoiceId(detailId)
+  }, [searchParams])
 
   const openDetail = (invoice: Invoice) => {
-    setSelectedInvoice(invoice)
-    setIsDetailOpen(true)
+    setDetailInvoiceId(invoice.invoice_id)
   }
 
   const closeDetail = () => {
-    setIsDetailOpen(false)
-    setSelectedInvoice(null)
+    setDetailInvoiceId(null)
     setSearchParams({}, { replace: true })
   }
 
@@ -448,25 +428,11 @@ const Invoices = () => {
         />
       )}
 
-      <Dialog open={isDetailOpen} onOpenChange={(open) => { if (!open) closeDetail() }}>
-        <DialogContent className="w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              <RiReceiptLine className="size-5 text-primary" />
-              Invoice Details
-            </DialogTitle>
-          </DialogHeader>
-          {selectedInvoice && (
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <InvoiceDetail
-                invoice={selectedInvoice}
-                onPayment={() => { closeDetail(); openPayment(selectedInvoice) }}
-                onDownloadPDF={() => handleDownloadPDF(selectedInvoice.invoice_id)}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <InvoiceDetailSheet
+        invoiceId={detailInvoiceId}
+        open={!!detailInvoiceId}
+        onOpenChange={(open) => { if (!open) closeDetail() }}
+      />
 
       <PrescriptionModal
         isOpen={isPrescriptionModalOpen}
