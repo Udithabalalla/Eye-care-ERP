@@ -545,7 +545,7 @@ const mapDraftToFormValues = (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: string; reorderFromId?: string }) => {
+const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: { draftOrderId?: string; reorderFromId?: string; initialPatient?: Patient }) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
@@ -782,6 +782,21 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient.existingId, patientPrescriptions?.data])
+
+  // Pre-fill patient and skip to step 1 when navigated from the Patients page
+  useEffect(() => {
+    if (!initialPatient || draftOrderId || reorderFromId) return
+    setValue('patient.existingId', initialPatient.patient_id, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.fullName', initialPatient.name, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.phone', initialPatient.phone, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.email', initialPatient.email || '', { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.age', initialPatient.age, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.gender', initialPatient.gender, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.address', formatAddress(initialPatient), { shouldDirty: true, shouldValidate: true })
+    setCurrentStep(1)
+    setMaxStepReached(1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run once on mount — initialPatient is stable after navigation
 
   useEffect(() => {
     if (!frame.total || frame.total <= 0) return
@@ -1306,6 +1321,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       if (createdPatientId) {
         try {
           await patientsApi.delete(createdPatientId)
+          queryClient.invalidateQueries({ queryKey: ['patients'] })
         } catch {
           // ignore rollback failures; original error is the one we report
         }
@@ -1528,8 +1544,22 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
           </div>
         </div>
 
-        {/* Progress stepper */}
-        <Card className="px-6 py-5">
+        {/* Progress stepper — compact on mobile, full circles on sm+ */}
+        <div className="sm:hidden rounded-xl border border-border bg-card px-5 py-4">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Step {currentStep + 1} of {STEPS.length}
+            </span>
+            <span className="text-sm font-semibold text-foreground">{STEPS[currentStep].label}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
+            />
+          </div>
+        </div>
+        <Card className="hidden sm:block px-6 py-5">
           <StepIndicator currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
         </Card>
 
@@ -2734,25 +2764,27 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
           )}
 
           {/* ── Navigation ──────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="mt-4 flex flex-col-reverse gap-3 border-t border-border pt-4 sm:mt-0 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:pt-2">
             <div>
               {currentStep > 0 && !savedOrderNumber && (
-                <Button type="button" variant="outline" onClick={handleBack}>
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleBack}>
                   <RiArrowLeftSLine className="mr-1.5 h-4 w-4" />
                   Back
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               {savedOrderNumber ? (
-                <Button type="button" variant="outline" onClick={handleReset}>Create Another Order</Button>
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleReset}>
+                  Create Another Order
+                </Button>
               ) : currentStep < STEPS.length - 1 ? (
-                <Button type="button" onClick={handleNext}>
+                <Button type="button" className="w-full sm:w-auto" onClick={handleNext}>
                   Next Step
                   <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" disabled={isSaving} onClick={handleSubmitClick}>
+                <Button type="button" disabled={isSaving} className="w-full sm:w-auto" onClick={handleSubmitClick}>
                   {isSaving ? (
                     <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
                   ) : (

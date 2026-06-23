@@ -19,8 +19,8 @@ class PatientRepository(BaseRepository):
         return None
     
     async def get_by_phone(self, phone: str) -> Optional[PatientModel]:
-        """Get patient by phone number"""
-        patient_dict = await self.get_one({"phone": phone})
+        """Get patient by phone number — only checks active patients so soft-deleted rollbacks don't block re-creation"""
+        patient_dict = await self.get_one({"phone": phone, "is_active": True})
         if patient_dict:
             return PatientModel(**patient_dict)
         return None

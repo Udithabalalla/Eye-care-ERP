@@ -1,21 +1,33 @@
 import { RiArrowLeftSLine } from '@remixicon/react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import SalesOrderIntakeForm from '@/components/sales-orders/SalesOrderIntakeForm'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
+import { Patient } from '@/types/patient.types'
 
 const SalesOrderAssistant = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const draftOrderId = searchParams.get('draft') || undefined
   const reorderFromId = searchParams.get('reorder') || undefined
+  const initialPatient: Patient | undefined = location.state?.patient
 
-  const title = draftOrderId ? 'Continue Draft Order' : reorderFromId ? 'Reorder' : 'Sales Order Assistant'
+  const title = draftOrderId
+    ? 'Continue Draft Order'
+    : reorderFromId
+      ? 'Reorder'
+      : initialPatient
+        ? `New Order — ${initialPatient.name}`
+        : 'Sales Order Assistant'
+
   const subtitle = draftOrderId
     ? 'Pick up where you left off and complete this draft.'
     : reorderFromId
       ? 'Pre-filled from a previous order — review and confirm details.'
-      : 'Use the guided assistant to create a new sales order.'
+      : initialPatient
+        ? 'Patient pre-filled — continue from the prescription step.'
+        : 'Use the guided assistant to create a new sales order.'
 
   return (
     <div className="space-y-6">
@@ -33,7 +45,11 @@ const SalesOrderAssistant = () => {
       </div>
 
       <ErrorBoundary>
-        <SalesOrderIntakeForm draftOrderId={draftOrderId} reorderFromId={reorderFromId} />
+        <SalesOrderIntakeForm
+          draftOrderId={draftOrderId}
+          reorderFromId={reorderFromId}
+          initialPatient={initialPatient}
+        />
       </ErrorBoundary>
     </div>
   )
