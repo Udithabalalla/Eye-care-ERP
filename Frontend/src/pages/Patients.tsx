@@ -13,6 +13,7 @@ import {
   RiMore2Line,
   RiReceiptLine,
   RiDeleteBin6Line,
+  RiEdit2Line,
 } from '@remixicon/react'
 import Pagination from '@/components/common/Pagination'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -110,6 +111,11 @@ const Patients = () => {
 
   const handleAdd = () => {
     setSelectedPatient(null)
+    setIsModalOpen(true)
+  }
+
+  const handleEdit = (patient: Patient) => {
+    setSelectedPatient(patient)
     setIsModalOpen(true)
   }
 
@@ -232,6 +238,14 @@ const Patients = () => {
       label: 'Customer History',
       icon: RiFileTextLine,
       onClick: (rows) => handleShowDetails(rows[0]),
+      showWhen: 'single',
+      primary: true,
+    },
+    {
+      id: 'edit-patient',
+      label: 'Edit Patient',
+      icon: RiEdit2Line,
+      onClick: (rows) => handleEdit(rows[0]),
       showWhen: 'single',
       primary: true,
     },
