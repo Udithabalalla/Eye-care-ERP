@@ -305,16 +305,18 @@ const PricingPanel = ({ derivedTotals }: { derivedTotals: ReturnType<typeof calc
 )
 
 const StepIndicator = ({
+  steps,
   currentStep,
   maxStepReached,
   onStepClick,
 }: {
+  steps: ReadonlyArray<{ id: number; label: string; icon: React.ComponentType<{ className?: string }> }>
   currentStep: number
   maxStepReached: number
   onStepClick: (step: number) => void
 }) => (
   <div className="flex items-center">
-    {STEPS.map((step, index) => {
+    {steps.map((step, index) => {
       const isPast = step.id < currentStep
       const isCurrent = step.id === currentStep
       const isReachable = step.id <= maxStepReached
@@ -338,7 +340,7 @@ const StepIndicator = ({
               {isPast ? (
                 <RiCheckLine className="h-4 w-4" />
               ) : (
-                <span className="text-xs font-bold">{step.id + 1}</span>
+                <span className="text-xs font-bold">{index + 1}</span>
               )}
             </div>
             <span
@@ -357,7 +359,7 @@ const StepIndicator = ({
               {step.label}
             </span>
           </div>
-          {index < STEPS.length - 1 && (
+          {index < steps.length - 1 && (
             <div className={`h-0.5 w-full mx-2 mb-4 transition-all duration-300 ${step.id < maxStepReached ? 'bg-primary' : 'bg-border'}`} />
           )}
         </div>
@@ -554,7 +556,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
   const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(null)
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
-  const [freshMatchedPatient, setFreshMatchedPatient] = useState<Patient | null>(null)
+  const [phoneMatches, setPhoneMatches] = useState<Patient[]>([])
+  const [orderType, setOrderType] = useState<'full' | 'frame-only' | 'lens-only'>('full')
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [localDraftRestored, setLocalDraftRestored] = useState(false)
   const [showLocalDraftBanner, setShowLocalDraftBanner] = useState(false)
@@ -1030,6 +1033,25 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
     }
   }
 
+  const visibleSteps = useMemo(() =>
+    (STEPS as ReadonlyArray<{ id: number; label: string; icon: React.ComponentType<{ className?: string }> }>).filter(s => {
+      if (orderType === 'frame-only' && s.id === 3) return false
+      if (orderType === 'lens-only' && s.id === 2) return false
+      return true
+    }), [orderType])
+
+  const nextStep = (current: number) => {
+    const ids = visibleSteps.map(s => s.id)
+    const idx = ids.indexOf(current)
+    return idx < ids.length - 1 ? ids[idx + 1] : current
+  }
+
+  const prevStep = (current: number) => {
+    const ids = visibleSteps.map(s => s.id)
+    const idx = ids.indexOf(current)
+    return idx > 0 ? ids[idx - 1] : current
+  }
+
   const handleNext = async () => {
     // Step 0: Patient — validate required fields, then check for duplicates
     if (currentStep === 0) {
@@ -1041,21 +1063,19 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
         const searchTerm = phone || name
         if (searchTerm) {
           try {
-            // Use queryClient.fetchQuery with the same key as usePatientSearch so react-query
-            // deduplicates at its own level — avoids the axios AbortController race where the
-            // debounce fires and cancels this in-flight request before we can read the result.
             const result = await queryClient.fetchQuery({
               queryKey: ['patients', 'search', searchTerm],
               queryFn: () => patientsApi.getAll({ page: 1, page_size: 25, search: searchTerm }),
               staleTime: 10_000,
             })
             const results = result.data || []
-            const match =
-              results.find((item) => phoneDigits(safeText(item?.phone)) === phoneDigits(phone)) ||
-              results.find((item) => name && normalizeText(safeText(item?.name)).includes(normalizeText(name))) ||
-              null
-            if (match) {
-              setFreshMatchedPatient(match)
+            const phoneMatchList = results.filter(item => phoneDigits(safeText(item?.phone)) === phoneDigits(phone))
+            const nameMatch = !phoneMatchList.length && name
+              ? results.find(item => normalizeText(safeText(item?.name)).includes(normalizeText(name))) || null
+              : null
+            const matches = phoneMatchList.length > 0 ? phoneMatchList : (nameMatch ? [nameMatch] : [])
+            if (matches.length > 0) {
+              setPhoneMatches(matches)
               setShowDuplicateDialog(true)
               return
             }
@@ -1070,10 +1090,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       const valid = await trigger(['salesOrder.orderDate', 'salesOrder.deliveryDate', 'salesOrder.testedBy'] as any)
       if (!valid) return
     }
-    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1))
+    setCurrentStep((prev) => nextStep(prev))
   }
 
-  const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
+  const handleBack = () => setCurrentStep((prev) => prevStep(prev))
 
   const handleReset = () => {
     localStorage.removeItem(LOCAL_DRAFT_KEY)
@@ -1183,10 +1203,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
     let createdPatientId: string | null = null
     let createdPrescriptionId: string | null = null
     try {
-      const phone = phoneDigits(values.patient.newData.phone)
-      const exactDuplicate = !values.patient.existingId && freshMatchedPatient && phoneDigits(safeText(freshMatchedPatient.phone)) === phone
-      if (exactDuplicate) { toast.error('Phone number already exists. Please link the existing patient or use a different number.'); return }
-
       const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
       if (!values.patient.existingId) createdPatientId = patientId
 
@@ -1203,7 +1219,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       }
 
       const frameItem = resolvedFrame
-      if (!values.frame.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
+      if (orderType !== 'lens-only' && !values.frame.isOld && !frameItem && !(frameSource === 'variant' && selectedFrameVariant)) { toast.error('Frame selection is required'); return }
       const lensItem = resolvedLens
       // Lens is optional — frame only = half order, frame + lens = full order
       if (!values.salesOrder.isOld) {
@@ -1212,7 +1228,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       }
 
       const itemPayload: SalesOrderItem[] = []
-      if (frameSource === 'variant' && selectedFrameVariant) {
+      if (orderType !== 'lens-only' && frameSource === 'variant' && selectedFrameVariant) {
         itemPayload.push({
           product_id: selectedFrameVariant.variant_id,
           product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`,
@@ -1225,17 +1241,17 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
           line_type: 'frame' as const,
           track_stock: true,
         })
-      } else if (frameItem) {
+      } else if (orderType !== 'lens-only' && frameItem) {
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
-      } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
+      } else if (orderType !== 'lens-only' && values.frame.isOld && (values.frame.model || values.frame.frameId)) {
         const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
         const frameProductId = values.frame.isReference ? 'REF_FRAME' : 'HISTORICAL_FRAME'
         const frameTotal = values.frame.isReference ? 0 : Number(values.frame.total || 0)
         itemPayload.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame' as const, track_stock: false })
       }
-      if (lensItem) {
+      if (orderType !== 'frame-only' && lensItem) {
         itemPayload.push({ product_id: lensItem.id, product_name: values.lens.lensType || lensItem.lens_type, sku: values.lens.lensId || lensItem.lens_code, quantity: 1, unit_price: Number(values.lens.total || lensItem.price), total: Number(values.lens.total || lensItem.price), master_data_id: lensItem.id, line_type: 'lens' as const, track_stock: false })
-      } else if (values.lens.isOld && values.lens.lensType) {
+      } else if (orderType !== 'frame-only' && values.lens.isOld && values.lens.lensType) {
         const lensProductId = values.lens.isReference ? 'REF_LENS' : 'HISTORICAL_LENS'
         const lensTotal = values.lens.isReference ? 0 : Number(values.lens.total || 0)
         itemPayload.push({ product_id: lensProductId, product_name: values.lens.lensType, sku: values.lens.lensId || 'MANUAL', quantity: 1, unit_price: lensTotal, total: lensTotal, line_type: 'lens' as const, track_stock: false })
@@ -1388,15 +1404,36 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
       <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Existing patient found</AlertDialogTitle>
+            <AlertDialogTitle>
+              {phoneMatches.length === 1 ? 'Existing patient found' : `${phoneMatches.length} patients share this phone number`}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>A patient record already exists matching this information:</p>
-                <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
-                  <p className="font-semibold text-foreground">{safeText(freshMatchedPatient?.name)}</p>
-                  <p className="text-muted-foreground">{safeText(freshMatchedPatient?.phone)}</p>
+                {phoneMatches.length === 1
+                  ? <p>A patient record already exists matching this information. Select one or proceed as a new patient.</p>
+                  : <p>Multiple patients are registered under this phone number (e.g. household members). Select who this order is for, or proceed as a new patient.</p>
+                }
+                <div className="space-y-2 max-h-52 overflow-y-auto">
+                  {phoneMatches.map((p) => (
+                    <div key={p.patient_id} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3">
+                      <div>
+                        <p className="font-semibold text-foreground">{safeText(p.name)}</p>
+                        <p className="text-muted-foreground">{safeText(p.phone)}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          handlePatientAction(p)
+                          setShowDuplicateDialog(false)
+                          setCurrentStep(nextStep(0))
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                <p>Would you like to use this existing patient, or continue creating a new record with a different phone number?</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1407,20 +1444,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
               onClick={() => {
                 setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
                 setShowDuplicateDialog(false)
-                setCurrentStep(1)
+                setCurrentStep(nextStep(0))
               }}
             >
-              Create New Patient
+              New Patient (same number)
             </Button>
-            <AlertDialogAction
-              onClick={() => {
-                if (freshMatchedPatient) handlePatientAction(freshMatchedPatient)
-                setShowDuplicateDialog(false)
-                setCurrentStep(1)
-              }}
-            >
-              Use Existing Patient
-            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1524,7 +1552,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
 
         {/* Progress stepper */}
         <Card className="px-6 py-5">
-          <StepIndicator currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
+          <StepIndicator steps={visibleSteps} currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
         </Card>
 
         <form className="space-y-4">
@@ -1611,6 +1639,40 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId }: { draftOrderId?: 
                         </button>
                       )
                     })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium mb-1">Order Type</p>
+                  <p className="text-xs text-muted-foreground mb-3">Select what the patient needs — unused steps will be hidden from the form</p>
+                  <div className="flex gap-3">
+                    {([
+                      { value: 'full', label: 'Frame + Lens' },
+                      { value: 'frame-only', label: 'Frame only' },
+                      { value: 'lens-only', label: 'Lens only' },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setOrderType(value)
+                          // When the user switches away from a type, reset currentStep if it's
+                          // now hidden (e.g. switching to lens-only while on step 2)
+                          setCurrentStep(prev => {
+                            if (value === 'frame-only' && prev === 3) return 4
+                            if (value === 'lens-only' && prev === 2) return 3
+                            return prev
+                          })
+                        }}
+                        className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                          orderType === value
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </CardContent>
