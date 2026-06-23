@@ -25,6 +25,7 @@ interface InvoiceDetailProps {
   invoice: Invoice
   onPayment: () => void
   onDownloadPDF: () => void
+  showHeader?: boolean
 }
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -53,38 +54,40 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
   </div>
 )
 
-const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF }: InvoiceDetailProps) => {
+const InvoiceDetail = ({ invoice, onPayment, onDownloadPDF, showHeader = true }: InvoiceDetailProps) => {
   const isPaid = invoice.payment_status === 'paid'
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">{invoice.invoice_number}</h2>
-            <Badge variant={statusVariant[invoice.payment_status] ?? 'outline'} className="capitalize">
-              {invoice.payment_status}
-            </Badge>
+      {/* Header — hidden when rendered inside InvoiceDetailSheet */}
+      {showHeader && (
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-foreground">{invoice.invoice_number}</h2>
+              <Badge variant={statusVariant[invoice.payment_status] ?? 'outline'} className="capitalize">
+                {invoice.payment_status}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Issued {formatDate(invoice.invoice_date)}
+              {invoice.due_date && ` · Due ${formatDate(invoice.due_date)}`}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Issued {formatDate(invoice.invoice_date)}
-            {invoice.due_date && ` · Due ${formatDate(invoice.due_date)}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onDownloadPDF}>
-            <RiDownloadLine className="size-4 mr-1.5" />
-            PDF
-          </Button>
-          {!isPaid && (
-            <Button size="sm" onClick={onPayment}>
-              <RiMoneyDollarCircleLine className="size-4 mr-1.5" />
-              Record Payment
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={onDownloadPDF}>
+              <RiDownloadLine className="size-4 mr-1.5" />
+              PDF
             </Button>
-          )}
+            {!isPaid && (
+              <Button size="sm" onClick={onPayment}>
+                <RiMoneyDollarCircleLine className="size-4 mr-1.5" />
+                Record Payment
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Patient & SO info */}
       <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-1">
