@@ -89,14 +89,34 @@ class PatientService:
         existing = await self.patient_repo.get_by_patient_id(patient_id)
         if not existing:
             raise NotFoundException(f"Patient with ID {patient_id} not found")
-        
+
         # Prepare update data (exclude None values)
         update_dict = patient_data.dict(exclude_unset=True)
-        
+
         if update_dict:
             # Update in database
             await self.patient_repo.update_patient(patient_id, update_dict)
-        
+
+            # Propagate denormalized fields to related collections
+            denorm: dict = {}
+            if "name" in update_dict:
+                denorm["patient_name"] = update_dict["name"]
+            if "phone" in update_dict:
+                denorm["patient_phone"] = update_dict["phone"]
+            if "email" in update_dict:
+                denorm["patient_email"] = update_dict["email"]
+
+            if denorm:
+                match = {"patient_id": patient_id}
+                # invoices store patient_name, patient_phone, patient_email
+                await self.patient_repo.db["invoices"].update_many(match, {"$set": denorm})
+                # appointments, prescriptions, sales_orders only store patient_name
+                if "patient_name" in denorm:
+                    name_set = {"$set": {"patient_name": denorm["patient_name"]}}
+                    await self.patient_repo.db["appointments"].update_many(match, name_set)
+                    await self.patient_repo.db["prescriptions"].update_many(match, name_set)
+                    await self.patient_repo.db["sales_orders"].update_many(match, name_set)
+
         # Fetch and return updated patient
         updated_patient = await self.patient_repo.get_by_patient_id(patient_id)
         return self._to_response(updated_patient)
