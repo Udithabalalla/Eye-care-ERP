@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
@@ -54,6 +55,7 @@ import toast from 'react-hot-toast'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 const Patients = () => {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
@@ -238,6 +240,14 @@ const Patients = () => {
       label: 'Customer History',
       icon: RiFileTextLine,
       onClick: (rows) => handleShowDetails(rows[0]),
+      showWhen: 'single',
+      primary: true,
+    },
+    {
+      id: 'new-sales-order',
+      label: 'New Sales Order',
+      icon: RiReceiptLine,
+      onClick: (rows) => navigate('/sales-orders/assistant', { state: { patient: rows[0] } }),
       showWhen: 'single',
       primary: true,
     },
