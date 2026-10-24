@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 from datetime import date
+import io
 
 from app.config.database import get_database
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaymentRecord
@@ -40,6 +42,21 @@ async def get_invoice(
     invoice_service = InvoiceService(db)
     invoice = await invoice_service.get_invoice(invoice_id)
     return ResponseModel(data=invoice)
+
+@router.get("/{invoice_id}/pdf")
+async def download_invoice_pdf(
+    invoice_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Download a professional A4 PDF of the invoice, ready to hand to the customer"""
+    invoice_service = InvoiceService(db)
+    content, filename = await invoice_service.generate_invoice_pdf(invoice_id)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 @router.post("", response_model=ResponseModel[InvoiceResponse])
 async def create_invoice(

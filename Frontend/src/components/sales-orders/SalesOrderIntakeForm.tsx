@@ -11,7 +11,6 @@ import {
   RiEyeLine,
   RiScanLine,
   RiDeleteBin6Line,
-  RiTimeLine,
   RiCheckLine,
   RiUserLine,
   RiFileTextLine,
@@ -24,6 +23,10 @@ import {
   RiBriefcaseLine,
   RiGiftLine,
   RiHistoryLine,
+  RiSearchLine,
+  RiCalendarLine,
+  RiDownloadLine,
+  RiSubtractLine,
   RiSparklingLine as RiSparklingFill,
 } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
@@ -59,6 +62,11 @@ import { productsApi } from '@/api/products.api'
 import { frameVariantsApi } from '@/api/frames.api'
 import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
+import { companyProfileApi } from '@/api/company-profile.api'
+import { invoicesApi } from '@/api/invoices.api'
+import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
+import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
+import PaymentPanel from '@/components/sales-orders/PaymentPanel'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -71,7 +79,7 @@ import { Product } from '@/types/product.types'
 import { SalesOrder, SalesOrderItem } from '@/types/erp.types'
 import { FrameVariant } from '@/types/frames.types'
 import { VariantPicker } from '@/components/frames/VariantPicker'
-import { formatCurrency } from '@/utils/formatters'
+import { formatCurrency, formatDate } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { usePatientSearch } from '@/hooks/usePatientSearch'
@@ -160,6 +168,7 @@ const salesOrderIntakeSchema = z
       color: z.string().optional().default(''),
       size: z.string().optional().default(''),
       frameId: z.string().optional().default(''),
+      frameNo: z.string().optional().default(''),
       total: requiredMoney.default(0),
     }),
     lens: z.object({
@@ -206,16 +215,16 @@ interface LookupOption {
 }
 
 // ─── Step config ──────────────────────────────────────────────────────────────
-// Order: Patient → Prescription → Frame → Lens → Expenses → Order Info → Review
+// Order: Patient → Prescription → Frame → Lens → Extras → Order Details → Review & Pay
 
 const STEPS = [
-  { id: 0, label: 'Patient',      icon: RiUserLine },
-  { id: 1, label: 'Prescription', icon: RiEyeLine },
-  { id: 2, label: 'Frame',        icon: RiBox3Line },
-  { id: 3, label: 'Lens',         icon: RiSparklingLine },
-  { id: 4, label: 'Expenses',     icon: RiReceiptLine },
-  { id: 5, label: 'Order Info',   icon: RiFileTextLine },
-  { id: 6, label: 'Review',       icon: RiShieldCheckLine },
+  { id: 0, label: 'Patient',       icon: RiUserLine,        hint: 'Find the patient or register a new one' },
+  { id: 1, label: 'Prescription',  icon: RiEyeLine,         hint: 'Enter or confirm the eye measurements' },
+  { id: 2, label: 'Frame',         icon: RiBox3Line,        hint: 'Scan or search the frame being sold' },
+  { id: 3, label: 'Lens',          icon: RiSparklingLine,   hint: 'Optional — skip for a frame-only order' },
+  { id: 4, label: 'Extras',        icon: RiReceiptLine,     hint: 'Accessories, free items and other charges' },
+  { id: 5, label: 'Order Details', icon: RiFileTextLine,    hint: 'Dates, who tested, and where it was sold' },
+  { id: 6, label: 'Review & Pay',  icon: RiShieldCheckLine, hint: 'Check everything, apply discount, take payment' },
 ] as const
 
 // ─── Small UI helpers ─────────────────────────────────────────────────────────
@@ -270,15 +279,8 @@ const InlineAlert = ({
   )
 }
 
-const SummaryRow = ({ label, value }: { label: string; value: number }) => (
-  <div className="flex items-center justify-between py-2.5">
-    <span className="text-sm text-muted-foreground">{label}</span>
-    <span className="text-sm font-semibold tabular-nums">{formatCurrency(roundCurrency(value))}</span>
-  </div>
-)
-
-// Compact pricing panel shown from Frame step through Order Info step
-const PricingPanel = ({ derivedTotals }: { derivedTotals: ReturnType<typeof calculateOrderTotals> }) => (
+// Compact pricing panel shown below the step on smaller screens (the side panel covers xl screens)
+const PricingPanel =({ derivedTotals }: { derivedTotals: ReturnType<typeof calculateOrderTotals> }) => (
   <Card className="border-dashed bg-muted/20">
     <CardContent className="px-5 py-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Live Pricing</p>
@@ -292,7 +294,7 @@ const PricingPanel = ({ derivedTotals }: { derivedTotals: ReturnType<typeof calc
           <span className="tabular-nums font-medium">{formatCurrency(roundCurrency(derivedTotals.lensTotal))}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Expenses</span>
+          <span className="text-muted-foreground">Extras</span>
           <span className="tabular-nums font-medium">{formatCurrency(roundCurrency(derivedTotals.expenseTotal))}</span>
         </div>
         <Separator className="my-2" />
@@ -314,57 +316,60 @@ const StepIndicator = ({
   maxStepReached: number
   onStepClick: (step: number) => void
 }) => (
-  <div className="flex items-center">
+  // Equal-width columns keep every connector the same length whatever the label width
+  <ol className="grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
     {STEPS.map((step, index) => {
       const isPast = step.id < currentStep
       const isCurrent = step.id === currentStep
       const isReachable = step.id <= maxStepReached
       const isClickable = isReachable && !isCurrent
       return (
-        <div key={step.id} className="flex flex-1 items-center">
-          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div
-              onClick={() => isClickable && onStepClick(step.id)}
-              className={[
-                'flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200',
-                isCurrent
-                  ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
-                  : isPast
-                    ? 'border-primary bg-primary text-primary-foreground cursor-pointer hover:opacity-75'
-                    : isClickable
-                      ? 'border-primary bg-background text-primary cursor-pointer hover:bg-muted/50'
-                    : 'border-border bg-background text-muted-foreground',
-              ].join(' ')}
-            >
-              {isPast ? (
-                <RiCheckLine className="h-4 w-4" />
-              ) : (
-                <span className="text-xs font-bold">{step.id + 1}</span>
-              )}
-            </div>
-            <span
-              onClick={() => isClickable && onStepClick(step.id)}
-              className={[
-                'hidden sm:block text-xs font-medium whitespace-nowrap',
-                isCurrent
-                  ? 'text-primary'
-                  : isPast
-                    ? 'text-foreground cursor-pointer hover:text-primary'
-                    : isClickable
-                      ? 'text-primary cursor-pointer hover:opacity-80'
-                      : 'text-muted-foreground',
-              ].join(' ')}
-            >
-              {step.label}
-            </span>
-          </div>
+        <li key={step.id} className="relative flex flex-col items-center gap-1.5">
           {index < STEPS.length - 1 && (
-            <div className={`h-0.5 w-full mx-2 mb-4 transition-all duration-300 ${step.id < maxStepReached ? 'bg-primary' : 'bg-border'}`} />
+            <span
+              aria-hidden
+              className={`absolute top-[17px] h-0.5 rounded-full transition-colors duration-300 ${step.id < maxStepReached ? 'bg-primary' : 'bg-border'}`}
+              style={{ left: 'calc(50% + 24px)', width: 'calc(100% - 48px)' }}
+            />
           )}
-        </div>
+          <button
+            type="button"
+            disabled={!isClickable}
+            onClick={() => onStepClick(step.id)}
+            aria-current={isCurrent ? 'step' : undefined}
+            aria-label={`Step ${step.id + 1}: ${step.label}`}
+            className={[
+              'relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 disabled:cursor-default',
+              isCurrent
+                ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
+                : isPast
+                  ? 'border-primary bg-primary text-primary-foreground hover:opacity-75'
+                  : isClickable
+                    ? 'border-primary bg-background text-primary hover:bg-muted/50'
+                    : 'border-border bg-background text-muted-foreground',
+            ].join(' ')}
+          >
+            {isPast ? <RiCheckLine className="h-4 w-4" /> : <span className="text-xs font-bold">{step.id + 1}</span>}
+          </button>
+          <span
+            onClick={() => isClickable && onStepClick(step.id)}
+            className={[
+              'hidden sm:block max-w-full truncate px-1 text-center text-xs font-medium',
+              isCurrent
+                ? 'font-semibold text-primary dark:text-sidebar-primary'
+                : isPast
+                  ? 'text-foreground cursor-pointer hover:text-primary'
+                  : isClickable
+                    ? 'text-primary cursor-pointer hover:opacity-80'
+                    : 'text-muted-foreground',
+            ].join(' ')}
+          >
+            {step.label}
+          </span>
+        </li>
       )
     })}
-  </div>
+  </ol>
 )
 
 // ─── Static defaults ──────────────────────────────────────────────────────────
@@ -382,7 +387,7 @@ const defaultValues: SalesOrderIntakeValues = {
     },
   },
   salesOrder: { isOld: false, deliveryDate: today, dateOfFullPayment: today, orderNumber: '', testedBy: '', orderDate: today },
-  frame: { isOld: false, isReference: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', total: 0 },
+  frame: { isOld: false, isReference: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', frameNo: '', total: 0 },
   lens: { isOld: false, isReference: false, selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
   totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
@@ -464,6 +469,7 @@ const mapProductToFrame = (product: Product) => ({
   color: product.specifications?.color ? String(product.specifications.color) : product.brand || '',
   size: product.specifications?.size ? String(product.specifications.size) : product.unit_of_measure || '',
   frameId: product.sku,
+  frameNo: '',
   total: product.selling_price,
 })
 
@@ -504,6 +510,7 @@ const mapDraftToFormValues = (
       color:        '',
       size:         '',
       frameId:      frameItem.sku || '',
+      frameNo:      frameItem.sku || '',
       total:        frameItem.unit_price,
     } : defaultValues.frame,
     lens: lensItem ? {
@@ -594,6 +601,17 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
     staleTime: 5 * 60 * 1000,
   })
+  // Company details printed on the invoice preview
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyProfileApi.get(),
+    staleTime: 10 * 60 * 1000,
+  })
+  // Payment due date follows the collection date unless the user unticks this
+  const [paymentDueSameAsDelivery, setPaymentDueSameAsDelivery] = useState(true)
+  const [rightPanel, setRightPanel] = useState<'preview' | 'summary'>('preview')
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   // Form
   const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
@@ -607,6 +625,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const salesOrder = useWatch({ control, name: 'salesOrder' })
   const totals = useWatch({ control, name: 'totals' })
   const saleLocation = useWatch({ control, name: 'saleLocation' })
+  const remarks = useWatch({ control, name: 'remarks' })
 
   useEffect(() => {
     setMaxStepReached((prev) => Math.max(prev, currentStep))
@@ -686,6 +705,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const patientSearchTerm = patient.newData.phone?.trim() || patient.newData.fullName?.trim() || ''
   usePatientSearch(patientSearchTerm)
+  // Explicit "find existing patient" search on the Patient step
+  const [patientQuery, setPatientQuery] = useState('')
+  const { data: patientQueryResults, isFetching: isSearchingPatients } = usePatientSearch(patientQuery)
   const { data: patientPrescriptions } = usePrescriptionFetch(patient.existingId || undefined)
   const { isScannerOpen: barcodeScannerOpen, openScanner, closeScanner, scanBarcode, isScanningProduct } = useBarcodeScanner()
   const { fields: expenseFields, append, remove } = useFieldArray({ control, name: 'expenses' })
@@ -746,6 +768,108 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     })
   , [expenses, frame.total, generalItems, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
 
+  const testedByName = testedByOptions.find((u) => u.value === salesOrder.testedBy)?.label
+
+  // One view of the order for the summary panel, the invoice preview and the review step
+  const invoicePreview = useMemo<InvoicePreviewData>(() => {
+    const join = (...parts: Array<string | undefined>) => parts.filter(Boolean).join(' · ')
+    const lines: InvoicePreviewLine[] = []
+    if (frame.model || frame.total > 0 || frame.isReference) {
+      lines.push({
+        key: 'frame', type: 'Frame', qty: 1, discount: 0,
+        name: frame.isReference ? `${frame.model || 'Frame'} (patient's own)` : (frame.model || 'Frame'),
+        detail: join(frame.color, frame.size, frame.barcode || frame.frameId),
+        unitPrice: Number(frame.total || 0), total: Number(frame.total || 0),
+      })
+    }
+    if (lens.lensType || lens.total > 0) {
+      lines.push({
+        key: 'lens', type: 'Lens', qty: 1, discount: 0,
+        name: lens.lensType || 'Lens',
+        detail: join(lens.color, lens.size, lens.lensId),
+        unitPrice: Number(lens.total || 0), total: Number(lens.total || 0),
+      })
+    }
+    generalItems.forEach((g) => lines.push({
+      key: `acc-${g.productId}`, type: 'Accessory', name: g.productName, detail: g.sku,
+      qty: g.qty, unitPrice: g.unitPrice, discount: 0, total: roundCurrency(g.unitPrice * g.qty),
+    }))
+    ;(expenses || []).forEach((e, i) => {
+      const name = e.expenseTypeName || expenseMasterData?.data.find((x) => x.id === e.expenseTypeId)?.name
+      if (!name && !e.unitCost) return
+      lines.push({
+        key: `chg-${i}`, type: 'Service', name: name || 'Charge',
+        qty: Number(e.qty || 0), unitPrice: Number(e.unitCost || 0), discount: Number(e.discount || 0),
+        total: calculateLineTotal({ qty: Number(e.qty || 0), unitCost: Number(e.unitCost || 0), discount: Number(e.discount || 0) }),
+      })
+    })
+    if (!salesOrder.isOld) {
+      const freeItem = (key: string, include: boolean, id: string) => {
+        const product = include && id ? productData?.data.find((p) => p.product_id === id) : undefined
+        if (product) lines.push({ key, type: 'Free', name: product.name, detail: product.sku, qty: 1, unitPrice: 0, discount: 0, total: 0 })
+      }
+      freeItem('free-1', includeCase, selectedCaseId)
+      freeItem('free-2', includeBag, selectedBagId)
+    }
+    return {
+      invoiceNumber: savedInvoice?.invoice_number,
+      salesOrderNumber: savedOrderNumber || undefined,
+      issueDate: salesOrder.orderDate || today,
+      dueDate: salesOrder.dateOfFullPayment || salesOrder.deliveryDate,
+      billTo: {
+        name: patient.newData.fullName,
+        phone: patient.newData.phone,
+        email: patient.newData.email || undefined,
+        address: patient.newData.address || undefined,
+      },
+      lines,
+      subtotal: derivedTotals.subtotalBeforeDiscount,
+      discount: derivedTotals.discountTotal,
+      total: derivedTotals.subtotal,
+      paid: salesOrder.isOld ? 0 : derivedTotals.advancedPayment,
+      balance: derivedTotals.balancePayment,
+      notes: remarks?.trim() || undefined,
+      testedBy: testedByName,
+      prescriptionRef: prescription.existingId || undefined,
+      isHistorical: salesOrder.isOld,
+    }
+  }, [derivedTotals, expenseMasterData, expenses, frame, generalItems, includeBag, includeCase, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, selectedBagId, selectedCaseId, testedByName])
+
+  const summaryExtras = useMemo<OrderSummaryExtras>(() => {
+    const signed = (n: number) => `${n > 0 ? '+' : ''}${Number(n || 0).toFixed(2)}`
+    const eye = (e: { sphere: number; cylinder: number; axis: number; add: number }) =>
+      `${signed(e.sphere)} / ${signed(e.cylinder)} × ${e.axis || 0}${e.add ? ` Add ${signed(e.add)}` : ''}`
+    const rx = prescription.newData
+    return {
+      patientMeta: [patient.newData.age ? `${patient.newData.age} yrs` : '', patient.newData.gender || ''].filter(Boolean).join(', ') || undefined,
+      isExistingPatient: !!patient.existingId,
+      prescription: maxStepReached < 1 && !prescription.existingId
+        ? null
+        : { label: prescription.existingId ? 'Previous prescription' : 'New measurements', od: eye(rx.rightEye), os: eye(rx.leftEye) },
+      orderDate: salesOrder.orderDate,
+      readyDate: salesOrder.deliveryDate,
+      soldAt: saleLocation === 'institute' ? 'Institute' : saleLocation === 'clinic' ? 'Clinic' : undefined,
+    }
+  }, [maxStepReached, patient, prescription, saleLocation, salesOrder.deliveryDate, salesOrder.orderDate])
+
+  const handleDownloadInvoicePdf = async () => {
+    if (!savedInvoice) return
+    setIsDownloadingPdf(true)
+    try {
+      const blob = await invoicesApi.downloadPDF(savedInvoice.invoice_id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${savedInvoice.invoice_number}.pdf`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Could not download the invoice PDF')
+    } finally {
+      setIsDownloadingPdf(false)
+    }
+  }
+
   // Effects
   useEffect(() => {
     setValue('totals.advancedPayment', derivedTotals.advancedPayment, { shouldDirty: false, shouldValidate: false })
@@ -759,10 +883,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   }, [getValues, salesOrder.isOld, setValue])
 
   useEffect(() => {
-    if (salesOrder.deliveryDate) {
+    if (paymentDueSameAsDelivery && salesOrder.deliveryDate) {
       setValue('salesOrder.dateOfFullPayment', salesOrder.deliveryDate, { shouldDirty: false, shouldValidate: false })
     }
-  }, [salesOrder.deliveryDate, setValue])
+  }, [paymentDueSameAsDelivery, salesOrder.deliveryDate, setValue])
 
   useEffect(() => {
     if (prescription.existingId || prescription.newData.diagnosis || prescription.newData.notes) clearErrors('prescription')
@@ -917,7 +1041,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         isOld:       ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id),
         isReference: frameItem.product_id === 'REF_FRAME',
         selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
-        color: '', size: '', frameId: frameItem.sku || '', total: frameItem.unit_price,
+        color: '', size: '', frameId: frameItem.sku || '', frameNo: frameItem.sku || '', total: frameItem.unit_price,
       } : defaultValues.frame,
       lens: lensItem ? {
         isOld:       ['HISTORICAL_LENS', 'REF_LENS'].includes(lensItem.product_id),
@@ -962,6 +1086,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         color: variant.color,
         size: String(variant.eye_size),
         frameId: variant.sku,
+        frameNo: variant.supplier_frame_no || '',
         total: variant.selling_price,
       }, { shouldDirty: true, shouldValidate: true })
     } else {
@@ -1003,10 +1128,34 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   }
 
   const unlinkPatient = () => {
-    setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
+    setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: false })
+    setValue('patient.newData', defaultValues.patient.newData, { shouldDirty: true, shouldValidate: false })
+    // The auto-loaded prescription belonged to the previous patient
+    setValue('prescription.existingId', '', { shouldDirty: true, shouldValidate: false })
+    setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
   }
 
   const addExpenseRow = () => append({ expenseTypeId: '', expenseTypeName: '', qty: 1, unitCost: 0, discount: 0, total: 0 })
+
+  // Quick-add a common charge; adding one that's already listed bumps its quantity
+  const quickAddCharge = (type: { id: string; name: string; default_cost: number }) => {
+    const index = (getValues('expenses') || []).findIndex((e) => e.expenseTypeId === type.id)
+    if (index >= 0) {
+      updateExpenseRow(index, 'qty', Number(getValues(`expenses.${index}.qty`) || 0) + 1)
+      return
+    }
+    append({ expenseTypeId: type.id, expenseTypeName: type.name, qty: 1, unitCost: type.default_cost, discount: 0, total: type.default_cost })
+  }
+
+  const changeAccessoryQty = (index: number, delta: number) =>
+    setGeneralItems((prev) => prev.map((item, i) => (i === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item)))
+
+  // "Ready in" shortcuts count from the order date
+  const setDeliveryInDays = (days: number) => {
+    const base = new Date(`${getValues('salesOrder.orderDate') || today}T00:00:00Z`)
+    base.setUTCDate(base.getUTCDate() + days)
+    setValue('salesOrder.deliveryDate', base.toISOString().slice(0, 10), { shouldDirty: true, shouldValidate: true })
+  }
 
   // Inline new expense type dialog
   const [newExpenseDialogOpen, setNewExpenseDialogOpen] = useState(false)
@@ -1148,11 +1297,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       draftItems.push({ product_id: selectedFrameVariant.variant_id, product_name: values.frame.model || `${selectedFrameVariant.frame_master_ref.brand} ${selectedFrameVariant.frame_master_ref.model_code}`, sku: selectedFrameVariant.sku, quantity: 1, unit_price: Number(values.frame.total || selectedFrameVariant.selling_price), total: Number(values.frame.total || selectedFrameVariant.selling_price), master_data_id: selectedFrameVariant.frame_master_id, frame_variant_id: selectedFrameVariant.variant_id, line_type: 'frame', track_stock: true })
     } else if (resolvedFrame) {
       draftItems.push({ product_id: resolvedFrame.product_id, product_name: values.frame.model || resolvedFrame.name, sku: values.frame.frameId || resolvedFrame.sku, quantity: 1, unit_price: Number(values.frame.total || resolvedFrame.selling_price), total: Number(values.frame.total || resolvedFrame.selling_price), master_data_id: resolvedFrame.product_id, line_type: 'product', track_stock: true })
-    } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
-      const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
+    } else if (values.frame.isOld && (values.frame.model || values.frame.frameId || values.frame.frameNo)) {
+      const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim() || values.frame.frameNo
       const frameProductId = values.frame.isReference ? 'REF_FRAME' : 'HISTORICAL_FRAME'
       const frameTotal = values.frame.isReference ? 0 : Number(values.frame.total || 0)
-      draftItems.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame', track_stock: false })
+      draftItems.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.frameNo || values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame', track_stock: false })
     }
     if (resolvedLens) {
       draftItems.push({ product_id: resolvedLens.id, product_name: values.lens.lensType || resolvedLens.lens_type, sku: values.lens.lensId || resolvedLens.lens_code, quantity: 1, unit_price: Number(values.lens.total || resolvedLens.price), total: Number(values.lens.total || resolvedLens.price), master_data_id: resolvedLens.id, line_type: 'lens', track_stock: false })
@@ -1165,7 +1314,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       if (!expense.expenseTypeId && !expense.expenseTypeName) return
       if (Number(expense.qty || 0) <= 0) return
       const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
-      draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
+      draftItems.push({ product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty), unit_price: Number(expense.unitCost || 0), discount: Number(expense.discount || 0), total: calculateLineTotal({ qty: Number(expense.qty), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense', track_stock: false })
     })
     generalItems.filter((g) => g.qty > 0).forEach((g) => {
       draftItems.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product', track_stock: true })
@@ -1196,6 +1345,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         expected_delivery_date: `${values.salesOrder.deliveryDate}T00:00:00Z`,
         date_of_full_payment: `${values.salesOrder.dateOfFullPayment}T00:00:00Z`,
         notes: values.remarks.trim() || undefined,
+        discount_amount: derivedTotals.discountTotal,
         measurements: { order_date: values.salesOrder.orderDate, frame_total: values.frame.total, lens_total: values.lens.total },
         sale_location: values.saleLocation || undefined,
         status: 'draft' as const,
@@ -1256,11 +1406,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         })
       } else if (frameItem) {
         itemPayload.push({ product_id: frameItem.product_id, product_name: values.frame.model || frameItem.name, sku: values.frame.frameId || frameItem.sku, quantity: 1, unit_price: Number(values.frame.total || frameItem.selling_price), total: Number(values.frame.total || frameItem.selling_price), master_data_id: frameItem.product_id, line_type: 'product' as const, track_stock: true })
-      } else if (values.frame.isOld && (values.frame.model || values.frame.frameId)) {
-        const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim()
+      } else if (values.frame.isOld && (values.frame.model || values.frame.frameId || values.frame.frameNo)) {
+        const frameName = [values.frame.frameId, values.frame.model].filter(Boolean).join(' ').trim() || values.frame.frameNo
         const frameProductId = values.frame.isReference ? 'REF_FRAME' : 'HISTORICAL_FRAME'
         const frameTotal = values.frame.isReference ? 0 : Number(values.frame.total || 0)
-        itemPayload.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame' as const, track_stock: false })
+        itemPayload.push({ product_id: frameProductId, product_name: frameName, sku: values.frame.frameNo || values.frame.barcode || values.frame.frameId || 'MANUAL', quantity: 1, unit_price: frameTotal, total: frameTotal, line_type: 'frame' as const, track_stock: false })
       }
       if (lensItem) {
         itemPayload.push({ product_id: lensItem.id, product_name: values.lens.lensType || lensItem.lens_type, sku: values.lens.lensId || lensItem.lens_code, quantity: 1, unit_price: Number(values.lens.total || lensItem.price), total: Number(values.lens.total || lensItem.price), master_data_id: lensItem.id, line_type: 'lens' as const, track_stock: false })
@@ -1271,7 +1421,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       }
       itemPayload.push(...(values.expenses || []).filter((expense) => Number(expense.qty || 0) > 0).map((expense) => {
         const sel = expenseMasterData?.data.find((item) => item.id === expense.expenseTypeId)
-        return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
+        return { product_id: expense.expenseTypeId || 'EXPENSE', product_name: expense.expenseTypeName || sel?.name || 'Expense', sku: expense.expenseTypeId || 'EXPENSE', quantity: Number(expense.qty || 0), unit_price: Number(expense.unitCost || 0), discount: Number(expense.discount || 0), total: calculateLineTotal({ qty: Number(expense.qty || 0), unitCost: Number(expense.unitCost || 0), discount: Number(expense.discount || 0) }), master_data_id: sel?.id || expense.expenseTypeId || undefined, line_type: 'expense' as const, track_stock: false }
       }))
 
       generalItems.filter((g) => g.qty > 0).forEach((g) => {
@@ -1303,6 +1453,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         expected_delivery_date: convertDateToISO(values.salesOrder.deliveryDate),
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
+        discount_amount: derivedTotals.discountTotal,
         measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
         sale_location: values.saleLocation || undefined,
         status: 'created' as const,
@@ -1360,6 +1511,18 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || updateSalesOrderMutation.isPending || generateInvoiceMutation.isPending
   const showPricingPanel = currentStep >= 2 && currentStep <= 5
+  // From Extras on, the printable invoice preview is available beside (or above) the form
+  const showInvoicePreview = currentStep >= 4
+  const goToStep = (step: number) =>
+    step <= maxStepReached && step !== currentStep && !savedOrderNumber ? () => setCurrentStep(step) : undefined
+
+  // Problems that would stop the order saving, each with the step that fixes it
+  const reviewIssues = [
+    !patient.newData.fullName || !patient.newData.phone ? { message: 'Patient name or phone is missing', step: 0 } : null,
+    !salesOrder.isOld && !frame.isOld && !frame.selectionId && !selectedFrameVariant ? { message: 'No frame selected', step: 2 } : null,
+    !salesOrder.testedBy ? { message: 'Who tested the patient is not set', step: 5 } : null,
+    !salesOrder.isOld && derivedTotals.advancedPayment > derivedTotals.subtotal ? { message: 'Paid now is more than the total due', step: 6 } : null,
+  ].filter(Boolean) as Array<{ message: string; step: number }>
 
   return (
     <>
@@ -1467,7 +1630,25 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mx-auto max-w-3xl space-y-6">
+      {/* Invoice preview for screens without the side column */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invoice preview</DialogTitle>
+          </DialogHeader>
+          <InvoicePreview data={invoicePreview} company={companyProfile} />
+          <InvoicePreviewStatus data={invoicePreview} />
+          {savedInvoice && (
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleDownloadInvoicePdf} disabled={isDownloadingPdf}>
+                <RiDownloadLine className="mr-1.5 h-4 w-4" />Download PDF
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {/* Draft edit banner */}
         {draftOrderId && draftOrder && !savedOrderNumber && (
           <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
@@ -1521,48 +1702,40 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           </div>
         )}
 
-        {/* Historical record toggle */}
-        <div
-          className={`flex items-center justify-between rounded-xl border px-4 py-3 cursor-pointer select-none transition-all ${
+        <div className={`grid items-start gap-6 ${showInvoicePreview && rightPanel === 'preview' ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : 'xl:grid-cols-[minmax(0,1fr)_320px]'}`}>
+        <div className="min-w-0 space-y-4">
+
+        {/* Historical record toggle — only needed when keying in old paper orders */}
+        <label
+          className={`flex cursor-pointer select-none items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors ${
             salesOrder.isOld
               ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
               : 'border-border bg-card hover:bg-muted/30'
           }`}
-          onClick={() => {
-            const next = !salesOrder.isOld
-            setValue('salesOrder.isOld', next, { shouldDirty: true, shouldValidate: true })
-            setValue('frame.isOld', next, { shouldDirty: true })
-            setValue('frame.isReference', false, { shouldDirty: true })
-            setValue('lens.isOld', next, { shouldDirty: true })
-            setValue('lens.isReference', false, { shouldDirty: true })
-          }}
         >
-          <div className="flex items-center gap-3">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-full ${salesOrder.isOld ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-muted'}`}>
-              <RiHistoryLine className={`h-4 w-4 ${salesOrder.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
-            </div>
-            <div>
-              <p className={`text-sm font-semibold ${salesOrder.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
-                Historical Record Entry
+          <Checkbox
+            checked={salesOrder.isOld}
+            onCheckedChange={(checked) => {
+              const next = !!checked
+              setValue('salesOrder.isOld', next, { shouldDirty: true, shouldValidate: true })
+              setValue('frame.isOld', next, { shouldDirty: true })
+              setValue('frame.isReference', false, { shouldDirty: true })
+              setValue('lens.isOld', next, { shouldDirty: true })
+              setValue('lens.isReference', false, { shouldDirty: true })
+            }}
+          />
+          <RiHistoryLine className={`h-4 w-4 shrink-0 ${salesOrder.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+          <div className="min-w-0">
+            <p className={`text-sm font-medium ${salesOrder.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
+              Entering a past order from paper records
+            </p>
+            {salesOrder.isOld && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Frame and lens default to manual entry, no stock is deducted and no invoice is created.
               </p>
-              <p className={`text-xs mt-0.5 ${salesOrder.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                {salesOrder.isOld
-                  ? 'Frame & lens default to manual entry — override individually on each step'
-                  : 'Toggle on if entering a past order from paper records'}
-              </p>
-            </div>
+            )}
           </div>
-          <div
-            role="checkbox"
-            aria-checked={salesOrder.isOld}
-            onClick={(e) => e.stopPropagation()}
-            className={`h-5 w-5 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-              salesOrder.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
-            }`}
-          >
-            {salesOrder.isOld && <RiCheckLine className="h-3 w-3 text-white" />}
-          </div>
-        </div>
+        </label>
 
         {/* Progress stepper — compact on mobile, full circles on sm+ */}
         <div className="sm:hidden rounded-xl border border-border bg-card px-5 py-4">
@@ -1578,9 +1751,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
             />
           </div>
+          <p className="mt-2.5 text-xs text-muted-foreground">{STEPS[currentStep].hint}</p>
         </div>
         <Card className="hidden sm:block px-6 py-5">
           <StepIndicator currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
+          <p className="mt-3 border-t border-border pt-3 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Step {currentStep + 1} of {STEPS.length}:</span> {STEPS[currentStep].hint}
+          </p>
         </Card>
 
         <form className="space-y-4">
@@ -1593,25 +1770,89 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     <RiUserLine className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle>Patient Information</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Search for an existing patient or register a new one</p>
+                    <CardTitle>Patient</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Search first — returning patients are already registered</p>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
+                {patientIsLinked ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-950/30">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <RiCheckLine className="h-4 w-4 shrink-0 text-green-600" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-green-800 dark:text-green-200">{patient.newData.fullName}</p>
+                        <p className="text-xs text-green-700 dark:text-green-300">Existing patient · {patient.newData.phone}</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={unlinkPatient}>Change patient</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium leading-none text-foreground">Find existing patient</label>
+                      <div className="relative">
+                        <RiSearchLine className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={patientQuery}
+                          onChange={(e) => setPatientQuery(e.target.value)}
+                          placeholder="Search by name or phone number…"
+                          className="pl-9"
+                          autoComplete="off"
+                        />
+                      </div>
+                      {patientQuery.trim() && (
+                        <div className="overflow-hidden rounded-lg border border-border">
+                          {isSearchingPatients && !(patientQueryResults?.data || []).length ? (
+                            <p className="px-4 py-3 text-sm text-muted-foreground">Searching…</p>
+                          ) : (patientQueryResults?.data || []).length === 0 ? (
+                            <p className="px-4 py-3 text-sm text-muted-foreground">No patient found — fill in the details below to register them.</p>
+                          ) : (
+                            <ul className="max-h-60 divide-y divide-border overflow-y-auto">
+                              {(patientQueryResults?.data || []).slice(0, 8).map((p) => (
+                                <li key={p.patient_id}>
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                                    onClick={() => { handlePatientAction(p); setPatientQuery('') }}
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-medium text-foreground">{safeText(p.name)}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {safeText(p.phone)}{p.age ? ` · ${p.age} yrs` : ''}
+                                      </p>
+                                    </div>
+                                    <span className="shrink-0 text-xs font-medium text-primary">Select</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-xs font-medium text-muted-foreground">or register a new patient</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                  </>
+                )}
+
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label="Full Name" required error={errors.patient?.newData?.fullName?.message}>
-                    <Input placeholder="John Doe" {...register('patient.newData.fullName')} disabled={patientIsLinked} />
-                  </Field>
-                  <Field label="Email" error={errors.patient?.newData?.email?.message as string | undefined}>
-                    <Input placeholder="name@example.com" {...register('patient.newData.email')} disabled={patientIsLinked} />
+                    <Input placeholder="Patient's full name" {...register('patient.newData.fullName')} disabled={patientIsLinked} />
                   </Field>
                   <Field label="Phone Number" required error={errors.patient?.newData?.phone?.message}>
-                    <Input placeholder="0771234567" {...register('patient.newData.phone')} disabled={patientIsLinked} />
+                    <Input placeholder="e.g. 07X XXX XXXX" {...register('patient.newData.phone')} disabled={patientIsLinked} />
+                  </Field>
+                  <Field label="Email" error={errors.patient?.newData?.email?.message as string | undefined}>
+                    <Input placeholder="Optional" {...register('patient.newData.email')} disabled={patientIsLinked} />
                   </Field>
                   <Field label="Age" error={errors.patient?.newData?.age?.message as string | undefined}>
-                    <Input type="number" min={0} placeholder="34" {...register('patient.newData.age')} disabled={patientIsLinked} />
+                    <Input type="number" min={0} placeholder="Years" {...register('patient.newData.age')} disabled={patientIsLinked} />
                   </Field>
                   <Field label="Gender" required={!patientIsLinked} error={errors.patient?.newData?.gender?.message}>
                     <Select
@@ -1630,46 +1871,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </div>
 
                 <Field label="Address">
-                  <Input placeholder="Street address or delivery note" {...register('patient.newData.address')} disabled={patientIsLinked} />
+                  <Input placeholder="Optional — street address or delivery note" {...register('patient.newData.address')} disabled={patientIsLinked} />
                 </Field>
-
-                {patientIsLinked && (
-                  <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <RiCheckLine className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                        Patient linked: {patient.newData.fullName}
-                      </span>
-                    </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={unlinkPatient}>Unlink</Button>
-                  </div>
-                )}
-
-                <Separator />
-
-                <div>
-                  <p className="text-sm font-medium mb-3">Sale Location</p>
-                  <div className="flex gap-3">
-                    {(['institute', 'clinic'] as const).map((loc) => {
-                      const isSelected = saleLocation === loc
-                      return (
-                        <button
-                          key={loc}
-                          type="button"
-                          onClick={() => setValue('saleLocation', isSelected ? undefined : loc, { shouldDirty: true })}
-                          className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
-                            isSelected
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                          }`}
-                        >
-                          {loc === 'institute' ? 'Institute' : 'Clinic'}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
               </CardContent>
             </Card>
           )}
@@ -1684,7 +1887,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   </div>
                   <div>
                     <CardTitle>Prescription & Eye Measurements</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Modern optical POS workflow for fast, accurate data entry</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">OD is the right eye, OS the left eye. Leave a value at 0 if it wasn't measured.</p>
                   </div>
                 </div>
               </CardHeader>
@@ -1697,18 +1900,19 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     setValue('prescription.newData', defaultValues.prescription.newData, { shouldDirty: true, shouldValidate: false })
                   }
                 }} className="w-full">
-                  <TabsList className={`grid w-full mb-8 ${patient.existingId ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    {patient.existingId && (
+                  {/* Only offer a choice when the patient has history to choose from */}
+                  {patient.existingId && (
+                    <TabsList className="grid w-full grid-cols-2 mb-8">
                       <TabsTrigger value="existing" className="gap-2">
                         <RiFileTextLine className="h-4 w-4" />
-                        Existing
+                        Use a previous prescription
                       </TabsTrigger>
-                    )}
-                    <TabsTrigger value="manual" className="gap-2">
-                      <RiEyeLine className="h-4 w-4" />
-                      Manual Entry
-                    </TabsTrigger>
-                  </TabsList>
+                      <TabsTrigger value="manual" className="gap-2">
+                        <RiEyeLine className="h-4 w-4" />
+                        Enter new measurements
+                      </TabsTrigger>
+                    </TabsList>
+                  )}
 
                   {/* Existing Prescription Tab */}
                   {patient.existingId && (
@@ -2058,45 +2262,27 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
-                {/* Per-step historical toggle */}
-                <div
-                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer select-none transition-all ${
-                    frame.isOld
-                      ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
-                      : 'border-border bg-muted/20 hover:bg-muted/40'
-                  }`}
-                  onClick={() => {
-                    const next = !frame.isOld
-                    setValue('frame.isOld', next, { shouldDirty: true })
-                    if (!next) setValue('frame.isReference', false, { shouldDirty: true })
-                  }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <RiHistoryLine className={`h-4 w-4 ${frame.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
-                    <div>
-                      <p className={`text-xs font-semibold ${frame.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
-                        Manual / Historical frame
-                      </p>
-                      <p className={`text-xs ${frame.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                        {frame.isOld ? 'Enter frame details manually — no stock deducted' : 'Frame not in inventory — enter manually'}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    role="checkbox"
-                    aria-checked={frame.isOld}
-                    onClick={(e) => e.stopPropagation()}
-                    className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      frame.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
-                    }`}
-                  >
-                    {frame.isOld && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
-                  </div>
-                </div>
-
                 {frame.isOld ? (
                   /* Manual mode: historical (with price) or reference-only (no charge) */
                   <div className="space-y-3">
+                    <div className="flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-600 dark:bg-amber-950/30">
+                      <div className="flex items-center gap-2.5">
+                        <RiHistoryLine className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div>
+                          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Entering the frame manually</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">For frames not in inventory — no stock is deducted</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button" variant="outline" size="sm" className="shrink-0"
+                        onClick={() => {
+                          setValue('frame.isOld', false, { shouldDirty: true })
+                          setValue('frame.isReference', false, { shouldDirty: true })
+                        }}
+                      >
+                        Search inventory instead
+                      </Button>
+                    </div>
                     {/* Reference-only sub-toggle */}
                     <div
                       className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
@@ -2133,6 +2319,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Field label="Frame No"><Input {...register('frame.frameNo')} placeholder="e.g. F-1024" /></Field>
                       <Field label="Brand"><Input {...register('frame.frameId')} placeholder="e.g. Ray-Ban" /></Field>
                       <Field label="Model / Name"><Input {...register('frame.model')} placeholder="e.g. Aviator" /></Field>
                       <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
@@ -2150,55 +2337,57 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   </div>
                 ) : (
                   <>
-                    {/* Scan button */}
-                    <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="w-full h-12 text-base gap-2">
-                      <RiScanLine className="h-5 w-5" />
-                      {isScanningProduct ? 'Scanning...' : 'Scan Barcode'}
-                    </Button>
-
-                    <div className="relative flex items-center gap-3">
-                      <div className="h-px flex-1 bg-border" />
-                      <span className="text-xs font-medium text-muted-foreground">or search</span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-
-                    {/* Frame Variants from inventory */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <RiBox3Line className="size-4 text-muted-foreground" />
-                        <span className="text-sm font-semibold">Frame Variants</span>
-                        <span className="text-xs text-muted-foreground">(from Frames inventory)</span>
-                      </div>
-                      <Field error={errors.frame?.selectionId?.message}>
-                        <VariantPicker
-                          value={selectedFrameVariant}
-                          onChange={(v) => { setFrameSource('variant'); applyFrameVariantSelection(v) }}
-                          showStock
-                          showPrice
-                          placeholder="Search brand, model, color, size or scan barcode…"
-                        />
-                      </Field>
-                    </div>
-
-                    {/* Frame details — always visible; pre-filled when variant selected */}
-                    <div className={`rounded-xl border p-4 space-y-2 ${selectedFrameVariant ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {selectedFrameVariant ? 'Frame Details' : 'Manual Entry (older / unlisted frames)'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
-                        <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
-                        <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
-                        <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
-                        <Field label="Price">
-                          <Input
-                            type="number" step="0.01" placeholder="0.00"
-                            onFocus={(e) => e.target.select()}
-                            {...register('frame.total', { valueAsNumber: true })}
+                    {/* Search inventory, or scan the frame's barcode */}
+                    <Field label="Find the frame" error={errors.frame?.selectionId?.message}>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <div className="min-w-0 flex-1">
+                          <VariantPicker
+                            value={selectedFrameVariant}
+                            onChange={(v) => { setFrameSource('variant'); applyFrameVariantSelection(v) }}
+                            showStock
+                            showPrice
+                            placeholder="Search brand, model, color or size…"
                           />
-                        </Field>
+                        </div>
+                        <Button type="button" variant="outline" onClick={openScanner} disabled={isScanningProduct} className="shrink-0 gap-2">
+                          <RiScanLine className="h-4 w-4" />
+                          {isScanningProduct ? 'Scanning…' : 'Scan barcode'}
+                        </Button>
                       </div>
-                    </div>
+                    </Field>
+
+                    {/* Details appear once a frame is chosen; the price can be adjusted here */}
+                    {(selectedFrameVariant || frame.selectionId) ? (
+                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected frame</p>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          <Field label="Model"><Input {...register('frame.model')} placeholder="Frame model" /></Field>
+                          <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
+                          <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
+                          <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
+                          <Field label="Price">
+                            <Input
+                              type="number" step="0.01" placeholder="0.00"
+                              onFocus={(e) => e.target.select()}
+                              {...register('frame.total', { valueAsNumber: true })}
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center">
+                        <RiBox3Line className="mb-2 h-6 w-6 text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No frame selected yet</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">Search above or scan the frame's barcode</p>
+                      </div>
+                    )}
+
+                    <p className="text-sm text-muted-foreground">
+                      Frame not in inventory, or the patient's own frame?{' '}
+                      <Button type="button" variant="link" className="h-auto p-0" onClick={() => setValue('frame.isOld', true, { shouldDirty: true })}>
+                        Enter it manually
+                      </Button>
+                    </p>
                   </>
                 )}
 
@@ -2215,52 +2404,37 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     <RiSparklingLine className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle>Lens Selection</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Select from the lens master catalog</p>
+                    <CardTitle className="flex items-center gap-2">
+                      Lens Selection
+                      <Badge variant="secondary" className="text-xs font-normal">Optional</Badge>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">Skip this step for a frame-only order</p>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-6 space-y-5">
-                {/* Per-step historical toggle */}
-                <div
-                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer select-none transition-all ${
-                    lens.isOld
-                      ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
-                      : 'border-border bg-muted/20 hover:bg-muted/40'
-                  }`}
-                  onClick={() => {
-                    const next = !lens.isOld
-                    setValue('lens.isOld', next, { shouldDirty: true })
-                    if (!next) setValue('lens.isReference', false, { shouldDirty: true })
-                  }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <RiHistoryLine className={`h-4 w-4 ${lens.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
-                    <div>
-                      <p className={`text-xs font-semibold ${lens.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
-                        Manual / Historical lens
-                      </p>
-                      <p className={`text-xs ${lens.isOld ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                        {lens.isOld ? 'Enter lens details manually — no stock deducted' : 'Lens not in catalog — enter manually'}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    role="checkbox"
-                    aria-checked={lens.isOld}
-                    onClick={(e) => e.stopPropagation()}
-                    className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      lens.isOld ? 'bg-amber-500 border-amber-500' : 'border-amber-400/60 bg-transparent'
-                    }`}
-                  >
-                    {lens.isOld && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
-                  </div>
-                </div>
-
                 {lens.isOld ? (
                   /* Manual mode: historical (with price) or reference-only (no charge) */
                   <div className="space-y-3">
+                    <div className="flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-600 dark:bg-amber-950/30">
+                      <div className="flex items-center gap-2.5">
+                        <RiHistoryLine className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div>
+                          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Entering the lens manually</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">For lenses not in the catalog</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button" variant="outline" size="sm" className="shrink-0"
+                        onClick={() => {
+                          setValue('lens.isOld', false, { shouldDirty: true })
+                          setValue('lens.isReference', false, { shouldDirty: true })
+                        }}
+                      >
+                        Search catalog instead
+                      </Button>
+                    </div>
                     {/* Reference-only sub-toggle */}
                     <div
                       className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
@@ -2313,9 +2487,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   </div>
                 ) : (
                   <>
-                    <Field label="Lens" error={errors.lens?.selectionId?.message}>
+                    <Field label="Find the lens" error={errors.lens?.selectionId?.message}>
                       <SearchableLOV
-                        placeholder="Search lens type, color, size..."
+                        placeholder="Search lens type, color, size…"
                         value={lens.selectionId || ''}
                         onChange={(value) => {
                           const lensType = lensMasterData?.data.find((item) => String(item.id) === String(value))
@@ -2326,51 +2500,79 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       />
                     </Field>
 
-                    <div className={`rounded-xl border p-4 ${lens.selectionId ? 'border-border bg-muted/30' : 'border-dashed border-border'}`}>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                        {lens.selectionId ? 'Auto-filled Details' : 'Manual Entry'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
-                        <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
-                        <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
-                        <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
-                        <Field label="Price">
-                          <Input
-                            type="number" step="0.01" placeholder="0.00"
-                            onFocus={(e) => e.target.select()}
-                            {...register('lens.total', { valueAsNumber: true })}
-                          />
-                        </Field>
+                    {lens.selectionId ? (
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected lens</p>
+                          <Button
+                            type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                            onClick={() => setValue('lens', defaultValues.lens, { shouldDirty: true, shouldValidate: false })}
+                          >
+                            Remove lens
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          <Field label="Lens Type"><Input {...register('lens.lensType')} placeholder="e.g. Single Vision" /></Field>
+                          <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
+                          <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
+                          <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
+                          <Field label="Price">
+                            <Input
+                              type="number" step="0.01" placeholder="0.00"
+                              onFocus={(e) => e.target.select()}
+                              {...register('lens.total', { valueAsNumber: true })}
+                            />
+                          </Field>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center">
+                        <RiSparklingLine className="mb-2 h-6 w-6 text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No lens — this will be a frame-only order</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">Search above to add a lens, or continue to the next step</p>
+                      </div>
+                    )}
+
+                    <p className="text-sm text-muted-foreground">
+                      Lens not in the catalog?{' '}
+                      <Button type="button" variant="link" className="h-auto p-0" onClick={() => setValue('lens.isOld', true, { shouldDirty: true })}>
+                        Enter it manually
+                      </Button>
+                    </p>
                   </>
                 )}
               </CardContent>
             </Card>
           )}
 
-          {/* ── Step 4: Expenses ────────────────────────────────────────────── */}
+          {/* ── Step 4: Extras ──────────────────────────────────────────────── */}
           {currentStep === 4 && (
             <div className="space-y-4">
+              <p className="px-1 text-sm text-muted-foreground">
+                Everything here is optional — add whatever the patient is buying on top of the frame and lens.
+                {' '}<span className="hidden xl:inline">The invoice preview on the right updates as you go.</span>
+              </p>
 
-              {/* General Inventory Items */}
+              {/* Accessories from stock */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <RiBox3Line className="h-5 w-5 text-primary" />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <RiBox3Line className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Accessories</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Drops, solutions, cases and other items sold from stock</p>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle>General Inventory Items</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">Accessories, drops, solutions and other stocked products</p>
-                    </div>
+                    {generalItems.length > 0 && <Badge variant="secondary">{generalItems.length} added</Badge>}
                   </div>
                 </CardHeader>
                 <Separator />
-                <CardContent className="pt-6 space-y-3">
+                <CardContent className="pt-5 space-y-3">
                   <SearchableLOV
-                    placeholder="Search general inventory…"
+                    placeholder="Search accessories and supplies…"
                     value=""
                     onChange={(value) => {
                       const product = productData?.data.find((p) => p.product_id === value)
@@ -2388,228 +2590,173 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     options={generalInventoryOptions}
                   />
                   {generalItems.length > 0 ? (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border">
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Item</th>
-                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground w-28">Price</th>
-                            <th className="w-10" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {generalItems.map((item, i) => (
-                            <tr key={item.productId}>
-                              <td className="px-4 py-2.5">
-                                <p className="font-medium text-sm">{item.productName}</p>
-                                <p className="text-xs text-muted-foreground">{item.sku}</p>
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <Input
-                                  type="number" min={1} className="w-16 text-center h-7 text-sm"
-                                  value={item.qty}
-                                  onChange={(e) => {
-                                    const next = [...generalItems]
-                                    next[i] = { ...next[i], qty: Math.max(1, Number(e.target.value)) }
-                                    setGeneralItems(next)
-                                  }}
-                                />
-                              </td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrency(item.unitPrice * item.qty)}</td>
-                              <td className="px-4 py-2.5 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))}>
-                                  <RiDeleteBin6Line className="size-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {generalItems.map((item, i) => (
+                        <li key={item.productId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:flex-nowrap">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{item.productName}</p>
+                            <p className="text-xs text-muted-foreground">{item.sku} · {formatCurrency(item.unitPrice)} each</p>
+                          </div>
+                          <div className="flex items-center rounded-md border border-border">
+                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={item.qty <= 1}
+                              onClick={() => changeAccessoryQty(i, -1)} aria-label="Decrease quantity">
+                              <RiSubtractLine className="size-3.5" />
+                            </Button>
+                            <span className="w-8 text-center text-sm tabular-nums">{item.qty}</span>
+                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0"
+                              onClick={() => changeAccessoryQty(i, 1)} aria-label="Increase quantity">
+                              <RiAddLine className="size-3.5" />
+                            </Button>
+                          </div>
+                          <span className="w-24 text-right text-sm font-semibold tabular-nums">{formatCurrency(item.unitPrice * item.qty)}</span>
+                          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))} aria-label={`Remove ${item.productName}`}>
+                            <RiDeleteBin6Line className="size-3.5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center">
-                      <RiBox3Line className="mb-2 h-6 w-6 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">No items added</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground/70">Search above to add accessories or supplies</p>
-                    </div>
+                    <p className="text-sm text-muted-foreground">Nothing added yet — search above to add an item.</p>
                   )}
                 </CardContent>
               </Card>
 
+              {/* Services & charges */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <RiReceiptLine className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Services & Charges</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Fitting, tinting, coating and other fees</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground"
+                      onClick={() => { setNewExpenseName(''); setNewExpenseCost(0); setNewExpenseDialogOpen(true) }}>
+                      + New charge type
+                    </Button>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-5 space-y-4">
+                  {/* One click adds the most common charges */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Quick add</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(expenseMasterData?.data || []).slice(0, 8).map((type) => (
+                        <Button key={type.id} type="button" variant="outline" size="sm" className="h-8 gap-1.5 rounded-full"
+                          onClick={() => quickAddCharge(type)}>
+                          <RiAddLine className="size-3.5" />
+                          {type.name}
+                          <span className="text-muted-foreground">{formatCurrency(type.default_cost)}</span>
+                        </Button>
+                      ))}
+                      <Button type="button" variant="ghost" size="sm" className="h-8 rounded-full" onClick={addExpenseRow}>
+                        <RiAddLine className="mr-1 size-3.5" />Other charge
+                      </Button>
+                    </div>
+                    {!(expenseMasterData?.data || []).length && (
+                      <p className="text-xs text-muted-foreground">
+                        No charge types set up yet — use “+ New charge type” to create your common ones (e.g. Fitting).
+                      </p>
+                    )}
+                  </div>
+
+                  {expenseFields.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="hidden grid-cols-[minmax(0,1fr)_72px_110px_110px_96px_36px] gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid">
+                        <span>Charge</span><span className="text-center">Qty</span><span className="text-right">Price</span>
+                        <span className="text-right">Discount</span><span className="text-right">Amount</span><span />
+                      </div>
+                      {expenseFields.map((field, index) => (
+                        <div key={field.id}
+                          className="grid grid-cols-2 items-center gap-2 rounded-lg border border-border p-2 sm:grid-cols-[minmax(0,1fr)_72px_110px_110px_96px_36px] sm:border-0 sm:p-0">
+                          <div className="col-span-2 sm:col-span-1">
+                            <SearchableLOV placeholder="Select charge" value={expenses?.[index]?.expenseTypeId || ''}
+                              onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                          </div>
+                          <Input type="number" min={0} step="1" className="text-center" aria-label="Quantity"
+                            value={expenses?.[index]?.qty || 0} onFocus={(e) => e.target.select()}
+                            onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
+                          <Input type="number" min={0} step="0.01" className="text-right" aria-label="Price"
+                            value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()}
+                            onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
+                          <Input type="number" min={0} step="0.01" className="text-right" aria-label="Discount"
+                            value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()}
+                            onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
+                          <span className="text-right text-sm font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</span>
+                          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 justify-self-end p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => remove(index)} aria-label="Remove charge">
+                            <RiDeleteBin6Line className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No charges added — use Quick add above.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Free items */}
               {!salesOrder.isOld && (
-                <Card className="border-border/60">
+                <Card>
                   <CardHeader>
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                         <RiGiftLine className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <CardTitle className="text-base">Complimentary Items</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Free items included with this order</p>
+                        <CardTitle>Free With This Order</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-0.5">Included at no charge — untick anything the patient doesn't want</p>
                       </div>
                     </div>
                   </CardHeader>
                   <Separator />
-                  <CardContent className="pt-5 space-y-3">
-                    {/* Complimentary Item 1 (e.g. Frame Case) */}
-                    <div className={`flex items-center justify-between gap-4 rounded-xl border p-4 transition-all ${includeCase ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Checkbox
-                          id="include-case"
-                          checked={includeCase}
-                          onCheckedChange={(v) => setIncludeCase(!!v)}
-                        />
-                        <label htmlFor="include-case" className="flex items-center gap-2 cursor-pointer min-w-0">
-                          <RiBriefcaseLine className="size-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">Complimentary Item 1</p>
-                            {suggestedCase && selectedCaseId === suggestedCase.product_id && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <RiSparklingFill className="size-3 text-primary" />
-                                Auto-suggested for this price
-                              </p>
-                            )}
-                          </div>
+                  <CardContent className="pt-5 grid gap-3 sm:grid-cols-2">
+                    {[
+                      { id: 'include-case', label: 'Frame case', icon: RiBriefcaseLine, include: includeCase, setInclude: setIncludeCase, value: selectedCaseId, setValue: setSelectedCaseId,
+                        suggested: !!suggestedCase && selectedCaseId === suggestedCase.product_id },
+                      { id: 'include-bag', label: 'Carry bag', icon: RiGiftLine, include: includeBag, setInclude: setIncludeBag, value: selectedBagId, setValue: setSelectedBagId, suggested: false },
+                    ].map((free) => (
+                      <div key={free.id} className={`space-y-3 rounded-xl border p-4 transition-colors ${free.include ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
+                        <label htmlFor={free.id} className="flex cursor-pointer items-center gap-2.5">
+                          <Checkbox id={free.id} checked={free.include} onCheckedChange={(v) => free.setInclude(!!v)} />
+                          <free.icon className="size-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{free.label}</span>
+                          {free.suggested && (
+                            <span className="ml-auto flex items-center gap-1 text-xs text-primary">
+                              <RiSparklingFill className="size-3" />Suggested for this price
+                            </span>
+                          )}
                         </label>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {includeCase && (
-                          <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
-                            <SelectTrigger className="w-52 h-8 text-sm">
-                              <SelectValue placeholder="Select product" />
-                            </SelectTrigger>
+                        {free.include && (
+                          <Select value={free.value} onValueChange={free.setValue}>
+                            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Choose item" /></SelectTrigger>
                             <SelectContent>
                               {(productData?.data || []).filter((p) => p.is_active).map((p) => (
                                 <SelectItem key={p.product_id} value={p.product_id}>
-                                  {p.name}
-                                  <span className="ml-1 text-muted-foreground text-xs">· {p.sku}</span>
+                                  {p.name}<span className="ml-1 text-xs text-muted-foreground">· {p.sku}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
-                        <Badge variant="secondary" className="text-xs">Free</Badge>
                       </div>
-                    </div>
-
-                    {/* Complimentary Item 2 (e.g. Carry Bag) */}
-                    <div className={`flex items-center justify-between gap-4 rounded-xl border p-4 transition-all ${includeBag ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Checkbox
-                          id="include-bag"
-                          checked={includeBag}
-                          onCheckedChange={(v) => setIncludeBag(!!v)}
-                        />
-                        <label htmlFor="include-bag" className="flex items-center gap-2 cursor-pointer min-w-0">
-                          <RiGiftLine className="size-4 text-muted-foreground flex-shrink-0" />
-                          <p className="text-sm font-medium text-foreground">Complimentary Item 2</p>
-                        </label>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {includeBag && (
-                          <Select value={selectedBagId} onValueChange={setSelectedBagId}>
-                            <SelectTrigger className="w-52 h-8 text-sm">
-                              <SelectValue placeholder="Select product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(productData?.data || []).filter((p) => p.is_active).map((p) => (
-                                <SelectItem key={p.product_id} value={p.product_id}>
-                                  {p.name}
-                                  <span className="ml-1 text-muted-foreground text-xs">· {p.sku}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <Badge variant="secondary" className="text-xs">Free</Badge>
-                      </div>
-                    </div>
+                    ))}
                   </CardContent>
                 </Card>
               )}
 
-              {/* Other Expenses */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiReceiptLine className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Other Expenses</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Additional charges and services</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => { setNewExpenseName(''); setNewExpenseCost(0); setNewExpenseDialogOpen(true) }}>
-                        + New Type
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={addExpenseRow}>
-                        <RiAddLine className="mr-1.5 h-4 w-4" />
-                        Add Expense
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <Separator />
-                <CardContent className="pt-6">
-                  {expenseFields.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-                      <RiReceiptLine className="mb-3 h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">No expenses added yet</p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">Click "Add Expense" to include additional charges</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto rounded-lg border border-border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border bg-muted/50">
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expense Type</th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-20">Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Unit Cost</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Discount</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">Total</th>
-                            <th className="w-12" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {expenseFields.map((field, index) => (
-                            <tr key={field.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-4 py-3">
-                                <SearchableLOV placeholder="Select expense" value={expenses?.[index]?.expenseTypeId || ''} onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="1" className="w-16 text-center" value={expenses?.[index]?.qty || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <Input type="number" min={0} step="0.01" className="text-right" value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()} onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</td>
-                              <td className="px-4 py-3 text-center">
-                                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                                  <RiDeleteBin6Line className="h-4 w-4" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Inline create expense type dialog */}
+              {/* Inline create charge type dialog */}
               <Dialog open={newExpenseDialogOpen} onOpenChange={(open) => !open && setNewExpenseDialogOpen(false)}>
                 <DialogContent className="sm:max-w-sm">
                   <DialogHeader>
-                    <DialogTitle>New Expense Type</DialogTitle>
+                    <DialogTitle>New Charge Type</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div className="space-y-1.5">
@@ -2617,7 +2764,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       <Input id="new-expense-name" placeholder="e.g. Lens Coating" value={newExpenseName} onChange={(e) => setNewExpenseName(e.target.value)} autoFocus />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="new-expense-cost">Default Cost</Label>
+                      <Label htmlFor="new-expense-cost">Default price</Label>
                       <Input id="new-expense-cost" type="number" min={0} step="0.01" placeholder="0.00" value={newExpenseCost || ''} onChange={(e) => setNewExpenseCost(Number(e.target.value))} />
                     </div>
                   </div>
@@ -2634,67 +2781,162 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </DialogContent>
               </Dialog>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Remarks & Notes</CardTitle></CardHeader>
-                <Separator />
-                <CardContent className="pt-4">
-                  <Textarea {...register('remarks')} rows={4} placeholder="Add any special instructions or notes about this order..." className="resize-none" />
-                </CardContent>
-              </Card>
+              <div className="flex items-center justify-between rounded-xl border border-dashed border-border px-5 py-3">
+                <span className="text-sm text-muted-foreground">Extras total</span>
+                <span className="text-base font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.expenseTotal))}</span>
+              </div>
             </div>
           )}
 
-          {/* ── Step 5: Order Info ──────────────────────────────────────────── */}
+          {/* ── Step 5: Order Details ───────────────────────────────────────── */}
           {currentStep === 5 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <RiFileTextLine className="h-5 w-5 text-primary" />
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiCalendarLine className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>When Will It Be Ready?</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">The collection date is also the invoice due date unless you change it</p>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle>Order Details</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">Dates, tested by, and order type</p>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-5 space-y-5">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Order date" required error={errors.salesOrder?.orderDate?.message}>
+                      <Input type="date" {...register('salesOrder.orderDate')} />
+                    </Field>
+                    <Field label="Ready for collection" required error={errors.salesOrder?.deliveryDate?.message}>
+                      <Input type="date" {...register('salesOrder.deliveryDate')} />
+                    </Field>
                   </div>
-                </div>
-              </CardHeader>
-              <Separator />
-              <CardContent className="pt-6 space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <Field label="Order Date" required error={errors.salesOrder?.orderDate?.message}>
-                    <Input type="date" {...register('salesOrder.orderDate')} />
-                  </Field>
-                  <Field label="Delivery Date" required error={errors.salesOrder?.deliveryDate?.message}>
-                    <Input type="date" {...register('salesOrder.deliveryDate')} />
-                  </Field>
-                  <Field label="Date of Full Payment" required error={errors.salesOrder?.dateOfFullPayment?.message}>
-                    <Input type="date" {...register('salesOrder.dateOfFullPayment')} />
-                  </Field>
-                  <Field label="Tested By" required error={errors.salesOrder?.testedBy?.message}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">Ready in:</span>
+                    {([['Tomorrow', 1], ['3 days', 3], ['1 week', 7], ['2 weeks', 14]] as const).map(([label, days]) => (
+                      <Button key={label} type="button" variant="outline" size="sm" className="h-7 rounded-full px-3 text-xs"
+                        onClick={() => setDeliveryInDays(days)}>
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                    <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+                      <Checkbox checked={paymentDueSameAsDelivery} onCheckedChange={(v) => setPaymentDueSameAsDelivery(!!v)} />
+                      Full payment is due on collection
+                    </label>
+                    {!paymentDueSameAsDelivery && (
+                      <Field label="Full payment due" required error={errors.salesOrder?.dateOfFullPayment?.message} className="sm:max-w-xs">
+                        <Input type="date" {...register('salesOrder.dateOfFullPayment')} />
+                      </Field>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiUserLine className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>Who and Where</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Who tested the patient, and where the sale was made</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Tested by" required error={errors.salesOrder?.testedBy?.message}>
                     <SearchableLOV
-                      placeholder="Select user"
+                      placeholder="Select who tested"
                       value={salesOrder.testedBy || ''}
                       onChange={(val: string) => setValue('salesOrder.testedBy', val, { shouldDirty: true, shouldValidate: true })}
                       options={(testedByOptions || []).map((u: any) => ({ value: u.value, label: u.label, subtitle: '' }))}
                     />
                   </Field>
-                </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium leading-none">Sold at</p>
+                    <div className="flex gap-2">
+                      {(['institute', 'clinic'] as const).map((loc) => {
+                        const isSelected = saleLocation === loc
+                        return (
+                          <button
+                            key={loc}
+                            type="button"
+                            onClick={() => setValue('saleLocation', isSelected ? undefined : loc, { shouldDirty: true })}
+                            className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                            }`}
+                          >
+                            {loc === 'institute' ? 'Institute' : 'Clinic'}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {salesOrder.isOld && (
-                  <Field label="Original SO Number (from paper records)">
-                    <Input placeholder="e.g. SO-2022-0041" {...register('salesOrder.orderNumber')} />
-                  </Field>
-                )}
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <RiFileTextLine className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>Notes</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">Optional — printed on the invoice, e.g. coating or collection instructions</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-5 space-y-4">
+                  <Textarea {...register('remarks')} rows={3} placeholder="Add a note for this order…" className="resize-none" />
+                  {salesOrder.isOld && (
+                    <Field label="Original SO number (from paper records)">
+                      <Input placeholder="e.g. SO-2022-0041" {...register('salesOrder.orderNumber')} />
+                    </Field>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
-          {/* Pricing panel — visible from Frame through Order Info */}
-          {showPricingPanel && <PricingPanel derivedTotals={derivedTotals} />}
+          {/* Pricing panel — below xl only; xl screens have the side summary */}
+          {showPricingPanel && <div className="xl:hidden"><PricingPanel derivedTotals={derivedTotals} /></div>}
 
-          {/* ── Step 6: Review & Payment ────────────────────────────────────── */}
+          {/* ── Step 6: Review & Pay ────────────────────────────────────────── */}
           {currentStep === 6 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
+              {/* Anything that would stop the order saving, with a way to fix it */}
+              {reviewIssues.length > 0 && !savedOrderNumber && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                  <div className="flex items-center gap-2">
+                    <RiAlertLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Check these before saving</p>
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {reviewIssues.map((issue) => (
+                      <li key={issue.message} className="flex items-center justify-between gap-3 text-sm text-amber-900 dark:text-amber-200">
+                        <span>{issue.message}</span>
+                        {issue.step !== currentStep && (
+                          <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => setCurrentStep(issue.step)}>
+                            Fix
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* What's being sold */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -2702,140 +2944,86 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       <RiShieldCheckLine className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle>Order Summary</CardTitle>
+                      <CardTitle>Check the Order</CardTitle>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        {patient.newData.fullName && `${patient.newData.fullName} · `}
-                        {isFullOrder ? 'Full Order' : 'Partial Order'}
-                        {salesOrder.isOld ? ' · Historical' : ' · Invoice Eligible'}
+                        {isFullOrder ? 'Frame + lens' : 'Frame only'}
+                        {salesOrder.isOld ? ' · Past order, no invoice' : ' · An invoice is created when you save'}
                       </p>
                     </div>
                   </div>
                 </CardHeader>
                 <Separator />
-                <CardContent className="pt-6">
+                <CardContent className="pt-2">
                   <div className="divide-y divide-border">
-                    {saleLocation && (
-                      <div className="flex items-center justify-between py-2.5">
-                        <span className="text-sm text-muted-foreground">Sale Location</span>
-                        <span className="text-sm font-medium capitalize">{saleLocation === 'institute' ? 'Institute' : 'Clinic'}</span>
-                      </div>
-                    )}
-                    <SummaryRow label="Frame" value={derivedTotals.frameTotal} />
-                    <SummaryRow label="Lens" value={derivedTotals.lensTotal} />
-                    <SummaryRow label="Other Expenses" value={derivedTotals.expenseTotal} />
-                    {generalItems.length > 0 && (
-                      <div className="py-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">General Items</span>
-                          <div className="flex flex-col items-end gap-0.5">
-                            {generalItems.map((g) => (
-                              <span key={g.productId} className="text-xs text-muted-foreground">
-                                {g.productName} × {g.qty} · <span className="font-medium">{formatCurrency(g.unitPrice * g.qty)}</span>
-                              </span>
-                            ))}
-                          </div>
+                    {[
+                      { label: 'Patient', detail: patient.newData.fullName ? `${patient.newData.fullName} · ${patient.newData.phone}` : 'Not entered', step: 0 },
+                      { label: 'Prescription', detail: summaryExtras.prescription?.label || 'Not entered', step: 1 },
+                      { label: 'Frame', detail: frame.model || (frame.isReference ? 'Patient\'s own frame' : 'Not selected'), amount: derivedTotals.frameTotal, step: 2 },
+                      { label: 'Lens', detail: lens.lensType || 'None — frame-only order', amount: derivedTotals.lensTotal, step: 3 },
+                      {
+                        label: 'Extras',
+                        detail: invoicePreview.lines.filter((l) => !['Frame', 'Lens'].includes(l.type)).map((l) => (l.qty > 1 ? `${l.name} × ${l.qty}` : l.name)).join(', ') || 'None',
+                        amount: derivedTotals.expenseTotal,
+                        step: 4,
+                      },
+                      {
+                        label: 'Order details',
+                        detail: [salesOrder.deliveryDate && `Ready ${formatDate(salesOrder.deliveryDate, 'MMM d')}`, testedByName && `tested by ${testedByName}`, summaryExtras.soldAt]
+                          .filter(Boolean).join(' · ') || 'Not entered',
+                        step: 5,
+                      },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">{row.label}</p>
+                          <p className="truncate text-sm font-medium">{row.detail}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {row.amount !== undefined && row.amount > 0 && (
+                            <span className="text-sm font-semibold tabular-nums">{formatCurrency(roundCurrency(row.amount))}</span>
+                          )}
+                          {!savedOrderNumber && (
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setCurrentStep(row.step)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    )}
-                    {!salesOrder.isOld && (includeCase || includeBag) && (
-                      <div className="py-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Complimentary</span>
-                          <div className="flex flex-col items-end gap-1">
-                            {includeCase && selectedCaseId && (() => { const c = productData?.data.find((x) => x.product_id === selectedCaseId); return c ? <span className="text-xs text-muted-foreground">{c.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
-                            {includeBag && selectedBagId && (() => { const b = productData?.data.find((x) => x.product_id === selectedBagId); return b ? <span className="text-xs text-muted-foreground">{b.name} · <span className="text-green-600 font-medium">Free</span></span> : null })()}
-                            {includeCase && !selectedCaseId && <span className="text-xs text-muted-foreground">Case · <span className="text-green-600 font-medium">Free</span></span>}
-                            {includeBag && !selectedBagId && <span className="text-xs text-muted-foreground">Bag · <span className="text-green-600 font-medium">Free</span></span>}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <Separator className="my-4" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-semibold">Subtotal</span>
-                    <span className="text-2xl font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.subtotal))}</span>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Payment</CardTitle></CardHeader>
-                <Separator />
-                <CardContent className="pt-6 space-y-5">
-                  <div className="rounded-xl border border-border bg-muted/30 px-5 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Due</p>
-                    <p className="mt-1 text-4xl font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.subtotal))}</p>
-                  </div>
+              <PaymentPanel
+                subtotal={derivedTotals.subtotalBeforeDiscount}
+                discountTotal={derivedTotals.discountTotal}
+                total={derivedTotals.subtotal}
+                paid={salesOrder.isOld ? 0 : derivedTotals.advancedPayment}
+                balance={derivedTotals.balancePayment}
+                discountType={totals.discountType}
+                discountValue={Number(totals.discount || 0)}
+                onDiscountChange={(type, value) => {
+                  setValue('totals.discountType', type, { shouldDirty: true })
+                  setValue('totals.discount', value, { shouldDirty: true })
+                }}
+                onPaidChange={(amount) => setValue('totals.advancedPayment', amount, { shouldDirty: true })}
+                dueDate={salesOrder.dateOfFullPayment}
+                isHistorical={salesOrder.isOld}
+                invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}
+              />
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Advance / Partial Payment">
-                      <Input type="number" min={0} step="0.01" placeholder="0.00" value={totals.advancedPayment || 0} onFocus={(e) => e.target.select()} onChange={(e) => setValue('totals.advancedPayment', Number(e.target.value), { shouldDirty: true })} disabled={salesOrder.isOld} />
-                    </Field>
-                    <Field label="Overall Discount">
-                      <div className="flex gap-2">
-                        <Select value={totals.discountType} onValueChange={(v) => setValue('totals.discountType', v as 'AMOUNT' | 'PERCENT', { shouldDirty: true })}>
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="AMOUNT">Amount</SelectItem>
-                            <SelectItem value="PERCENT">Percent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={totals.discountType === 'PERCENT' ? 100 : undefined}
-                          step="0.01"
-                          placeholder={totals.discountType === 'PERCENT' ? '0 - 100' : '0.00'}
-                          value={totals.discount || 0}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => setValue('totals.discount', Number(e.target.value), { shouldDirty: true })}
-                        />
-                      </div>
-                    </Field>
-                  </div>
-
-                  <div className="rounded-xl border-2 border-primary bg-primary/5 px-5 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Outstanding Balance</p>
-                    <p className="mt-1 text-3xl font-bold tabular-nums text-primary">{formatCurrency(roundCurrency(derivedTotals.balancePayment))}</p>
-                  </div>
-
-                  {!salesOrder.isOld && salesOrder.dateOfFullPayment && (
-                    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <RiTimeLine className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Full Payment Due</span>
-                      </div>
-                      <span className="text-sm font-semibold">{salesOrder.dateOfFullPayment}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <RiTimeLine className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Invoice</span>
-                    </div>
-                    <span className="text-sm font-semibold">
-                      {totals.invoiceNumber || savedInvoice?.invoice_number
-                        ? (totals.invoiceNumber || savedInvoice?.invoice_number)
-                        : salesOrder.isOld ? 'None (historical)' : 'Generated after save'}
-                    </span>
-                  </div>
-
-                  {(savedInvoice || totals.invoiceNumber) && !salesOrder.isOld && (
-                    <Button type="button" variant="outline" className="w-full" onClick={() => navigate(`/invoices?detail=${savedInvoice?.invoice_id || totals.invoiceNumber}`)}>
-                      <RiEyeLine className="mr-2 h-4 w-4" />
-                      View Invoice
-                    </Button>
-                  )}
-
-                  {salesOrder.isOld && (
-                    <InlineAlert type="warning" title="Historical entry" description="No invoice will be generated for this order." />
-                  )}
-                </CardContent>
-              </Card>
+              {savedInvoice && !salesOrder.isOld && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button type="button" variant="outline" onClick={handleDownloadInvoicePdf} disabled={isDownloadingPdf}>
+                    {isDownloadingPdf ? <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" /> : <RiDownloadLine className="mr-2 h-4 w-4" />}
+                    Download invoice PDF
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => navigate(`/invoices?detail=${savedInvoice.invoice_id}`)}>
+                    <RiEyeLine className="mr-2 h-4 w-4" />
+                    View invoice
+                  </Button>
+                </div>
+              )}
 
               {savedOrderNumber && (
                 <InlineAlert type="success" title={`Order saved: ${savedOrderNumber}`} description={savedInvoice ? `Invoice ${savedInvoice.invoice_number} generated.` : undefined} />
@@ -2843,28 +3031,41 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
             </div>
           )}
 
-          {/* ── Navigation ──────────────────────────────────────────────────── */}
-          <div className="mt-4 flex flex-col-reverse gap-3 border-t border-border pt-4 sm:mt-0 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:pt-2">
-            <div>
+          {/* ── Navigation — sticks to the bottom so it's always in reach ───── */}
+          <div className="sticky bottom-0 z-20 -mx-1 flex items-center justify-between gap-3 rounded-t-xl border-t border-border bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="flex min-w-0 items-center gap-3">
               {currentStep > 0 && !savedOrderNumber && (
-                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleBack}>
+                <Button type="button" variant="outline" onClick={handleBack}>
                   <RiArrowLeftSLine className="mr-1.5 h-4 w-4" />
                   Back
                 </Button>
               )}
+              <span className="hidden truncate text-sm text-muted-foreground sm:inline">
+                {savedOrderNumber
+                  ? `Saved as ${savedOrderNumber}`
+                  : currentStep < STEPS.length - 1
+                    ? `Next: ${STEPS[currentStep + 1].label}`
+                    : `Total ${formatCurrency(roundCurrency(derivedTotals.subtotal))}`}
+              </span>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex items-center gap-3">
+              {showInvoicePreview && (
+                <Button type="button" variant="ghost" className="xl:hidden" onClick={() => setShowPreviewDialog(true)}>
+                  <RiFileTextLine className="mr-1.5 h-4 w-4" />
+                  <span className="hidden sm:inline">Preview invoice</span>
+                </Button>
+              )}
               {savedOrderNumber ? (
-                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleReset}>
+                <Button type="button" variant="outline" onClick={handleReset}>
                   Create Another Order
                 </Button>
               ) : currentStep < STEPS.length - 1 ? (
-                <Button type="button" className="w-full sm:w-auto" onClick={handleNext}>
-                  Next Step
+                <Button type="button" onClick={handleNext}>
+                  {currentStep === 3 && !lens.selectionId && !lens.isOld ? 'Skip — no lens' : 'Continue'}
                   <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" disabled={isSaving} className="w-full sm:w-auto" onClick={handleSubmitClick}>
+                <Button type="button" disabled={isSaving} onClick={handleSubmitClick}>
                   {isSaving ? (
                     <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
                   ) : (
@@ -2875,6 +3076,45 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
             </div>
           </div>
         </form>
+        </div>
+
+        {/* ── Right column — order summary, plus the invoice preview from Extras on ── */}
+        <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto xl:block">
+          {showInvoicePreview && (
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist">
+                {([['preview', 'Invoice preview'], ['summary', 'Order summary']] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={rightPanel === key}
+                    onClick={() => setRightPanel(key)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      rightPanel === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {savedInvoice && (
+                <Button type="button" size="sm" variant="outline" onClick={handleDownloadInvoicePdf} disabled={isDownloadingPdf}>
+                  <RiDownloadLine className="mr-1.5 h-4 w-4" />PDF
+                </Button>
+              )}
+            </div>
+          )}
+          {showInvoicePreview && rightPanel === 'preview' ? (
+            <>
+              <InvoicePreview data={invoicePreview} company={companyProfile} />
+              <InvoicePreviewStatus data={invoicePreview} />
+            </>
+          ) : (
+            <OrderSummaryPanel data={invoicePreview} extras={summaryExtras} goTo={goToStep} />
+          )}
+        </aside>
+        </div>
       </div>
     </>
   )

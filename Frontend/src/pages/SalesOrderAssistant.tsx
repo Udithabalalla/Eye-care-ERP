@@ -19,7 +19,7 @@ const SalesOrderAssistant = () => {
       ? 'Reorder'
       : initialPatient
         ? `New Order — ${initialPatient.name}`
-        : 'Sales Order Assistant'
+        : 'New Sales Order'
 
   const subtitle = draftOrderId
     ? 'Pick up where you left off and complete this draft.'
@@ -27,7 +27,7 @@ const SalesOrderAssistant = () => {
       ? 'Pre-filled from a previous order — review and confirm details.'
       : initialPatient
         ? 'Patient pre-filled — continue from the prescription step.'
-        : 'Use the guided assistant to create a new sales order.'
+        : 'Work through the steps — the order summary updates as you go.'
 
   return (
     <div className="space-y-6">
