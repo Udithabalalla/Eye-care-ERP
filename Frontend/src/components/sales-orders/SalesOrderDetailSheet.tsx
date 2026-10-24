@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +14,8 @@ import {
 import { salesOrdersApi, auditLogsApi } from '@/api/erp.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
+import { usersApi } from '@/api/users.api'
+import { companyProfileApi } from '@/api/company-profile.api'
 import { AuditLog } from '@/types/erp.types'
 import { SalesOrderStatus } from '@/types/erp.types'
 import { Prescription } from '@/types/prescription.types'
@@ -25,7 +27,6 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   RiFileEditLine,
   RiReceiptLine,
@@ -35,24 +36,30 @@ import {
   RiShieldCheckLine,
   RiTruckLine,
   RiUserLine,
-  RiCalendarLine,
-  RiFileTextLine,
   RiStickyNoteLine,
   RiEyeLine,
-  RiMoneyDollarCircleLine,
   RiRefreshLine,
   RiHistoryLine,
   RiDeleteBin6Line,
+  RiDownloadLine,
+  RiMore2Line,
+  RiArrowDownSLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { downloadFile } from '@/utils/helpers'
 import { SalesOrderStatusBadge } from './SalesOrderStatusBadge'
 import { SalesOrderStepper } from './SalesOrderStepper'
 import { SalesOrderTimeline } from './SalesOrderTimeline'
 import { getNextAction } from './SalesOrderWorkflowActions'
 import { RecordPaymentDialog } from '@/components/common/RecordPaymentDialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemList, MoneyStrip, TotalsBlock, type DrawerLineItem } from '@/components/common/DetailDrawer'
+import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
+import { invoiceToPreviewData } from '@/utils/invoicePreview'
 
 const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -60,6 +67,9 @@ const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>
   ready: RiShieldCheckLine,
   delivered: RiTruckLine,
 }
+
+// Free items already say "Free" in the amount column
+const LINE_LABELS: Record<string, string> = { frame: 'Frame', lens: 'Lens', expense: 'Service' }
 
 interface Props {
   orderId: string | null
@@ -73,6 +83,14 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [editConfirmOpen, setEditConfirmOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [view, setView] = useState<'details' | 'invoice'>('details')
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  // Switching to another order keeps the drawer open and starts at the top
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 })
+  }, [orderId])
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => salesOrdersApi.delete(id),
@@ -87,18 +105,22 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     },
   })
 
-  const { data: order } = useQuery({
+  // keepPreviousData: the current order stays on screen while the next one loads
+  const { data: order, isFetching: isFetchingOrder, isPlaceholderData } = useQuery({
     queryKey: ['sales-order', orderId],
     queryFn: () => salesOrdersApi.getById(orderId!),
     enabled: open && !!orderId,
     staleTime: 0,
+    placeholderData: keepPreviousData,
   })
+  const isSwitching = isFetchingOrder && isPlaceholderData
 
   const { data: prescription, isLoading: isLoadingRx } = useQuery({
     queryKey: ['prescription', order?.prescription_id],
     queryFn: () => prescriptionsApi.getById(order!.prescription_id!),
     enabled: open && !!order?.prescription_id,
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 
   // Fetch invoice when SO has one linked (to get live balance_due)
@@ -107,7 +129,9 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     queryFn: () => invoicesApi.getById(order!.invoice_id!),
     enabled: open && !!order?.invoice_id,
     staleTime: 0,
+    placeholderData: keepPreviousData,
   })
+  const orderInvoice = invoice && order?.invoice_id === invoice.invoice_id ? invoice : undefined
 
   // Audit trail for this order
   const { data: auditData } = useQuery({
@@ -117,6 +141,37 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     staleTime: 30_000,
   })
   const auditLogs = auditData?.data ?? []
+
+  // Staff names for "Tested by" (shared cache with the order wizard)
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
+    staleTime: 5 * 60 * 1000,
+    enabled: open,
+  })
+  const users: Array<{ user_id: string; name: string }> = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
+  const testedByName = order?.tested_by ? (users.find((u) => u.user_id === order.tested_by)?.name ?? order.tested_by) : undefined
+
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyProfileApi.get(),
+    staleTime: 10 * 60 * 1000,
+    enabled: open && view === 'invoice',
+  })
+
+  const handleDownloadPDF = async () => {
+    if (!order) return
+    setDownloading(true)
+    try {
+      const blob = await salesOrdersApi.downloadPDF(order.order_id)
+      downloadFile(blob, `${order.order_number}.pdf`)
+      toast.success('Receipt downloaded')
+    } catch {
+      toast.error('Failed to download receipt')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
@@ -164,341 +219,225 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   }
 
   const measurements = order?.measurements as Record<string, unknown> | undefined
-  const advancePayment = measurements?.advance_payment
-  const orderType = measurements?.order_type as string | undefined
+  const advancePayment = Number(measurements?.advance_payment || 0)
   const orderDate = measurements?.order_date as string | undefined
+  const discount = Number(order?.discount_amount || measurements?.discount || 0)
+
+  // Money: the invoice is the source of truth once it exists
+  const total = orderInvoice?.total_amount ?? order?.total_amount ?? 0
+  const paid = orderInvoice?.paid_amount ?? advancePayment
+  const balance = orderInvoice ? orderInvoice.balance_due : Math.max(total - paid, 0)
+  const deliveryBlocked = nextAction?.toStatus === 'delivered' && !!orderInvoice && orderInvoice.balance_due > 0
+
+  const lineItems: DrawerLineItem[] = (order?.items ?? []).map((item, i) => ({
+    key: `${item.product_id}-${i}`,
+    name: item.product_name || item.product_id,
+    detail: [item.line_type && item.line_type !== 'product' ? LINE_LABELS[item.line_type] : undefined, item.sku].filter(Boolean).join(' · '),
+    qty: item.quantity,
+    unitPrice: item.unit_price,
+    total: item.total,
+    isFree: item.line_type === 'complimentary',
+  }))
+
+  const goTo = (path: string) => {
+    onOpenChange(false)
+    navigate(path)
+  }
 
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col sm:max-w-lg overflow-hidden p-0"
+        className="flex flex-col sm:max-w-lg overflow-hidden p-0"
       >
-        {/* ── Header ─────────────────────────────── */}
-        <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
-          <div className="flex items-start gap-3 pr-8">
-            <div className="min-w-0">
-              <SheetTitle className="text-base font-semibold text-foreground">
-                {order?.order_number ?? '…'}
-              </SheetTitle>
-              <SheetDescription className="mt-1 flex items-center gap-2 flex-wrap">
-                {order && <SalesOrderStatusBadge status={order.status} />}
-                <span className="text-muted-foreground/60">·</span>
-                <span>{order ? formatDate(order.created_at) : ''}</span>
-              </SheetDescription>
+        {/* ── Header: number, status, key facts on one line ── */}
+        <SheetHeader className="flex-shrink-0 space-y-1 border-b px-5 pb-4 pt-5">
+          <SheetTitle className="pr-20 text-base font-semibold text-foreground">
+            {order?.order_number ?? '…'}
+          </SheetTitle>
+          <SheetDescription asChild>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              {order && <SalesOrderStatusBadge status={order.status} />}
+              {order?.patient_name && <span className="font-medium text-foreground">{order.patient_name}</span>}
+              {order && <span>· {formatDate(orderDate || order.created_at)}</span>}
             </div>
-          </div>
+          </SheetDescription>
         </SheetHeader>
+        <DrawerLoadingBar active={isSwitching} />
 
         {/* ── Scrollable body ─────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
-
-          {/* Lifecycle stepper */}
-          <div className="px-6 py-5 border-b bg-muted/20">
-            {order ? (
-              <SalesOrderStepper status={order.status} />
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <RiLoader4Line className="size-3.5 animate-spin" />
-                Loading…
-              </div>
-            )}
-          </div>
-
-          {order && <div className="divide-y divide-border">
-
-            {/* Patient */}
-            <Section icon={RiUserLine} title="Patient">
-              <Row label="Name" value={order.patient_name || order.patient_id} />
-              <Row label="Patient ID" value={order.patient_id} mono />
-              {order.tested_by && <Row label="Tested by" value={order.tested_by} />}
-            </Section>
-
-            {/* Prescription — shown only when linked */}
-            {order.prescription_id && (
-              <Section icon={RiEyeLine} title="Prescription">
-                {isLoadingRx ? (
-                  <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                    <RiLoader4Line className="size-3.5 animate-spin" />
-                    Loading…
-                  </div>
-                ) : prescription ? (
-                  <PrescriptionCard prescription={prescription} />
-                ) : (
-                  <Row label="Prescription ID" value={order.prescription_id} mono />
-                )}
-              </Section>
-            )}
-
-            {/* Order Items */}
-            <Section icon={RiBox3Line} title="Order Items">
-              <div className="overflow-x-auto -mx-1">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-muted-foreground border-b border-border/60">
-                      <th className="py-1.5 px-1 text-left font-medium">Item</th>
-                      <th className="py-1.5 px-1 text-center font-medium w-10">Qty</th>
-                      <th className="py-1.5 px-1 text-right font-medium">Price</th>
-                      <th className="py-1.5 px-1 text-right font-medium">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.items.map((item, i) => (
-                      <tr key={i} className="border-b border-border/40 last:border-0">
-                        <td className="py-2 px-1">
-                          <p className="font-medium text-foreground leading-tight">
-                            {item.product_name || item.product_id}
-                          </p>
-                          {item.sku && (
-                            <p className="text-muted-foreground/70 font-mono text-[10px]">
-                              {item.sku}
-                            </p>
-                          )}
-                          {item.line_type && item.line_type !== 'product' && (
-                            <span className="text-[10px] text-muted-foreground capitalize">
-                              {item.line_type}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 px-1 text-center tabular-nums">{item.quantity}</td>
-                        <td className="py-2 px-1 text-right tabular-nums">
-                          {formatCurrency(item.unit_price)}
-                        </td>
-                        <td className="py-2 px-1 text-right tabular-nums font-medium">
-                          {formatCurrency(item.total)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        <div ref={bodyRef} className={cn('custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain transition-opacity', isSwitching && 'opacity-60')}>
+          {!order ? (
+            <div className="flex h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
+              <RiLoader4Line className="size-4 animate-spin" />
+              Loading order…
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 border-b px-5 py-4">
+                <SalesOrderStepper status={order.status} />
+                <MoneyStrip
+                  total={total}
+                  paid={paid}
+                  balance={balance}
+                  onRecordPayment={orderInvoice && orderInvoice.balance_due > 0 ? () => setPaymentOpen(true) : undefined}
+                  note={
+                    !orderInvoice
+                      ? 'No invoice yet'
+                      : deliveryBlocked
+                        ? 'Collect the balance before delivery'
+                        : order.date_of_full_payment && balance > 0
+                          ? `Due by ${formatDate(order.date_of_full_payment)}`
+                          : undefined
+                  }
+                />
+                <DrawerViewSwitch
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { value: 'details', label: 'Details' },
+                    { value: 'invoice', label: 'Invoice', disabled: !orderInvoice },
+                  ]}
+                />
               </div>
 
-              {/* Totals */}
-              <div className="mt-3 space-y-1 border-t border-border/60 pt-3">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="tabular-nums font-medium">{formatCurrency(order.subtotal)}</span>
+              {view === 'invoice' && orderInvoice ? (
+                <div className="space-y-2 px-5 py-4">
+                  <InvoicePreview data={invoiceToPreviewData(orderInvoice)} company={companyProfile} />
+                  <InvoicePreviewStatus data={invoiceToPreviewData(orderInvoice)} />
                 </div>
-                {advancePayment != null && Number(advancePayment) > 0 && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Advance paid</span>
-                    <span className="tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">
-                      − {formatCurrency(Number(advancePayment))}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm font-semibold pt-1">
-                  <span>Total</span>
-                  <span className="tabular-nums">{formatCurrency(order.total_amount)}</span>
+              ) : (
+                <div className="divide-y divide-border">
+                  <DrawerSection icon={RiBox3Line} title={`Items (${lineItems.length})`}>
+                    <LineItemList items={lineItems} />
+                    <TotalsBlock subtotal={order.subtotal} discount={discount} total={order.total_amount} />
+                  </DrawerSection>
+
+                  <DrawerSection icon={RiUserLine} title="Patient & order">
+                    <DrawerRow label="Patient" value={order.patient_name || order.patient_id} />
+                    {testedByName && <DrawerRow label="Tested by" value={testedByName} />}
+                    {order.sale_location && <DrawerRow label="Sold at" value={order.sale_location === 'institute' ? 'Institute' : 'Clinic'} />}
+                    <DrawerRow label="Ordered" value={formatDate(orderDate || order.created_at)} />
+                    {order.expected_delivery_date && <DrawerRow label="Ready by" value={formatDate(order.expected_delivery_date)} />}
+                    {order.date_of_full_payment && <DrawerRow label="Payment due" value={formatDate(order.date_of_full_payment)} />}
+                  </DrawerSection>
+
+                  {order.prescription_id && (
+                    <DrawerSection icon={RiEyeLine} title="Prescription">
+                      {isLoadingRx ? (
+                        <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                          <RiLoader4Line className="size-3.5 animate-spin" />
+                          Loading…
+                        </div>
+                      ) : prescription ? (
+                        <PrescriptionCard prescription={prescription} />
+                      ) : (
+                        <DrawerRow label="Prescription" value={order.prescription_id} mono />
+                      )}
+                    </DrawerSection>
+                  )}
+
+                  {order.notes && (
+                    <DrawerSection icon={RiStickyNoteLine} title="Notes">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{order.notes}</p>
+                    </DrawerSection>
+                  )}
+
+                  {/* History stays tucked away until it's needed */}
+                  <Collapsible>
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <RiHistoryLine className="size-3.5" />
+                        History{auditLogs.length ? ` (${auditLogs.length + (order.status_history?.length ?? 0)})` : ''}
+                      </span>
+                      <RiArrowDownSLine className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-4 px-5 pb-4">
+                      <SalesOrderTimeline
+                        history={order.status_history ?? []}
+                        createdAt={order.created_at}
+                        createdBy={order.created_by}
+                      />
+                      {auditLogs.length > 0 && <AuditTrail logs={auditLogs} />}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
-              </div>
-            </Section>
-
-            {/* Dates */}
-            <Section icon={RiCalendarLine} title="Dates">
-              <Row
-                label="Order date"
-                value={orderDate ? formatDate(orderDate) : formatDate(order.created_at)}
-              />
-              {order.expected_delivery_date && (
-                <Row label="Expected delivery" value={formatDate(order.expected_delivery_date)} />
               )}
-              {order.date_of_full_payment && (
-                <Row label="Full payment by" value={formatDate(order.date_of_full_payment)} />
-              )}
-            </Section>
-
-            {/* Order details from measurements */}
-            {(orderType ||
-              measurements?.frame_total != null ||
-              measurements?.lens_total != null) && (
-              <Section icon={RiFileTextLine} title="Order Details">
-                {orderType && (
-                  <Row label="Order type" value={orderType.replace(/_/g, ' ')} />
-                )}
-                {measurements?.frame_total != null && (
-                  <Row
-                    label="Frame total"
-                    value={formatCurrency(Number(measurements.frame_total))}
-                  />
-                )}
-                {measurements?.lens_total != null && (
-                  <Row
-                    label="Lens total"
-                    value={formatCurrency(Number(measurements.lens_total))}
-                  />
-                )}
-                {measurements?.discount != null && Number(measurements.discount) > 0 && (
-                  <Row
-                    label="Discount"
-                    value={`− ${formatCurrency(Number(measurements.discount))}`}
-                  />
-                )}
-              </Section>
-            )}
-
-            {/* Notes */}
-            {order.notes && (
-              <Section icon={RiStickyNoteLine} title="Notes">
-                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                  {order.notes}
-                </p>
-              </Section>
-            )}
-
-            {/* Status history timeline */}
-            <Section icon={RiFileTextLine} title="Status History">
-              <SalesOrderTimeline
-                history={order.status_history ?? []}
-                createdAt={order.created_at}
-                createdBy={order.created_by}
-              />
-            </Section>
-
-            {/* Audit trail */}
-            {auditLogs.length > 0 && (
-              <Section icon={RiHistoryLine} title="Audit Trail">
-                <AuditTrail logs={auditLogs} />
-              </Section>
-            )}
-          </div>}
+            </>
+          )}
         </div>
 
-        {/* ── Footer actions ─────────────────────── */}
-        <div className="flex-shrink-0 border-t bg-background px-6 py-4 flex flex-col gap-2">
-          {/* Payment prompt — shown when order is ready or delivered and has an invoice */}
-          {order && ['ready', 'delivered'].includes(order.status) && (
-            <div className={cn(
-              'rounded-lg border p-3 flex items-center justify-between gap-3',
-              invoice && invoice.balance_due > 0
-                ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
-                : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
-            )}>
-              <div>
-                {invoice && invoice.balance_due > 0 ? (
-                  <>
-                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Payment pending</p>
-                    <p className="text-sm font-bold tabular-nums text-amber-900 dark:text-amber-100">
-                      {formatCurrency(invoice.balance_due)} due
-                    </p>
-                  </>
-                ) : invoice ? (
-                  <>
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Fully paid</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">{formatCurrency(invoice.total_amount)}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs font-semibold text-muted-foreground">No invoice linked</p>
-                    <p className="text-xs text-muted-foreground">Generate invoice to record payment</p>
-                  </>
-                )}
-              </div>
-              {invoice && invoice.balance_due > 0 && (
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shrink-0"
-                  onClick={() => setPaymentOpen(true)}
-                >
-                  <RiMoneyDollarCircleLine className="size-3.5" />
-                  Record Payment
-                </Button>
-              )}
-              {invoice && invoice.balance_due <= 0 && (
-                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300">Paid</Badge>
-              )}
-            </div>
-          )}
-
-          {nextAction && Icon && (() => {
-            // Block "Complete Delivery" if there is an unpaid invoice balance
-            const blocked = nextAction.toStatus === 'delivered' && !!invoice && invoice.balance_due > 0
-            const tooltipMsg = blocked
-              ? `Record the outstanding payment of ${formatCurrency(invoice!.balance_due)} before completing delivery`
-              : undefined
-
-            return (
+        {/* ── Footer: one main action, the rest tidy ── */}
+        {order && (
+          <div className="flex flex-shrink-0 flex-col gap-2 border-t bg-background px-5 py-3">
+            {nextAction && Icon && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     {/* wrapper div so tooltip still fires on disabled button */}
-                    <div className={blocked ? 'cursor-not-allowed' : undefined}>
+                    <div className={deliveryBlocked ? 'cursor-not-allowed' : undefined}>
                       <Button
                         className={cn('w-full gap-2 font-semibold', nextAction.className)}
                         onClick={handleAdvance}
-                        disabled={isPending || blocked}
+                        disabled={isPending || deliveryBlocked}
                       >
-                        {isPending ? (
-                          <RiLoader4Line className="size-4 animate-spin" />
-                        ) : (
-                          <Icon className="size-4" />
-                        )}
+                        {isPending ? <RiLoader4Line className="size-4 animate-spin" /> : <Icon className="size-4" />}
                         {nextAction.label}
                       </Button>
                     </div>
                   </TooltipTrigger>
-                  {tooltipMsg && (
+                  {deliveryBlocked && orderInvoice && (
                     <TooltipContent side="top" className="max-w-[220px] text-center">
-                      {tooltipMsg}
+                      Record the outstanding payment of {formatCurrency(orderInvoice.balance_due)} before completing delivery
                     </TooltipContent>
                   )}
                 </Tooltip>
               </TooltipProvider>
-            )
-          })()}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 gap-1.5"
-              onClick={() => {
-                if (order?.status === 'draft') {
-                  onOpenChange(false)
-                  navigate(`/sales-orders/assistant?draft=${order?.order_id}`)
-                } else {
-                  setEditConfirmOpen(true)
-                }
-              }}
-            >
-              <RiFileEditLine className="size-4" />
-              Edit Order
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 gap-1.5"
-              onClick={() => {
-                onOpenChange(false)
-                navigate(`/sales-orders/assistant?reorder=${order?.order_id}`)
-              }}
-            >
-              <RiRefreshLine className="size-4" />
-              Reorder
-            </Button>
-            {order?.invoice_id && (
-              <Button
-                variant="outline"
-                className="flex-1 gap-1.5"
-                onClick={() => {
-                  onOpenChange(false)
-                  navigate(`/invoices?detail=${order?.invoice_id}`)
-                }}
-              >
-                <RiReceiptLine className="size-4" />
-                Invoice
-              </Button>
             )}
-            {order?.status === 'draft' && !order?.invoice_id && (
-              <Button
-                variant="outline"
-                className="flex-1 gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
-                onClick={() => setDeleteConfirmOpen(true)}
-              >
-                <RiDeleteBin6Line className="size-4" />
-                Delete
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 gap-1.5" onClick={handleDownloadPDF} disabled={downloading}>
+                {downloading ? <RiLoader4Line className="size-4 animate-spin" /> : <RiDownloadLine className="size-4" />}
+                Receipt
               </Button>
-            )}
+              {order.invoice_id && (
+                <Button variant="outline" className="flex-1 gap-1.5" onClick={() => goTo(`/invoices?detail=${order.invoice_id}`)}>
+                  <RiReceiptLine className="size-4" />
+                  Invoice
+                </Button>
+              )}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-1.5" aria-label="More actions">
+                    <RiMore2Line className="size-4" />
+                    More
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (order.status === 'draft') goTo(`/sales-orders/assistant?draft=${order.order_id}`)
+                      else setEditConfirmOpen(true)
+                    }}
+                  >
+                    <RiFileEditLine className="size-4" />
+                    Edit order
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => goTo(`/sales-orders/assistant?reorder=${order.order_id}`)}>
+                    <RiRefreshLine className="size-4" />
+                    Reorder
+                  </DropdownMenuItem>
+                  {order.status === 'draft' && !order.invoice_id && (
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+                      <RiDeleteBin6Line className="size-4" />
+                      Delete draft
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
+        )}
       </SheetContent>
     </Sheet>
 
@@ -566,6 +505,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
         paidAmount={invoice.paid_amount}
         patientName={invoice.patient_name}
         invoiceNumber={invoice.invoice_number}
+        invoice={invoice}
         invalidateKeys={[['sales-orders'], ['sales-order', order.order_id]]}
       />
     )}
@@ -694,28 +634,6 @@ function AuditTrail({ logs }: { logs: AuditLog[] }) {
 }
 
 // ── Shared primitives ──────────────────────────────────────────────────────────
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="px-6 py-4">
-      <div className="mb-3 flex items-center gap-1.5">
-        <Icon className="size-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </h3>
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  )
-}
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (

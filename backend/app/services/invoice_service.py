@@ -10,6 +10,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+from reportlab.graphics.shapes import Drawing, Group, Rect, String
 
 from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.patient_repository import PatientRepository
@@ -318,6 +319,23 @@ class InvoiceService:
     ACCENT = "#007595"
     DEFAULT_LOGO = "brand/logo-full-primary.png"
 
+    @staticmethod
+    def _paid_seal(paid_on) -> Drawing:
+        """Rubber-stamp style PAID seal, drawn as a flowable."""
+        green = colors.HexColor("#059669")
+        drawing = Drawing(60 * mm, 30 * mm)
+        seal = Group(
+            Rect(-24 * mm, -9 * mm, 48 * mm, 18 * mm, rx=3 * mm, ry=3 * mm, strokeColor=green, strokeWidth=2.2, fillColor=None),
+            Rect(-22.5 * mm, -7.5 * mm, 45 * mm, 15 * mm, rx=2.2 * mm, ry=2.2 * mm, strokeColor=green, strokeWidth=0.8, fillColor=None),
+            String(0, -1.5 * mm, "PAID", fontName="Helvetica-Bold", fontSize=22, fillColor=green, textAnchor="middle"),
+        )
+        if paid_on:
+            seal.add(String(0, -5.6 * mm, paid_on.strftime("%d %b %Y").upper(), fontName="Helvetica-Bold", fontSize=6.5, fillColor=green, textAnchor="middle"))
+        seal.translate(30 * mm, 15 * mm)
+        seal.rotate(12)
+        drawing.add(seal)
+        return drawing
+
     def _build_invoice_pdf(self, invoice: InvoiceModel, patient, company_profile) -> bytes:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -481,7 +499,9 @@ class InvoiceService:
             ("TOPPADDING", (0, grand_index), (-1, grand_index), 6),
             *balance_style,
         ]))
-        totals_wrap = Table([[Paragraph("", normal), totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
+        # A fully paid invoice gets a PAID seal beside the totals (same place as the on-screen preview)
+        seal = self._paid_seal(invoice.payment_date or invoice.updated_at) if is_paid else Paragraph("", normal)
+        totals_wrap = Table([[seal, totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
         totals_wrap.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -525,30 +545,5 @@ class InvoiceService:
         ]))
         story.append(footer)
 
-        def draw_paid_seal(canvas, _doc):
-            # Rubber-stamp style seal in the header, beside the logo
-            canvas.saveState()
-            canvas.translate(A4[0] - 75 * mm, A4[1] - 33 * mm)
-            canvas.rotate(12)
-            seal_green = colors.HexColor("#059669")
-            canvas.setStrokeColor(seal_green)
-            canvas.setFillColor(seal_green)
-            canvas.setStrokeAlpha(0.85)
-            canvas.setFillAlpha(0.85)
-            canvas.setLineWidth(2.2)
-            canvas.roundRect(-24 * mm, -9 * mm, 48 * mm, 18 * mm, 3 * mm, stroke=1, fill=0)
-            canvas.setLineWidth(0.8)
-            canvas.roundRect(-22.5 * mm, -7.5 * mm, 45 * mm, 15 * mm, 2.2 * mm, stroke=1, fill=0)
-            canvas.setFont("Helvetica-Bold", 22)
-            canvas.drawCentredString(0, -1.5 * mm, "PAID")
-            paid_on = invoice.payment_date or invoice.updated_at
-            if paid_on:
-                canvas.setFont("Helvetica-Bold", 6.5)
-                canvas.drawCentredString(0, -5.6 * mm, paid_on.strftime("%d %b %Y").upper())
-            canvas.restoreState()
-
-        if is_paid:
-            doc.build(story, onFirstPage=draw_paid_seal)
-        else:
-            doc.build(story)
+        doc.build(story)
         return buffer.getvalue()

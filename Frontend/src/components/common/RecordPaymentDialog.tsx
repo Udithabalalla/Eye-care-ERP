@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,10 @@ import { paymentsApi } from '@/api/payments.api'
 import { PaymentMethod } from '@/types/common.types'
 import { LedgerReferenceType } from '@/types/erp.types'
 import { formatCurrency } from '@/utils/formatters'
+import { companyProfileApi } from '@/api/company-profile.api'
+import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
+import { invoiceToPreviewData } from '@/utils/invoicePreview'
+import type { Invoice } from '@/types/invoice.types'
 import toast from 'react-hot-toast'
 
 const schema = z.object({
@@ -63,6 +67,8 @@ export interface RecordPaymentDialogProps {
   patientName?: string
   invoiceNumber?: string
   invalidateKeys?: unknown[][]
+  /** When given, the dialog shows the invoice as it will look after this payment */
+  invoice?: Invoice
 }
 
 export function RecordPaymentDialog({
@@ -78,6 +84,7 @@ export function RecordPaymentDialog({
   patientName,
   invoiceNumber,
   invalidateKeys = [],
+  invoice,
 }: RecordPaymentDialogProps) {
   const queryClient = useQueryClient()
   const balanceDue = Math.max(totalAmount - paidAmount, 0)
@@ -129,11 +136,18 @@ export function RecordPaymentDialog({
   })
 
   const remainingAfter = balanceDue - amount
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyProfileApi.get(),
+    staleTime: 10 * 60 * 1000,
+    enabled: open && !!invoice,
+  })
+  const preview = invoice ? invoiceToPreviewData(invoice, amount > 0 && amount <= balanceDue ? amount : 0) : null
   const willBeFullyPaid = remainingAfter <= 0
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className={preview ? 'max-h-[92vh] overflow-y-auto sm:max-w-4xl' : 'max-w-md'}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RiMoneyDollarCircleLine className="h-5 w-5 text-emerald-500" />
@@ -142,6 +156,7 @@ export function RecordPaymentDialog({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
+        <div className={preview ? 'grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]' : ''}>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
             {/* Summary */}
@@ -289,6 +304,18 @@ export function RecordPaymentDialog({
             </DialogFooter>
           </form>
         </Form>
+
+        {/* The actual invoice, updated with this payment, so it can be checked against the printed copy */}
+        {preview && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Invoice after this payment</p>
+            <div className="md:max-h-[70vh] md:overflow-y-auto">
+              <InvoicePreview data={preview} company={companyProfile} />
+            </div>
+            <InvoicePreviewStatus data={preview} />
+          </div>
+        )}
+        </div>
       </DialogContent>
     </Dialog>
   )

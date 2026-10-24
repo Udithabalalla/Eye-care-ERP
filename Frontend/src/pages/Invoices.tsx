@@ -32,7 +32,7 @@ import {
 import { DataTable, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
 import InvoiceModal from '@/components/invoices/InvoiceModal'
-import PaymentModal from '@/components/invoices/PaymentModal'
+import { RecordPaymentDialog } from '@/components/common/RecordPaymentDialog'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { InvoiceDetailSheet } from '@/components/invoices/InvoiceDetailSheet'
 import { formatDate, formatCurrency } from '@/utils/formatters'
@@ -149,8 +149,9 @@ const Invoices = () => {
     )
   }
 
+  // Clicking a row opens (or switches) the detail drawer; the checkbox handles selection
   const handleRowClick = (invoice: Invoice) => {
-    toggleOne(invoice.invoice_id, !selectedInvoiceIds.includes(invoice.invoice_id))
+    openDetail(invoice)
   }
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
@@ -401,6 +402,7 @@ const Invoices = () => {
             selectedRows={selectedRows}
             rowActions={rowActions}
             onRowClick={handleRowClick}
+            isRowActive={(invoice) => invoice.invoice_id === detailInvoiceId}
             onClearSelection={() => setSelectedInvoiceIds([])}
             emptyMessage="No invoices found."
           />
@@ -424,12 +426,20 @@ const Invoices = () => {
         onSuccess={() => refetch()}
       />
 
+      {/* Same payment dialog as the detail drawers, with the invoice preview */}
       {selectedInvoice && (
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
+        <RecordPaymentDialog
+          open={isPaymentModalOpen}
           onClose={() => { setIsPaymentModalOpen(false); setSelectedInvoice(null) }}
+          onSuccess={() => refetch()}
+          referenceType="INVOICE"
+          referenceId={selectedInvoice.invoice_id}
+          totalAmount={selectedInvoice.total_amount}
+          paidAmount={selectedInvoice.paid_amount}
+          patientName={selectedInvoice.patient_name}
+          invoiceNumber={selectedInvoice.invoice_number}
           invoice={selectedInvoice}
-          onSuccess={() => { refetch(); setIsPaymentModalOpen(false) }}
+          invalidateKeys={[['invoice', selectedInvoice.invoice_id]]}
         />
       )}
 

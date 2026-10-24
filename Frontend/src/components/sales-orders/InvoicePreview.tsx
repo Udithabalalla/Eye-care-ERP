@@ -3,7 +3,8 @@ import { CompanyProfile } from '@/types/company-profile.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
 
-export type InvoiceLineType = 'Frame' | 'Lens' | 'Accessory' | 'Service' | 'Free'
+// Matches the line labels printed on the PDF
+export type InvoiceLineType = 'Frame' | 'Lens' | 'Product' | 'Service' | 'Free'
 
 export interface InvoicePreviewLine {
   key: string
@@ -80,7 +81,7 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
       )}
 
       {/* Header */}
-      <div className="relative flex items-start justify-between gap-4 px-4 pb-5 pt-6 sm:px-6">
+      <div className="flex items-start justify-between gap-4 px-4 pb-5 pt-6 sm:px-6">
         <div className="min-w-0">
           <p className="text-2xl font-bold tracking-tight">INVOICE</p>
           <p className="mt-1 text-xs text-slate-500">
@@ -90,15 +91,6 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
             </span>
           </p>
         </div>
-        {/* Same seal the PDF stamps on a fully paid invoice */}
-        {isFullyPaid(data) && (
-          <div className="pointer-events-none absolute right-28 top-6 -rotate-12 rounded-lg border-2 border-emerald-600/80 p-0.5 text-emerald-600/85" aria-label="Paid">
-            <div className="rounded-md border border-emerald-600/80 px-3 py-0.5 text-center">
-              <p className="text-lg font-extrabold leading-tight tracking-[0.2em]">PAID</p>
-              <p className="text-[8px] font-bold uppercase tracking-wider">{formatDate(new Date(), 'dd MMM yyyy')}</p>
-            </div>
-          </div>
-        )}
         <BrandLogo variant="full" className="h-16 w-20 text-[#007595]" title={companyName} />
       </div>
 
@@ -181,8 +173,17 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
           </table>
         </div>
 
-        {/* Totals */}
-        <div className="ml-auto w-full max-w-[16rem] space-y-1.5 text-xs">
+        {/* Totals, with the PAID seal beside them once settled (same place as the PDF) */}
+        <div className="flex items-start justify-between gap-3">
+        {isFullyPaid(data) ? (
+          <div className="pointer-events-none mt-3 -rotate-12 rounded-lg border-2 border-emerald-600/80 p-0.5 text-emerald-600/85" aria-label="Paid">
+            <div className="rounded-md border border-emerald-600/80 px-3 py-0.5 text-center">
+              <p className="text-lg font-extrabold leading-tight tracking-[0.2em]">PAID</p>
+              <p className="text-[8px] font-bold uppercase tracking-wider">{formatDate(new Date(), 'dd MMM yyyy')}</p>
+            </div>
+          </div>
+        ) : <span />}
+        <div className="w-full max-w-[16rem] space-y-1.5 text-xs">
           <div className="flex justify-between">
             <span className="text-slate-500">Subtotal</span>
             <span className="tabular-nums">{money(data.subtotal)}</span>
@@ -209,6 +210,7 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
               <span className="tabular-nums">{money(data.balance)}</span>
             </div>
           )}
+        </div>
         </div>
 
         {data.notes && (

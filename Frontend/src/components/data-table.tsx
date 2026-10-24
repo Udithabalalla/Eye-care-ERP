@@ -53,6 +53,8 @@ type DataTableProps<TData, TValue> = {
   onRowClick?: (row: TData) => void
   /** Called when the × clear button in the action bar is clicked. */
   onClearSelection?: () => void
+  /** Marks the row whose details are open in a drawer, so the user can see which one it is. */
+  isRowActive?: (row: TData) => boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -70,6 +72,7 @@ export function DataTable<TData, TValue>({
   rowActions,
   onRowClick,
   onClearSelection,
+  isRowActive,
 }: DataTableProps<TData, TValue>) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
 
@@ -226,7 +229,9 @@ export function DataTable<TData, TValue>({
               rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={cn('z-0', onRowClick && 'cursor-pointer')}
+                  className={cn('z-0', onRowClick && 'cursor-pointer', isRowActive?.(row.original) && 'bg-primary/5 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary/10')}
+                  // Clicking another row swaps an open detail drawer instead of dismissing it
+                  data-keeps-drawer-open={onRowClick ? '' : undefined}
                   data-state={(row.getIsSelected() || selectedRows?.includes(row.original)) ? 'selected' : undefined}
                   onClick={(e) => {
                     if (!onRowClick) return

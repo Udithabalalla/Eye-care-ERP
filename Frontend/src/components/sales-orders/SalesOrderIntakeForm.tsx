@@ -791,7 +791,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       })
     }
     generalItems.forEach((g) => lines.push({
-      key: `acc-${g.productId}`, type: 'Accessory', name: g.productName, detail: g.sku,
+      key: `acc-${g.productId}`, type: 'Product', name: g.productName, detail: g.sku,
       qty: g.qty, unitPrice: g.unitPrice, discount: 0, total: roundCurrency(g.unitPrice * g.qty),
     }))
     ;(expenses || []).forEach((e, i) => {
@@ -2936,8 +2936,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </div>
               )}
 
-              {/* What's being sold */}
-              <Card>
+              {/* What's being sold — wide screens already show it in the summary and invoice preview */}
+              <Card className="xl:hidden">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">

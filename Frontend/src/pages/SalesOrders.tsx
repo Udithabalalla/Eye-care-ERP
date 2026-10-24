@@ -138,7 +138,7 @@ const SalesOrders = () => {
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | ''>('')
   // Deep links (e.g. from notifications) can pre-select a status
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const urlStatus = searchParams.get('status') as SalesOrderStatus | null
   useEffect(() => {
     if (urlStatus) { setStatusFilter(urlStatus); setPage(1) }
@@ -150,6 +150,11 @@ const SalesOrders = () => {
   const [orderToEdit, setOrderToEdit] = useState<SalesOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
+  // Deep link from an invoice or notification: /sales-orders?detail=SO000123
+  const urlDetail = searchParams.get('detail')
+  useEffect(() => {
+    if (urlDetail) setDetailOrderId(urlDetail)
+  }, [urlDetail])
 
   const rowStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
@@ -658,7 +663,13 @@ const SalesOrders = () => {
       <SalesOrderDetailSheet
         orderId={detailOrderId}
         open={!!detailOrderId}
-        onOpenChange={(open) => { if (!open) setDetailOrderId(null) }}
+        onOpenChange={(open) => {
+          if (open) return
+          setDetailOrderId(null)
+          if (searchParams.get('detail')) {
+            setSearchParams((prev) => { prev.delete('detail'); return prev }, { replace: true })
+          }
+        }}
       />
 
       {/* Header */}
@@ -781,6 +792,7 @@ const SalesOrders = () => {
             selectedRows={selectedRows}
             rowActions={rowActions}
             onRowClick={handleRowClick}
+            isRowActive={(order) => order.order_id === detailOrderId}
             onClearSelection={() => setSelectedOrderIds([])}
             emptyMessage="No sales orders found."
           />

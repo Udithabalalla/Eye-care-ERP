@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrderStatus, SupplierInvoice } from '@/types/supplier.types'
 import {
@@ -50,6 +50,8 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
     queryFn: () => suppliersApi.getPurchaseOrder(orderId!),
     enabled: open && !!orderId,
     staleTime: 0,
+    // Keep the current order on screen while switching to another row
+    placeholderData: keepPreviousData,
   })
 
   // Fetch linked supplier invoice (if any) for payment recording
