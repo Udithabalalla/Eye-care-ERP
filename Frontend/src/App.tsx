@@ -11,6 +11,7 @@ import Loading from './components/common/Loading'
 const FramesWorkspace = lazy(() => import('./pages/inventory/FramesWorkspace'))
 const GeneralInventory = lazy(() => import('./pages/inventory/GeneralInventory'))
 const ReceivingWorkspace = lazy(() => import('./pages/inventory/ReceivingWorkspace'))
+const LowStockReorder = lazy(() => import('./pages/inventory/LowStockReorder'))
 const MovementsLog = lazy(() => import('./pages/inventory/MovementsLog'))
 const AdjustmentsWorkspace = lazy(() => import('./pages/inventory/AdjustmentsWorkspace'))
 
@@ -38,7 +39,6 @@ const Doctors = lazy(() => import('./pages/Doctors'))
 const Reports = lazy(() => import('./pages/Reports'))
 const Suppliers = lazy(() => import('./pages/Suppliers'))
 const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'))
-const StockReceipts = lazy(() => import('./pages/StockReceipts'))
 const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
 const Users = lazy(() => import('./pages/Users'))
@@ -74,6 +74,7 @@ function App() {
             <Route path="/inventory/frames" element={<FramesWorkspace />} />
             <Route path="/inventory/general" element={<GeneralInventory />} />
             <Route path="/inventory/receiving" element={<ReceivingWorkspace />} />
+            <Route path="/inventory/reorder" element={<LowStockReorder />} />
             <Route path="/inventory/movements" element={<MovementsLog />} />
             <Route path="/inventory/adjustments" element={<AdjustmentsWorkspace />} />
 
@@ -103,7 +104,8 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/purchase-orders" element={<PurchaseOrders />} />
-            <Route path="/stock-receipts" element={<StockReceipts />} />
+            {/* Receiving against POs now lives on the Receive Stock page */}
+            <Route path="/stock-receipts" element={<Navigate to="/inventory/receiving?tab=po" replace />} />
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />
             <Route path="/supplier-payments" element={<SupplierPayments />} />
             <Route path="/users" element={<Users />} />

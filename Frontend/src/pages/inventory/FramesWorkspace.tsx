@@ -1,13 +1,12 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  RiAddLine, RiEditLine, RiDeleteBinLine, RiPrinterLine,
-  RiSearchLine, RiQrCodeLine, RiFilterLine,
-  RiArrowRightSLine, RiGridLine, RiBox3Line,
-  RiStackLine, RiArrowDownCircleLine, RiEqualizer2Line, RiHistoryLine,
-  RiAlertLine, RiCloseLine, RiMore2Line,
+  RiAddLine, RiDeleteBinLine, RiPrinterLine,
+  RiSearchLine, RiQrCodeLine, RiFilterLine, RiArrowRightSLine,
+  RiArrowDownCircleLine, RiEqualizer2Line, RiCloseLine, RiShoppingCartLine, RiGlassesLine,
 } from '@remixicon/react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -15,28 +14,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 import { frameMastersApi, frameVariantsApi } from '@/api/frames.api'
+import { inventoryApi } from '@/api/inventory.api'
 import {
   FrameMaster, FrameVariant, RIM_TYPES,
   FRAME_MATERIALS, FRAME_SHAPES, FRAME_GENDERS, FRAME_CATEGORIES,
 } from '@/types/frames.types'
 import { StockBadge } from '@/components/frames/StockBadge'
+import { FrameModelDrawer, FrameModelActions } from '@/components/frames/FrameModelDrawer'
+import { BulkVariantDialog } from '@/components/frames/BulkVariantDialog'
 import { formatCurrency } from '@/utils/formatters'
 import Pagination from '@/components/common/Pagination'
 import Loading from '@/components/common/Loading'
 import QRScanner from '@/components/common/QRScanner'
 import { CreatePODrawer } from '@/components/inventory/CreatePODrawer'
+import { ReceiveStockDrawer } from '@/components/inventory/ReceiveStockDrawer'
 import { AdjustStockDrawer } from '@/components/inventory/AdjustStockDrawer'
-import { PrintBarcodeDrawer } from '@/components/inventory/PrintBarcodeDrawer'
 import { VariantHistoryDrawer } from '@/components/inventory/VariantHistoryDrawer'
+import { BulkLabelDialog, LabelItem } from '@/components/inventory/BulkLabelDialog'
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -71,245 +72,122 @@ const variantSchema = z.object({
 })
 type VariantFormValues = z.infer<typeof variantSchema>
 
-// ─── Variant rows sub-component ───────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-interface VariantRowsProps {
-  master: FrameMaster
-  selectedIds: Set<string>
-  onToggleSelect: (v: FrameVariant) => void
-  onEditVariant: (v: FrameVariant) => void
-  onDeleteVariant: (id: string) => void
-  onReceive: (v: FrameVariant) => void
-  onAdjust: (v: FrameVariant) => void
-  onPrint: (v: FrameVariant) => void
-  onHistory: (v: FrameVariant) => void
-}
+type View = 'models' | 'variants'
+type StockFilter = 'all' | 'low' | 'out'
 
-function VariantRows({ master, selectedIds, onToggleSelect, onEditVariant, onDeleteVariant, onReceive, onAdjust, onPrint, onHistory }: VariantRowsProps) {
-  const { data: variants, isLoading } = useQuery({
-    queryKey: ['frame-variants-for-master', master.frame_master_id],
-    queryFn: () => frameVariantsApi.getForMaster(master.frame_master_id),
-    staleTime: 30_000,
-  })
+const PAGE_SIZE = 20
 
-  if (isLoading) {
-    return (
-      <TableRow>
-        <TableCell colSpan={9} className="bg-muted/20 py-3 pl-16 text-sm text-muted-foreground">
-          Loading variants…
-        </TableCell>
-      </TableRow>
-    )
-  }
-
-  if (!variants?.length) {
-    return (
-      <TableRow>
-        <TableCell colSpan={9} className="bg-muted/10 py-3 pl-16 text-sm text-muted-foreground italic">
-          No variants yet — use "+ Add Variant" to create one.
-        </TableCell>
-      </TableRow>
-    )
-  }
-
-  const subHeaderCls = 'py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50'
-
-  return (
-    <>
-      {/* Variant column sub-header */}
-      <TableRow className="border-b border-border/20 bg-muted/5 hover:bg-muted/5">
-        <TableCell className={`${subHeaderCls} w-10`} />
-        <TableCell className={`${subHeaderCls} pl-8`}>Color</TableCell>
-        <TableCell className={subHeaderCls}>Rim Type</TableCell>
-        <TableCell className={subHeaderCls}>Eye Size</TableCell>
-        <TableCell className={subHeaderCls}>Arm Length</TableCell>
-        <TableCell className={subHeaderCls}>SKU</TableCell>
-        <TableCell className={subHeaderCls}>Stock</TableCell>
-        <TableCell className={`${subHeaderCls} text-right`}>Price</TableCell>
-        <TableCell colSpan={2} />
-      </TableRow>
-
-      {variants.map((v, i) => {
-        const isLast = i === variants.length - 1
-        return (
-          <TableRow
-            key={v.variant_id}
-            className={`group border-b border-border/30 transition-colors duration-100 ${selectedIds.has(v.variant_id) ? 'bg-primary/[0.06]' : 'bg-muted/[0.12] hover:bg-muted/25'}`}
+/** Compact single-choice pill group */
+const Segmented = <T extends string>({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: T
+  onChange: (value: T) => void
+  options: Array<{ value: T; label: string; count?: number; tone?: 'warn' | 'bad' }>
+  label: string
+}) => (
+  <div role="radiogroup" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-lg border border-border bg-muted/40 p-0.5">
+    {options.map((option) => (
+      <button
+        key={option.value}
+        type="button"
+        role="radio"
+        aria-checked={value === option.value}
+        onClick={() => onChange(option.value)}
+        className={cn(
+          'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+          value === option.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {option.label}
+        {option.count !== undefined && (
+          <span
+            className={cn(
+              'rounded-full px-1.5 text-[11px] tabular-nums',
+              option.tone === 'bad' ? 'bg-destructive/10 text-destructive' : option.tone === 'warn' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-muted text-muted-foreground',
+            )}
           >
-            {/* Tree connector + checkbox */}
-            <TableCell className="py-0 w-10 p-0 relative" onClick={(e) => e.stopPropagation()}>
-              <div className={`absolute left-5 w-px bg-border/50 ${isLast ? 'top-0 bottom-1/2' : 'top-0 bottom-0'}`} />
-              <div className="absolute left-5 top-1/2 w-3 h-px bg-border/50" />
-              <div className="flex items-center justify-center h-full py-2.5 relative z-10">
-                <Checkbox
-                  checked={selectedIds.has(v.variant_id)}
-                  onCheckedChange={() => onToggleSelect(v)}
-                  className="bg-background"
-                />
-              </div>
-            </TableCell>
-
-            {/* Color */}
-            <TableCell className="py-2.5 pl-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-border shrink-0 ring-2 ring-background" />
-                <span className="text-sm font-medium">{v.color}</span>
-              </div>
-            </TableCell>
-
-            {/* Rim Type */}
-            <TableCell className="py-2.5 text-sm capitalize text-muted-foreground">{v.rim_type}</TableCell>
-
-            {/* Eye Size */}
-            <TableCell className="py-2.5 text-sm tabular-nums">
-              {v.eye_size}<span className="text-xs text-muted-foreground ml-0.5">mm</span>
-            </TableCell>
-
-            {/* Arm Length (temple_length) */}
-            <TableCell className="py-2.5 text-sm tabular-nums">
-              {v.temple_length
-                ? <>{v.temple_length}<span className="text-xs text-muted-foreground ml-0.5">mm</span></>
-                : <span className="text-muted-foreground/40">—</span>}
-            </TableCell>
-
-            {/* SKU */}
-            <TableCell className="py-2.5">
-              <span className="font-mono text-xs text-muted-foreground/70">{v.sku}</span>
-            </TableCell>
-
-            {/* Stock / Sale Location */}
-            <TableCell className="py-2.5">
-              <div className="flex items-center gap-1.5">
-                <StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} />
-                {v.current_stock === 0 && v.sale_location && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize border-muted-foreground/30 text-muted-foreground">
-                    {v.sale_location === 'institute' ? 'Institute' : 'Clinic'}
-                  </Badge>
-                )}
-              </div>
-            </TableCell>
-
-            {/* Selling Price */}
-            <TableCell className="py-2.5 text-right tabular-nums font-medium text-sm">
-              {formatCurrency(v.selling_price)}
-            </TableCell>
-
-            {/* Actions — opacity reveal only (no layout shift = no stutter) */}
-            <TableCell className="py-2 w-44 text-right" colSpan={2}>
-              <div
-                className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost" size="sm"
-                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                        onClick={() => onReceive(v)}
-                      >
-                        <RiArrowDownCircleLine className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Receive Stock</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onAdjust(v)}>
-                        <RiEqualizer2Line className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Adjust Stock</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onPrint(v)}>
-                        <RiPrinterLine className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Print Label</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onHistory(v)}>
-                        <RiHistoryLine className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>View History</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Separator orientation="vertical" className="h-4 mx-0.5" />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEditVariant(v)}>
-                        <RiEditLine className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => { if (confirm('Delete this variant?')) onDeleteVariant(v.variant_id) }}
-                      >
-                        <RiDeleteBinLine className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </TableCell>
-          </TableRow>
-        )
-      })}
-    </>
-  )
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+            {option.count}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+)
 
 export default function FramesWorkspace() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
+  const [view, setView] = useState<View>('models')
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const [selectedMasterId, setSelectedMasterId] = useState<string | null>(null)
-  const [selectedVariants, setSelectedVariants] = useState<Map<string, FrameVariant>>(new Map())
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [barcodeInput, setBarcodeInput] = useState('')
+
+  // The open model drawer, and the variant to point out in it
+  const [drawerMaster, setDrawerMaster] = useState<FrameMaster | null>(null)
+  const [highlightVariantId, setHighlightVariantId] = useState<string | null>(null)
+
+  // Variants view selection
+  const [selectedVariants, setSelectedVariants] = useState<Map<string, FrameVariant>>(new Map())
 
   // Dialogs
   const [masterModalOpen, setMasterModalOpen] = useState(false)
   const [editMaster, setEditMaster] = useState<FrameMaster | null>(null)
   const [variantModalOpen, setVariantModalOpen] = useState(false)
   const [editVariant, setEditVariant] = useState<FrameVariant | null>(null)
+  const [variantMaster, setVariantMaster] = useState<FrameMaster | null>(null)
+  const [bulkMaster, setBulkMaster] = useState<FrameMaster | null>(null)
+  const [labelItems, setLabelItems] = useState<LabelItem[] | null>(null)
 
-  // Drawers
-  const [drawerVariant, setDrawerVariant] = useState<FrameVariant | null>(null)
+  // Stock action drawers
+  const [actionVariant, setActionVariant] = useState<FrameVariant | null>(null)
   const [receiveOpen, setReceiveOpen] = useState(false)
-  const [adjustOpen, setAdjustOpen] = useState(false)
-  const [printOpen, setPrintOpen] = useState(false)
+  const [countOpen, setCountOpen] = useState(false)
+  const [reorderOpen, setReorderOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
-  const { data, isLoading } = useQuery({
+  const { data: mastersData, isLoading: isLoadingMasters } = useQuery({
     queryKey: ['frame-masters', page, search, brandFilter, categoryFilter],
-    queryFn: () => frameMastersApi.getAll({ page, page_size: 20, search, brand: brandFilter || undefined, category: categoryFilter || undefined }),
+    queryFn: () => frameMastersApi.getAll({ page, page_size: PAGE_SIZE, search, brand: brandFilter || undefined, category: categoryFilter || undefined }),
+    enabled: view === 'models',
+    placeholderData: keepPreviousData,
+  })
+
+  const { data: variantsData, isLoading: isLoadingVariants } = useQuery({
+    queryKey: ['frame-variants', page, search, brandFilter, stockFilter],
+    queryFn: () => frameVariantsApi.getAll({
+      page,
+      page_size: PAGE_SIZE,
+      search: search || undefined,
+      brand: brandFilter || undefined,
+      low_stock: stockFilter === 'low' || undefined,
+      out_of_stock: stockFilter === 'out' || undefined,
+    }),
+    enabled: view === 'variants',
+    placeholderData: keepPreviousData,
+  })
+
+  // Totals for the tabs, independent of the current page
+  const { data: modelTotal } = useQuery({
+    queryKey: ['frame-masters-total'],
+    queryFn: async () => (await frameMastersApi.getAll({ page: 1, page_size: 1 })).total,
+    staleTime: 60_000,
+  })
+  const { data: variantTotal } = useQuery({
+    queryKey: ['frame-variants-total'],
+    queryFn: async () => (await frameVariantsApi.getAll({ page: 1, page_size: 1 })).total,
+    staleTime: 60_000,
   })
 
   const { data: brandsData } = useQuery({
@@ -319,38 +197,81 @@ export default function FramesWorkspace() {
   })
   const brands = brandsData ?? []
 
-  // ─── Master mutations ──────────────────────────────────────────────────────
+  // Each variant's own reorder level, across everything — drives the chips and the model flags
+  const { data: lowStockData } = useQuery({
+    queryKey: ['inventory-low-stock', 'frame', false],
+    queryFn: () => inventoryApi.getLowStock({ kind: 'frame' }),
+    staleTime: 60_000,
+  })
+  const attention = useMemo(() => {
+    const byMaster = new Map<string, { low: number; out: number }>()
+    let out = 0
+    for (const row of lowStockData?.data ?? []) {
+      if (row.out_of_stock) out += 1
+      if (!row.frame_master_id) continue
+      const entry = byMaster.get(row.frame_master_id) ?? { low: 0, out: 0 }
+      if (row.out_of_stock) entry.out += 1
+      else entry.low += 1
+      byMaster.set(row.frame_master_id, entry)
+    }
+    return { byMaster, out, total: lowStockData?.total ?? 0 }
+  }, [lowStockData])
+
+  // ─── Mutations ─────────────────────────────────────────────────────────────
+
+  const refreshStock = () => {
+    qc.invalidateQueries({ queryKey: ['frame-variants-for-master'] })
+    qc.invalidateQueries({ queryKey: ['frame-variants'] })
+    qc.invalidateQueries({ queryKey: ['frame-masters'] })
+    qc.invalidateQueries({ queryKey: ['inventory-low-stock'] })
+  }
 
   const masterForm = useForm<MasterFormValues>({ resolver: zodResolver(masterSchema) })
 
   const createMasterMutation = useMutation({
     mutationFn: frameMastersApi.create,
-    onSuccess: () => { toast.success('Frame model created'); qc.invalidateQueries({ queryKey: ['frame-masters'] }); closeMasterModal() },
+    onSuccess: (m) => {
+      toast.success('Frame model created')
+      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      qc.invalidateQueries({ queryKey: ['frame-masters-total'] })
+      closeMasterModal()
+      // Straight on to adding its colours & sizes
+      setDrawerMaster(m)
+      setBulkMaster(m)
+    },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to create'),
   })
 
   const updateMasterMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: MasterFormValues }) => frameMastersApi.update(id, data),
-    onSuccess: () => { toast.success('Frame model updated'); qc.invalidateQueries({ queryKey: ['frame-masters'] }); closeMasterModal() },
+    onSuccess: (m) => {
+      toast.success('Frame model updated')
+      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      if (drawerMaster?.frame_master_id === m.frame_master_id) setDrawerMaster(m)
+      closeMasterModal()
+    },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to update'),
   })
 
   const deleteMasterMutation = useMutation({
     mutationFn: frameMastersApi.delete,
-    onSuccess: () => { toast.success('Deleted'); qc.invalidateQueries({ queryKey: ['frame-masters'] }) },
+    onSuccess: () => {
+      toast.success('Frame model deleted')
+      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      qc.invalidateQueries({ queryKey: ['frame-masters-total'] })
+      setDrawerMaster(null)
+    },
     onError: () => toast.error('Failed to delete — remove all variants first'),
   })
-
-  // ─── Variant mutations ─────────────────────────────────────────────────────
 
   const variantForm = useForm<VariantFormValues>({ resolver: zodResolver(variantSchema), defaultValues: { rim_type: 'full', reorder_level: 2 } })
 
   const createVariantMutation = useMutation({
     mutationFn: frameVariantsApi.create,
-    onSuccess: (v) => {
+    onSuccess: () => {
       toast.success('Variant created')
-      qc.invalidateQueries({ queryKey: ['frame-variants-for-master', v.frame_master_id] })
-      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      refreshStock()
+      qc.invalidateQueries({ queryKey: ['frame-variants-total'] })
       closeVariantModal()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to create'),
@@ -358,9 +279,9 @@ export default function FramesWorkspace() {
 
   const updateVariantMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<VariantFormValues> }) => frameVariantsApi.update(id, data),
-    onSuccess: (v) => {
+    onSuccess: () => {
       toast.success('Variant updated')
-      qc.invalidateQueries({ queryKey: ['frame-variants-for-master', v.frame_master_id] })
+      refreshStock()
       closeVariantModal()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to update'),
@@ -370,31 +291,66 @@ export default function FramesWorkspace() {
     mutationFn: (id: string) => frameVariantsApi.delete(id),
     onSuccess: () => {
       toast.success('Variant deleted')
-      qc.invalidateQueries({ queryKey: ['frame-variants-for-master'] })
-      qc.invalidateQueries({ queryKey: ['frame-masters'] })
+      refreshStock()
+      qc.invalidateQueries({ queryKey: ['frame-variants-total'] })
     },
     onError: () => toast.error('Failed to delete'),
   })
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
-  const toggleVariantSelect = (v: FrameVariant) => {
+  const openModel = (m: FrameMaster, variantId: string | null = null) => {
+    setDrawerMaster(m)
+    setHighlightVariantId(variantId)
+  }
+
+  // Variants know their model by id only; fetch it (cached) and open its drawer on that variant
+  const openVariantModel = async (v: FrameVariant) => {
+    try {
+      const m = await qc.fetchQuery({
+        queryKey: ['frame-master', v.frame_master_id],
+        queryFn: () => frameMastersApi.getById(v.frame_master_id),
+        staleTime: 60_000,
+      })
+      openModel(m, v.variant_id)
+    } catch {
+      toast.error('Could not open this frame model')
+    }
+  }
+
+  const handleBarcodeScan = async (code: string) => {
+    setScannerOpen(false)
+    try {
+      await openVariantModel(await frameVariantsApi.scanLookup(code))
+    } catch {
+      toast.error(`No frame found for ${code}`)
+    }
+  }
+
+  const changeView = (next: View) => {
+    setView(next)
+    setPage(1)
+    setSelectedVariants(new Map())
+    if (next === 'models') setStockFilter('all')
+  }
+
+  // Stock filters are about colours/sizes, so they always show the variants view
+  const changeStockFilter = (next: StockFilter) => {
+    setStockFilter(next)
+    setPage(1)
+    setSelectedVariants(new Map())
+    if (next !== 'all') setView('variants')
+  }
+
+  const toggleVariantSelect = (v: FrameVariant) =>
     setSelectedVariants((prev) => {
       const next = new Map(prev)
       if (next.has(v.variant_id)) next.delete(v.variant_id)
       else next.set(v.variant_id, v)
       return next
     })
-  }
   const clearVariantSelection = () => setSelectedVariants(new Map())
   const singleSelected = selectedVariants.size === 1 ? [...selectedVariants.values()][0] : null
-
-  const toggleRow = (id: string) => {
-    const next = new Set(expandedIds)
-    if (next.has(id)) { next.delete(id) } else { next.add(id) }
-    setExpandedIds(next)
-    setSelectedMasterId((prev) => (prev === id && !next.has(id) ? null : id))
-  }
 
   const openCreateMaster = () => { setEditMaster(null); masterForm.reset({ category: 'optical' }); setMasterModalOpen(true) }
   const openEditMaster = (m: FrameMaster) => { setEditMaster(m); masterForm.reset(m); setMasterModalOpen(true) }
@@ -404,370 +360,312 @@ export default function FramesWorkspace() {
     else createMasterMutation.mutate(values)
   }
 
-  const openCreateVariant = (masterId: string) => {
+  const openCreateVariant = (m: FrameMaster) => {
     setEditVariant(null)
-    variantForm.reset({ frame_master_id: masterId, rim_type: 'full', reorder_level: 2 })
+    setVariantMaster(m)
+    variantForm.reset({ frame_master_id: m.frame_master_id, rim_type: m.rim_type || 'full', eye_size: m.default_eye_size, reorder_level: 2 })
     setVariantModalOpen(true)
-    setExpandedIds((prev) => new Set([...prev, masterId]))
   }
-
   const openEditVariant = (v: FrameVariant) => { setEditVariant(v); variantForm.reset({ ...v, mrp: v.mrp ?? 0 }); setVariantModalOpen(true) }
-  const closeVariantModal = () => { setVariantModalOpen(false); setEditVariant(null) }
+  const closeVariantModal = () => { setVariantModalOpen(false); setEditVariant(null); setVariantMaster(null) }
   const onVariantSubmit = (values: VariantFormValues) => {
     if (editVariant) updateVariantMutation.mutate({ id: editVariant.variant_id, data: values })
     else createVariantMutation.mutate(values)
   }
 
-  const openDrawer = (v: FrameVariant, drawer: 'receive' | 'adjust' | 'print' | 'history') => {
-    setDrawerVariant(v)
-    if (drawer === 'receive') setReceiveOpen(true)
-    else if (drawer === 'adjust') setAdjustOpen(true)
-    else if (drawer === 'print') setPrintOpen(true)
-    else setHistoryOpen(true)
+  const runAction = (v: FrameVariant, open: (value: boolean) => void) => { setActionVariant(v); open(true) }
+  const labelItemsFor = (variants: FrameVariant[]): LabelItem[] =>
+    variants.map((v) => ({
+      kind: 'frame',
+      id: v.variant_id,
+      name: `${v.frame_master_ref.brand} ${v.frame_master_ref.model_code}`,
+      detail: `${v.color} · ${v.eye_size} · ${v.sku}`,
+      copies: Math.max(v.current_stock, 1),
+    }))
+
+  const modelActions: FrameModelActions = {
+    onReceive: (v) => runAction(v, setReceiveOpen),
+    onCount: (v) => runAction(v, setCountOpen),
+    onReorder: (v) => runAction(v, setReorderOpen),
+    onHistory: (v) => runAction(v, setHistoryOpen),
+    onEditVariant: openEditVariant,
+    onDeleteVariant: (v) => { if (confirm(`Delete ${v.color} ${v.eye_size}mm (${v.sku})?`)) deleteVariantMutation.mutate(v.variant_id) },
+    onPrintLabels: (variants) => setLabelItems(labelItemsFor(variants)),
+    onAddVariants: setBulkMaster,
+    onAddOne: openCreateVariant,
+    onEditModel: openEditMaster,
+    onDeleteModel: (m) => { if (confirm(`Delete ${m.brand} ${m.model_code}? Remove its variants first.`)) deleteMasterMutation.mutate(m.frame_master_id) },
   }
 
-  const handleBarcodeScan = async (code: string) => {
-    setScannerOpen(false)
-    try {
-      const v = await frameVariantsApi.scanLookup(code)
-      setSearch(v.sku)
-    } catch { toast.error(`No variant found for ${code}`) }
-  }
-
-  const handleBarcodeInput = async () => {
-    if (!barcodeInput.trim()) return
-    await handleBarcodeScan(barcodeInput.trim())
-    setBarcodeInput('')
-  }
-
-  const selectedMaster = data?.data.find((m) => m.frame_master_id === selectedMasterId)
   const masterPending = createMasterMutation.isPending || updateMasterMutation.isPending
   const variantPending = createVariantMutation.isPending || updateVariantMutation.isPending
-
-  const totalVariants = data?.data.reduce((s, m) => s + m.variant_count, 0) ?? 0
-  const lowStockModels = data?.data.filter((m) => m.total_stock <= 5).length ?? 0
+  const listData = view === 'models' ? mastersData : variantsData
+  const isLoading = view === 'models' ? isLoadingMasters : isLoadingVariants
+  const hasFilters = !!(search || brandFilter || categoryFilter || stockFilter !== 'all')
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-
+    <div className="space-y-5">
       {/* Header */}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Frames</h1>
-          <p className="text-sm text-muted-foreground">Frame models and stockable variants. Hover a variant row to act on it.</p>
+          <p className="text-sm text-muted-foreground">Frame models and the colours/sizes you stock. Click a model to manage its variants.</p>
         </div>
         <Button size="sm" onClick={openCreateMaster}>
           <RiAddLine className="size-4" />
-          New Frame Model
+          New frame model
         </Button>
       </section>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border/60">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Frame Models</p>
-              <p className="text-2xl font-bold">{data?.total ?? 0}</p>
-            </div>
-            <RiGridLine className="w-8 h-8 text-primary/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Brands</p>
-              <p className="text-2xl font-bold">{brands.length}</p>
-            </div>
-            <RiBox3Line className="w-8 h-8 text-primary/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Variants</p>
-              <p className="text-2xl font-bold">{totalVariants}</p>
-            </div>
-            <RiStackLine className="w-8 h-8 text-primary/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className={`text-2xl font-bold ${lowStockModels > 0 ? 'text-amber-600' : ''}`}>{lowStockModels}</p>
-            </div>
-            <RiAlertLine className={`w-8 h-8 ${lowStockModels > 0 ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main table */}
       <Card className="border-border/60">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
-            <div>
-              <CardTitle className="text-xl">Frame Inventory</CardTitle>
-              <CardDescription>Click a row to expand variants. Hover variants for inline actions.</CardDescription>
-            </div>
-            <Badge variant="secondary">{data?.total ?? 0} models</Badge>
-          </div>
-
-          {/* Filter bar */}
-          <div className="flex flex-wrap gap-2">
-            <div className="relative w-44">
-              <RiQrCodeLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Scan barcode…"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                className="pl-9 h-9"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeInput() }}
+        <CardHeader className="space-y-3">
+          {/* What you're looking at, and what needs attention */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented
+                label="View"
+                value={view}
+                onChange={changeView}
+                options={[
+                  { value: 'models', label: 'Models', count: modelTotal },
+                  { value: 'variants', label: 'Colours & sizes', count: variantTotal },
+                ]}
+              />
+              <Segmented
+                label="Stock"
+                value={stockFilter}
+                onChange={changeStockFilter}
+                options={[
+                  { value: 'all', label: 'All stock' },
+                  { value: 'low', label: 'Needs reorder', count: attention.total, tone: attention.total ? 'warn' : undefined },
+                  { value: 'out', label: 'Out of stock', count: attention.out, tone: attention.out ? 'bad' : undefined },
+                ]}
               />
             </div>
-            <Button variant="outline" size="sm" className="h-9" onClick={() => setScannerOpen(true)}>
-              <RiQrCodeLine className="size-4" />
-            </Button>
-            <div className="relative w-52">
-              <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Search brand, model…"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="pl-9 h-9"
-              />
-            </div>
-            <Select value={brandFilter || 'all'} onValueChange={(v) => { setBrandFilter(v === 'all' ? '' : v); setPage(1) }}>
-              <SelectTrigger className="h-9 w-36"><SelectValue placeholder="Brand" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Brands</SelectItem>
-                {brands.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter || 'all'} onValueChange={(v) => { setCategoryFilter(v === 'all' ? '' : v); setPage(1) }}>
-              <SelectTrigger className="h-9 w-36"><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {FRAME_CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {(brandFilter || categoryFilter || search) && (
-              <Button
-                variant="ghost" size="sm" className="h-9 gap-1 text-xs"
-                onClick={() => { setBrandFilter(''); setCategoryFilter(''); setSearch(''); setPage(1) }}
-              >
-                <RiFilterLine className="size-3.5" />Clear
+            {attention.total > 0 && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/inventory/reorder?kind=frame')}>
+                <RiShoppingCartLine className="size-4" />
+                Reorder {attention.total}
               </Button>
             )}
           </div>
 
-          {/* Selection toolbar */}
-          {selectedVariants.size > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
-              <span className="text-sm font-medium text-primary">{selectedVariants.size} selected</span>
-              <Separator orientation="vertical" className="h-5" />
+          {/* Find */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-80">
+              <RiSearchLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={view === 'models' ? 'Search brand, model or SKU…' : 'Search colour, SKU, brand…'}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                className="h-9 pl-9 pr-10"
+              />
+              <Button
+                variant="ghost" size="sm" className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
+                onClick={() => setScannerOpen(true)} aria-label="Scan a barcode" title="Scan a barcode"
+              >
+                <RiQrCodeLine className="size-4" />
+              </Button>
+            </div>
+            <Select value={brandFilter || 'all'} onValueChange={(v) => { setBrandFilter(v === 'all' ? '' : v); setPage(1) }}>
+              <SelectTrigger className="h-9 w-40"><SelectValue placeholder="Brand" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All brands</SelectItem>
+                {brands.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {view === 'models' && (
+              <Select value={categoryFilter || 'all'} onValueChange={(v) => { setCategoryFilter(v === 'all' ? '' : v); setPage(1) }}>
+                <SelectTrigger className="h-9 w-36"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {FRAME_CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {hasFilters && (
+              <Button
+                variant="ghost" size="sm" className="h-9 gap-1 text-xs"
+                onClick={() => { setBrandFilter(''); setCategoryFilter(''); setSearch(''); setStockFilter('all'); setPage(1) }}
+              >
+                <RiFilterLine className="size-3.5" />Clear filters
+              </Button>
+            )}
+            <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">{listData?.total ?? 0} {view === 'models' ? 'models' : 'variants'}</span>
+          </div>
+
+          {/* Selection bar (variants view) */}
+          {view === 'variants' && selectedVariants.size > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5">
+              <span className="mr-1 text-sm font-medium text-primary">{selectedVariants.size} selected</span>
               {singleSelected && (
                 <>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
-                    <RiEditLine className="size-3.5" />Edit
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => runAction(singleSelected, setReceiveOpen)}>
+                    <RiArrowDownCircleLine className="size-3.5" />Receive
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
-                    <RiArrowDownCircleLine className="size-3.5" />Receive Stock
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => runAction(singleSelected, setCountOpen)}>
+                    <RiEqualizer2Line className="size-3.5" />Count
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
-                    <RiEqualizer2Line className="size-3.5" />Adjust Stock
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
-                    <RiPrinterLine className="size-3.5" />Print Barcode
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => runAction(singleSelected, setReorderOpen)}>
+                    <RiShoppingCartLine className="size-3.5" />Reorder
                   </Button>
                 </>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <RiMore2Line className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {singleSelected && (
-                    <>
-                      <DropdownMenuItem onClick={() => { openEditVariant(singleSelected); clearVariantSelection() }}>
-                        <RiEditLine className="mr-2 size-4" />Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'receive'); clearVariantSelection() }}>
-                        <RiArrowDownCircleLine className="mr-2 size-4" />Receive Stock
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'adjust'); clearVariantSelection() }}>
-                        <RiEqualizer2Line className="mr-2 size-4" />Adjust Stock
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { openDrawer(singleSelected, 'print'); clearVariantSelection() }}>
-                        <RiPrinterLine className="mr-2 size-4" />Print Barcode
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => {
-                      const ids = [...selectedVariants.keys()]
-                      if (confirm(`Delete ${ids.length} variant${ids.length > 1 ? 's' : ''}?`)) {
-                        ids.forEach((id) => deleteVariantMutation.mutate(id))
-                        clearVariantSelection()
-                      }
-                    }}
-                  >
-                    <RiDeleteBinLine className="mr-2 size-4" />
-                    Delete {selectedVariants.size > 1 ? `${selectedVariants.size} variants` : 'variant'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="flex-1" />
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={clearVariantSelection}>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setLabelItems(labelItemsFor([...selectedVariants.values()]))}>
+                <RiPrinterLine className="size-3.5" />Print labels
+              </Button>
+              <Button
+                variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
+                onClick={() => {
+                  const ids = [...selectedVariants.keys()]
+                  if (confirm(`Delete ${ids.length} variant${ids.length > 1 ? 's' : ''}?`)) {
+                    ids.forEach((id) => deleteVariantMutation.mutate(id))
+                    clearVariantSelection()
+                  }
+                }}
+              >
+                <RiDeleteBinLine className="size-3.5" />Delete
+              </Button>
+              <Button variant="ghost" size="sm" className="ml-auto h-8 w-8 p-0" onClick={clearVariantSelection} aria-label="Clear selection">
                 <RiCloseLine className="size-4" />
               </Button>
             </div>
           )}
         </CardHeader>
 
-        <CardContent className="px-0 pb-0">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-12"><Loading /></div>
-          ) : (
-            <>
-              <div className="overflow-x-auto px-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="text-xs">
-                      <TableHead className="w-10" />
-                      <TableHead>Brand / Model</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Material / Gender</TableHead>
-                      <TableHead>Rim Type</TableHead>
-                      <TableHead>Variants</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead colSpan={2} />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(data?.data ?? []).map((m) => {
-                      const isExpanded = expandedIds.has(m.frame_master_id)
-                      const isSelected = selectedMasterId === m.frame_master_id
-
-                      return (
-                        <>
-                          {/* Master row */}
-                          <TableRow
-                            key={m.frame_master_id}
-                            className={`cursor-pointer transition-colors border-l-[3px] ${isExpanded ? 'border-b-0 border-l-primary bg-muted/40 hover:bg-muted/50' : 'border-l-transparent bg-muted/20 hover:bg-muted/30'}`}
-                            onClick={() => toggleRow(m.frame_master_id)}
-                          >
-                            <TableCell className="py-3.5 w-10">
-                              <RiArrowRightSLine className={`size-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
-                            </TableCell>
-                            <TableCell className="py-3.5">
-                              <div>
-                                <p className="font-bold tracking-tight text-foreground">{m.brand} <span className="font-semibold text-muted-foreground">{m.model_code}</span></p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{m.frame_name}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2.5">
-                              <Badge variant="secondary" className="capitalize text-xs">{m.category}</Badge>
-                            </TableCell>
-                            <TableCell className="py-2.5 text-sm text-muted-foreground capitalize">
-                              {[m.material, m.gender].filter(Boolean).join(' · ') || '—'}
-                            </TableCell>
-                            <TableCell className="py-2.5 text-sm text-muted-foreground capitalize">
-                              {m.rim_type || '—'}
-                            </TableCell>
-                            <TableCell className="py-2.5 tabular-nums text-sm">{m.variant_count}</TableCell>
-                            <TableCell className="py-2.5">
-                              <StockBadge stock={m.total_stock} reorderLevel={0} showCount />
-                            </TableCell>
-                            {/* Price col — empty for master rows */}
-                            <TableCell className="py-2.5" />
-
-                            <TableCell className="py-2.5 text-right" colSpan={2}>
-                              {isSelected ? (
-                                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <Button size="sm" className="h-7 text-xs gap-1" onClick={() => openCreateVariant(m.frame_master_id)}>
-                                    <RiAddLine className="size-3.5" />Add Variant
-                                  </Button>
-                                  <Separator orientation="vertical" className="h-5" />
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => openEditMaster(m)}>
-                                          <RiEditLine className="size-3.5" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Edit model</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                          onClick={() => { if (confirm('Delete this frame model and all its variants?')) deleteMasterMutation.mutate(m.frame_master_id) }}
-                                        >
-                                          <RiDeleteBinLine className="size-3.5" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Delete model</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/40">click to manage</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-
-                          {/* Variant sub-rows */}
-                          {isExpanded && (
-                            <VariantRows
-                              master={m}
-                              selectedIds={new Set(selectedVariants.keys())}
-                              onToggleSelect={toggleVariantSelect}
-                              onEditVariant={openEditVariant}
-                              onDeleteVariant={(id) => deleteVariantMutation.mutate(id)}
-                              onReceive={(v) => openDrawer(v, 'receive')}
-                              onAdjust={(v) => openDrawer(v, 'adjust')}
-                              onPrint={(v) => openDrawer(v, 'print')}
-                              onHistory={(v) => openDrawer(v, 'history')}
-                            />
-                          )}
-                        </>
-                      )
-                    })}
-                    {!isLoading && !data?.data?.length && (
-                      <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                          No frame models found. Add your first model.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {data && (
-                <Pagination
-                  currentPage={page}
-                  totalPages={data.total_pages}
-                  onPageChange={setPage}
-                  pageSize={20}
-                  onPageSizeChange={() => {}}
-                  totalItems={data.total}
-                />
+            <div className="py-16"><Loading /></div>
+          ) : !listData?.data.length ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <RiGlassesLine className="mb-2 h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm font-medium">{hasFilters ? 'Nothing matches these filters' : 'No frames yet'}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {hasFilters ? 'Try clearing a filter.' : 'Add your first frame model, then its colours and sizes.'}
+              </p>
+              {!hasFilters && (
+                <Button size="sm" className="mt-4" onClick={openCreateMaster}><RiAddLine className="size-4" />New frame model</Button>
               )}
-            </>
+            </div>
+          ) : view === 'models' ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="pl-6">Model</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="hidden lg:table-cell">Details</TableHead>
+                  <TableHead className="text-right">Variants</TableHead>
+                  <TableHead className="text-right">In stock</TableHead>
+                  <TableHead>Attention</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(mastersData?.data ?? []).map((m) => {
+                  const flags = attention.byMaster.get(m.frame_master_id)
+                  const isActive = drawerMaster?.frame_master_id === m.frame_master_id
+                  return (
+                    <TableRow
+                      key={m.frame_master_id}
+                      data-keeps-drawer-open=""
+                      onClick={() => openModel(m)}
+                      className={cn('cursor-pointer', isActive && 'bg-primary/5 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary/10')}
+                    >
+                      <TableCell className="pl-6">
+                        <p className="font-medium">{m.brand} <span className="font-normal">{m.model_code}</span></p>
+                        {m.frame_name && m.frame_name !== `${m.brand} ${m.model_code}` && (
+                          <p className="text-xs text-muted-foreground">{m.frame_name}</p>
+                        )}
+                      </TableCell>
+                      <TableCell><Badge variant="secondary" className="capitalize">{m.category}</Badge></TableCell>
+                      <TableCell className="hidden text-sm capitalize text-muted-foreground lg:table-cell">
+                        {[m.shape, m.material, m.rim_type].filter(Boolean).join(' · ') || '—'}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{m.variant_count}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{m.total_stock}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {flags?.out ? <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">{flags.out} out</span> : null}
+                          {flags?.low ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{flags.low} low</span> : null}
+                          {!flags && m.variant_count === 0 && <span className="text-xs text-muted-foreground">No variants</span>}
+                          {!flags && m.variant_count > 0 && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell className="pr-4 text-right"><RiArrowRightSLine className="ml-auto size-4 text-muted-foreground" /></TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 pl-6">
+                    <Checkbox
+                      checked={(variantsData?.data ?? []).length > 0 && (variantsData?.data ?? []).every((v) => selectedVariants.has(v.variant_id))}
+                      onCheckedChange={(checked) => setSelectedVariants(checked ? new Map((variantsData?.data ?? []).map((v) => [v.variant_id, v])) : new Map())}
+                      aria-label="Select all on this page"
+                    />
+                  </TableHead>
+                  <TableHead>Frame</TableHead>
+                  <TableHead>Colour · size</TableHead>
+                  <TableHead className="hidden md:table-cell">SKU</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead>Stock</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(variantsData?.data ?? []).map((v) => {
+                  const isActive = highlightVariantId === v.variant_id && !!drawerMaster
+                  return (
+                    <TableRow
+                      key={v.variant_id}
+                      data-keeps-drawer-open=""
+                      data-state={selectedVariants.has(v.variant_id) ? 'selected' : undefined}
+                      onClick={() => openVariantModel(v)}
+                      className={cn('cursor-pointer', isActive && 'bg-primary/5 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary/10')}
+                    >
+                      <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={selectedVariants.has(v.variant_id)} onCheckedChange={() => toggleVariantSelect(v)} aria-label={`Select ${v.sku}`} />
+                      </TableCell>
+                      <TableCell className="font-medium">{v.frame_master_ref.brand} {v.frame_master_ref.model_code}</TableCell>
+                      <TableCell>{v.color} <span className="text-muted-foreground">· {v.eye_size} mm</span></TableCell>
+                      <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">{v.sku}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(v.selling_price)}</TableCell>
+                      <TableCell><StockBadge stock={v.current_stock} reorderLevel={v.reorder_level} /></TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+
+          {listData && listData.total_pages > 1 && (
+            <div className="border-t px-4 py-3">
+              <Pagination
+                currentPage={page}
+                totalPages={listData.total_pages}
+                onPageChange={setPage}
+                pageSize={PAGE_SIZE}
+                onPageSizeChange={() => {}}
+                totalItems={listData.total}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* ── Model drawer ────────────────────────────────────────────────────── */}
+      <FrameModelDrawer
+        master={drawerMaster}
+        open={!!drawerMaster}
+        onOpenChange={(open) => { if (!open) { setDrawerMaster(null); setHighlightVariantId(null) } }}
+        highlightVariantId={highlightVariantId}
+        actions={modelActions}
+      />
 
       {/* ── Frame Model Dialog ─────────────────────────────────────────────── */}
       <Dialog open={masterModalOpen} onOpenChange={(o) => !o && closeMasterModal()}>
@@ -863,9 +761,9 @@ export default function FramesWorkspace() {
           <DialogHeader>
             <DialogTitle>
               {editVariant ? 'Edit Variant' : 'New Variant'}
-              {!editVariant && selectedMaster && (
+              {!editVariant && variantMaster && (
                 <span className="ml-2 text-base font-normal text-muted-foreground">
-                  — {selectedMaster.brand} {selectedMaster.model_code}
+                  — {variantMaster.brand} {variantMaster.model_code}
                 </span>
               )}
             </DialogTitle>
@@ -891,7 +789,10 @@ export default function FramesWorkspace() {
                   </FormItem>
                 )} />
                 <FormField control={variantForm.control} name="bridge_size" render={({ field }) => (
-                  <FormItem><FormLabel>Arm Length</FormLabel><FormControl><Input type="number" {...field} placeholder="18" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Bridge (mm)</FormLabel><FormControl><Input type="number" {...field} placeholder="18" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={variantForm.control} name="temple_length" render={({ field }) => (
+                  <FormItem><FormLabel>Arm Length (mm)</FormLabel><FormControl><Input type="number" {...field} placeholder="140" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={variantForm.control} name="cost_price" render={({ field }) => (
                   <FormItem><FormLabel>Cost Price *</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
@@ -899,9 +800,12 @@ export default function FramesWorkspace() {
                 <FormField control={variantForm.control} name="selling_price" render={({ field }) => (
                   <FormItem><FormLabel>Selling Price *</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={variantForm.control} name="current_stock" render={({ field }) => (
-                  <FormItem><FormLabel>Opening Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+                {/* Editing can not change stock: use Receive or Adjust so it is recorded in the movement log */}
+                {!editVariant && (
+                  <FormField control={variantForm.control} name="current_stock" render={({ field }) => (
+                    <FormItem><FormLabel>Opening Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                )}
                 <FormField control={variantForm.control} name="reorder_level" render={({ field }) => (
                   <FormItem><FormLabel>Reorder Level</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -917,26 +821,34 @@ export default function FramesWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Side Drawers ───────────────────────────────────────────────────── */}
-      <CreatePODrawer
+      {/* ── Stock actions (open over the model drawer) ─────────────────────── */}
+      <ReceiveStockDrawer
         open={receiveOpen}
-        onClose={() => { setReceiveOpen(false) }}
-        subject={drawerVariant ? { kind: 'variant', item: drawerVariant } : null}
+        onClose={() => setReceiveOpen(false)}
+        variant={actionVariant}
+        onSuccess={refreshStock}
       />
       <AdjustStockDrawer
-        open={adjustOpen}
-        onClose={() => { setAdjustOpen(false) }}
-        variant={drawerVariant}
+        open={countOpen}
+        onClose={() => setCountOpen(false)}
+        variant={actionVariant}
+        onSuccess={refreshStock}
       />
-      <PrintBarcodeDrawer
-        open={printOpen}
-        onClose={() => { setPrintOpen(false) }}
-        variant={drawerVariant}
+      <CreatePODrawer
+        open={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        subject={actionVariant ? { kind: 'variant', item: actionVariant } : null}
       />
       <VariantHistoryDrawer
         open={historyOpen}
-        onClose={() => { setHistoryOpen(false) }}
-        variant={drawerVariant}
+        onClose={() => setHistoryOpen(false)}
+        variant={actionVariant}
+      />
+      <BulkVariantDialog master={bulkMaster} open={!!bulkMaster} onClose={() => setBulkMaster(null)} />
+      <BulkLabelDialog
+        open={!!labelItems}
+        onClose={() => { setLabelItems(null); clearVariantSelection() }}
+        items={labelItems ?? []}
       />
 
       <QRScanner isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleBarcodeScan} />

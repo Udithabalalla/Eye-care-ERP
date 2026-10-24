@@ -38,7 +38,7 @@ export default function MovementsLog() {
   const rows = (data?.data ?? []).filter((m) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
-    return [m.movement_id, m.product_id, m.variant_id, m.reference_id, m.created_by]
+    return [m.movement_id, m.product_id, m.variant_id, m.item_name, m.sku, m.reference_id, m.reason, m.created_by]
       .filter(Boolean).join(' ').toLowerCase().includes(q)
   })
 
@@ -120,12 +120,19 @@ export default function MovementsLog() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="font-mono text-sm">{m.variant_id || m.product_id}</span>
+                          <p className="text-sm font-medium">{m.item_name || m.variant_id || m.product_id}</p>
+                          {m.sku && <p className="font-mono text-xs text-muted-foreground">{m.sku}</p>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`font-semibold tabular-nums ${m.movement_type === 'SALE_OUT' ? 'text-destructive' : 'text-green-600 dark:text-green-400'}`}>
-                            {m.movement_type === 'SALE_OUT' ? '-' : '+'}{Math.abs(m.quantity)}
-                          </span>
+                          {(() => {
+                            // Outgoing types are stored as positive quantities; adjustments carry their own sign
+                            const change = ['SALE_OUT', 'COMPLIMENTARY_OUT'].includes(m.movement_type) ? -Math.abs(m.quantity) : m.quantity
+                            return (
+                              <span className={`font-semibold tabular-nums ${change < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-400'}`}>
+                                {change > 0 ? '+' : ''}{change}
+                              </span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">

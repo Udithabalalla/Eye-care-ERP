@@ -41,6 +41,15 @@ export const PO_WORKFLOW_ACTIONS: POWorkflowAction[] = [
     requiresDialog: true,
   },
   {
+    // A short delivery leaves the PO open until the rest arrives
+    fromStatus: 'Partially Received',
+    toStatus: 'Received',
+    label: 'Receive Remaining',
+    icon: RiTruckLine,
+    className: 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600',
+    requiresDialog: true,
+  },
+  {
     fromStatus: 'Received',
     toStatus: 'Closed',
     label: 'Create Invoice',

@@ -28,7 +28,6 @@ import {
   RiWallet3Line,
   RiPercentLine,
   RiBookOpenLine,
-  RiInboxLine,
   RiBankCardLine,
   RiEqualizer2Line,
   RiGridLine,
@@ -41,6 +40,7 @@ import {
   RiAddLine,
   RiStethoscopeLine,
   RiLayoutGridLine,
+  RiAlertLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -124,7 +124,8 @@ const ALL_SECTIONS: NavSection[] = [
     items: [
       { name: 'Frames', path: '/inventory/frames', icon: RiGridLine },
       { name: 'General Inventory', path: '/inventory/general', icon: RiBox3Line },
-      { name: 'Receiving', path: '/inventory/receiving', icon: RiTruckLine },
+      { name: 'Receive Stock', path: '/inventory/receiving', icon: RiTruckLine },
+      { name: 'Low Stock & Reorder', path: '/inventory/reorder', icon: RiAlertLine },
       { name: 'Stock Movements', path: '/inventory/movements', icon: RiArrowUpDownLine },
       { name: 'Adjustments', path: '/inventory/adjustments', icon: RiEqualizer2Line },
     ],
@@ -136,7 +137,6 @@ const ALL_SECTIONS: NavSection[] = [
     items: [
       { name: 'Suppliers', path: '/suppliers', icon: RiBuilding2Line },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: RiShoppingCartLine },
-      { name: 'Stock Receipts', path: '/stock-receipts', icon: RiInboxLine },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
       { name: 'Supplier Payments', path: '/supplier-payments', icon: RiBankCardLine },
     ],

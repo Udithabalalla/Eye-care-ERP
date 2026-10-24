@@ -15,5 +15,6 @@ export const PO_LIFECYCLE_STEPS: Array<{
 export const LIFECYCLE_ORDER = PO_LIFECYCLE_STEPS.map((s) => s.status)
 
 export function getPOLifecycleIndex(status: PurchaseOrderStatus): number {
-  return LIFECYCLE_ORDER.indexOf(status)
+  // Partially received sits on the Received step until the rest arrives
+  return LIFECYCLE_ORDER.indexOf(status === 'Partially Received' ? 'Received' : status)
 }

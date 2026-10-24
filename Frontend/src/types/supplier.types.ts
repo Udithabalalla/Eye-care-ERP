@@ -1,4 +1,4 @@
-export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Ordered' | 'Received' | 'Closed'
+export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Ordered' | 'Partially Received' | 'Received' | 'Closed'
 
 export interface POStatusHistoryEntry {
   status: PurchaseOrderStatus
@@ -37,6 +37,8 @@ export interface PurchaseOrderItem {
   product_id: string
   frame_variant_id?: string
   quantity: number
+  /** Total received so far across deliveries; outstanding = quantity − received_quantity */
+  received_quantity?: number
   unit_cost: number
   line_discount_type?: 'percent' | 'amount'
   line_discount_value?: number

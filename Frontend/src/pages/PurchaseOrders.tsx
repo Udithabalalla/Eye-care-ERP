@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
@@ -48,6 +49,7 @@ const LIFECYCLE_FILTER_TABS: Array<{ id: PurchaseOrderStatus | 'all'; label: str
   { id: 'Draft', label: 'Draft' },
   { id: 'Approved', label: 'Approved' },
   { id: 'Ordered', label: 'Ordered' },
+  { id: 'Partially Received', label: 'Partially Received' },
   { id: 'Received', label: 'Received' },
   { id: 'Closed', label: 'Closed' },
 ]
@@ -59,6 +61,12 @@ const PurchaseOrders = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | ''>('')
+  // Deep links (e.g. after creating reorder drafts) can pre-select a status
+  const [searchParams] = useSearchParams()
+  const urlStatus = searchParams.get('status') as PurchaseOrderStatus | null
+  useEffect(() => {
+    if (urlStatus) setStatusFilter(urlStatus)
+  }, [urlStatus])
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
@@ -441,6 +449,7 @@ const PurchaseOrders = () => {
             selectedRows={selectedRows}
             rowActions={rowActions}
             onRowClick={(order) => setDetailOrderId(order.id)}
+            isRowActive={(order) => order.id === detailOrderId}
             onClearSelection={() => setSelectedOrderIds([])}
             emptyMessage="No purchase orders found."
           />

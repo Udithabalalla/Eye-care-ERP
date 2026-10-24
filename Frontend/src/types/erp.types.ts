@@ -21,7 +21,7 @@ export interface StatusHistoryEntry {
 
 export type LedgerTransactionType = 'SALE' | 'PURCHASE' | 'SUPPLIER_PAYMENT' | 'CUSTOMER_PAYMENT' | 'REFUND' | 'SALE_REVERSAL'
 
-export type LedgerReferenceType = 'INVOICE' | 'SALES_ORDER' | 'PURCHASE_ORDER' | 'SUPPLIER_INVOICE' | 'STOCK_ADJUSTMENT'
+export type LedgerReferenceType = 'INVOICE' | 'SALES_ORDER' | 'PURCHASE_ORDER' | 'SUPPLIER_INVOICE' | 'STOCK_ADJUSTMENT' | 'GOODS_RECEIPT' | 'QUICK_INTAKE'
 
 export type InventoryMovementType = 'PURCHASE_IN' | 'SALE_OUT' | 'ADJUSTMENT' | 'RETURN'
 
@@ -135,6 +135,12 @@ export interface InventoryMovement {
   quantity: number
   reference_type: LedgerReferenceType
   reference_id: string
+  reason?: string
+  notes?: string
+  /** Resolved by the API: which item this movement is about */
+  item_kind?: 'product' | 'frame'
+  item_name?: string
+  sku?: string
   created_by: string
   created_at: string
   updated_at: string

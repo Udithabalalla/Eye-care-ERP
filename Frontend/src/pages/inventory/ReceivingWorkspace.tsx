@@ -25,6 +25,8 @@ import { formatCurrency } from '@/utils/formatters'
 import Loading from '@/components/common/Loading'
 import Pagination from '@/components/common/Pagination'
 import { format } from 'date-fns'
+import { useSearchParams } from 'react-router-dom'
+import PurchaseOrderReceiving from '@/components/purchase-orders/PurchaseOrderReceiving'
 
 // ─── GRN Tab ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +165,7 @@ function GRNTab() {
                           <Badge variant={g.status === 'complete' ? 'default' : 'secondary'}>{g.status}</Badge>
                         </TableCell>
                         <TableCell>
-                          {g.status !== 'complete' && (
+                          {g.status === 'pending' && (
                             <Button
                               variant="outline" size="sm"
                               onClick={() => { if (confirm('Commit this GRN? Stock will be updated.')) commitMutation.mutate(g.grn_number) }}
@@ -442,7 +444,7 @@ function QuickIntakeTab() {
                       <TableRow key={qi.intake_id}>
                         <TableCell className="font-mono text-sm">{qi.intake_id}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{format(new Date(qi.intake_date), 'dd MMM yyyy')}</TableCell>
-                        <TableCell className="text-sm">{qi.supplier_id || '—'}</TableCell>
+                        <TableCell className="text-sm">{(suppliersData?.data ?? []).find((s: any) => s.id === qi.supplier_id)?.supplier_name ?? qi.supplier_id ?? '—'}</TableCell>
                         <TableCell className="tabular-nums">{qi.items.length}</TableCell>
                         <TableCell className="tabular-nums">{qi.total_qty}</TableCell>
                         <TableCell className="tabular-nums">{formatCurrency(qi.total_cost)}</TableCell>
@@ -470,24 +472,31 @@ function QuickIntakeTab() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ReceivingWorkspace() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'po'
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Receiving</h1>
-          <p className="text-sm text-muted-foreground">Receive stock from suppliers via formal GRN or quick ad-hoc intake.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Receive Stock</h1>
+          <p className="text-sm text-muted-foreground">Everything that comes in from suppliers — against a purchase order, or without one.</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <RiTruckLine className="size-4" />
-          <span>All receiving commits stock atomically</span>
+          <span>Receiving updates stock and the movement log</span>
         </div>
       </section>
 
-      <Tabs defaultValue="grn">
+      {/* One place for receiving: from a PO, without one, and the goods receipt notes */}
+      <Tabs value={tab} onValueChange={(value) => setSearchParams({ tab: value }, { replace: true })}>
         <TabsList>
-          <TabsTrigger value="grn">PO Receiving (GRN)</TabsTrigger>
-          <TabsTrigger value="quick">Quick Intake</TabsTrigger>
+          <TabsTrigger value="po">From a purchase order</TabsTrigger>
+          <TabsTrigger value="quick">Without a PO</TabsTrigger>
+          <TabsTrigger value="grn">Goods receipt notes</TabsTrigger>
         </TabsList>
+        <TabsContent value="po" className="pt-4">
+          <PurchaseOrderReceiving />
+        </TabsContent>
         <TabsContent value="grn" className="pt-4">
           <GRNTab />
         </TabsContent>

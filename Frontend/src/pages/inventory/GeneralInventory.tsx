@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi } from '@/api/products.api'
 import { basicDataApi } from '@/api/basic-data.api'
 import {
   RiAddLine, RiAlertLine, RiBox3Line, RiEditLine, RiPrinterLine,
   RiQrCodeLine, RiSearchLine, RiDeleteBinLine, RiArrowDownCircleLine,
-  RiEqualizer2Line, RiMore2Line, RiCloseLine, RiFilterLine,
+  RiEqualizer2Line, RiMore2Line, RiCloseLine, RiFilterLine, RiShoppingCartLine,
 } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -22,6 +23,9 @@ import Pagination from '@/components/common/Pagination'
 import ProductModal from '@/components/products/ProductModal'
 import StockAdjustmentModal from '@/components/products/StockAdjustmentModal'
 import { CreatePODrawer } from '@/components/inventory/CreatePODrawer'
+import { ProductReceiveDrawer } from '@/components/inventory/ProductReceiveDrawer'
+import { BulkLabelDialog } from '@/components/inventory/BulkLabelDialog'
+import { inventoryApi } from '@/api/inventory.api'
 import QRScanner from '@/components/common/QRScanner'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
@@ -45,6 +49,16 @@ export default function GeneralInventory() {
 
   // Row selection
   const [selectedProducts, setSelectedProducts] = useState<Map<string, Product>>(new Map())
+  const [reorderOpen, setReorderOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
+  const navigate = useNavigate()
+
+  // Real low-stock count across all pages (each product's own minimum)
+  const { data: lowStockData } = useQuery({
+    queryKey: ['inventory-low-stock', 'product', false],
+    queryFn: () => inventoryApi.getLowStock({ kind: 'product' }),
+    staleTime: 60_000,
+  })
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['products', page, pageSize, search, categoryFilter],
@@ -93,6 +107,7 @@ export default function GeneralInventory() {
 
   const openAdjust = (p: Product) => { setSelectedProduct(p); setAdjustModalOpen(true) }
   const openReceive = (p: Product) => { setSelectedProduct(p); setReceiveDrawerOpen(true) }
+  const openReorder = (p: Product) => { setSelectedProduct(p); setReorderOpen(true) }
   const openEdit = (p: Product) => { setSelectedProduct(p); setIsModalOpen(true) }
 
   const openPrintLabel = async (p: Product) => {
@@ -104,7 +119,7 @@ export default function GeneralInventory() {
     } catch { toast.error('Failed to fetch label') }
   }
 
-  const lowStockCount = data?.data.filter((p) => p.current_stock <= p.min_stock_level).length ?? 0
+  const lowStockCount = lowStockData?.total ?? 0
   const inventoryValue = data?.data.reduce((sum, p) => sum + p.current_stock * p.cost_price, 0) ?? 0
 
   return (
@@ -131,10 +146,14 @@ export default function GeneralInventory() {
             <RiBox3Line className="w-8 h-8 text-primary/60" />
           </CardContent>
         </Card>
-        <Card className="border-border/60">
+        <Card
+          className="cursor-pointer border-border/60 transition-colors hover:border-destructive/40"
+          onClick={() => navigate('/inventory/reorder?kind=product')}
+          title="See what to reorder"
+        >
           <CardContent className="flex items-center justify-between p-5">
             <div>
-              <p className="text-sm text-muted-foreground">Low Stock</p>
+              <p className="text-sm text-muted-foreground">Low Stock · reorder →</p>
               <p className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-destructive' : ''}`}>{lowStockCount}</p>
             </div>
             <RiAlertLine className={`w-8 h-8 ${lowStockCount > 0 ? 'text-destructive' : 'text-muted-foreground/40'}`} />
@@ -220,11 +239,14 @@ export default function GeneralInventory() {
                     <RiEditLine className="size-3.5" />Edit
                   </Button>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs"
-                    onClick={() => { openPrintLabel(singleSelected); clearSelection() }}>
-                    <RiPrinterLine className="size-3.5" />Print Label
+                    onClick={() => { openReorder(singleSelected); clearSelection() }}>
+                    <RiShoppingCartLine className="size-3.5" />Reorder
                   </Button>
                 </>
               )}
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setLabelsOpen(true)}>
+                <RiPrinterLine className="size-3.5" />Print labels{selectedProducts.size > 1 ? ` (${selectedProducts.size})` : ''}
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -448,12 +470,29 @@ export default function GeneralInventory() {
         onSuccess={() => refetch()}
       />
 
-      {/* Receive Stock — creates a Draft PO for the selected product */}
-      <CreatePODrawer
+      {/* Receive adds stock now (logged as a movement); Reorder raises a draft PO */}
+      <ProductReceiveDrawer
         open={receiveDrawerOpen}
         onClose={() => { setReceiveDrawerOpen(false); setSelectedProduct(null) }}
+        product={selectedProduct}
+        onSuccess={() => { refetch(); qc.invalidateQueries({ queryKey: ['inventory-low-stock'] }) }}
+      />
+      <CreatePODrawer
+        open={reorderOpen}
+        onClose={() => { setReorderOpen(false); setSelectedProduct(null) }}
         subject={selectedProduct ? { kind: 'product', item: selectedProduct } : null}
         onSuccess={() => refetch()}
+      />
+      <BulkLabelDialog
+        open={labelsOpen}
+        onClose={() => { setLabelsOpen(false); clearSelection() }}
+        items={[...selectedProducts.values()].map((p) => ({
+          kind: 'product' as const,
+          id: p.product_id,
+          name: p.name,
+          detail: p.sku,
+          copies: Math.max(p.current_stock, 1),
+        }))}
       />
 
       {/* Adjust Stock modal */}

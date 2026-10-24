@@ -63,7 +63,7 @@ export default function AdjustmentsWorkspace() {
 
   const rows = (movements?.data ?? []).filter((m) => {
     const q = search.toLowerCase()
-    return !q || [m.product_id, m.variant_id, m.reference_id, m.created_by].join(' ').toLowerCase().includes(q)
+    return !q || [m.product_id, m.variant_id, m.item_name, m.sku, m.reason, m.created_by].join(' ').toLowerCase().includes(q)
   })
 
   return (
@@ -166,13 +166,16 @@ export default function AdjustmentsWorkspace() {
                       <TableCell className="text-sm text-muted-foreground">
                         {m.created_at ? format(new Date(m.created_at), 'dd MMM yyyy HH:mm') : '—'}
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{m.variant_id || m.product_id}</TableCell>
+                      <TableCell>
+                        <p className="text-sm font-medium">{m.item_name || m.variant_id || m.product_id}</p>
+                        {m.sku && <p className="font-mono text-xs text-muted-foreground">{m.sku}</p>}
+                      </TableCell>
                       <TableCell>
                         <span className={`font-semibold tabular-nums ${m.quantity > 0 ? 'text-green-600' : 'text-destructive'}`}>
                           {m.quantity > 0 ? '+' : ''}{m.quantity}
                         </span>
                       </TableCell>
-                      <TableCell className="text-sm">{m.reference_id || '—'}</TableCell>
+                      <TableCell className="text-sm">{m.reason || '—'}{m.notes ? <span className="block text-xs text-muted-foreground">{m.notes}</span> : null}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.created_by}</TableCell>
                     </TableRow>
                   ))}

@@ -25,7 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { salesOrdersApi } from '@/api/erp.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { dashboardApi } from '@/api/dashboard.api'
-import { frameVariantsApi } from '@/api/frames.api'
+import { inventoryApi } from '@/api/inventory.api'
 
 type Tone = 'success' | 'danger' | 'warning' | 'info'
 
@@ -89,9 +89,10 @@ const Header = () => {
     queryFn: () => invoicesApi.getAll({ page: 1, page_size: 1, payment_status: 'overdue' }),
     ...poll,
   })
-  const { data: outOfStockFrames } = useQuery({
-    queryKey: ['frame-variants-out-of-stock-count'],
-    queryFn: () => frameVariantsApi.getAll({ page: 1, page_size: 1, out_of_stock: true }),
+  // Frames and products at or below their reorder level (shared with the reorder page)
+  const { data: lowStock } = useQuery({
+    queryKey: ['inventory-low-stock', 'all', false],
+    queryFn: () => inventoryApi.getLowStock(),
     ...poll,
   })
   const { data: stats, dataUpdatedAt } = useQuery({
@@ -104,9 +105,9 @@ const Header = () => {
     const ready = readyData?.total ?? 0
     const overdue = overdueData?.total ?? 0
     const drafts = draftData?.total ?? 0
-    const lowStock = stats?.low_stock_items ?? 0
     const appointments = stats?.today_appointments ?? 0
-    const framesOut = outOfStockFrames?.total ?? 0
+    const outOfStock = lowStock?.data.filter((item) => item.out_of_stock).length ?? 0
+    const runningLow = (lowStock?.total ?? 0) - outOfStock
     return [
       overdue > 0 && {
         id: 'overdue', count: overdue, tone: 'danger' as const, icon: RiReceiptLine,
@@ -120,17 +121,17 @@ const Header = () => {
         body: 'Let the patients know their glasses are ready.',
         cta: 'View orders', to: '/sales-orders?status=ready',
       },
-      lowStock > 0 && {
-        id: 'low-stock', count: lowStock, tone: 'warning' as const, icon: RiBox3Line,
-        title: `${plural(lowStock, 'item')} running low`,
-        body: 'Stock is at or below the minimum level.',
-        cta: 'View inventory', to: '/inventory/general',
-      },
-      framesOut > 0 && {
-        id: 'frames-out', count: framesOut, tone: 'warning' as const, icon: RiGlassesLine,
-        title: `${plural(framesOut, 'frame')} out of stock`,
+      outOfStock > 0 && {
+        id: 'out-of-stock', count: outOfStock, tone: 'warning' as const, icon: RiGlassesLine,
+        title: `${plural(outOfStock, 'item')} out of stock`,
         body: 'They can’t be sold until they are restocked.',
-        cta: 'View frames', to: '/inventory/frames',
+        cta: 'Reorder', to: '/inventory/reorder?filter=out',
+      },
+      runningLow > 0 && {
+        id: 'low-stock', count: runningLow, tone: 'warning' as const, icon: RiBox3Line,
+        title: `${plural(runningLow, 'item')} running low`,
+        body: 'At or below the reorder level.',
+        cta: 'Reorder', to: '/inventory/reorder',
       },
       drafts > 0 && {
         id: 'drafts', count: drafts, tone: 'info' as const, icon: RiFileEditLine,
@@ -145,7 +146,7 @@ const Header = () => {
         cta: 'View schedule', to: '/appointments',
       },
     ].filter(Boolean) as AlertItem[]
-  }, [draftData, outOfStockFrames, overdueData, readyData, stats])
+  }, [draftData, lowStock, overdueData, readyData, stats])
 
   const unseen = alerts.filter((a) => a.count > (seen[a.id] ?? 0))
 
