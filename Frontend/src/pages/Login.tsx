@@ -148,12 +148,7 @@ const Login = () => {
               <Separator className="my-5" />
 
               <div className="space-y-2 text-center text-xs text-muted-foreground">
-                <p>
-                  Don&apos;t have an account?{' '}
-                  <Button asChild variant="link" className="h-auto p-0 text-xs">
-                    <Link to="/signup">Create one</Link>
-                  </Button>
-                </p>
+                <p>Don&apos;t have an account? Ask your administrator to create one.</p>
                 <p>
                   <Button asChild variant="link" className="h-auto p-0 text-xs">
                     <Link to="/forgot-password">Forgot your password?</Link>

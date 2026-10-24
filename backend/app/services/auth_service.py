@@ -4,7 +4,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.user_repository import UserRepository
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.exceptions import UnauthorizedException, ConflictException
+from app.core.exceptions import UnauthorizedException, ConflictException, ForbiddenException
+from app.utils.constants import UserRole
 from app.schemas.user import LoginResponse, UserResponse, SignupRequest
 from app.models.user import UserModel
 from app.config.settings import settings
@@ -62,6 +63,9 @@ class AuthService:
 
     async def register(self, signup_data: SignupRequest) -> LoginResponse:
         """Register a new user and return token"""
+        if not settings.ALLOW_SELF_SIGNUP:
+            raise ForbiddenException("Self-registration is disabled. Ask an administrator to create your account.")
+
         # Check if email already exists
         existing_user = await self.user_repo.get_by_email(signup_data.email)
         if existing_user:
@@ -73,7 +77,8 @@ class AuthService:
             email=signup_data.email,
             password_hash=get_password_hash(signup_data.password),
             name=signup_data.name,
-            role=signup_data.role,
+            # Never trust a client-supplied role; admins promote users later
+            role=UserRole.STAFF,
             department=signup_data.department,
             phone=signup_data.phone,
         )

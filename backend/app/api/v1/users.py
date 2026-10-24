@@ -4,7 +4,8 @@ from app.schemas.user import UserResponse
 from app.utils.constants import UserRole
 from app.config.database import get_database
 from app.models.user import UserModel
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user, require_permission
+from app.core.permissions import has_permission
 from app.services.user_service import UserService
 from app.schemas.responses import ResponseModel
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -41,7 +42,7 @@ async def get_users(
     limit: int = Query(100, ge=1, le=500),
     role: Optional[UserRole] = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.read"))
 ):
     """Get list of users, optionally filtered by role"""
     user_service = UserService(db)
@@ -57,7 +58,7 @@ async def get_users(
 async def get_user(
     user_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.read"))
 ):
     """Get user by ID"""
     user_service = UserService(db)
@@ -74,7 +75,7 @@ async def get_user(
 async def create_user(
     user_data: UserCreateRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.manage"))
 ):
     """Create a new user"""
     user_service = UserService(db)
@@ -100,7 +101,7 @@ async def update_user(
     user_id: str,
     user_data: UserUpdateRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.manage"))
 ):
     """Update user"""
     user_service = UserService(db)
@@ -130,7 +131,9 @@ async def change_password(
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """Change user password"""
+    """Change user password (own account, or any account with users.manage)"""
+    if user_id != current_user.user_id and not has_permission(current_user.role, "users.manage"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only change your own password")
     user_service = UserService(db)
     try:
         await user_service.change_password(user_id, password_change.old_password, password_change.new_password)
@@ -144,7 +147,7 @@ async def reset_password(
     user_id: str,
     new_password: str = Query(..., min_length=8),
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.manage"))
 ):
     """Admin reset password"""
     user_service = UserService(db)
@@ -159,7 +162,7 @@ async def reset_password(
 async def deactivate_user(
     user_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.manage"))
 ):
     """Deactivate user"""
     user_service = UserService(db)
@@ -173,7 +176,7 @@ async def deactivate_user(
 async def activate_user(
     user_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(require_permission("users.manage"))
 ):
     """Activate user"""
     user_service = UserService(db)

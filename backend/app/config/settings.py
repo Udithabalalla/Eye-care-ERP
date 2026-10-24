@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+    # Public /auth/register is off by default; admins create users instead.
+    # When enabled, self-registered accounts always get the staff role.
+    ALLOW_SELF_SIGNUP: bool = False
+
     # CORS
     CORS_ORIGINS: str = '["http://localhost:3000","http://localhost:5173","https://eye-care-erp.vercel.app","https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app"]'
     CORS_ORIGIN_REGEX: Optional[str] = r"^https://.*\.vercel\.app$"

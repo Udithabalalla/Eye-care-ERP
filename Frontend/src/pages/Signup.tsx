@@ -12,7 +12,6 @@ import {
 } from '@remixicon/react'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { UserRole } from '@/types/common.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -30,13 +29,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 
 const signupSchema = z
@@ -44,7 +36,6 @@ const signupSchema = z
     name: z.string().min(1, 'Full name is required'),
     email: z.string().email('Enter a valid email address'),
     phone: z.string().optional(),
-    role: z.nativeEnum(UserRole),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
   })
@@ -66,7 +57,6 @@ const Signup = () => {
       name: '',
       email: '',
       phone: '',
-      role: UserRole.STAFF,
       password: '',
       confirmPassword: '',
     },
@@ -78,7 +68,6 @@ const Signup = () => {
         name: values.name,
         email: values.email,
         password: values.password,
-        role: values.role,
         phone: values.phone || undefined,
       })
       navigate('/')
@@ -160,29 +149,6 @@ const Signup = () => {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select disabled={isLoading} onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={UserRole.STAFF}>Staff</SelectItem>
-                          <SelectItem value={UserRole.RECEPTIONIST}>Receptionist</SelectItem>
-                          <SelectItem value={UserRole.OPTOMETRIST}>Optometrist</SelectItem>
-                          <SelectItem value={UserRole.DOCTOR}>Doctor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <FormField
                   control={form.control}
