@@ -87,6 +87,13 @@ BLOCKED = 403
         (UserRole.RECEPTIONIST, "get", "/api/v1/ledger/summary", True),
         # Report export is a POST but only needs read access
         (UserRole.DOCTOR, "post", "/api/v1/reports/export", True),
+        # Inventory tools: low stock is read-only, reorder creates POs, labels only read
+        (UserRole.RECEPTIONIST, "get", "/api/v1/inventory/low-stock", True),
+        (UserRole.DOCTOR, "post", "/api/v1/inventory/reorder", False),
+        (UserRole.RECEPTIONIST, "post", "/api/v1/inventory/reorder", False),
+        (UserRole.STAFF, "post", "/api/v1/inventory/reorder", True),
+        (UserRole.DOCTOR, "post", "/api/v1/inventory/labels", True),
+        (UserRole.DOCTOR, "post", "/api/v1/goods-receipts/GRN-1/commit", False),
     ],
 )
 def test_route_guards(client_as, role, method, path, allowed):

@@ -77,8 +77,8 @@ class ProductService:
         
         return ProductResponse(**product.dict())
     
-    async def create_product(self, product_data: ProductCreate) -> ProductResponse:
-        """Create a new product"""
+    async def create_product(self, product_data: ProductCreate, created_by: str = "system") -> ProductResponse:
+        """Create a new product. Opening stock is booked as a movement."""
         # Check if SKU already exists
         existing = await self.product_repo.get_by_sku(product_data.sku)
         if existing:
@@ -105,7 +105,20 @@ class ProductService:
         
         # Save to database
         created_product = await self.product_repo.create_product(product_model)
-        
+        if created_product.current_stock > 0:
+            await self.inventory_service.create_movement(
+                InventoryMovementCreate(
+                    product_id=product_id,
+                    movement_type=InventoryMovementType.ADJUSTMENT,
+                    quantity=created_product.current_stock,
+                    reference_type=LedgerReferenceType.STOCK_ADJUSTMENT,
+                    reference_id=product_id,
+                    reason="Opening stock",
+                ),
+                created_by,
+                apply_stock_change=False,
+            )
+
         return ProductResponse(**created_product.dict())
     
     async def update_product(
@@ -129,7 +142,8 @@ class ProductService:
     async def adjust_stock(
         self,
         product_id: str,
-        adjustment: StockAdjustment
+        adjustment: StockAdjustment,
+        adjusted_by: str = "system",
     ):
         """Adjust product stock"""
         product = await self.product_repo.get_by_product_id(product_id)
@@ -149,8 +163,10 @@ class ProductService:
                 quantity=adjustment.quantity,
                 reference_type=LedgerReferenceType.STOCK_ADJUSTMENT,
                 reference_id=product_id,
+                reason=adjustment.reason,
+                notes=adjustment.notes,
             ),
-            "system",
+            adjusted_by,
             apply_stock_change=False,
         )
     

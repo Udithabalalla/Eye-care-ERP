@@ -115,6 +115,8 @@ class PurchaseOrderItemResponse(BaseModel):
     line_discount_value: float = 0
     line_discount_amount: float = 0
     total_price: float = 0
+    # Total received so far; outstanding = quantity - received_quantity
+    received_quantity: int = 0
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -144,6 +146,7 @@ class PurchaseOrderResponse(BaseModel):
 class ReceiveStockItem(BaseModel):
     product_id: str
     ordered_quantity: int
+    # Quantity received in THIS delivery (must not exceed what is still outstanding)
     received_quantity: int = Field(..., ge=0)
 
 

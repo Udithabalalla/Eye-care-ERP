@@ -65,6 +65,8 @@ class LedgerReferenceType(str, Enum):
     PURCHASE_ORDER = "PURCHASE_ORDER"
     SUPPLIER_INVOICE = "SUPPLIER_INVOICE"
     STOCK_ADJUSTMENT = "STOCK_ADJUSTMENT"
+    GOODS_RECEIPT = "GOODS_RECEIPT"
+    QUICK_INTAKE = "QUICK_INTAKE"
 
 
 class InventoryMovementType(str, Enum):
@@ -93,6 +95,8 @@ class PurchaseOrderStatus(str, Enum):
     DRAFT = "Draft"
     APPROVED = "Approved"
     ORDERED = "Ordered"
+    # Some lines (or quantities) are still outstanding after a delivery
+    PARTIALLY_RECEIVED = "Partially Received"
     RECEIVED = "Received"
     CLOSED = "Closed"
 
@@ -163,6 +167,10 @@ class StockMovementRefType(str, Enum):
 
 
 class GoodsReceiptStatus(str, Enum):
+    # Saved but stock not applied yet; commit moves it to complete/partial
+    PENDING = "pending"
+    # Transient lock while a commit is applying stock
+    COMMITTING = "committing"
     COMPLETE = "complete"
     PARTIAL = "partial"
 

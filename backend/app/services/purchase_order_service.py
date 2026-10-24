@@ -235,10 +235,16 @@ class PurchaseOrderService:
         return {
             PurchaseOrderStatus.DRAFT: {PurchaseOrderStatus.APPROVED},
             PurchaseOrderStatus.APPROVED: {PurchaseOrderStatus.ORDERED},
-            PurchaseOrderStatus.ORDERED: {PurchaseOrderStatus.RECEIVED},
+            # Ordered → (Partially) Received happens only through apply_receipt
+            PurchaseOrderStatus.ORDERED: {PurchaseOrderStatus.PARTIALLY_RECEIVED, PurchaseOrderStatus.RECEIVED},
+            # A short-shipped PO can be closed without receiving the rest
+            PurchaseOrderStatus.PARTIALLY_RECEIVED: {PurchaseOrderStatus.RECEIVED, PurchaseOrderStatus.CLOSED},
             PurchaseOrderStatus.RECEIVED: {PurchaseOrderStatus.CLOSED},
             PurchaseOrderStatus.CLOSED: set(),
         }
+
+    # Statuses that still accept deliveries
+    RECEIVABLE_STATUSES = (PurchaseOrderStatus.ORDERED, PurchaseOrderStatus.PARTIALLY_RECEIVED)
 
     async def update_status(self, order_id: str, status: str, updated_by: str = "system") -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
@@ -251,6 +257,12 @@ class PurchaseOrderService:
             valid = [s.value for s in PurchaseOrderStatus]
             raise BadRequestException(f"Invalid status '{status}'. Valid values: {valid}")
 
+        if new_status in (PurchaseOrderStatus.RECEIVED, PurchaseOrderStatus.PARTIALLY_RECEIVED):
+            raise BadRequestException(
+                "A purchase order becomes received by receiving its stock "
+                "(Receive on the purchase order, or a goods receipt linked to it), not by changing its status"
+            )
+
         try:
             old_status = PurchaseOrderStatus(order.status)
         except ValueError:
@@ -258,7 +270,11 @@ class PurchaseOrderService:
 
         allowed = self._allowed_status_transitions().get(old_status, set())
         if new_status not in allowed:
-            allowed_labels = ", ".join(s.value for s in allowed) or "none"
+            labels = [
+                "receive stock" if s in (PurchaseOrderStatus.RECEIVED, PurchaseOrderStatus.PARTIALLY_RECEIVED) else s.value
+                for s in sorted(allowed, key=lambda st: st.value)
+            ]
+            allowed_labels = ", ".join(dict.fromkeys(labels)) or "none"
             raise BadRequestException(
                 f"Cannot move from '{old_status.value}' to '{new_status.value}'. "
                 f"Allowed next steps: {allowed_labels}"
@@ -296,71 +312,129 @@ class PurchaseOrderService:
         return await self._to_response(updated)
 
     async def receive_stock(self, order_id: str, receipt: ReceiveStockRequest, received_by: str) -> PurchaseOrderResponse:
+        """PO "Receive" endpoint: ``received_quantity`` is what arrived in this delivery."""
+        await self.apply_receipt(
+            order_id,
+            [(item.product_id, item.received_quantity) for item in receipt.items],
+            received_by,
+        )
+        updated = await self.repo.get_by_order_id(order_id)
+        return await self._to_response(updated)
+
+    async def apply_receipt(
+        self,
+        order_id: str,
+        lines: list[tuple[str, int]],
+        received_by: str,
+        reference_type: LedgerReferenceType = LedgerReferenceType.PURCHASE_ORDER,
+        reference_id: Optional[str] = None,
+    ) -> PurchaseOrderModel:
+        """The one receiving path for a purchase order (PO receive and PO-linked GRN commits).
+
+        ``lines`` are ``(po_line_product_id, qty_received_now)``; for frame lines the
+        product_id is the variant_id. Quantities are checked against what is still
+        outstanding per line, the PO's received quantities and status (Received or
+        Partially Received) are written in one guarded update so the same delivery
+        cannot be booked twice, then stock is moved with PURCHASE_IN movements that
+        reference ``reference_type``/``reference_id`` (defaults to this PO).
+        """
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
-        if order.status != "Ordered":
-            raise BadRequestException("Only Ordered purchase orders can be received")
+        receivable = [s.value for s in self.RECEIVABLE_STATUSES]
+        if order.status not in receivable:
+            raise BadRequestException(
+                f"Purchase order {order_id} is '{order.status}'; only Ordered or Partially Received orders can be received"
+            )
 
-        item_map = {item.product_id: item for item in order.items}
-        receipt_items: list[StockReceiptItemModel] = []
-        for receipt_item in receipt.items:
-            order_item = item_map.get(receipt_item.product_id)
-            if not order_item:
-                raise BadRequestException(f"Product {receipt_item.product_id} is not part of this purchase order")
-            if receipt_item.received_quantity > order_item.quantity:
-                raise BadRequestException(f"Received quantity cannot exceed ordered quantity for {receipt_item.product_id}")
-            receipt_items.append(StockReceiptItemModel(
-                purchase_order_id=order_id,
-                product_id=receipt_item.product_id,
-                ordered_quantity=order_item.quantity,
-                received_quantity=receipt_item.received_quantity,
-            ))
+        index_by_id = {item.product_id: idx for idx, item in enumerate(order.items)}
+        received_now: dict[int, int] = {}
+        for item_id, qty in lines:
+            idx = index_by_id.get(item_id)
+            if idx is None:
+                raise BadRequestException(f"{item_id} is not part of purchase order {order_id}")
+            if qty < 0:
+                raise BadRequestException(f"Received quantity for {item_id} cannot be negative")
+            received_now[idx] = received_now.get(idx, 0) + int(qty)
 
-        for receipt_item in receipt_items:
-            if receipt_item.received_quantity > 0:
-                is_variant_line = bool(
-                    next((item for item in order.items if item.product_id == receipt_item.product_id and item.frame_variant_id), None)
-                )
-                if is_variant_line:
-                    ok = await self.frame_variant_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
-                else:
-                    ok = await self.product_repo.increment_stock_atomic(receipt_item.product_id, receipt_item.received_quantity)
-                if not ok:
-                    raise BadRequestException(f"Failed to update stock for {receipt_item.product_id}")
-
-                await self.inventory_service.create_movement(
-                    InventoryMovementCreate(
-                        product_id=receipt_item.product_id,
-                        movement_type=InventoryMovementType.PURCHASE_IN,
-                        quantity=receipt_item.received_quantity,
-                        reference_type=LedgerReferenceType.PURCHASE_ORDER,
-                        reference_id=order_id,
-                    ),
-                    received_by,
-                    apply_stock_change=False,
+        for idx, qty in received_now.items():
+            line = order.items[idx]
+            outstanding = max(line.quantity - line.received_quantity, 0)
+            if qty > outstanding:
+                raise BadRequestException(
+                    f"Cannot receive {qty} of {line.product_id} on {order_id}: ordered {line.quantity}, "
+                    f"already received {line.received_quantity}, outstanding {outstanding}"
                 )
 
+        received_now = {idx: qty for idx, qty in received_now.items() if qty > 0}
+        if not received_now:
+            raise BadRequestException("Enter a received quantity for at least one line")
+
+        # Fail before touching anything if an item can no longer take stock
+        for idx in received_now:
+            line = order.items[idx]
+            item = (
+                await self.frame_variant_repo.get_by_variant_id(line.product_id)
+                if line.frame_variant_id
+                else await self.product_repo.get_by_product_id(line.product_id)
+            )
+            if not item or not item.is_active:
+                raise BadRequestException(f"{line.product_id} on {order_id} no longer exists or is inactive")
+
+        changes = {
+            idx: (order.items[idx].received_quantity, order.items[idx].received_quantity + qty)
+            for idx, qty in received_now.items()
+        }
+        fully_received = all(
+            changes.get(idx, (0, item.received_quantity))[1] >= item.quantity
+            for idx, item in enumerate(order.items)
+        )
+        new_status = PurchaseOrderStatus.RECEIVED if fully_received else PurchaseOrderStatus.PARTIALLY_RECEIVED
+
+        claimed = await self.repo.record_received_quantities(order_id, receivable, changes, new_status.value)
+        if not claimed:
+            raise BadRequestException(f"Purchase order {order_id} was updated while receiving; reload it and try again")
+
+        try:
+            await self.inventory_service.apply_stock_in(
+                [(order.items[idx].product_id, qty) for idx, qty in received_now.items()],
+                reference_type,
+                reference_id or order_id,
+                received_by,
+            )
+        except Exception:
+            # Stock was rolled back by apply_stock_in; put the PO back as it was
+            await self.repo.record_received_quantities(
+                order_id, [new_status.value], {idx: (new, old) for idx, (old, new) in changes.items()}, order.status,
+            )
+            raise
+
+        now = datetime.now(timezone.utc)
         receipt_id = generate_id("SR", (await self.stock_receipt_repo.count({})) + 1)
         receipt_model = StockReceiptModel(
             id=receipt_id,
             purchase_order_id=order_id,
             supplier_id=order.supplier_id,
             received_by=received_by,
-            received_at=datetime.now(timezone.utc),
-            items=receipt_items,
+            received_at=now,
+            items=[
+                StockReceiptItemModel(
+                    product_id=order.items[idx].product_id,
+                    ordered_quantity=order.items[idx].quantity,
+                    received_quantity=qty,
+                )
+                for idx, qty in received_now.items()
+            ],
         )
         await self.stock_receipt_repo.create(receipt_model.dict())
 
-        now = datetime.now(timezone.utc)
-        await self.repo.update({"id": order_id}, {"status": "Received", "updated_at": now})
-        await self.repo.push_status_history(order_id, {
-            "status": "Received",
-            "updated_at": now,
-            "updated_by": received_by,
-        })
-        updated = await self.repo.get_by_order_id(order_id)
-        return await self._to_response(updated)
+        if new_status.value != order.status:
+            await self.repo.push_status_history(order_id, {
+                "status": new_status.value,
+                "updated_at": now,
+                "updated_by": received_by,
+            })
+        return await self.repo.get_by_order_id(order_id)
 
     async def generate_purchase_order_pdf(self, order_id: str) -> tuple[bytes, str]:
         order = await self.repo.get_by_order_id(order_id)

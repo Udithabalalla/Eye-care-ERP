@@ -41,6 +41,14 @@ class QuickIntakeRepository(BaseRepository):
         update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"intake_id": intake_id}, update_data)
 
+    async def claim_for_commit(self, intake_id: str) -> bool:
+        """Atomically move a draft intake to "committing"; False if it is not a draft."""
+        result = await self.collection.update_one(
+            {"intake_id": intake_id, "status": "draft"},
+            {"$set": {"status": "committing", "updated_at": datetime.now(timezone.utc)}},
+        )
+        return result.modified_count > 0
+
     async def delete_draft(self, intake_id: str) -> bool:
         return await self.delete({"intake_id": intake_id, "status": "draft"})
 

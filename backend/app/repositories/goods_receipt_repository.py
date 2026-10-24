@@ -44,6 +44,14 @@ class GoodsReceiptRepository(BaseRepository):
         update_data["updated_at"] = datetime.now(timezone.utc)
         return await self.update({"grn_number": grn_number}, update_data)
 
+    async def claim_for_commit(self, grn_number: str) -> bool:
+        """Atomically move a pending GRN to "committing"; False if it is not pending."""
+        result = await self.collection.update_one(
+            {"grn_number": grn_number, "status": "pending"},
+            {"$set": {"status": "committing", "updated_at": datetime.now(timezone.utc)}},
+        )
+        return result.modified_count > 0
+
     async def get_next_grn_number(self) -> str:
         year = datetime.now(timezone.utc).year
         count = await self.collection.count_documents({"grn_number": {"$regex": f"^GRN-{year}-"}})

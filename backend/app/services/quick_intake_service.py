@@ -10,6 +10,8 @@ from app.schemas.quick_intake import QuickIntakeCreate, QuickIntakeUpdate, Quick
 from app.schemas.responses import PaginatedResponse
 from app.models.quick_intake import QuickIntakeModel
 from app.core.exceptions import NotFoundException, BadRequestException
+from app.services.inventory_movement_service import InventoryMovementService
+from app.utils.constants import LedgerReferenceType, QuickIntakeStatus
 
 
 class QuickIntakeService:
@@ -17,6 +19,7 @@ class QuickIntakeService:
         self.repo = QuickIntakeRepository(db)
         self.variant_repo = FrameVariantRepository(db)
         self.product_repo = ProductRepository(db)
+        self.inventory_service = InventoryMovementService(db)
 
     def _to_response(self, qi: QuickIntakeModel) -> QuickIntakeResponse:
         d = qi.dict()
@@ -64,39 +67,50 @@ class QuickIntakeService:
         qi = await self.repo.get_by_intake_id(intake_id)
         if not qi:
             raise NotFoundException(f"Quick intake {intake_id} not found")
-        if qi.status == "committed":
+        if qi.status != QuickIntakeStatus.DRAFT.value:
             raise BadRequestException("Cannot edit a committed intake")
         update_dict = data.dict(exclude_unset=True)
         if update_dict:
             await self.repo.update_intake(intake_id, update_dict)
         return await self.get_intake(intake_id)
 
-    async def commit_intake(self, intake_id: str) -> QuickIntakeResponse:
-        """Atomically apply stock increments for all rows, then mark as committed."""
+    async def commit_intake(self, intake_id: str, committed_by: Optional[str] = None) -> QuickIntakeResponse:
+        """Apply stock for every row once (PURCHASE_IN movements referencing the intake), then mark committed."""
         qi = await self.repo.get_by_intake_id(intake_id)
         if not qi:
             raise NotFoundException(f"Quick intake {intake_id} not found")
-        if qi.status == "committed":
+        if qi.status != QuickIntakeStatus.DRAFT.value:
             raise BadRequestException("Intake already committed")
         if not qi.items:
             raise BadRequestException("Cannot commit an empty intake")
 
+        lines = []
         for item in qi.items:
             if item.product_id:
                 p = await self.product_repo.get_by_product_id(item.product_id)
                 if not p:
                     raise NotFoundException(f"Product {item.product_id} not found")
-                await self.product_repo.increment_stock_atomic(item.product_id, item.qty)
+                lines.append((item.product_id, item.qty))
             elif item.variant_id:
                 v = await self.variant_repo.get_by_variant_id(item.variant_id)
                 if not v:
                     raise NotFoundException(f"Variant {item.variant_id} not found")
-                await self.variant_repo.increment_stock_atomic(item.variant_id, item.qty)
+                lines.append((item.variant_id, item.qty))
             else:
                 raise BadRequestException("Each item must have either variant_id or product_id")
 
+        if not await self.repo.claim_for_commit(intake_id):
+            raise BadRequestException("Intake already committed")
+        try:
+            await self.inventory_service.apply_stock_in(
+                lines, LedgerReferenceType.QUICK_INTAKE, intake_id, committed_by or qi.created_by or "system",
+            )
+        except Exception:
+            await self.repo.update_intake(intake_id, {"status": QuickIntakeStatus.DRAFT.value})
+            raise
+
         await self.repo.update_intake(intake_id, {
-            "status": "committed",
+            "status": QuickIntakeStatus.COMMITTED.value,
             "committed_at": datetime.now(timezone.utc),
         })
         return await self.get_intake(intake_id)

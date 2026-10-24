@@ -8,6 +8,8 @@ class Supplier(BaseModel):
     name: str
     contact: Optional[str] = None
     email: Optional[str] = None
+    # Link to the suppliers collection; when missing, the supplier is matched by name
+    supplier_id: Optional[str] = None
 
 class ProductModel(TimestampModel):
     """Product database model"""

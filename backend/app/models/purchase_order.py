@@ -90,6 +90,8 @@ class PurchaseOrderItemModel(BaseModel):
     line_discount_value: float = Field(default=0, ge=0)
     line_discount_amount: float = Field(default=0, ge=0)
     total_price: float = Field(default=0, ge=0)
+    # Running total booked into stock across deliveries (PO receive + linked GRNs)
+    received_quantity: int = Field(default=0, ge=0)
 
 
 class PurchaseOrderModel(TimestampModel):

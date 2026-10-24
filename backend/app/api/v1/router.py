@@ -6,7 +6,7 @@ from app.api.v1 import (
     reports, dashboard, doctors, users, suppliers, company_profile,
     sales_orders, payments, transactions, inventory_movements,
     audit_logs, roles, ledger, basic_data,
-    frame_masters, frame_variants, goods_receipts, quick_intakes,
+    frame_masters, frame_variants, goods_receipts, quick_intakes, inventory,
 )
 
 api_router = APIRouter()
@@ -41,3 +41,6 @@ api_router.include_router(frame_masters.router, prefix="/frame-masters", tags=["
 api_router.include_router(frame_variants.router, prefix="/frame-variants", tags=["Frame Variants"], dependencies=[Depends(require_module_access("inventory"))])
 api_router.include_router(goods_receipts.router, prefix="/goods-receipts", tags=["Goods Receipts"], dependencies=[Depends(require_module_access("inventory"))])
 api_router.include_router(quick_intakes.router, prefix="/quick-intakes", tags=["Quick Intake"], dependencies=[Depends(require_module_access("inventory"))])
+api_router.include_router(inventory.router, prefix="/inventory", tags=["Inventory"], dependencies=[Depends(require_module_access("inventory"))])
+# Label printing is a POST that only reads data
+api_router.include_router(inventory.labels_router, prefix="/inventory", tags=["Inventory"], dependencies=[Depends(require_permission("inventory.read"))])

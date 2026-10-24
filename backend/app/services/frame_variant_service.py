@@ -68,8 +68,8 @@ class FrameVariantService:
         created = await self.repo.create_variant(variant)
         return _to_response(created)
 
-    async def create_variant_safe(self, data: FrameVariantCreate) -> FrameVariantResponse:
-        """Create a single variant, deriving the SKU properly."""
+    async def create_variant_safe(self, data: FrameVariantCreate, created_by: str = "system") -> FrameVariantResponse:
+        """Create a single variant, deriving the SKU properly. Opening stock is booked as a movement."""
         master = await self.master_repo.get_by_master_id(data.frame_master_id)
         if not master:
             raise NotFoundException(f"Frame master {data.frame_master_id} not found")
@@ -92,6 +92,19 @@ class FrameVariantService:
             **data.dict(),
         )
         created = await self.repo.create_variant(variant)
+        if created.current_stock > 0:
+            await self.inv_service.create_movement(
+                InventoryMovementCreate(
+                    product_id=created.variant_id,
+                    movement_type=InventoryMovementType.ADJUSTMENT,
+                    quantity=created.current_stock,
+                    reference_type=LedgerReferenceType.STOCK_ADJUSTMENT,
+                    reference_id=created.variant_id,
+                    reason="Opening stock",
+                ),
+                created_by,
+                apply_stock_change=False,
+            )
         return _to_response(created)
 
     async def bulk_create(self, data: FrameVariantBulkCreate) -> List[FrameVariantResponse]:
@@ -189,7 +202,7 @@ class FrameVariantService:
             await self.repo.update_variant(variant_id, update_dict)
         return await self.get_variant(variant_id)
 
-    async def adjust_stock(self, variant_id: str, data: StockAdjustVariant) -> FrameVariantResponse:
+    async def adjust_stock(self, variant_id: str, data: StockAdjustVariant, adjusted_by: str = "system") -> FrameVariantResponse:
         existing = await self.repo.get_by_variant_id(variant_id)
         if not existing:
             raise NotFoundException(f"Frame variant {variant_id} not found")
@@ -202,8 +215,10 @@ class FrameVariantService:
                 quantity=delta,
                 reference_type=LedgerReferenceType.STOCK_ADJUSTMENT,
                 reference_id=variant_id,
+                reason=data.reason,
+                notes=data.notes,
             ),
-            "system",
+            adjusted_by,
             apply_stock_change=False,
         )
         return await self.get_variant(variant_id)

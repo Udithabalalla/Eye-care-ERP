@@ -27,5 +27,14 @@ class GoodsReceiptResponse(BaseModel):
     status: str
     notes: Optional[str]
     created_by: Optional[str]
+    committed_at: Optional[datetime] = None
+    committed_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class GoodsReceiptPrefill(BaseModel):
+    """Outstanding frame lines of a purchase order, ready to count into a GRN."""
+    supplier_id: str
+    purchase_order_id: str
+    items: List[GoodsReceiptItem]

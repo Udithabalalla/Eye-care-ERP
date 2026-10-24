@@ -67,7 +67,7 @@ async def commit_quick_intake(
 ):
     """Commit draft intake — increments stock atomically for all rows."""
     service = QuickIntakeService(db)
-    result = await service.commit_intake(intake_id)
+    result = await service.commit_intake(intake_id, committed_by=current_user.user_id)
     return ResponseModel(message="Intake committed — stock updated", data=result)
 
 

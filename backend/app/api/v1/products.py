@@ -64,7 +64,7 @@ async def create_product(
 ):
     """Create a new product"""
     product_service = ProductService(db)
-    product = await product_service.create_product(product_data)
+    product = await product_service.create_product(product_data, created_by=current_user.user_id)
     return ResponseModel(
         message="Product created successfully",
         data=product
@@ -94,7 +94,7 @@ async def adjust_stock(
 ):
     """Adjust product stock"""
     product_service = ProductService(db)
-    await product_service.adjust_stock(product_id, adjustment)
+    await product_service.adjust_stock(product_id, adjustment, adjusted_by=current_user.user_id)
     return ResponseModel(message="Stock adjusted successfully")
 
 @router.delete("/{product_id}")

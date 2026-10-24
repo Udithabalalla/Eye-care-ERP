@@ -15,4 +15,6 @@ class InventoryMovementModel(TimestampModel):
     quantity: int
     reference_type: LedgerReferenceType
     reference_id: str
+    reason: Optional[str] = None
+    notes: Optional[str] = None
     created_by: str

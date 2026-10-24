@@ -13,6 +13,14 @@ class FrameMasterRepository(BaseRepository):
         doc = await self.get_one({"frame_master_id": frame_master_id, "is_active": True})
         return FrameMasterModel(**doc) if doc else None
 
+    async def get_many_by_master_ids(self, frame_master_ids: List[str]) -> List[FrameMasterModel]:
+        """Batch lookup (one query), including inactive masters."""
+        ids = [mid for mid in set(frame_master_ids) if mid]
+        if not ids:
+            return []
+        docs = await self.get_many({"frame_master_id": {"$in": ids}}, limit=0)
+        return [FrameMasterModel(**d) for d in docs]
+
     async def get_by_brand_model(self, brand: str, model_code: str) -> Optional[FrameMasterModel]:
         doc = await self.get_one({
             "brand": {"$regex": f"^{brand}$", "$options": "i"},
@@ -28,7 +36,9 @@ class FrameMasterRepository(BaseRepository):
         brand: Optional[str] = None,
         category: Optional[str] = None,
         gender: Optional[str] = None,
+        also_master_ids: Optional[List[str]] = None,
     ) -> Tuple[List[FrameMasterModel], int]:
+        """``also_master_ids`` widens a search to masters matched some other way (e.g. variant SKU)."""
         query: dict = {"is_active": True}
         if search:
             query["$or"] = [
@@ -36,6 +46,8 @@ class FrameMasterRepository(BaseRepository):
                 {"model_code": {"$regex": search, "$options": "i"}},
                 {"frame_name": {"$regex": search, "$options": "i"}},
             ]
+            if also_master_ids:
+                query["$or"].append({"frame_master_id": {"$in": list(also_master_ids)}})
         if brand:
             query["brand"] = {"$regex": f"^{brand}$", "$options": "i"}
         if category:

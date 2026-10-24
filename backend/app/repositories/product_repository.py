@@ -32,6 +32,26 @@ class ProductRepository(BaseRepository):
             return ProductModel(**product_dict)
         return None
 
+    async def get_many_by_product_ids(self, product_ids: List[str]) -> List[ProductModel]:
+        """Batch lookup (one query) for a set of product IDs."""
+        ids = [pid for pid in set(product_ids) if pid]
+        if not ids:
+            return []
+        docs = await self.get_many({"product_id": {"$in": ids}}, limit=0)
+        return [ProductModel(**d) for d in docs]
+
+    async def list_low_stock(self, out_of_stock_only: bool = False) -> List[ProductModel]:
+        """Active products at or below min_stock_level (model defaults apply to missing fields)."""
+        stock = {"$ifNull": ["$current_stock", 0]}
+        query: dict = {
+            "is_active": True,
+            "$expr": {"$lte": [stock, {"$ifNull": ["$min_stock_level", 10]}]},
+        }
+        if out_of_stock_only:
+            query["$expr"] = {"$and": [query["$expr"], {"$lte": [stock, 0]}]}
+        docs = await self.get_many(query, limit=0, sort=[("name", 1)])
+        return [ProductModel(**d) for d in docs]
+
     async def get_by_scan_code(self, code: str) -> Optional[ProductModel]:
         """Lookup product by barcode first, then SKU, then product ID."""
         code = code.strip()

@@ -1,3 +1,4 @@
+import re
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
 from datetime import datetime, timezone
@@ -77,6 +78,37 @@ class FrameVariantRepository(BaseRepository):
             sort=[("frame_master_ref.brand", 1), ("frame_master_ref.model_code", 1), ("color", 1), ("eye_size", 1)]
         )
         return [FrameVariantModel(**d) for d in docs], total
+
+    async def get_many_by_variant_ids(self, variant_ids: List[str]) -> List[FrameVariantModel]:
+        """Batch lookup (one query) for a set of variant IDs."""
+        ids = [vid for vid in set(variant_ids) if vid]
+        if not ids:
+            return []
+        docs = await self.get_many({"variant_id": {"$in": ids}}, limit=0)
+        return [FrameVariantModel(**d) for d in docs]
+
+    async def list_low_stock(self, out_of_stock_only: bool = False) -> List[FrameVariantModel]:
+        """Active variants at or below their reorder_level."""
+        stock = {"$ifNull": ["$current_stock", 0]}
+        query: dict = {
+            "is_active": True,
+            "$expr": {"$lte": [stock, {"$ifNull": ["$reorder_level", 2]}]},
+        }
+        if out_of_stock_only:
+            query["$expr"] = {"$and": [query["$expr"], {"$lte": [stock, 0]}]}
+        docs = await self.get_many(
+            query, limit=0,
+            sort=[("frame_master_ref.brand", 1), ("frame_master_ref.model_code", 1), ("color", 1), ("eye_size", 1)],
+        )
+        return [FrameVariantModel(**d) for d in docs]
+
+    async def get_master_ids_by_code(self, code: str) -> List[str]:
+        """frame_master_ids of active variants whose SKU or barcode matches ``code``."""
+        pattern = {"$regex": re.escape(code.strip()), "$options": "i"}
+        return await self.collection.distinct(
+            "frame_master_id",
+            {"is_active": True, "$or": [{"sku": pattern}, {"barcode": pattern}]},
+        )
 
     async def list_for_master(self, frame_master_id: str) -> List[FrameVariantModel]:
         docs = await self.get_many({"frame_master_id": frame_master_id, "is_active": True}, limit=0)

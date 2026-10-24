@@ -33,6 +33,10 @@ def generate_label_pdf(
 
     items: list of dicts with keys:
         brand, model_code, color, eye_size, rim_type, selling_price, sku, quantity
+      Optional overrides for non-frame items (e.g. products):
+        title   — first line instead of "brand model_code"
+        detail  — second line instead of "color / eye_size / rim_type"
+        barcode — value to encode instead of sku
 
     label_type:
         "frame_tag"   — 40×25 mm, 5 cols × 10 rows per A4
@@ -71,12 +75,14 @@ def generate_label_pdf(
         text_x = x + pad
         cur_y = y + lh - pad - font_s
 
-        brand_model = f"{item.get('brand', '')} {item.get('model_code', '')}"
+        brand_model = item.get("title") or f"{item.get('brand', '')} {item.get('model_code', '')}"
         c.setFont("Helvetica-Bold", font_s + 1)
         c.drawString(text_x, cur_y, brand_model[:22])
         cur_y -= (font_s + 2)
 
-        detail = f"{item.get('color', '')} / {item.get('eye_size', '')} / {str(item.get('rim_type', '')).capitalize()}"
+        detail = item.get("detail")
+        if detail is None:
+            detail = f"{item.get('color', '')} / {item.get('eye_size', '')} / {str(item.get('rim_type', '')).capitalize()}"
         c.setFont("Helvetica", font_s)
         c.drawString(text_x, cur_y, detail[:28])
         cur_y -= (font_s + 2)
@@ -88,7 +94,7 @@ def generate_label_pdf(
 
         # Barcode image
         try:
-            bc_png = generate_barcode_png(item["sku"])
+            bc_png = generate_barcode_png(item.get("barcode") or item["sku"])
             bc_img = Image.open(io.BytesIO(bc_png))
             bc_buf = io.BytesIO()
             bc_img.save(bc_buf, format="PNG")

@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import Optional, List, Tuple
-from datetime import datetime
+from typing import Optional, List, Tuple, Dict
+from datetime import datetime, timezone
 from app.repositories.base import BaseRepository
 from app.models.purchase_order import PurchaseOrderModel
 
@@ -20,7 +20,9 @@ class PurchaseOrderRepository(BaseRepository):
         if supplier_id:
             filter_query["supplier_id"] = supplier_id
         if status:
-            filter_query["status"] = status
+            # Comma-separated list, e.g. "Ordered,Partially Received"
+            statuses = [s.strip() for s in status.split(",") if s.strip()]
+            filter_query["status"] = statuses[0] if len(statuses) == 1 else {"$in": statuses}
 
         docs, total = await self.get_many_with_count(filter_query, skip, limit, sort=[("created_at", -1)])
         orders = [PurchaseOrderModel(**d) for d in docs]
@@ -31,3 +33,26 @@ class PurchaseOrderRepository(BaseRepository):
             {"id": order_id},
             {"$push": {"status_history": entry}},
         )
+
+    async def record_received_quantities(
+        self,
+        order_id: str,
+        allowed_statuses: List[str],
+        changes: Dict[int, Tuple[int, int]],
+        status: str,
+    ) -> bool:
+        """Set ``items.<idx>.received_quantity`` old→new and the status in one guarded write.
+
+        Matches only if the PO is still in ``allowed_statuses`` and every line still
+        holds its old value, so a concurrent/duplicate receipt cannot book the same
+        quantities twice. Returns False when nothing matched.
+        """
+        filter_query: dict = {"id": order_id, "status": {"$in": list(allowed_statuses)}}
+        update: dict = {"status": status, "updated_at": datetime.now(timezone.utc)}
+        for idx, (old, new) in changes.items():
+            # Older POs have no received_quantity on their lines yet
+            filter_query[f"items.{idx}.received_quantity"] = {"$in": [0, None]} if old == 0 else old
+            update[f"items.{idx}.received_quantity"] = new
+        result = await self.collection.update_one(filter_query, {"$set": update})
+        return result.matched_count > 0
+

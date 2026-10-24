@@ -26,7 +26,11 @@ class FrameMasterService:
         gender: Optional[str] = None,
     ) -> PaginatedResponse[FrameMasterResponse]:
         skip = (page - 1) * page_size
-        masters, total = await self.repo.list_masters(skip, page_size, search, brand, category, gender)
+        # A scanned/typed SKU or barcode finds the model that owns that variant
+        variant_master_ids = await self.variant_repo.get_master_ids_by_code(search) if search and search.strip() else None
+        masters, total = await self.repo.list_masters(
+            skip, page_size, search, brand, category, gender, also_master_ids=variant_master_ids,
+        )
 
         responses = []
         for m in masters:

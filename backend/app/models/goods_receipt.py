@@ -26,6 +26,8 @@ class GoodsReceiptModel(TimestampModel):
     status: str = "complete"
     notes: Optional[str] = None
     created_by: Optional[str] = None
+    committed_at: Optional[datetime] = None
+    committed_by: Optional[str] = None
 
     class Config:
         json_schema_extra = {

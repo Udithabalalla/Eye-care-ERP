@@ -45,7 +45,7 @@ async def create_frame_variant(
     current_user: UserModel = Depends(get_current_user),
 ):
     service = FrameVariantService(db)
-    result = await service.create_variant_safe(data)
+    result = await service.create_variant_safe(data, created_by=current_user.user_id)
     return ResponseModel(message="Variant created", data=result)
 
 
@@ -123,7 +123,7 @@ async def adjust_stock(
     current_user: UserModel = Depends(get_current_user),
 ):
     service = FrameVariantService(db)
-    result = await service.adjust_stock(variant_id, data)
+    result = await service.adjust_stock(variant_id, data, adjusted_by=current_user.user_id)
     return ResponseModel(message="Stock adjusted", data=result)
 
 
@@ -154,10 +154,11 @@ async def get_variant_barcode_png(
 async def get_variant_label_pdf(
     variant_id: str,
     label_type: str = Query("frame_tag", pattern="^(frame_tag|shelf_label|sticker)$"),
+    copies: int = Query(1, ge=1, le=100),
     db: AsyncIOMotorDatabase = Depends(get_database),
     current_user: UserModel = Depends(get_current_user),
 ):
-    """Return a single-label PDF for printing."""
+    """Return a PDF with ``copies`` labels of one variant."""
     from app.services.barcode_service import generate_label_pdf
     service = FrameVariantService(db)
     v = await service.get_variant(variant_id)
@@ -169,7 +170,7 @@ async def get_variant_label_pdf(
         "rim_type": v.rim_type,
         "selling_price": v.selling_price,
         "sku": v.sku,
-        "quantity": 1,
+        "quantity": copies,
     }], label_type)
     return Response(content=pdf_bytes, media_type="application/pdf",
                     headers={"Content-Disposition": f"inline; filename={v.sku}.pdf"})
