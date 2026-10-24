@@ -54,7 +54,7 @@ export function QuickPODrawer({ open, onClose, variant, onSuccess }: Props) {
 
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers-list'],
-    queryFn: () => suppliersApi.getAll({ page_size: 200 }),
+    queryFn: () => suppliersApi.getAll({ page_size: 100 }),
     staleTime: 60_000,
     enabled: open,
   })

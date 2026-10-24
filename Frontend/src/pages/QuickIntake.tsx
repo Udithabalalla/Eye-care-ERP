@@ -41,7 +41,7 @@ export default function QuickIntake() {
 
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers-list'],
-    queryFn: () => suppliersApi.getAll({ page_size: 200 }),
+    queryFn: () => suppliersApi.getAll({ page_size: 100 }),
     staleTime: 60_000,
   })
   const suppliers = suppliersData?.data ?? []

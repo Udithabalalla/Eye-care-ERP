@@ -59,14 +59,14 @@ export default function GoodsReceipts() {
 
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers-list'],
-    queryFn: () => suppliersApi.getAll({ page_size: 200 }),
+    queryFn: () => suppliersApi.getAll({ page_size: 100 }),
     staleTime: 60_000,
   })
   const suppliers = suppliersData?.data ?? []
 
   const { data: purchaseOrdersData } = useQuery({
     queryKey: ['purchase-orders-ordered'],
-    queryFn: () => suppliersApi.getPurchaseOrders({ page_size: 200, status: 'Ordered' }),
+    queryFn: () => suppliersApi.getPurchaseOrders({ page_size: 100, status: 'Ordered' }),
     staleTime: 60_000,
   })
   const openPOs = purchaseOrdersData?.data ?? []
