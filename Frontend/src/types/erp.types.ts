@@ -19,7 +19,7 @@ export interface StatusHistoryEntry {
   updated_by: string
 }
 
-export type LedgerTransactionType = 'SALE' | 'PURCHASE' | 'SUPPLIER_PAYMENT' | 'CUSTOMER_PAYMENT' | 'REFUND'
+export type LedgerTransactionType = 'SALE' | 'PURCHASE' | 'SUPPLIER_PAYMENT' | 'CUSTOMER_PAYMENT' | 'REFUND' | 'SALE_REVERSAL'
 
 export type LedgerReferenceType = 'INVOICE' | 'SALES_ORDER' | 'PURCHASE_ORDER' | 'SUPPLIER_INVOICE' | 'STOCK_ADJUSTMENT'
 
@@ -31,6 +31,8 @@ export interface SalesOrderItem {
   sku?: string
   quantity: number
   unit_price: number
+  /** Line discount amount; total = quantity × unit_price − discount */
+  discount?: number
   total: number
   master_data_id?: string
   frame_variant_id?: string
@@ -41,6 +43,8 @@ export interface SalesOrderItem {
 export interface SalesOrderCreatePayload {
   patient_id: string
   prescription_id?: string
+  /** Order-level discount amount */
+  discount_amount?: number
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string
   expected_delivery_date?: string
@@ -53,6 +57,7 @@ export interface SalesOrderCreatePayload {
 
 export interface SalesOrderUpdatePayload {
   prescription_id?: string
+  discount_amount?: number
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string
   expected_delivery_date?: string
@@ -71,6 +76,7 @@ export interface SalesOrder {
   prescription_id?: string
   items: SalesOrderItem[]
   subtotal: number
+  discount_amount?: number
   total_amount: number
   measurements?: Record<string, string | number | boolean | null | undefined>
   tested_by?: string

@@ -28,7 +28,7 @@ class ReportService:
         """Generate sales report"""
         from app.utils.helpers import date_to_datetime
         
-        filter_query = {}
+        filter_query = {"payment_status": {"$ne": "cancelled"}}
         if start_date and end_date:
             filter_query["invoice_date"] = {
                 "$gte": date_to_datetime(start_date),

@@ -22,7 +22,8 @@ class SalesOrderItemModel(BaseModel):
     sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
-    total: float = Field(..., ge=0)
+    discount: float = Field(default=0, ge=0, description="Line discount amount")
+    total: float = Field(..., ge=0, description="quantity × unit_price − discount")
     master_data_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
     line_type: Literal["product", "frame", "lens", "expense", "complimentary"] = "product"
@@ -36,8 +37,9 @@ class SalesOrderModel(TimestampModel):
     patient_id: str
     prescription_id: Optional[str] = None
     items: List[SalesOrderItemModel] = Field(default_factory=list)
-    subtotal: float = Field(default=0, ge=0)
-    total_amount: float = Field(default=0, ge=0)
+    subtotal: float = Field(default=0, ge=0, description="Sum of line totals (after line discounts)")
+    discount_amount: float = Field(default=0, ge=0, description="Order-level discount amount")
+    total_amount: float = Field(default=0, ge=0, description="subtotal − discount_amount")
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None

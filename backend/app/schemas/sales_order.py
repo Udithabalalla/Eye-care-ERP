@@ -12,6 +12,7 @@ class SalesOrderItemCreate(BaseModel):
     sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
+    discount: float = Field(default=0, ge=0)
     total: Optional[float] = Field(default=None, ge=0)
     master_data_id: Optional[str] = None
     frame_variant_id: Optional[str] = None
@@ -23,6 +24,8 @@ class SalesOrderCreate(BaseModel):
     patient_id: str
     prescription_id: Optional[str] = None
     items: List[SalesOrderItemCreate] = Field(default_factory=list, min_length=1)
+    # Order-level discount amount; falls back to measurements["discount"] for older clients
+    discount_amount: Optional[float] = Field(default=None, ge=0)
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
@@ -35,6 +38,7 @@ class SalesOrderCreate(BaseModel):
 class SalesOrderUpdate(BaseModel):
     prescription_id: Optional[str] = None
     items: Optional[List[SalesOrderItemCreate]] = None
+    discount_amount: Optional[float] = Field(default=None, ge=0)
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None
     expected_delivery_date: Optional[datetime] = None
@@ -57,6 +61,7 @@ class SalesOrderResponse(BaseModel):
     prescription_id: Optional[str]
     items: List[SalesOrderItemModel]
     subtotal: float
+    discount_amount: float = 0
     total_amount: float
     measurements: Optional[Dict[str, Any]] = None
     tested_by: Optional[str] = None

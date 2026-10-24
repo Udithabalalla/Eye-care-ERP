@@ -150,7 +150,7 @@ async def get_account_balance(
                 "total_credit": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$transaction_type", ["PURCHASE", "CUSTOMER_PAYMENT"]]},
+                            {"$in": ["$transaction_type", ["PURCHASE", "CUSTOMER_PAYMENT", "SALE_REVERSAL"]]},
                             "$amount",
                             0
                         ]

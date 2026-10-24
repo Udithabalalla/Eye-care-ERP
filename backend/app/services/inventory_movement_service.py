@@ -36,14 +36,14 @@ class InventoryMovementService:
                 )
                 if not ok:
                     raise BadRequestException("Insufficient stock for sale movement")
-            elif data.movement_type == InventoryMovementType.PURCHASE_IN:
+            elif data.movement_type in (InventoryMovementType.PURCHASE_IN, InventoryMovementType.RETURN):
                 ok = (
                     await self.product_repo.increment_stock_atomic(data.product_id, abs(data.quantity))
                     if product
                     else await self.frame_variant_repo.increment_stock_atomic(data.product_id, abs(data.quantity))
                 )
                 if not ok:
-                    raise BadRequestException("Failed to increase stock for purchase movement")
+                    raise BadRequestException("Failed to increase stock for purchase/return movement")
             elif data.movement_type == InventoryMovementType.ADJUSTMENT:
                 current_stock = product.current_stock if product else variant.current_stock
                 updated_stock = current_stock + data.quantity

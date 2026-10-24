@@ -41,6 +41,7 @@ const transactionTypes: LedgerTransactionType[] = [
   'SUPPLIER_PAYMENT',
   'CUSTOMER_PAYMENT',
   'REFUND',
+  'SALE_REVERSAL',
 ]
 const referenceTypes: LedgerReferenceType[] = [
   'INVOICE',
@@ -57,6 +58,7 @@ const TYPE_CONFIG: Record<LedgerTransactionType, { label: string; color: string 
   SUPPLIER_PAYMENT: { label: 'Supplier Payment', color: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800' },
   CUSTOMER_PAYMENT: { label: 'Customer Payment', color: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800' },
   REFUND:           { label: 'Refund',           color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800' },
+  SALE_REVERSAL:    { label: 'Sale Reversal',    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' },
 }
 
 const REF_ROUTE: Partial<Record<LedgerReferenceType, string>> = {
@@ -88,9 +90,9 @@ function TransactionDetailSheet({ tx, open, onClose }: { tx: Transaction | null;
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+      <SheetContent className="sm:max-w-md flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 pr-20">
             <div className="flex items-center gap-3">
               <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCredit ? 'bg-emerald-100 dark:bg-emerald-950/50' : 'bg-rose-100 dark:bg-rose-950/50'}`}>
                 {isCredit
@@ -105,7 +107,7 @@ function TransactionDetailSheet({ tx, open, onClose }: { tx: Transaction | null;
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
           {/* Amount hero */}
           <div className={`rounded-xl p-4 text-center ${isCredit ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'}`}>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{isCredit ? 'Credit' : 'Debit'}</p>

@@ -55,6 +55,8 @@ class LedgerTransactionType(str, Enum):
     SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT"
     CUSTOMER_PAYMENT = "CUSTOMER_PAYMENT"
     REFUND = "REFUND"
+    # Reverses (part of) a SALE when an order is cancelled or reduced
+    SALE_REVERSAL = "SALE_REVERSAL"
 
 
 class LedgerReferenceType(str, Enum):

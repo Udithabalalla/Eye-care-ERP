@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
+import io
 
 from app.config.database import get_database
 from app.api.deps import get_current_user
@@ -16,6 +18,21 @@ router = APIRouter()
 @router.get("", response_model=PaginatedResponse[SalesOrderResponse])
 async def list_sales_orders(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), patient_id: Optional[str] = None, status: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
     return await SalesOrderService(db).list_sales_orders(page, page_size, patient_id, status)
+
+
+@router.get("/{order_id}/pdf")
+async def download_sales_order_pdf(
+    order_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """Download a printable A4 sales-order receipt PDF."""
+    content, filename = await SalesOrderService(db).generate_sales_order_pdf(order_id)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/{order_id}", response_model=ResponseModel[SalesOrderResponse])

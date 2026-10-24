@@ -60,6 +60,7 @@ class DashboardService:
         today_revenue = await self.db.invoices.aggregate([
             {
                 "$match": {
+                    "payment_status": {"$ne": "cancelled"},
                     "invoice_date": {
                         "$gte": date_to_datetime(today),
                         "$lt": date_to_datetime(today + timedelta(days=1))
@@ -76,6 +77,7 @@ class DashboardService:
         month_revenue = await self.db.invoices.aggregate([
             {
                 "$match": {
+                    "payment_status": {"$ne": "cancelled"},
                     "invoice_date": {
                         "$gte": date_to_datetime(month_start),
                         "$lt": date_to_datetime(today + timedelta(days=1))
@@ -113,6 +115,7 @@ class DashboardService:
         pipeline = [
             {
                 "$match": {
+                    "payment_status": {"$ne": "cancelled"},
                     "invoice_date": {
                         "$gte": date_to_datetime(start_date),
                         "$lte": date_to_datetime(end_date)
@@ -350,6 +353,7 @@ class DashboardService:
     async def get_top_products(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get top-selling products"""
         pipeline = [
+            {"$match": {"payment_status": {"$ne": "cancelled"}}},
             {"$unwind": "$items"},
             {
                 "$group": {

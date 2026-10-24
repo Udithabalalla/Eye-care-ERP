@@ -47,6 +47,12 @@ export const salesOrdersApi = {
     const response = await axiosInstance.post<ApiResponse<Invoice>>(`/sales-orders/${id}/generate-invoice`)
     return response.data.data
   },
+  downloadPDF: async (id: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/sales-orders/${id}/pdf`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
 }
 
 export const transactionsApi = {
