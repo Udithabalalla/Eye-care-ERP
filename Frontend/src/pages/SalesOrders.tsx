@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
   RiAddLine,
@@ -15,7 +15,10 @@ import {
   RiShieldCheckLine,
   RiTruckLine,
   RiLoader4Line,
+  RiDownloadLine,
 } from '@remixicon/react'
+import { downloadFile } from '@/utils/helpers'
+import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
@@ -50,7 +53,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import toast from 'react-hot-toast'
 import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
 import { getNextAction } from '@/components/sales-orders/SalesOrderWorkflowActions'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
@@ -135,6 +137,12 @@ const SalesOrders = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | ''>('')
+  // Deep links (e.g. from notifications) can pre-select a status
+  const [searchParams] = useSearchParams()
+  const urlStatus = searchParams.get('status') as SalesOrderStatus | null
+  useEffect(() => {
+    if (urlStatus) { setStatusFilter(urlStatus); setPage(1) }
+  }, [urlStatus])
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
@@ -282,6 +290,23 @@ const SalesOrders = () => {
         },
       })
     }
+
+    actions.push({
+      id: 'download-receipt',
+      label: 'Download Receipt',
+      icon: RiDownloadLine,
+      onClick: async (rows) => {
+        const order = rows[0]
+        try {
+          const blob = await salesOrdersApi.downloadPDF(order.order_id)
+          downloadFile(blob, `${order.order_number}.pdf`)
+          toast.success('Receipt downloaded')
+        } catch {
+          toast.error('Failed to download receipt')
+        }
+      },
+      showWhen: 'single',
+    })
 
     actions.push({
       id: 'edit-order',
@@ -494,6 +519,20 @@ const SalesOrders = () => {
                   <DropdownMenuItem onClick={() => setDetailOrderId(order.order_id)}>
                     <RiEyeLine className="size-4" />
                     View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        const blob = await salesOrdersApi.downloadPDF(order.order_id)
+                        downloadFile(blob, `${order.order_number}.pdf`)
+                        toast.success('Receipt downloaded')
+                      } catch {
+                        toast.error('Failed to download receipt')
+                      }
+                    }}
+                  >
+                    <RiDownloadLine className="size-4" />
+                    Download Receipt
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

@@ -1,5 +1,6 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   RiHomeLine,
   RiTeamLine,
@@ -19,7 +20,8 @@ import {
   RiUserLine,
   RiSettings4Line,
   RiArrowDownSLine,
-  RiMore2Line,
+  RiArrowRightSLine,
+
   RiShoppingCartLine,
   RiEyeLine,
   RiPriceTag3Line,
@@ -36,6 +38,9 @@ import {
   RiExchangeDollarLine,
   RiArrowUpSLine,
   RiDraggable,
+  RiAddLine,
+  RiStethoscopeLine,
+  RiLayoutGridLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
@@ -44,7 +49,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -53,41 +57,70 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import BrandLogo from '@/components/common/BrandLogo'
+import { salesOrdersApi } from '@/api/erp.api'
 
 interface NavItem {
   name: string
   path: string
   icon: React.ComponentType<{ className?: string }>
-  children?: NavItem[]
 }
 
 interface NavSection {
   id: string
   title?: string
+  icon: React.ComponentType<{ className?: string }>
   items: NavItem[]
 }
 
+// Most-used areas first; users can reorder sections from the account menu
 const ALL_SECTIONS: NavSection[] = [
   {
     id: 'dashboard',
+    icon: RiHomeLine,
+    items: [{ name: 'Dashboard', path: '/', icon: RiHomeLine }],
+  },
+  {
+    id: 'sales',
+    title: 'Sales',
+    icon: RiReceiptLine,
     items: [
-      { name: 'Dashboard', path: '/', icon: RiHomeLine },
+      { name: 'Sales Orders', path: '/sales-orders', icon: RiReceiptLine },
+      { name: 'Invoices', path: '/invoices', icon: RiFileChartLine },
+      { name: 'Payments', path: '/payments', icon: RiMoneyDollarCircleLine },
+      { name: 'Refunds', path: '/refunds', icon: RiRefundLine },
+    ],
+  },
+  {
+    id: 'clinical',
+    title: 'Patients & Clinic',
+    icon: RiStethoscopeLine,
+    items: [
+      { name: 'Patients', path: '/patients', icon: RiUserLine },
+      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
+      { name: 'Prescriptions', path: '/prescriptions', icon: RiEyeLine },
+      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
     ],
   },
   {
     id: 'inventory',
     title: 'Inventory',
+    icon: RiBox3Line,
     items: [
       { name: 'Frames', path: '/inventory/frames', icon: RiGridLine },
       { name: 'General Inventory', path: '/inventory/general', icon: RiBox3Line },
@@ -99,6 +132,7 @@ const ALL_SECTIONS: NavSection[] = [
   {
     id: 'purchasing',
     title: 'Purchasing',
+    icon: RiTruckLine,
     items: [
       { name: 'Suppliers', path: '/suppliers', icon: RiBuilding2Line },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: RiShoppingCartLine },
@@ -108,28 +142,9 @@ const ALL_SECTIONS: NavSection[] = [
     ],
   },
   {
-    id: 'sales',
-    title: 'Sales',
-    items: [
-      { name: 'Sales Orders', path: '/sales-orders', icon: RiReceiptLine },
-      { name: 'Invoices', path: '/invoices', icon: RiFileChartLine },
-      { name: 'Payments', path: '/payments', icon: RiMoneyDollarCircleLine },
-      { name: 'Refunds', path: '/refunds', icon: RiRefundLine },
-    ],
-  },
-  {
-    id: 'clinical',
-    title: 'Clinical',
-    items: [
-      { name: 'Patients', path: '/patients', icon: RiUserLine },
-      { name: 'Appointments', path: '/appointments', icon: RiCalendarLine },
-      { name: 'Prescriptions', path: '/prescriptions', icon: RiEyeLine },
-      { name: 'Doctors', path: '/doctors', icon: RiUserFollowLine },
-    ],
-  },
-  {
     id: 'finance',
     title: 'Finance',
+    icon: RiWallet3Line,
     items: [
       { name: 'Transactions', path: '/transactions', icon: RiExchangeDollarLine },
       { name: 'Ledger', path: '/ledger', icon: RiBookOpenLine },
@@ -137,24 +152,25 @@ const ALL_SECTIONS: NavSection[] = [
     ],
   },
   {
+    id: 'basic-data',
+    title: 'Master Data',
+    icon: RiLayoutGridLine,
+    items: [
+      { name: 'Lenses', path: '/basic-data/lenses', icon: RiEyeLine },
+      { name: 'Product Categories', path: '/basic-data/product-categories', icon: RiPriceTag3Line },
+      { name: 'Charge Types', path: '/basic-data/other-expenses', icon: RiWallet3Line },
+      { name: 'Price Rules', path: '/basic-data/complimentary-items', icon: RiPercentLine },
+    ],
+  },
+  {
     id: 'system',
-    title: 'System',
+    title: 'Administration',
+    icon: RiSettings4Line,
     items: [
       { name: 'Users', path: '/users', icon: RiTeamLine },
       { name: 'Roles & Permissions', path: '/roles-permissions', icon: RiShieldCheckLine },
       { name: 'Activity Logs', path: '/activity-logs', icon: RiHistoryLine },
       { name: 'Company Profile', path: '/settings', icon: RiSettings4Line },
-      {
-        name: 'Basic Data',
-        path: '/basic-data',
-        icon: RiListSettingsLine,
-        children: [
-          { name: 'Other Expenses', path: '/basic-data/other-expenses', icon: RiWallet3Line },
-          { name: 'Lenses', path: '/basic-data/lenses', icon: RiEyeLine },
-          { name: 'Product Categories', path: '/basic-data/product-categories', icon: RiPriceTag3Line },
-          { name: 'Price Rules', path: '/basic-data/complimentary-items', icon: RiPercentLine },
-        ],
-      },
     ],
   },
 ]
@@ -176,64 +192,61 @@ function getSavedOrder(): string[] {
   return ALL_SECTIONS.map((s) => s.id)
 }
 
+const matchesPath = (pathname: string, path: string) =>
+  path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)
+
+// Active entries use the brand colour so "where am I" is obvious at a glance
+const ACTIVE_ITEM = 'data-[active=true]:bg-sidebar-primary/10 data-[active=true]:font-medium data-[active=true]:text-sidebar-primary [&>svg]:data-[active=true]:text-sidebar-primary'
+
 const AppSidebar = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
-  const { isMobile, setOpenMobile } = useSidebar()
+  const navigate = useNavigate()
+  const { isMobile, setOpenMobile, state } = useSidebar()
+  const isCollapsed = state === 'collapsed' && !isMobile
 
   const [sectionOrder, setSectionOrder] = useState<string[]>(getSavedOrder)
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [draftOrder, setDraftOrder] = useState<string[]>([])
 
-  // Derive which section contains the active route so we can auto-expand it
-  const activeSectionId = useMemo(() => {
-    for (const s of ALL_SECTIONS) {
-      for (const item of s.items) {
-        if (item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)) return s.id
-        if (item.children?.some((c) => location.pathname.startsWith(c.path))) return s.id
-      }
-    }
-    return null
-  }, [location.pathname])
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    for (const s of ALL_SECTIONS) {
-      if (s.title) initial[s.id] = true
-    }
-    return initial
+  // Orders waiting for collection — shared cache with the header notifications
+  const { data: readyData } = useQuery({
+    queryKey: ['sales-orders-ready-count'],
+    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 1, status: 'ready' }),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   })
+  const readyCount = readyData?.total ?? 0
 
-  // Auto-expand section when navigating into it from somewhere else
+  const isActive = useCallback((path: string) => matchesPath(location.pathname, path), [location.pathname])
+
+  // The section holding the current page starts (and stays) open
+  const activeSectionId = useMemo(
+    () => ALL_SECTIONS.find((s) => s.title && s.items.some((item) => isActive(item.path)))?.id ?? null,
+    [isActive],
+  )
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    activeSectionId ? { [activeSectionId]: true } : {},
+  )
+
   useEffect(() => {
     if (activeSectionId) {
-      setOpenGroups((prev) => prev[activeSectionId] ? prev : { ...prev, [activeSectionId]: true })
+      setOpenGroups((prev) => (prev[activeSectionId] ? prev : { ...prev, [activeSectionId]: true }))
     }
   }, [activeSectionId])
-
-  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
-    'Basic Data': true,
-  })
-
-  const toggleGroup = (id: string) =>
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
-
-  const toggleSubMenu = (name: string) =>
-    setOpenSubMenus((prev) => ({ ...prev, [name]: !prev[name] }))
-
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
   const handleNavClick = useCallback(() => {
     if (isMobile) setOpenMobile(false)
   }, [isMobile, setOpenMobile])
 
-  // Build ordered sections from current sectionOrder
   const orderedSections = sectionOrder
     .map((id) => ALL_SECTIONS.find((s) => s.id === id))
     .filter(Boolean) as NavSection[]
 
-  // Customize dialog helpers
+  const badgeFor = (path: string) => (path === '/sales-orders' && readyCount > 0 ? readyCount : 0)
+
+  // ── Customize dialog helpers ─────────────────────────────────────────────
   const openCustomize = () => {
     setDraftOrder(sectionOrder)
     setCustomizeOpen(true)
@@ -278,137 +291,143 @@ const AppSidebar = () => {
   }
   const onDragEnd = () => { dragIdx.current = null; setDragOver(null) }
 
+  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ''
+
   return (
     <>
       <ShadcnSidebar collapsible="icon">
-        {/* Brand */}
-        <SidebarHeader>
+        {/* Brand + primary action */}
+        <SidebarHeader className="gap-3 px-3 pt-4">
+          <NavLink to="/" onClick={handleNavClick} className="flex items-center gap-2.5 rounded-md px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <BrandLogo className="h-7 w-10 text-sidebar-primary group-data-[collapsible=icon]:w-8" />
+            <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
+              <span className="truncate text-sm font-semibold text-sidebar-foreground">Vision Opticals</span>
+              <span className="truncate text-[11px] text-muted-foreground">Eye Care ERP</span>
+            </div>
+          </NavLink>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
-                <div className="flex items-center gap-3 cursor-default select-none">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <span className="text-sm font-bold">EC</span>
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Sequence</span>
-                    <span className="truncate text-xs text-muted-foreground">Eye Care ERP</span>
-                  </div>
-                  <button
-                    className="ml-auto p-1 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={(e) => { e.stopPropagation(); openCustomize() }}
-                    title="Customize navigation"
-                  >
-                    <RiListSettingsLine className="size-3.5" />
-                  </button>
-                </div>
+              <SidebarMenuButton
+                asChild
+                tooltip="New sales order"
+                className="h-9 justify-center bg-primary text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+              >
+                <NavLink to="/sales-orders/assistant" onClick={handleNavClick}>
+                  <RiAddLine />
+                  <span>New sales order</span>
+                </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
 
+        <SidebarSeparator className="mx-3" />
+
         {/* Navigation */}
         <SidebarContent>
-          {orderedSections.map((section, sectionIdx) => (
-            <SidebarGroup key={sectionIdx}>
-              {section.title && (
-                <>
-                  <SidebarGroupLabel
-                    className={`flex w-full cursor-pointer items-center justify-between transition-colors select-none
-                      ${openGroups[section.id]
-                        ? 'text-foreground/70 hover:text-foreground'
-                        : 'text-muted-foreground/50 hover:text-muted-foreground'
-                      }`}
-                    onClick={() => toggleGroup(section.id)}
-                  >
-                    {section.title}
-                    <RiArrowDownSLine
-                      className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${openGroups[section.id] ? 'rotate-180' : ''}`}
-                    />
-                  </SidebarGroupLabel>
-
-                  {openGroups[section.id] && (
-                    <SidebarMenu>
-                      {section.items.map((item) => {
-                        if (item.children?.length) {
-                          const isSubmenuOpen = openSubMenus[item.name] ?? true
-                          const hasActiveChild = item.children.some((c) =>
-                            location.pathname.startsWith(c.path)
-                          )
-                          return (
-                            <SidebarMenuItem key={item.name}>
-                              <SidebarMenuButton
-                                tooltip={item.name}
-                                isActive={hasActiveChild}
-                                onClick={() => toggleSubMenu(item.name)}
-                              >
-                                <item.icon />
-                                <span>{item.name}</span>
-                                <RiArrowDownSLine className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
-                              </SidebarMenuButton>
-                              {isSubmenuOpen && (
-                                <SidebarMenuSub>
-                                  {item.children.map((child) => (
-                                    <SidebarMenuSubItem key={child.path}>
-                                      <SidebarMenuSubButton asChild isActive={isActive(child.path)}>
-                                        <NavLink to={child.path} onClick={handleNavClick}>
-                                          <child.icon />
-                                          <span>{child.name}</span>
-                                        </NavLink>
-                                      </SidebarMenuSubButton>
-                                    </SidebarMenuSubItem>
-                                  ))}
-                                </SidebarMenuSub>
-                              )}
-                            </SidebarMenuItem>
-                          )
-                        }
-
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              asChild
-                              tooltip={item.name}
-                              isActive={isActive(item.path)}
-                            >
-                              <NavLink to={item.path} end={item.path === '/'} onClick={handleNavClick}>
-                                <item.icon />
-                                <span>{item.name}</span>
-                              </NavLink>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )
-                      })}
-                    </SidebarMenu>
-                  )}
-                </>
-              )}
-
-              {/* Ungrouped section (Dashboard) */}
-              {!section.title && (
-                <SidebarMenu>
-                  {section.items.map((item) => (
+          <SidebarGroup className="px-2">
+            <SidebarMenu className="gap-0.5">
+              {orderedSections.map((section) => {
+                // Dashboard: a single link
+                if (!section.title) {
+                  return section.items.map((item) => (
                     <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.name}
-                        isActive={isActive(item.path)}
-                      >
+                      <SidebarMenuButton asChild tooltip={item.name} isActive={isActive(item.path)} className={`h-9 text-sm ${ACTIVE_ITEM}`}>
                         <NavLink to={item.path} end onClick={handleNavClick}>
                           <item.icon />
                           <span>{item.name}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              )}
-            </SidebarGroup>
-          ))}
+                  ))
+                }
+
+                const sectionActive = section.id === activeSectionId
+                const sectionBadge = section.items.reduce((n, item) => n + badgeFor(item.path), 0)
+
+                // Icon-only sidebar: each section opens a flyout menu
+                if (isCollapsed) {
+                  return (
+                    <SidebarMenuItem key={section.id}>
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <SidebarMenuButton tooltip={section.title} isActive={sectionActive} className={`h-9 ${ACTIVE_ITEM}`}>
+                            <section.icon />
+                            <span>{section.title}</span>
+                          </SidebarMenuButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="right" align="start" className="w-52">
+                          <DropdownMenuLabel>{section.title}</DropdownMenuLabel>
+                          {section.items.map((item) => (
+                            <DropdownMenuItem key={item.path} asChild className={`gap-2.5 ${isActive(item.path) ? 'font-medium text-primary' : ''}`}>
+                              <NavLink to={item.path}>
+                                <item.icon className="h-4 w-4" />
+                                <span className="flex-1">{item.name}</span>
+                                {badgeFor(item.path) > 0 && <span className="text-xs text-primary">{badgeFor(item.path)}</span>}
+                              </NavLink>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SidebarMenuItem>
+                  )
+                }
+
+                const isOpen = !!openGroups[section.id]
+                return (
+                  <Collapsible
+                    key={section.id}
+                    open={isOpen}
+                    onOpenChange={(open) => setOpenGroups((prev) => ({ ...prev, [section.id]: open }))}
+                    asChild
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          tooltip={section.title}
+                          className={`h-9 text-sm ${sectionActive ? 'font-medium text-sidebar-foreground' : 'text-sidebar-foreground/80'}`}
+                        >
+                          <section.icon className={sectionActive ? 'text-sidebar-primary' : ''} />
+                          <span>{section.title}</span>
+                          {!isOpen && sectionBadge > 0 && (
+                            <span className="ml-auto rounded-full bg-sidebar-primary/10 px-1.5 text-[11px] font-semibold text-sidebar-primary">
+                              {sectionBadge}
+                            </span>
+                          )}
+                          <RiArrowRightSLine className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${!isOpen && sectionBadge > 0 ? '' : 'ml-auto'} ${isOpen ? 'rotate-90' : ''}`} />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub className="mr-0 gap-0.5 py-1">
+                          {section.items.map((item) => (
+                            <SidebarMenuSubItem key={item.path}>
+                              <SidebarMenuSubButton asChild isActive={isActive(item.path)} className={`h-8 text-[13px] ${ACTIVE_ITEM}`}>
+                                <NavLink to={item.path} onClick={handleNavClick}>
+                                  <span className="flex-1 truncate">{item.name}</span>
+                                  {badgeFor(item.path) > 0 && (
+                                    <span
+                                      className="ml-auto rounded-full bg-sidebar-primary/10 px-1.5 text-[11px] font-semibold text-sidebar-primary"
+                                      title={`${badgeFor(item.path)} ready for collection`}
+                                    >
+                                      {badgeFor(item.path)}
+                                    </span>
+                                  )}
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
         </SidebarContent>
 
-        {/* User footer */}
-        <SidebarFooter>
+        {/* Account */}
+        <SidebarFooter className="border-t border-sidebar-border">
           <SidebarMenu>
             <SidebarMenuItem>
               <DropdownMenu modal={false}>
@@ -424,19 +443,26 @@ const AppSidebar = () => {
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">{user?.name || 'User'}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {user?.email || user?.role || ''}
-                      </span>
+                      <span className="truncate text-xs text-muted-foreground">{roleLabel || user?.email || ''}</span>
                     </div>
-                    <RiMore2Line className="ml-auto h-4 w-4 shrink-0" />
+                    <RiArrowUpDownLine className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-56 rounded-lg"
-                  side="top"
-                  align="end"
-                  sideOffset={4}
-                >
+                <DropdownMenuContent className="w-60 rounded-lg" side={isMobile ? 'bottom' : 'right'} align="end" sideOffset={6}>
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-medium">{user?.name || 'User'}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/settings')} className="gap-2">
+                    <RiSettings4Line className="h-4 w-4" />
+                    Company profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={openCustomize} className="gap-2">
+                    <RiListSettingsLine className="h-4 w-4" />
+                    Reorder menu sections
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => void logout()} className="gap-2 text-destructive focus:text-destructive">
                     <RiLogoutBoxRLine className="h-4 w-4" />
                     Sign out
@@ -454,10 +480,10 @@ const AppSidebar = () => {
       <Dialog open={customizeOpen} onOpenChange={(o) => !o && setCustomizeOpen(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Customize Navigation</DialogTitle>
+            <DialogTitle>Reorder menu sections</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground -mt-1">
-            Reorder sections to suit your workflow.
+            Drag sections, or use the arrows, to put the ones you use most at the top.
           </p>
           <ul className="mt-1 space-y-1">
             {draftOrder.map((id, idx) => {
@@ -477,12 +503,14 @@ const AppSidebar = () => {
                     ${isOver ? 'border-primary bg-primary/10' : 'border-border/60 bg-muted/30'}`}
                 >
                   <RiDraggable className="size-4 text-muted-foreground shrink-0" />
+                  <section.icon className="size-4 text-muted-foreground shrink-0" />
                   <span className="flex-1 text-sm font-medium">{label}</span>
                   <div className="flex gap-0.5">
                     <Button
                       variant="ghost" size="sm" className="h-6 w-6 p-0"
                       disabled={idx === 0}
                       onClick={() => moveSection(idx, -1)}
+                      aria-label={`Move ${label} up`}
                     >
                       <RiArrowUpSLine className="size-3.5" />
                     </Button>
@@ -490,6 +518,7 @@ const AppSidebar = () => {
                       variant="ghost" size="sm" className="h-6 w-6 p-0"
                       disabled={idx === draftOrder.length - 1}
                       onClick={() => moveSection(idx, 1)}
+                      aria-label={`Move ${label} down`}
                     >
                       <RiArrowDownSLine className="size-3.5" />
                     </Button>

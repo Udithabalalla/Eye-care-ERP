@@ -62,6 +62,11 @@ const Invoices = () => {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
+  // Deep links (e.g. from notifications) can pre-select a payment status
+  const urlStatus = searchParams.get('status')
+  useEffect(() => {
+    if (urlStatus) { setStatusFilter(urlStatus); setPage(1) }
+  }, [urlStatus])
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['invoices', page, pageSize, statusFilter, search],
