@@ -309,6 +309,7 @@ class InvoiceService:
             backend_root / candidate,
             workspace_root / "Frontend" / "public" / candidate,
             workspace_root / "backend" / "static" / candidate,
+            backend_root / "static" / candidate,
         ]
         for path in candidates:
             if path.exists() and path.is_file():

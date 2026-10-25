@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "E:\\Eye care ERP\\backend\\venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8001", "--reload"],
+      "cwd": "E:\\Eye care ERP\\backend",
+      "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "E:\\Eye care ERP\\Frontend", "run", "dev"],
+      "cwd": "E:\\Eye care ERP\\Frontend",
+      "env": { "VITE_API_BASE_URL": "http://localhost:8001/api/v1" },
+      "port": 3000
+    }
+  ]
+}

@@ -26,7 +26,7 @@ async def connect_to_mongo():
         retryReads=True,
     )
     db.db = db.client[settings.MONGODB_DB_NAME]
-    print(f"✅ Connected to MongoDB: {settings.MONGODB_DB_NAME}")
+    print(f"[OK] Connected to MongoDB: {settings.MONGODB_DB_NAME}")
     
     # Create indexes
     await create_indexes()
@@ -35,7 +35,7 @@ async def close_mongo_connection():
     """Close MongoDB connection"""
     if db.client:
         db.client.close()
-        print("❌ Closed MongoDB connection")
+        print("[OK] Closed MongoDB connection")
 
 async def create_indexes():
     """Create database indexes for performance optimization"""
@@ -48,7 +48,7 @@ async def create_indexes():
         except (DuplicateKeyError, OperationFailure) as e:
             # Index already exists or duplicate key - skip silently
             index_name = kwargs.get('name', str(keys))
-            print(f"⚠️  Index {index_name} skipped: {str(e)[:50]}...")
+            print(f"[WARN] Index {index_name} skipped: {str(e)[:50]}...")
     
     # Users - authentication and lookup
     await safe_create_index(db.db.users, "email", unique=True)
@@ -172,7 +172,7 @@ async def create_indexes():
     await safe_create_index(db.db.quick_intakes, "supplier_id", sparse=True)
     await safe_create_index(db.db.quick_intakes, [("intake_date", -1)])
 
-    print("✅ Database indexes created")
+    print("[OK] Database indexes created")
 
 def get_database() -> AsyncIOMotorDatabase:
     """Dependency to get database"""
