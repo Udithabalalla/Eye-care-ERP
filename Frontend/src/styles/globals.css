@@ -36,6 +36,10 @@
     --chart-5: oklch(0.424 0.199 265.638);
     --radius: 0.45rem;
 
+    /* Height of the app header (h-16). Sheet panels dock below it so they read
+       as part of the page layout rather than floating over the whole shell. */
+    --sheet-header-offset: 4rem;
+
     --sidebar: oklch(0.987 0.002 197.1);
     --sidebar-foreground: oklch(0.148 0.004 228.8);
     --sidebar-primary: oklch(0.609 0.126 221.723);

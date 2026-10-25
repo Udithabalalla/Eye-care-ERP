@@ -116,9 +116,9 @@ export function QuickPODrawer({ open, onClose, variant, onSuccess }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg overflow-hidden p-0">
+      <SheetContent side="right" className="flex flex-col sm:max-w-lg overflow-hidden p-0">
         <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
-          <div className="flex items-start gap-3 pr-8">
+          <div className="flex items-start gap-3 pr-20">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <RiShoppingCartLine className="size-5 text-primary" />
             </div>
@@ -129,7 +129,7 @@ export function QuickPODrawer({ open, onClose, variant, onSuccess }: Props) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="divide-y divide-border">
 
             <Section icon={RiBox3Line} title="Variant">

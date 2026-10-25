@@ -163,10 +163,10 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-[480px] overflow-hidden p-0">
+      <SheetContent side="right" className="flex flex-col sm:max-w-[480px] overflow-hidden p-0">
         {/* Header */}
         <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
-          <div className="flex items-start gap-3 pr-8">
+          <div className="flex items-start gap-3 pr-20">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
               <RiBox3Line className="size-5 text-primary" />
             </div>
@@ -193,7 +193,7 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
           </TabsList>
 
           {/* ── Overview ── */}
-          <TabsContent value="overview" className="flex-1 overflow-y-auto mt-0 divide-y divide-border">
+          <TabsContent value="overview" className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain mt-0 divide-y divide-border">
             <div className="px-6 py-5 space-y-3">
               <SectionHead icon={RiBox3Line} title="Variant Details" />
               <InfoRow label="Color">{variant.color}</InfoRow>
@@ -243,7 +243,7 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
 
           {/* ── Receive ── */}
           <TabsContent value="receive" className="flex flex-col flex-1 min-h-0 mt-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
               <SectionHead icon={RiArrowDownCircleLine} title="Receive Stock" />
               <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Current Stock</span>
@@ -289,7 +289,7 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
 
           {/* ── Adjust ── */}
           <TabsContent value="adjust" className="flex flex-col flex-1 min-h-0 mt-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
               <SectionHead icon={RiEqualizer2Line} title="Adjust Stock Count" />
               <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Current Stock</span>
@@ -341,7 +341,7 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
 
           {/* ── Print ── */}
           <TabsContent value="print" className="flex flex-col flex-1 min-h-0 mt-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
               <SectionHead icon={RiPrinterLine} title="Print Label" />
               <div className="flex justify-center rounded-xl border border-border bg-white py-6 dark:bg-muted/10">
                 <img
@@ -383,7 +383,7 @@ export function ManageSKUDrawer({ open, onClose, variant }: Props) {
           </TabsContent>
 
           {/* ── History ── */}
-          <TabsContent value="history" className="flex-1 overflow-y-auto mt-0">
+          <TabsContent value="history" className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain mt-0">
             <div className="px-6 py-5">
               <SectionHead icon={RiFileTextLine} title={`Movements${movements.length ? ` (${movements.length})` : ''}`} />
               {movementsLoading ? (
