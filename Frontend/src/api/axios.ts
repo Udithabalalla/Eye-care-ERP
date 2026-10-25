@@ -3,7 +3,7 @@ import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'ax
 import axiosRetry, { isNetworkOrIdempotentRequestError, exponentialDelay } from 'axios-retry'
 import toast from 'react-hot-toast'
 
-const HOSTED_API_BASE_URL = 'https://eye-care-erp-production.up.railway.app/api/v1'
+const HOSTED_API_BASE_URL = 'https://eye-care-api-g01u.onrender.com/api/v1'
 const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
 const AUTH_ENDPOINTS = ['/auth/login', '/auth/me', '/auth/register']
 
@@ -69,7 +69,9 @@ const getRequestKey = (config: InternalAxiosRequestConfig): string => {
 
 export const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  // Render's free plan sleeps when idle and takes up to ~60 s to wake;
+  // axios-retry does not retry timeouts, so the first request must wait it out.
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -96,7 +98,7 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // Give mutation requests more time — Railway cold starts can take 30–60 s
+    // Give mutation requests more time — Render cold starts can take 30–60 s
     const method = config.method?.toLowerCase()
     if (method === 'post' || method === 'put' || method === 'patch') {
       config.timeout = 90000
