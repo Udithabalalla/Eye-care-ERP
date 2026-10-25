@@ -309,7 +309,6 @@ class InvoiceService:
             backend_root / candidate,
             workspace_root / "Frontend" / "public" / candidate,
             workspace_root / "backend" / "static" / candidate,
-            backend_root / "static" / candidate,
         ]
         for path in candidates:
             if path.exists() and path.is_file():
@@ -337,7 +336,19 @@ class InvoiceService:
         drawing.add(seal)
         return drawing
 
-    def _build_invoice_pdf(self, invoice: InvoiceModel, patient, company_profile) -> bytes:
+    def _build_invoice_pdf(
+        self,
+        invoice: InvoiceModel,
+        patient,
+        company_profile,
+        title: str = "INVOICE",
+        number_label: str = "Invoice number",
+        banner: Optional[str] = None,
+    ) -> bytes:
+        """
+        The printed invoice, laid out like the on-screen preview (InvoicePreview.tsx).
+        Sales orders without an invoice print through here too, under their own title.
+        """
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
@@ -346,7 +357,7 @@ class InvoiceService:
             rightMargin=16 * mm,
             topMargin=16 * mm,
             bottomMargin=16 * mm,
-            title=f"Invoice {invoice.invoice_number}",
+            title=f"{title.title()} {invoice.invoice_number}",
         )
         ink = colors.HexColor("#0F172A")
         slate = colors.HexColor("#64748B")
@@ -376,9 +387,12 @@ class InvoiceService:
         logo = Image(str(logo_path), width=24 * mm, height=18.4 * mm, kind="proportional") if logo_path else Paragraph("", normal)
 
         header_left = [
-            Paragraph("INVOICE", title_style),
-            Paragraph(f"Invoice number &nbsp;<font color='#0F172A'>#{invoice.invoice_number}</font>", muted),
+            Paragraph(title, title_style),
+            Paragraph(f"{number_label} &nbsp;<font color='#0F172A'>#{invoice.invoice_number}</font>", muted),
         ]
+        if banner:
+            header_left.append(Spacer(1, 1.5 * mm))
+            header_left.append(Paragraph(f"<font color='#B45309'>{banner}</font>", muted))
         header_tbl = Table([[header_left, logo]], colWidths=[content_width - 30 * mm, 30 * mm])
         header_tbl.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),

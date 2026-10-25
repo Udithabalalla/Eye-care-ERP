@@ -165,3 +165,26 @@ async def test_confirming_draft_via_status_endpoint_deducts_stock(db):
     await service.update_sales_order_status(draft.order_id, SalesOrderStatus.CONFIRMED, USER)
     assert await _stock(db) == 3
     assert await _net_sale(db, draft.order_id) == 220
+
+
+async def test_order_download_is_the_invoice_copy_shown_on_screen(db):
+    service = SalesOrderService(db)
+    calls = []
+    original = service.invoice_service._build_invoice_pdf
+
+    def spy(invoice, patient, company, **kwargs):
+        calls.append((invoice.invoice_number, kwargs.get("title", "INVOICE"), kwargs.get("banner")))
+        return original(invoice, patient, company, **kwargs)
+
+    service.invoice_service._build_invoice_pdf = spy
+
+    draft = await service.create_sales_order(_order(status=SalesOrderStatus.DRAFT), USER)
+    pdf, name = await service.generate_sales_order_pdf(draft.order_id)
+    assert pdf.startswith(b"%PDF") and name == f"{draft.order_number}.pdf"
+    assert calls[-1] == (draft.order_number, "SALES ORDER", "DRAFT — not confirmed yet")
+
+    order = await service.create_sales_order(_order(), USER)
+    invoice = await service.generate_invoice(order.order_id, USER)
+    pdf, _ = await service.generate_sales_order_pdf(order.order_id)
+    assert pdf.startswith(b"%PDF")
+    assert calls[-1] == (invoice.invoice_number, "INVOICE", None)

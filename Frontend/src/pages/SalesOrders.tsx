@@ -298,16 +298,16 @@ const SalesOrders = () => {
 
     actions.push({
       id: 'download-receipt',
-      label: 'Download Receipt',
+      label: 'Download PDF',
       icon: RiDownloadLine,
       onClick: async (rows) => {
         const order = rows[0]
         try {
           const blob = await salesOrdersApi.downloadPDF(order.order_id)
           downloadFile(blob, `${order.order_number}.pdf`)
-          toast.success('Receipt downloaded')
+          toast.success('PDF downloaded')
         } catch {
-          toast.error('Failed to download receipt')
+          toast.error('Failed to download PDF')
         }
       },
       showWhen: 'single',
@@ -530,14 +530,14 @@ const SalesOrders = () => {
                       try {
                         const blob = await salesOrdersApi.downloadPDF(order.order_id)
                         downloadFile(blob, `${order.order_number}.pdf`)
-                        toast.success('Receipt downloaded')
+                        toast.success('PDF downloaded')
                       } catch {
-                        toast.error('Failed to download receipt')
+                        toast.error('Failed to download PDF')
                       }
                     }}
                   >
                     <RiDownloadLine className="size-4" />
-                    Download Receipt
+                    Download PDF
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

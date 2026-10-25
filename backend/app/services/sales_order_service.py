@@ -1,16 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
-from pathlib import Path
-import io
 import math
+from types import SimpleNamespace
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, HRFlowable, KeepTogether,
-)
 
 from app.repositories.sales_order_repository import SalesOrderRepository
 from app.repositories.patient_repository import PatientRepository
@@ -28,7 +20,6 @@ from app.services.inventory_movement_service import InventoryMovementService
 from app.services.transaction_service import TransactionService
 from app.services.invoice_service import InvoiceService
 from app.services.company_profile_service import CompanyProfileService
-from app.services.barcode_service import generate_barcode_png
 from app.schemas.inventory_movement import InventoryMovementCreate
 from app.schemas.transaction import TransactionCreate
 from app.schemas.invoice import InvoiceCreate
@@ -841,583 +832,65 @@ class SalesOrderService:
     # ── Sales order receipt PDF ───────────────────────────────────────────────
 
     async def generate_sales_order_pdf(self, order_id: str) -> tuple[bytes, str]:
-        """Render a printable A4 sales-order receipt for download."""
+        """The order's printable copy — the same layout as the invoice preview on screen."""
         order = await self.repo.get_by_order_id(order_id)
         if not order:
             raise NotFoundException(f"Sales order with ID {order_id} not found")
 
         patient = await self.patient_repo.get_by_patient_id(order.patient_id)
         company_profile = await self.company_profile_service.get_company_profile()
-        invoice = None
-        if order.invoice_id:
-            invoice = await self.invoice_repo.get_by_invoice_id(order.invoice_id)
+        invoice = await self.invoice_repo.get_by_invoice_id(order.invoice_id) if order.invoice_id else None
 
-        pdf_bytes = self._build_sales_order_pdf(order, patient, company_profile, invoice)
-        filename = f"{order.order_number}.pdf"
-        return pdf_bytes, filename
+        # The download is the same copy as the invoice preview on screen. An order
+        # without an invoice (a draft, or a past paper order) prints the same layout
+        # under its own number.
+        if invoice:
+            pdf_bytes = self.invoice_service._build_invoice_pdf(invoice, patient, company_profile)
+        else:
+            status = order.status.value if hasattr(order.status, "value") else str(order.status)
+            pdf_bytes = self.invoice_service._build_invoice_pdf(
+                self._order_as_invoice(order, patient),
+                patient,
+                company_profile,
+                title="SALES ORDER",
+                number_label="Order number",
+                banner="DRAFT — not confirmed yet" if status == "draft" else None,
+            )
+        return pdf_bytes, f"{order.order_number}.pdf"
 
-    @staticmethod
-    def _fmt_money(value: Optional[float]) -> str:
-        return f"LKR {(value or 0):,.2f}"
-
-    @staticmethod
-    def _fmt_date(value) -> str:
-        if not value:
-            return "-"
-        if isinstance(value, str):
-            try:
-                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                return value
-        if isinstance(value, datetime):
-            return value.strftime("%d %b %Y")
-        if isinstance(value, date):
-            return value.strftime("%d %b %Y")
-        return str(value)
-
-    @staticmethod
-    def _fmt_time(value) -> str:
-        if not value:
-            return "-"
-        if isinstance(value, str):
-            try:
-                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                return "-"
-        if isinstance(value, datetime):
-            return value.strftime("%I:%M %p").lstrip("0")
-        return "-"
-
-    @staticmethod
-    def _resolve_asset_path(candidate: Optional[str]) -> Optional[Path]:
-        if not candidate:
-            return None
-        service_file = Path(__file__).resolve()
-        workspace_root = service_file.parents[3]
-        backend_root = service_file.parents[2]
-        path_candidate = Path(candidate)
-        for path in (
-            path_candidate,
-            workspace_root / candidate,
-            backend_root / candidate,
-            workspace_root / "Frontend" / "public" / candidate,
-            workspace_root / "backend" / "static" / candidate,
-        ):
-            if path.exists() and path.is_file():
-                return path
-        return None
-
-    @staticmethod
-    def _patient_address(patient) -> str:
-        if not patient or not getattr(patient, "address", None):
-            return "-"
-        addr = patient.address
-        parts = [
-            getattr(addr, "street", None),
-            getattr(addr, "city", None),
-            getattr(addr, "state", None),
-            getattr(addr, "zip_code", None),
-            getattr(addr, "country", None),
-        ]
-        return ", ".join(p for p in parts if p) or "-"
-
-    @staticmethod
-    def _payment_status_label(status: Optional[str], paid: float, total: float) -> str:
-        key = (status or "").lower()
-        if key in ("paid", "fully_paid"):
-            return "Fully Paid"
-        if key in ("partial", "partially_paid"):
-            return "Partially Paid"
-        if key in ("overdue",):
-            return "Overdue"
-        if paid <= 0:
-            return "Unpaid"
-        if total > 0 and paid >= total:
-            return "Fully Paid"
-        if paid > 0:
-            return "Partially Paid"
-        return "Unpaid"
-
-    def _build_sales_order_pdf(self, order: SalesOrderModel, patient, company_profile, invoice) -> bytes:
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            leftMargin=14 * mm,
-            rightMargin=14 * mm,
-            topMargin=12 * mm,
-            bottomMargin=12 * mm,
-            title=f"Sales Order {order.order_number}",
-        )
-
-        BLUE = colors.HexColor("#1B4F9C")
-        BLUE_DARK = colors.HexColor("#0F3A7A")
-        BLUE_SOFT = colors.HexColor("#E8F0FE")
-        GRAY_BG = colors.HexColor("#F3F4F6")
-        GRAY_LINE = colors.HexColor("#E5E7EB")
-        GRAY_TEXT = colors.HexColor("#6B7280")
-        DARK = colors.HexColor("#111827")
-
-        styles = getSampleStyleSheet()
-        brand = ParagraphStyle(
-            "SOBrand", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=18, leading=22, textColor=BLUE_DARK,
-        )
-        tagline = ParagraphStyle(
-            "SOTagline", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8, leading=11, textColor=GRAY_TEXT, spaceBefore=1,
-        )
-        contact = ParagraphStyle(
-            "SOContact", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8, leading=12, textColor=GRAY_TEXT, alignment=2,
-        )
-        title = ParagraphStyle(
-            "SOTitle", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=20, leading=24, textColor=DARK,
-        )
-        subtitle = ParagraphStyle(
-            "SOSubtitle", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8, leading=11, textColor=GRAY_TEXT, spaceBefore=2,
-        )
-        section_h = ParagraphStyle(
-            "SOSection", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=8, leading=10, textColor=GRAY_TEXT,
-        )
-        label = ParagraphStyle(
-            "SOLabel", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8, leading=11, textColor=GRAY_TEXT,
-        )
-        value = ParagraphStyle(
-            "SOValue", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=9, leading=12, textColor=DARK,
-        )
-        value_b = ParagraphStyle(
-            "SOValueB", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=9, leading=12, textColor=DARK,
-        )
-        th = ParagraphStyle(
-            "SOTh", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=7.5, leading=10, textColor=GRAY_TEXT,
-        )
-        td = ParagraphStyle(
-            "SOTd", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8.5, leading=11, textColor=DARK,
-        )
-        td_b = ParagraphStyle(
-            "SOTdB", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=8.5, leading=11, textColor=DARK,
-        )
-        td_muted = ParagraphStyle(
-            "SOTdMuted", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=7.5, leading=10, textColor=GRAY_TEXT,
-        )
-        small = ParagraphStyle(
-            "SOSmall", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=8, leading=11, textColor=DARK,
-        )
-        note = ParagraphStyle(
-            "SONote", parent=styles["Normal"], fontName="Helvetica",
-            fontSize=7.5, leading=11, textColor=GRAY_TEXT,
-        )
-        balance = ParagraphStyle(
-            "SOBalance", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=12, leading=15, textColor=BLUE,
-        )
-        badge = ParagraphStyle(
-            "SOBadge", parent=styles["Normal"], fontName="Helvetica-Bold",
-            fontSize=8, leading=10, textColor=BLUE_DARK, alignment=1,
-        )
-
-        story = []
+    def _order_as_invoice(self, order: SalesOrderModel, patient) -> SimpleNamespace:
+        """The fields the invoice layout reads, taken from an order that has no invoice."""
         meas = order.measurements if isinstance(order.measurements, dict) else {}
-
-        # ── Header ────────────────────────────────────────────────────────
-        company_name = (company_profile.company_name or settings.APP_NAME or "Eye Care").upper()
-        contact_lines = []
-        if company_profile.address:
-            contact_lines.append(company_profile.address)
-        if company_profile.phone:
-            contact_lines.append(company_profile.phone)
-        if company_profile.email:
-            contact_lines.append(company_profile.email)
-
-        logo_path = self._resolve_asset_path(company_profile.company_logo or "Logo.png")
-        brand_block = []
-        if logo_path:
-            brand_block.append(Image(str(logo_path), width=14 * mm, height=14 * mm))
-        brand_block.append(Paragraph(company_name, brand))
-        brand_block.append(Paragraph("EYE CARE &amp; VISION SOLUTIONS", tagline))
-
-        header = Table(
-            [[brand_block, Paragraph("<br/>".join(contact_lines) or "-", contact)]],
-            colWidths=[110 * mm, 68 * mm],
+        paid = self._extract_advance_payment(meas)
+        total = float(order.total_amount or 0)
+        balance = max(total - paid, 0.0)
+        order_date = meas.get("order_date")
+        if isinstance(order_date, str):
+            try:
+                order_date = datetime.fromisoformat(order_date.replace("Z", "+00:00"))
+            except ValueError:
+                order_date = None
+        status = "paid" if total > 0 and balance <= 0.005 else "partial" if paid > 0 else "pending"
+        return SimpleNamespace(
+            invoice_number=order.order_number,
+            payment_status=status,
+            total_amount=total,
+            balance_due=round(balance, 2),
+            paid_amount=round(paid, 2),
+            patient_name=getattr(patient, "name", None) or "-",
+            patient_phone=getattr(patient, "phone", None),
+            patient_email=str(patient.email) if patient and getattr(patient, "email", None) else None,
+            invoice_date=order_date if isinstance(order_date, datetime) else order.created_at,
+            due_date=order.date_of_full_payment,
+            sales_order_id=order.order_number,
+            prescription_id=order.prescription_id,
+            items=order.items,
+            subtotal=float(order.subtotal or 0),
+            total_discount=float(order.discount_amount or meas.get("discount") or 0),
+            total_tax=0,
+            payment_date=None,
+            updated_at=order.updated_at,
+            payment_method=None,
+            transaction_id=None,
+            notes=order.notes,
         )
-        header.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(header)
-        story.append(Spacer(1, 3 * mm))
-        story.append(HRFlowable(width="100%", thickness=0.8, color=GRAY_LINE, spaceBefore=0, spaceAfter=4 * mm))
-
-        # ── Title + Order No ──────────────────────────────────────────────
-        order_no_box = Table(
-            [[
-                Paragraph("ORDER NO.", ParagraphStyle("ONL", parent=label, alignment=1, fontSize=7)),
-            ], [
-                Paragraph(order.order_number, ParagraphStyle("ONV", parent=value_b, alignment=1, fontSize=11, textColor=BLUE_DARK)),
-            ]],
-            colWidths=[42 * mm],
-        )
-        order_no_box.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), BLUE_SOFT),
-            ("BOX", (0, 0), (-1, -1), 0, BLUE_SOFT),
-            ("TOPPADDING", (0, 0), (-1, 0), 5),
-            ("BOTTOMPADDING", (0, -1), (-1, -1), 6),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-
-        title_row = Table(
-            [[
-                [Paragraph("SALES ORDER", title), Paragraph("RECEIPT / ORDER CONFIRMATION", subtitle)],
-                order_no_box,
-            ]],
-            colWidths=[136 * mm, 42 * mm],
-        )
-        title_row.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(title_row)
-        story.append(Spacer(1, 5 * mm))
-
-        # ── Customer + Order details ──────────────────────────────────────
-        patient_name = (
-            (patient.name if patient else None)
-            or getattr(order, "patient_name", None)
-            or "-"
-        )
-        patient_phone = (patient.phone if patient else None) or "-"
-        patient_addr = self._patient_address(patient)
-
-        order_date_raw = meas.get("order_date") or order.created_at
-        order_type_raw = str(meas.get("order_type") or "Retail").replace("_", " ").title()
-        if order_type_raw.upper() in ("FULL ORDER", "PARTIAL ORDER"):
-            order_type_label = order_type_raw.title()
-        else:
-            order_type_label = order_type_raw
-        sale_loc = (order.sale_location or "institute")
-        if hasattr(sale_loc, "value"):
-            sale_loc = sale_loc.value
-        sale_loc_label = str(sale_loc).replace("_", " ").title()
-
-        def info_panel(heading: str, rows: list[tuple[str, str]]) -> Table:
-            body = [[Paragraph(heading, section_h)]]
-            for k, v in rows:
-                body.append([
-                    Paragraph(f"{k}:  <font color='#111827'><b>{v}</b></font>", label)
-                ])
-            t = Table(body, colWidths=[87 * mm])
-            t.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), GRAY_BG),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.white),
-                ("BOX", (0, 0), (-1, -1), 0.5, GRAY_LINE),
-                ("LINEBELOW", (0, 0), (-1, 0), 0.5, GRAY_LINE),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, 0), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-                ("TOPPADDING", (0, 1), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]))
-            return t
-
-        panels = Table(
-            [[
-                info_panel("CUSTOMER / PATIENT", [
-                    ("Name", patient_name),
-                    ("Phone", patient_phone),
-                    ("Address", patient_addr),
-                ]),
-                info_panel("ORDER DETAILS", [
-                    ("Date", self._fmt_date(order_date_raw)),
-                    ("Time", self._fmt_time(order.created_at)),
-                    ("Order Type", order_type_label),
-                    ("Sale Location", sale_loc_label),
-                ]),
-            ]],
-            colWidths=[89 * mm, 89 * mm],
-        )
-        panels.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (0, 0), 4),
-            ("LEFTPADDING", (1, 0), (1, 0), 4),
-            ("RIGHTPADDING", (1, 0), (1, 0), 0),
-        ]))
-        story.append(panels)
-        story.append(Spacer(1, 5 * mm))
-
-        # ── Line items ────────────────────────────────────────────────────
-        type_labels = {
-            "frame": "Frame",
-            "lens": "Lens",
-            "expense": "Expense",
-            "complimentary": "Complimentary",
-            "product": "Product",
-        }
-        item_rows = [[
-            Paragraph("#", th),
-            Paragraph("ITEM", th),
-            Paragraph("DETAILS", th),
-            Paragraph("QTY", th),
-            Paragraph("UNIT PRICE (LKR)", th),
-            Paragraph("AMOUNT (LKR)", th),
-        ]]
-
-        for idx, item in enumerate(order.items or [], start=1):
-            line_type = (item.line_type or "product").lower()
-            is_free = line_type == "complimentary" or (item.unit_price or 0) == 0 and (item.total or 0) == 0
-            item_label = type_labels.get(line_type, "Product")
-            if line_type in ("product", "expense"):
-                item_label = item.product_name or item_label
-                details_bits = []
-                if line_type == "expense":
-                    details_bits.append("Other Expense")
-                else:
-                    details_bits.append("General Item")
-                if item.sku:
-                    details_bits.append(f"SKU: {item.sku}")
-                details_html = "<br/>".join(details_bits)
-            else:
-                details_bits = [item.product_name or "-"]
-                if item.sku:
-                    details_bits.append(f"SKU: {item.sku}")
-                if is_free and line_type == "complimentary":
-                    details_bits = [item.product_name or "Complimentary Item"]
-                details_html = "<br/>".join(details_bits)
-
-            unit_txt = "Free" if is_free else f"{(item.unit_price or 0):,.2f}"
-            amt_txt = "Free" if is_free else f"{(item.total or 0):,.2f}"
-
-            item_rows.append([
-                Paragraph(str(idx), td),
-                Paragraph(item_label, td_b),
-                Paragraph(details_html, td_muted),
-                Paragraph(str(item.quantity), td),
-                Paragraph(unit_txt, td),
-                Paragraph(amt_txt, td_b),
-            ])
-
-        items_table = Table(
-            item_rows,
-            colWidths=[10 * mm, 28 * mm, 58 * mm, 14 * mm, 34 * mm, 34 * mm],
-            repeatRows=1,
-        )
-        items_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), GRAY_BG),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.6, GRAY_LINE),
-            ("LINEBELOW", (0, 1), (-1, -2), 0.4, GRAY_LINE),
-            ("LINEBELOW", (0, -1), (-1, -1), 0.6, GRAY_LINE),
-            ("ALIGN", (0, 0), (0, -1), "CENTER"),
-            ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 3 * mm))
-
-        # ── Totals ────────────────────────────────────────────────────────
-        try:
-            discount = float(meas.get("discount") or 0)
-        except (TypeError, ValueError):
-            discount = 0.0
-        if invoice and getattr(invoice, "total_discount", None):
-            discount = float(invoice.total_discount or discount)
-
-        subtotal = float(order.subtotal or 0)
-        total_amount = float(order.total_amount or 0)
-        if invoice:
-            total_amount = float(invoice.total_amount or total_amount)
-            subtotal = float(invoice.subtotal or subtotal)
-
-        totals_rows = [
-            [Paragraph("Subtotal", label), Paragraph(self._fmt_money(subtotal), value)],
-            [Paragraph("Discount", label), Paragraph(self._fmt_money(discount), value)],
-            [
-                Paragraph("<b>Total Amount</b>", ParagraphStyle("TA", parent=value_b, textColor=BLUE_DARK)),
-                Paragraph(f"<b>{self._fmt_money(total_amount)}</b>", ParagraphStyle("TAV", parent=value_b, textColor=BLUE_DARK, alignment=2)),
-            ],
-        ]
-        totals_inner = Table(totals_rows, colWidths=[40 * mm, 40 * mm])
-        totals_inner.setStyle(TableStyle([
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("BACKGROUND", (0, 2), (-1, 2), BLUE_SOFT),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ("TOPPADDING", (0, 2), (-1, 2), 7),
-            ("BOTTOMPADDING", (0, 2), (-1, 2), 7),
-        ]))
-        totals_wrap = Table([["", totals_inner]], colWidths=[98 * mm, 80 * mm])
-        totals_wrap.setStyle(TableStyle([
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(totals_wrap)
-        story.append(Spacer(1, 5 * mm))
-
-        # ── Payment summary ───────────────────────────────────────────────
-        paid = 0.0
-        if invoice:
-            paid = float(invoice.paid_amount or 0)
-        else:
-            paid = self._extract_advance_payment(meas)
-        balance_due = max(total_amount - paid, 0.0)
-        if invoice and invoice.balance_due is not None:
-            balance_due = float(invoice.balance_due)
-
-        pay_method = "-"
-        if invoice and invoice.payment_method:
-            pay_method = invoice.payment_method.value if hasattr(invoice.payment_method, "value") else str(invoice.payment_method)
-            pay_method = str(pay_method).replace("_", " ").title()
-        elif paid > 0:
-            pay_method = "Cash"
-
-        pay_status = None
-        if invoice and invoice.payment_status:
-            pay_status = invoice.payment_status.value if hasattr(invoice.payment_status, "value") else str(invoice.payment_status)
-        status_label = self._payment_status_label(pay_status, paid, total_amount)
-        due_date = self._fmt_date(order.date_of_full_payment or (invoice.due_date if invoice else None))
-
-        left_pay = Table(
-            [
-                [Paragraph("Order Total", label), Paragraph(self._fmt_money(total_amount), value)],
-                [Paragraph("Amount Paid Today", label), Paragraph(self._fmt_money(paid), value)],
-                [Paragraph("Discount", label), Paragraph(self._fmt_money(discount), value)],
-                [Paragraph("", small)],
-                [Paragraph("Balance Due", ParagraphStyle("BD", parent=value_b, fontSize=11, textColor=BLUE)),
-                 Paragraph(self._fmt_money(balance_due), balance)],
-            ],
-            colWidths=[45 * mm, 40 * mm],
-        )
-        left_pay.setStyle(TableStyle([
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LINEABOVE", (0, 4), (-1, 4), 1.2, BLUE),
-            ("TOPPADDING", (0, 4), (-1, 4), 6),
-            ("BACKGROUND", (0, 0), (-1, -1), BLUE_SOFT),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ]))
-
-        badge_tbl = Table([[Paragraph(status_label, badge)]], colWidths=[32 * mm])
-        badge_tbl.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-            ("BOX", (0, 0), (-1, -1), 0.8, BLUE),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ]))
-
-        right_pay = Table(
-            [
-                [Paragraph("Payment Method", label), Paragraph(f"<b>{pay_method}</b>", value)],
-                [Paragraph("Full Payment Due", label), Paragraph(f"<b>{due_date}</b>", value)],
-                [Paragraph("Order Status", label), badge_tbl],
-            ],
-            colWidths=[38 * mm, 40 * mm],
-        )
-        right_pay.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("BACKGROUND", (0, 0), (-1, -1), BLUE_SOFT),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ]))
-
-        pay_box = Table([[left_pay, right_pay]], colWidths=[95 * mm, 83 * mm])
-        pay_box.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), BLUE_SOFT),
-            ("BOX", (0, 0), (-1, -1), 0, BLUE_SOFT),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ("TOPPADDING", (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ]))
-        story.append(pay_box)
-        story.append(Spacer(1, 6 * mm))
-
-        # ── Notes + signature + barcode ───────────────────────────────────
-        phone_for_notes = company_profile.phone or "the clinic"
-        notes_lines = [
-            f"• Please bring this receipt when collecting your spectacles.",
-            f"• Present this receipt for any future payments against this order.",
-            f"• Full payment is due by the date shown above unless otherwise agreed.",
-            f"• For questions, contact us at {phone_for_notes}.",
-            "• Thank you for choosing us for your vision care.",
-        ]
-        if order.notes:
-            notes_lines.insert(0, f"• Note: {order.notes}")
-
-        notes_block = [
-            Paragraph("<b>Important Notes</b>", value_b),
-            Spacer(1, 1.5 * mm),
-            Paragraph("<br/>".join(notes_lines), note),
-        ]
-
-        barcode_flowable = Paragraph("", small)
-        try:
-            bc_png = generate_barcode_png(order.order_number)
-            barcode_flowable = Image(io.BytesIO(bc_png), width=48 * mm, height=14 * mm)
-        except Exception:
-            pass
-
-        sig_block = Table(
-            [
-                [Paragraph("______________________________", ParagraphStyle("Sig", parent=small, alignment=1))],
-                [Paragraph("Authorized Signature", ParagraphStyle("SigL", parent=note, alignment=1))],
-                [Spacer(1, 4 * mm)],
-                [barcode_flowable],
-                [Paragraph(order.order_number, ParagraphStyle("BC", parent=note, alignment=1))],
-            ],
-            colWidths=[70 * mm],
-        )
-        sig_block.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("TOPPADDING", (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-        ]))
-
-        footer = Table([[notes_block, sig_block]], colWidths=[105 * mm, 73 * mm])
-        footer.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(KeepTogether(footer))
-
-        doc.build(story)
-        return buffer.getvalue()

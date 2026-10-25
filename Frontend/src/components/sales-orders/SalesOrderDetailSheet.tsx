@@ -165,9 +165,9 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     try {
       const blob = await salesOrdersApi.downloadPDF(order.order_id)
       downloadFile(blob, `${order.order_number}.pdf`)
-      toast.success('Receipt downloaded')
+      toast.success('PDF downloaded')
     } catch {
-      toast.error('Failed to download receipt')
+      toast.error('Failed to download PDF')
     } finally {
       setDownloading(false)
     }
@@ -398,7 +398,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-1.5" onClick={handleDownloadPDF} disabled={downloading}>
                 {downloading ? <RiLoader4Line className="size-4 animate-spin" /> : <RiDownloadLine className="size-4" />}
-                Receipt
+                PDF
               </Button>
               {order.invoice_id && (
                 <Button variant="outline" className="flex-1 gap-1.5" onClick={() => goTo(`/invoices?detail=${order.invoice_id}`)}>
