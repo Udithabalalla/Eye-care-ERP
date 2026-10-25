@@ -5,10 +5,20 @@ from datetime import date, timedelta
 from app.config.database import get_database
 from app.schemas.responses import ResponseModel
 from app.services.dashboard_service import DashboardService
+from app.services.dashboard_overview_service import DashboardOverviewService
 from app.api.deps import get_current_user
 from app.models.user import UserModel
 
 router = APIRouter()
+
+@router.get("/overview")
+async def get_dashboard_overview(
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Everything the dashboard shows — sales, collections, balances, workshop, stock — from real records."""
+    return ResponseModel(data=await DashboardOverviewService(db).get_overview())
+
 
 @router.get("/stats")
 async def get_dashboard_stats(
