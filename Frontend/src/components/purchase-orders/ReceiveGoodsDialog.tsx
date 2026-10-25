@@ -50,7 +50,7 @@ const ReceiveGoodsDialog = ({ isOpen, order, onClose, onSuccess }: ReceiveGoodsD
         const product = products?.data.find((p) => p.product_id === item.product_id)
         return {
           product_id: item.product_id,
-          product_name: product?.name || item.product_id,
+          product_name: item.item_name || product?.name || item.product_id,
           ordered_quantity: item.quantity,
           // Start at what's still outstanding — earlier deliveries already counted
           received_quantity: Math.max(item.quantity - (item.received_quantity ?? 0), 0),

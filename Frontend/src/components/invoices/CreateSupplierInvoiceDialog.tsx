@@ -61,7 +61,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 
       return {
         product_id: item.product_id,
-        product_name: product?.name || item.product_id,
+        product_name: item.item_name || product?.name || item.product_id,
         ordered_quantity: item.quantity,
         received_quantity: receivedQuantity,
         invoice_quantity: receivedQuantity,

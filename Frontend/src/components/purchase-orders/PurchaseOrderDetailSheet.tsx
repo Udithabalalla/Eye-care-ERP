@@ -1,37 +1,72 @@
-import { useState } from 'react'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { suppliersApi } from '@/api/suppliers.api'
-import { PurchaseOrderStatus, SupplierInvoice } from '@/types/supplier.types'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-  RiLoader4Line,
-  RiTruckLine,
-  RiFileTextLine,
-  RiCalendarLine,
-  RiStickyNoteLine,
+  RiArrowDownSLine,
+  RiBankCardLine,
   RiBox3Line,
+  RiCloseCircleLine,
   RiDownloadLine,
+  RiFileCopyLine,
+  RiFileEditLine,
+  RiFileTextLine,
+  RiHistoryLine,
+  RiLoader4Line,
+  RiMailSendLine,
+  RiMapPinLine,
   RiMoneyDollarCircleLine,
+  RiMore2Line,
+  RiStickyNoteLine,
+  RiTruckLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
+import { suppliersApi } from '@/api/suppliers.api'
+import { usersApi } from '@/api/users.api'
+import { companyProfileApi } from '@/api/company-profile.api'
+import { PurchaseOrder, PurchaseOrderStatus } from '@/types/supplier.types'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { downloadFile } from '@/utils/helpers'
+import { purchaseOrderLineDetail, purchaseOrderToPreviewData } from '@/utils/purchaseOrderPreview'
+import {
+  DrawerLoadingBar,
+  DrawerRow,
+  DrawerSection,
+  DrawerViewSwitch,
+  LineItemList,
+  MoneyStrip,
+  TotalsBlock,
+  type DrawerLineItem,
+} from '@/components/common/DetailDrawer'
+import PurchaseOrderPreview from './PurchaseOrderPreview'
 import { PurchaseOrderStatusBadge } from './PurchaseOrderStatusBadge'
 import { PurchaseOrderStepper } from './PurchaseOrderStepper'
 import { PurchaseOrderTimeline } from './PurchaseOrderTimeline'
 import { getPONextAction } from './PurchaseOrderWorkflowActions'
 import ReceiveGoodsDialog from './ReceiveGoodsDialog'
 import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
-import { RecordSupplierPaymentDialog } from './RecordSupplierPaymentDialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { RecordSupplierPaymentDialog, type PayableSupplierInvoice } from './RecordSupplierPaymentDialog'
+import { SendPurchaseOrderDialog } from './SendPurchaseOrderDialog'
 
 interface Props {
   orderId: string | null
@@ -39,408 +74,499 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
-  const queryClient = useQueryClient()
-  const [isReceiveOpen, setIsReceiveOpen] = useState(false)
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+// What to do next, in plain words, under the order's numbers
+const NEXT_STEP_NOTES: Partial<Record<PurchaseOrderStatus, string>> = {
+  Draft: 'Approve it to lock the order before sending it',
+  Approved: 'Send it to the supplier to place the order',
+  Ordered: 'Receive the goods when they arrive',
+  'Partially Received': 'Some items are still to come',
+  Received: 'Add the supplier’s invoice to pay them',
+}
 
-  const { data: order, isLoading } = useQuery({
+const RECEIVABLE: PurchaseOrderStatus[] = ['Ordered', 'Partially Received']
+// Approved onwards an order can be paid ahead, until its invoice arrives
+const PAYABLE_AHEAD: PurchaseOrderStatus[] = ['Approved', 'Ordered', 'Partially Received', 'Received']
+const METHOD_LABELS: Record<string, string> = { cash: 'Cash', 'bank-transfer': 'Bank transfer', cheque: 'Cheque', card: 'Card', upi: 'UPI' }
+const INVOICEABLE: PurchaseOrderStatus[] = ['Partially Received', 'Received', 'Closed']
+
+export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [view, setView] = useState<'details' | 'copy'>('details')
+  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [invoiceOpen, setInvoiceOpen] = useState(false)
+  const [payInvoice, setPayInvoice] = useState<PayableSupplierInvoice | null>(null)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [advanceOpen, setAdvanceOpen] = useState(false)
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
+  const [advancing, setAdvancing] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  // Switching to another order keeps the drawer open and starts at the top
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 })
+  }, [orderId])
+
+  // keepPreviousData: the current order stays on screen while the next one loads
+  const { data: order, isFetching, isPlaceholderData } = useQuery({
     queryKey: ['purchase-order', orderId],
     queryFn: () => suppliersApi.getPurchaseOrder(orderId!),
     enabled: open && !!orderId,
     staleTime: 0,
-    // Keep the current order on screen while switching to another row
     placeholderData: keepPreviousData,
   })
+  const isSwitching = isFetching && isPlaceholderData
 
-  // Fetch linked supplier invoice (if any) for payment recording
-  const { data: supplierInvoicesData } = useQuery({
-    queryKey: ['supplier-invoices', 'by-po', orderId],
-    queryFn: () => suppliersApi.getSupplierInvoices({ page: 1, page_size: 5 }),
-    enabled: open && !!orderId && ['Received', 'Closed'].includes(order?.status ?? ''),
+  // The supplier's invoice for this order (if any) and what's been paid on it
+  const supplierInvoice = order?.supplier_invoice ?? undefined
+  const paid = supplierInvoice?.paid_amount ?? 0
+  const invoiceBalance = supplierInvoice?.balance_due ?? 0
+  // Everything paid on the order — advances and payments against its invoice
+  const { data: paymentsData } = useQuery({
+    queryKey: ['supplier-payments', 'by-order', order?.id],
+    queryFn: () => suppliersApi.getSupplierPayments({ page: 1, page_size: 100, purchase_order_id: order!.id }),
+    enabled: open && !!order && order.status !== 'Draft',
     staleTime: 0,
   })
-  const linkedSupplierInvoice: SupplierInvoice | undefined = supplierInvoicesData?.data?.find(
-    (inv) => inv.purchase_order_id === orderId
-  )
+  const payments = paymentsData?.data ?? []
+  const advancePaid = order?.advance_paid ?? 0
+  const canPayAhead = !!order && !supplierInvoice && PAYABLE_AHEAD.includes(order.status)
+  const aheadRemaining = order ? Math.max(order.total_amount - advancePaid, 0) : 0
 
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: PurchaseOrderStatus }) =>
-      suppliersApi.updatePurchaseOrderStatus(id, status),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', id] })
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.detail || 'Status update failed')
-    },
+  const payable: PayableSupplierInvoice | null = order && supplierInvoice
+    ? {
+        id: supplierInvoice.id,
+        invoice_number: supplierInvoice.invoice_number,
+        total_amount: supplierInvoice.total_amount,
+        paid_amount: paid,
+        purchase_order_id: order.id,
+        supplier_name: order.supplier_information?.supplier_name,
+      }
+    : null
+
+  // Staff names for "Approved by" (shared cache with the sales screens)
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
+    staleTime: 5 * 60 * 1000,
+    enabled: open,
+  })
+  const users: Array<{ user_id: string; name: string }> = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
+  const nameOf = (userId?: string) => (userId ? users.find((u) => u.user_id === userId)?.name ?? userId : undefined)
+
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyProfileApi.get(),
+    staleTime: 10 * 60 * 1000,
+    enabled: open && view === 'copy',
   })
 
-  const nextAction = order ? getPONextAction(order.status) : null
-  const Icon = nextAction?.icon ?? null
-  const isPending = statusMutation.isPending
-
-  const handleAdvance = () => {
-    if (!nextAction || !order) return
-
-    if (nextAction.requiresDialog) {
-      if (nextAction.toStatus === 'Received') setIsReceiveOpen(true)
-      else if (nextAction.toStatus === 'Closed') setIsInvoiceOpen(true)
-      return
-    }
-
-    toast.promise(
-      suppliersApi.updatePurchaseOrderStatus(order.id, nextAction.toStatus).then((updated) => {
-        queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-        queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
-        return updated
-      }),
-      {
-        loading: 'Updating status…',
-        success: `Moved to "${nextAction.label}"`,
-        error: (err: any) => err?.response?.data?.detail || 'Update failed',
-      },
-    )
+  const refresh = (id: string) => {
+    queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
+    queryClient.invalidateQueries({ queryKey: ['purchase-order', id] })
+    queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] })
+    queryClient.invalidateQueries({ queryKey: ['supplier-payments'] })
   }
 
-  const handleDownloadPdf = async () => {
+  const moveTo = async (target: PurchaseOrderStatus, success: string) => {
     if (!order) return
+    setAdvancing(true)
     try {
-      const blob = await suppliersApi.downloadPurchaseOrderPdf(order.id)
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${order.id}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-      toast.success('PDF downloaded')
+      await suppliersApi.updatePurchaseOrderStatus(order.id, target)
+      refresh(order.id)
+      toast.success(success)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Update failed')
+    } finally {
+      setAdvancing(false)
+    }
+  }
+
+  const handleDownloadPdf = async (record = false) => {
+    if (!order) return
+    setDownloading(true)
+    try {
+      downloadFile(await suppliersApi.downloadPurchaseOrderPdf(order.id, { record }), record ? `${order.id}-record.pdf` : `${order.id}.pdf`)
+      toast.success(record ? 'Purchase record downloaded' : 'PDF downloaded')
     } catch {
       toast.error('Failed to download PDF')
+    } finally {
+      setDownloading(false)
     }
   }
+
+  const goTo = (path: string) => {
+    onOpenChange(false)
+    navigate(path)
+  }
+
+  // ── The one main action for where the order is ──
+  const workflow = order ? getPONextAction(order.status) : null
+  const primary: { label: string; icon: React.ComponentType<{ className?: string }>; className?: string; run: () => void } | null = !order
+    ? null
+    : order.status === 'Approved' && workflow
+      ? { label: workflow.label, icon: workflow.icon, className: workflow.className, run: () => setSendOpen(true) }
+    : RECEIVABLE.includes(order.status) && workflow
+      ? { label: workflow.label, icon: workflow.icon, className: workflow.className, run: () => setReceiveOpen(true) }
+      : order.status === 'Received' && !supplierInvoice
+        ? { label: 'Add Supplier Invoice', icon: RiMoneyDollarCircleLine, className: workflow?.className, run: () => setInvoiceOpen(true) }
+        : supplierInvoice && invoiceBalance > 0
+          ? { label: `Pay Supplier · ${formatCurrency(invoiceBalance)}`, icon: RiMoneyDollarCircleLine, className: 'bg-violet-600 hover:bg-violet-700 text-white border-violet-600', run: () => setPayInvoice(payable) }
+          : workflow && !workflow.requiresDialog
+            ? { label: workflow.label, icon: workflow.icon, className: workflow.className, run: () => moveTo(workflow.toStatus, `${order.id} → ${workflow.toStatus.toLowerCase()}`) }
+            : null
+
+  // ── Numbers ──
+  const orderedUnits = order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0
+  const trackedUnits = order?.items.reduce((sum, item) => sum + Math.min(item.received_quantity ?? 0, item.quantity), 0) ?? 0
+  // Orders received before per-line tracking existed carry no counts; their status is the record
+  const untrackedReceipt = !!order && ['Received', 'Closed'].includes(order.status) && trackedUnits === 0
+  const receivedOf = (item: PurchaseOrder['items'][number]) =>
+    untrackedReceipt ? item.quantity : Math.min(item.received_quantity ?? 0, item.quantity)
+  const receivedUnits = untrackedReceipt ? orderedUnits : trackedUnits
+  const receivingStarted = !!order && (receivedUnits > 0 || ['Partially Received', 'Received', 'Closed'].includes(order.status))
+  const summary = order?.order_summary
+
+  const lineItems: DrawerLineItem[] = (order?.items ?? []).map((item, index) => {
+    const received = receivedOf(item)
+    return {
+      key: item.id || `${item.product_id}-${index}`,
+      name: item.item_name || item.product_id,
+      detail: purchaseOrderLineDetail(item) || undefined,
+      qty: item.quantity,
+      unitPrice: item.unit_cost,
+      total: item.total_price ?? item.quantity * item.unit_cost,
+      note: receivingStarted ? (received >= item.quantity ? 'All received' : `${received} of ${item.quantity} received`) : undefined,
+      noteTone: received >= item.quantity ? 'success' : 'warning',
+    }
+  })
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col sm:max-w-lg overflow-hidden p-0"
-        >
-          {/* Header */}
-          <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
-            <div className="flex items-start gap-3 pr-8">
-              <div className="min-w-0">
-                <SheetTitle className="text-base font-semibold text-foreground">
-                  {order?.id ?? '…'}
-                </SheetTitle>
-                <SheetDescription className="mt-1 flex items-center gap-2 flex-wrap">
-                  {order && <PurchaseOrderStatusBadge status={order.status} />}
-                  <span className="text-muted-foreground/60">·</span>
-                  <span>{order ? formatDate(order.created_at) : ''}</span>
-                </SheetDescription>
+        <SheetContent side="right" className="flex flex-col sm:max-w-lg overflow-hidden p-0">
+          {/* ── Header: number, status, supplier on one line ── */}
+          <SheetHeader className="flex-shrink-0 space-y-1 border-b px-5 pb-4 pt-5">
+            <SheetTitle className="pr-20 text-base font-semibold text-foreground">{order?.id ?? '…'}</SheetTitle>
+            <SheetDescription asChild>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {order && <PurchaseOrderStatusBadge status={order.status} />}
+                {order && <span className="font-medium text-foreground">{order.supplier_information?.supplier_name || order.supplier_id}</span>}
+                {order && <span>· {formatDate(order.order_date)}</span>}
               </div>
-            </div>
+            </SheetDescription>
           </SheetHeader>
+          <DrawerLoadingBar active={isSwitching} />
 
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto">
-            {/* Lifecycle stepper */}
-            <div className="px-6 py-5 border-b bg-muted/20">
-              {isLoading ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <RiLoader4Line className="size-3.5 animate-spin" />
-                  Loading…
-                </div>
-              ) : order ? (
-                <PurchaseOrderStepper status={order.status} />
-              ) : null}
-            </div>
-
-            {order && (
-              <div className="divide-y divide-border">
-                {/* Supplier */}
-                <Section icon={RiTruckLine} title="Supplier">
-                  <Row
-                    label="Supplier"
-                    value={order.supplier_information?.supplier_name || order.supplier_id}
-                  />
-                  {order.supplier_information?.company_name && (
-                    <Row label="Company" value={order.supplier_information.company_name} />
-                  )}
-                  {order.supplier_information?.contact_person && (
-                    <Row label="Contact" value={order.supplier_information.contact_person} />
-                  )}
-                  {order.supplier_information?.phone && (
-                    <Row label="Phone" value={order.supplier_information.phone} />
-                  )}
-                  <Row label="Created by" value={order.created_by} />
-                </Section>
-
-                {/* Order Items */}
-                <Section icon={RiBox3Line} title="Order Items">
-                  <div className="overflow-x-auto -mx-1">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-muted-foreground border-b border-border/60">
-                          <th className="py-1.5 px-1 text-left font-medium">Product</th>
-                          <th className="py-1.5 px-1 text-center font-medium w-10">Qty</th>
-                          <th className="py-1.5 px-1 text-right font-medium">Cost</th>
-                          <th className="py-1.5 px-1 text-right font-medium">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {order.items.map((item, i) => (
-                          <tr key={i} className="border-b border-border/40 last:border-0">
-                            <td className="py-2 px-1">
-                              <p className="font-medium text-foreground leading-tight font-mono text-[10px]">
-                                {item.product_id}
-                              </p>
-                            </td>
-                            <td className="py-2 px-1 text-center tabular-nums">{item.quantity}</td>
-                            <td className="py-2 px-1 text-right tabular-nums">
-                              {formatCurrency(item.unit_cost)}
-                            </td>
-                            <td className="py-2 px-1 text-right tabular-nums font-medium">
-                              {formatCurrency(item.total_price ?? item.quantity * item.unit_cost)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Totals */}
-                  {order.order_summary && (
-                    <div className="mt-3 space-y-1 border-t border-border/60 pt-3">
-                      {(order.order_summary.discount ?? 0) > 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Discount</span>
-                          <span className="tabular-nums">
-                            − {formatCurrency(order.order_summary.discount ?? 0)}
-                          </span>
+          {/* ── Scrollable body ── */}
+          <div ref={bodyRef} className={cn('custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain transition-opacity', isSwitching && 'opacity-60')}>
+            {!order ? (
+              <div className="flex h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <RiLoader4Line className="size-4 animate-spin" />
+                Loading order…
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4 border-b px-5 py-4">
+                  <PurchaseOrderStepper status={order.status} />
+                  {supplierInvoice ? (
+                    <MoneyStrip
+                      total={supplierInvoice.total_amount}
+                      paid={paid}
+                      balance={invoiceBalance}
+                      onRecordPayment={invoiceBalance > 0 ? () => setPayInvoice(payable) : undefined}
+                      actionLabel="Pay supplier"
+                      note={
+                        <button type="button" className="font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
+                          Invoice {supplierInvoice.invoice_number} ›
+                        </button>
+                      }
+                    />
+                  ) : (
+                    <div className="rounded-xl border border-border">
+                      <div className="grid grid-cols-3 divide-x divide-border">
+                        <div className="px-3 py-2.5">
+                          <p className="text-[11px] text-muted-foreground">Order total</p>
+                          <p className="text-sm font-semibold tabular-nums">{formatCurrency(order.total_amount)}</p>
                         </div>
-                      )}
-                      {(order.order_summary.tax_amount ?? 0) > 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            Tax ({((order.order_summary.tax_rate ?? 0) * 100).toFixed(1)}%)
-                          </span>
-                          <span className="tabular-nums">
-                            {formatCurrency(order.order_summary.tax_amount ?? 0)}
-                          </span>
+                        <div className="px-3 py-2.5">
+                          <p className="text-[11px] text-muted-foreground">{receivingStarted ? 'Received' : 'Units'}</p>
+                          <p className={cn('text-sm font-semibold tabular-nums', receivingStarted && receivedUnits < orderedUnits && 'text-amber-600 dark:text-amber-400', receivingStarted && receivedUnits >= orderedUnits && 'text-emerald-600 dark:text-emerald-400')}>
+                            {receivingStarted ? `${receivedUnits} of ${orderedUnits}` : orderedUnits}
+                          </p>
                         </div>
-                      )}
-                      {(order.order_summary.shipping_cost ?? 0) > 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Shipping</span>
-                          <span className="tabular-nums">
-                            {formatCurrency(order.order_summary.shipping_cost ?? 0)}
-                          </span>
+                        <div className="px-3 py-2.5">
+                          <p className="text-[11px] text-muted-foreground">Expected</p>
+                          <p className="text-sm font-semibold">{order.expected_delivery_date ? formatDate(order.expected_delivery_date, 'dd MMM') : '—'}</p>
                         </div>
-                      )}
-                      <div className="flex justify-between text-sm font-semibold pt-1">
-                        <span>Total</span>
-                        <span className="tabular-nums">{formatCurrency(order.total_amount)}</span>
                       </div>
+                      {receivingStarted && orderedUnits > 0 && (
+                        <div className="h-1 bg-muted">
+                          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, (receivedUnits / orderedUnits) * 100)}%` }} />
+                        </div>
+                      )}
+                      {(NEXT_STEP_NOTES[order.status] || order.sent_at) && (
+                        <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                          {order.sent_at && order.status !== 'Draft' && (
+                            <span className="text-foreground">Emailed to {order.sent_to} on {formatDate(order.sent_at, 'dd MMM')}. </span>
+                          )}
+                          {NEXT_STEP_NOTES[order.status]}
+                        </p>
+                      )}
+                      {(canPayAhead || advancePaid > 0) && (
+                        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-xs">
+                          <span className="min-w-0 text-muted-foreground">
+                            {advancePaid > 0 ? (
+                              <>
+                                Paid ahead <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(advancePaid)}</span>
+                                {' '}· counts against the invoice
+                              </>
+                            ) : (
+                              'Supplier wants payment up front?'
+                            )}
+                          </span>
+                          {canPayAhead && aheadRemaining > 0 && (
+                            <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => setAdvanceOpen(true)}>
+                              <RiMoneyDollarCircleLine className="size-3.5" />
+                              Pay in advance
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
-                </Section>
-
-                {/* Dates */}
-                <Section icon={RiCalendarLine} title="Dates">
-                  <Row label="Order date" value={formatDate(order.order_date)} />
-                  {order.expected_delivery_date && (
-                    <Row
-                      label="Expected delivery"
-                      value={formatDate(order.expected_delivery_date)}
-                    />
-                  )}
-                </Section>
-
-                {/* Payment Terms */}
-                {order.payment_terms && (
-                  <Section icon={RiFileTextLine} title="Payment Terms">
-                    {order.payment_terms.payment_terms && (
-                      <Row label="Terms" value={order.payment_terms.payment_terms} />
-                    )}
-                    {order.payment_terms.payment_method && (
-                      <Row label="Method" value={order.payment_terms.payment_method} />
-                    )}
-                    <Row label="Currency" value={order.payment_terms.currency ?? 'LKR'} />
-                  </Section>
-                )}
-
-                {/* Notes */}
-                {(order.notes?.supplier_notes || order.notes?.internal_notes) && (
-                  <Section icon={RiStickyNoteLine} title="Notes">
-                    {order.notes.supplier_notes && (
-                      <div className="text-xs space-y-0.5">
-                        <p className="text-muted-foreground font-medium">Supplier notes</p>
-                        <p className="text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                          {order.notes.supplier_notes}
-                        </p>
-                      </div>
-                    )}
-                    {order.notes.internal_notes && (
-                      <div className="text-xs space-y-0.5 mt-2">
-                        <p className="text-muted-foreground font-medium">Internal notes</p>
-                        <p className="text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                          {order.notes.internal_notes}
-                        </p>
-                      </div>
-                    )}
-                  </Section>
-                )}
-
-                {/* Status History */}
-                <Section icon={RiFileTextLine} title="Status History">
-                  <PurchaseOrderTimeline
-                    history={order.status_history ?? []}
-                    createdAt={order.created_at}
-                    createdBy={order.created_by}
+                  <DrawerViewSwitch
+                    value={view}
+                    onChange={setView}
+                    options={[
+                      { value: 'details', label: 'Details' },
+                      { value: 'copy', label: 'Supplier copy' },
+                    ]}
                   />
-                </Section>
-              </div>
-            )}
-          </div>
-
-          {/* Footer actions */}
-          <div className="flex-shrink-0 border-t bg-background px-6 py-4 flex flex-col gap-2">
-            {/* Supplier payment prompt — shown after Received when a supplier invoice exists */}
-            {order && ['Received', 'Closed'].includes(order.status) && (
-              <div className={cn(
-                'rounded-lg border p-3 flex items-center justify-between gap-3',
-                linkedSupplierInvoice && linkedSupplierInvoice.status !== 'Paid'
-                  ? 'bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800'
-                  : linkedSupplierInvoice?.status === 'Paid'
-                    ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
-                    : 'bg-muted/40 border-border/60'
-              )}>
-                <div>
-                  {linkedSupplierInvoice ? (
-                    linkedSupplierInvoice.status === 'Paid' ? (
-                      <>
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Supplier fully paid</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(linkedSupplierInvoice.total_amount)}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-xs font-semibold text-violet-800 dark:text-violet-200">Supplier payment pending</p>
-                        <p className="text-xs text-violet-700 dark:text-violet-300 font-mono">{linkedSupplierInvoice.invoice_number}</p>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <p className="text-xs font-semibold text-muted-foreground">No supplier invoice yet</p>
-                      <p className="text-xs text-muted-foreground">Create invoice first to record payment</p>
-                    </>
-                  )}
                 </div>
-                {linkedSupplierInvoice && linkedSupplierInvoice.status !== 'Paid' ? (
-                  <Button
-                    size="sm"
-                    className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white border-violet-600 shrink-0"
-                    onClick={() => setIsPaymentOpen(true)}
-                  >
-                    <RiMoneyDollarCircleLine className="size-3.5" />
-                    Pay Supplier
-                  </Button>
-                ) : linkedSupplierInvoice?.status === 'Paid' ? (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300">Paid</Badge>
-                ) : null}
-              </div>
-            )}
 
-            {nextAction && Icon && (() => {
-              // Block "Create Invoice" (Closed) if a supplier invoice exists but is unpaid
-              const blocked = nextAction.toStatus === 'Closed'
-                && !!linkedSupplierInvoice
-                && linkedSupplierInvoice.status !== 'Paid'
-              const tooltipMsg = blocked
-                ? `Pay supplier invoice ${linkedSupplierInvoice!.invoice_number} before closing this order`
-                : undefined
+                {view === 'copy' ? (
+                  <div className="px-5 py-4">
+                    <PurchaseOrderPreview data={purchaseOrderToPreviewData(order, nameOf(order.authorization?.approved_by))} company={companyProfile} />
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    <DrawerSection icon={RiBox3Line} title={`Items (${lineItems.length})`}>
+                      <LineItemList items={lineItems} />
+                      <TotalsBlock
+                        subtotal={summary?.subtotal ?? order.total_amount}
+                        discount={(summary?.discount ?? 0) + (summary?.line_discount_total ?? 0)}
+                        charges={[
+                          { label: 'Tax', amount: summary?.tax_amount ?? 0 },
+                          { label: 'Delivery charge', amount: summary?.shipping_cost ?? 0 },
+                        ]}
+                        total={order.total_amount}
+                      />
+                    </DrawerSection>
 
-              return (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className={blocked ? 'cursor-not-allowed' : undefined}>
-                        <Button
-                          className={cn('w-full gap-2 font-semibold', nextAction.className)}
-                          onClick={handleAdvance}
-                          disabled={isPending || blocked}
-                        >
-                          {isPending ? (
-                            <RiLoader4Line className="size-4 animate-spin" />
-                          ) : (
-                            <Icon className="size-4" />
-                          )}
-                          {nextAction.label}
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    {tooltipMsg && (
-                      <TooltipContent side="top" className="max-w-[220px] text-center">
-                        {tooltipMsg}
-                      </TooltipContent>
+                    <DrawerSection icon={RiTruckLine} title="Supplier">
+                      <DrawerRow label="Supplier" value={order.supplier_information?.supplier_name || order.supplier_id} />
+                      {order.supplier_information?.contact_person && <DrawerRow label="Contact" value={order.supplier_information.contact_person} />}
+                      {order.supplier_information?.phone && <DrawerRow label="Phone" value={order.supplier_information.phone} />}
+                      {order.supplier_information?.email && <DrawerRow label="Email" value={order.supplier_information.email} />}
+                      {order.payment_terms?.payment_terms && <DrawerRow label="Terms" value={order.payment_terms.payment_terms} />}
+                      {supplierInvoice && (
+                        <DrawerRow
+                          label="Invoice"
+                          value={
+                            <button type="button" className="font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
+                              {supplierInvoice.invoice_number} · {supplierInvoice.status === 'Paid' ? 'paid' : `${formatCurrency(invoiceBalance)} to pay`}
+                            </button>
+                          }
+                        />
+                      )}
+                    </DrawerSection>
+
+                    {order.status !== 'Draft' && (
+                      <DrawerSection icon={RiBankCardLine} title={`Payments${payments.length ? ` (${payments.length})` : ''}`}>
+                        {payments.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nothing paid yet.</p>
+                        ) : (
+                          <ul className="divide-y divide-border/70">
+                            {payments.map((payment) => (
+                              <li key={payment.id} className="flex items-start justify-between gap-3 py-2">
+                                <div className="min-w-0">
+                                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                                    {formatDate(payment.payment_date)}
+                                    <span className={cn(
+                                      'rounded-full px-1.5 py-px text-[10px] font-medium',
+                                      payment.is_advance ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' : 'bg-muted text-muted-foreground',
+                                    )}>
+                                      {payment.is_advance ? 'Advance' : `Invoice ${payment.invoice_number ?? ''}`.trim()}
+                                    </span>
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {[METHOD_LABELS[payment.payment_method] ?? payment.payment_method, payment.reference_number].filter(Boolean).join(' · ')}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(payment.amount_paid)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </DrawerSection>
                     )}
-                  </Tooltip>
-                </TooltipProvider>
-              )
-            })()}
-            <Button
-              variant="outline"
-              className="w-full gap-1.5"
-              onClick={handleDownloadPdf}
-              disabled={!order}
-            >
-              <RiDownloadLine className="size-4" />
-              Download PDF
-            </Button>
+
+                    <DrawerSection icon={RiMapPinLine} title="Delivery">
+                      <DrawerRow label="Expected" value={order.expected_delivery_date ? formatDate(order.expected_delivery_date) : 'Not set'} />
+                      {order.shipping_information?.ship_to_location && <DrawerRow label="Ship to" value={order.shipping_information.ship_to_location} />}
+                      {order.shipping_information?.receiving_department && <DrawerRow label="Received by" value={order.shipping_information.receiving_department} />}
+                      {order.shipping_information?.delivery_address && <DrawerRow label="Address" value={order.shipping_information.delivery_address} />}
+                      {order.shipping_information?.delivery_instructions && <DrawerRow label="Instructions" value={order.shipping_information.delivery_instructions} />}
+                    </DrawerSection>
+
+                    {(order.notes?.supplier_notes || order.notes?.internal_notes) && (
+                      <DrawerSection icon={RiStickyNoteLine} title="Notes">
+                        {order.notes?.supplier_notes && (
+                          <div className="space-y-0.5 text-sm">
+                            <p className="text-xs text-muted-foreground">To the supplier · printed</p>
+                            <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{order.notes.supplier_notes}</p>
+                          </div>
+                        )}
+                        {order.notes?.internal_notes && (
+                          <div className="mt-3 space-y-0.5 text-sm">
+                            <p className="text-xs text-muted-foreground">Internal · never printed</p>
+                            <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{order.notes.internal_notes}</p>
+                          </div>
+                        )}
+                      </DrawerSection>
+                    )}
+
+                    {/* History stays tucked away until it's needed */}
+                    <Collapsible>
+                      <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <RiHistoryLine className="size-3.5" />
+                          History{order.status_history?.length ? ` (${order.status_history.length + 1})` : ''}
+                        </span>
+                        <RiArrowDownSLine className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-5 pb-4">
+                        <PurchaseOrderTimeline history={order.status_history ?? []} createdAt={order.created_at} createdBy={nameOf(order.created_by)} />
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                )}
+              </>
+            )}
           </div>
+
+          {/* ── Footer: one main action, the rest tidy ── */}
+          {order && (
+            <div className="flex flex-shrink-0 flex-col gap-2 border-t bg-background px-5 py-3">
+              {primary && (
+                <Button className={cn('w-full gap-2 font-semibold', primary.className)} onClick={primary.run} disabled={advancing}>
+                  {advancing ? <RiLoader4Line className="size-4 animate-spin" /> : <primary.icon className="size-4" />}
+                  {primary.label}
+                </Button>
+              )}
+              <div className="flex gap-2">
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex-1 gap-1.5" disabled={downloading}>
+                      {downloading ? <RiLoader4Line className="size-4 animate-spin" /> : <RiDownloadLine className="size-4" />}
+                      PDF
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-64">
+                    <DropdownMenuItem onClick={() => handleDownloadPdf(false)} className="flex-col items-start gap-0">
+                      <span className="font-medium">Purchase order</span>
+                      <span className="text-xs text-muted-foreground">The copy you send the supplier</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownloadPdf(true)} className="flex-col items-start gap-0">
+                      <span className="font-medium">Purchase record</span>
+                      <span className="text-xs text-muted-foreground">Order, what arrived, the invoice and payments</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {order.status === 'Draft' ? (
+                  <Button variant="outline" className="flex-1 gap-1.5" onClick={() => goTo(`/purchase-orders/new?draft=${order.id}`)}>
+                    <RiFileEditLine className="size-4" />
+                    Edit draft
+                  </Button>
+                ) : (
+                  <Button variant="outline" className="flex-1 gap-1.5" onClick={() => goTo(`/purchase-orders/new?copy=${order.id}`)}>
+                    <RiFileCopyLine className="size-4" />
+                    Order again
+                  </Button>
+                )}
+                <OrderMoreMenu
+                  order={order}
+                  onCopy={() => goTo(`/purchase-orders/new?copy=${order.id}`)}
+                  onInvoice={!supplierInvoice && INVOICEABLE.includes(order.status) && order.status !== 'Closed' ? () => setInvoiceOpen(true) : undefined}
+                  onResend={['Ordered', 'Partially Received', 'Received'].includes(order.status) ? () => setSendOpen(true) : undefined}
+                  onOpenInvoice={supplierInvoice ? () => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`) : undefined}
+                  onPayAhead={canPayAhead && aheadRemaining > 0 ? () => setAdvanceOpen(true) : undefined}
+                  onClose={order.status === 'Partially Received' ? () => setCloseConfirmOpen(true) : undefined}
+                />
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
-      {/* Dialogs triggered from sheet */}
+      {/* Closing a short-shipped order */}
+      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close {order?.id} without the rest?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {receivedUnits} of {orderedUnits} units arrived. Closing stops waiting for the remaining {orderedUnits - receivedUnits}; stock already received stays as it is.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep waiting</AlertDialogCancel>
+            <AlertDialogAction onClick={() => moveTo('Closed', `${order?.id} closed`)}>Close order</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {order && (
         <>
           <ReceiveGoodsDialog
-            isOpen={isReceiveOpen}
+            isOpen={receiveOpen}
             order={order}
-            onClose={() => setIsReceiveOpen(false)}
-            onSuccess={() => {
-              setIsReceiveOpen(false)
-              queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-              queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
-              // Ensure product stock and inventory movements are refreshed
+            onClose={() => setReceiveOpen(false)}
+            onSuccess={(updated) => {
+              setReceiveOpen(false)
+              refresh(order.id)
               queryClient.invalidateQueries({ queryKey: ['products'] })
               queryClient.invalidateQueries({ queryKey: ['inventory-movements'] })
-              queryClient.invalidateQueries({ queryKey: ['stock-receipts'] })
-              setIsInvoiceOpen(true)
+              queryClient.invalidateQueries({ queryKey: ['inventory-low-stock'] })
+              // Everything's in — the supplier's invoice is the next thing to record
+              if (updated?.status === 'Received') setInvoiceOpen(true)
             }}
           />
           <CreateSupplierInvoiceDialog
-            isOpen={isInvoiceOpen}
+            isOpen={invoiceOpen}
             order={order}
-            onClose={() => setIsInvoiceOpen(false)}
-            onSuccess={() => {
-              setIsInvoiceOpen(false)
-              queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-              queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
-              queryClient.invalidateQueries({ queryKey: ['supplier-invoices', 'by-po', order.id] })
+            onClose={() => setInvoiceOpen(false)}
+            onSuccess={(invoice) => {
+              setInvoiceOpen(false)
+              refresh(order.id)
+              // Straight on to paying what's left after any advances; paying in full closes the order
+              if ((invoice.balance_due ?? invoice.total_amount) > 0) setPayInvoice(invoice)
+              else toast.success(`${invoice.invoice_number} is already covered by the advance`)
             }}
           />
           <RecordSupplierPaymentDialog
-            open={isPaymentOpen}
-            onClose={() => setIsPaymentOpen(false)}
-            onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: ['purchase-order', order.id] })
-              queryClient.invalidateQueries({ queryKey: ['supplier-invoices', 'by-po', order.id] })
-            }}
-            supplierInvoice={linkedSupplierInvoice ?? null}
+            open={!!payInvoice}
+            onClose={() => setPayInvoice(null)}
+            onSuccess={() => refresh(order.id)}
+            supplierInvoice={payInvoice}
+          />
+          <SendPurchaseOrderDialog order={order} open={sendOpen} onClose={() => setSendOpen(false)} />
+          <RecordSupplierPaymentDialog
+            open={advanceOpen}
+            onClose={() => setAdvanceOpen(false)}
+            onSuccess={() => refresh(order.id)}
+            advanceFor={{ orderId: order.id, orderTotal: order.total_amount, advancePaid, supplierName: order.supplier_information?.supplier_name }}
           />
         </>
       )}
@@ -448,35 +574,75 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
   )
 }
 
-function Section({
-  icon: Icon,
-  title,
-  children,
+function OrderMoreMenu({
+  order,
+  onCopy,
+  onInvoice,
+  onResend,
+  onOpenInvoice,
+  onPayAhead,
+  onClose,
 }: {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  children: React.ReactNode
+  order: PurchaseOrder
+  onCopy: () => void
+  onInvoice?: () => void
+  onResend?: () => void
+  onOpenInvoice?: () => void
+  onPayAhead?: () => void
+  onClose?: () => void
 }) {
-  return (
-    <div className="px-6 py-4">
-      <div className="mb-3 flex items-center gap-1.5">
-        <Icon className="size-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </h3>
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  )
-}
+  // Nothing extra to offer at this stage
+  if (order.status !== 'Draft' && !onInvoice && !onResend && !onOpenInvoice && !onPayAhead && !onClose) return null
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-4 text-xs">
-      <span className="text-muted-foreground flex-shrink-0">{label}</span>
-      <span className={cn('text-foreground text-right', mono && 'font-mono text-[11px]')}>
-        {value}
-      </span>
-    </div>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="gap-1.5" aria-label="More actions">
+          <RiMore2Line className="size-4" />
+          More
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="top" className="w-52">
+        {order.status === 'Draft' && (
+          <DropdownMenuItem onClick={onCopy}>
+            <RiFileCopyLine className="size-4" />
+            Order again
+          </DropdownMenuItem>
+        )}
+        {onResend && (
+          <DropdownMenuItem onClick={onResend}>
+            <RiMailSendLine className="size-4" />
+            {order.sent_at ? 'Send to supplier again' : 'Email to supplier'}
+          </DropdownMenuItem>
+        )}
+        {onPayAhead && (
+          <DropdownMenuItem onClick={onPayAhead}>
+            <RiMoneyDollarCircleLine className="size-4" />
+            Pay in advance
+          </DropdownMenuItem>
+        )}
+        {onOpenInvoice && (
+          <DropdownMenuItem onClick={onOpenInvoice}>
+            <RiFileTextLine className="size-4" />
+            Open supplier invoice
+          </DropdownMenuItem>
+        )}
+        {onInvoice && (
+          <DropdownMenuItem onClick={onInvoice}>
+            <RiMoneyDollarCircleLine className="size-4" />
+            Add supplier invoice
+          </DropdownMenuItem>
+        )}
+        {onClose && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onClose}>
+              <RiCloseCircleLine className="size-4" />
+              Close — rest won’t come
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

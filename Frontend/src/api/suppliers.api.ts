@@ -3,6 +3,7 @@ import { ApiResponse, PaginatedResponse } from '@/types/common.types'
 import {
   PurchaseOrder,
   PurchaseOrderFormData,
+  PurchaseOrderSendData,
   ReceiveStockFormData,
   Supplier,
   SupplierFormData,
@@ -43,13 +44,19 @@ export const suppliersApi = {
     await axiosInstance.delete(`/suppliers/${id}`)
   },
 
-  getPurchaseOrders: async (params: { page?: number; page_size?: number; supplier_id?: string; status?: string }): Promise<PaginatedResponse<PurchaseOrder>> => {
+  getPurchaseOrders: async (params: { page?: number; page_size?: number; supplier_id?: string; status?: string; search?: string }): Promise<PaginatedResponse<PurchaseOrder>> => {
     const response = await axiosInstance.get<PaginatedResponse<PurchaseOrder>>('/purchase-orders', { params })
     return response.data
   },
 
   createPurchaseOrder: async (data: PurchaseOrderFormData): Promise<PurchaseOrder> => {
     const response = await axiosInstance.post<ApiResponse<PurchaseOrder>>('/purchase-orders', data)
+    return response.data.data
+  },
+
+  /** Edit a draft PO (approved orders are fixed) */
+  updatePurchaseOrder: async (id: string, data: PurchaseOrderFormData): Promise<PurchaseOrder> => {
+    const response = await axiosInstance.put<ApiResponse<PurchaseOrder>>(`/purchase-orders/${id}`, data)
     return response.data.data
   },
 
@@ -70,16 +77,35 @@ export const suppliersApi = {
     return response.data.data
   },
 
-  downloadPurchaseOrderPdf: async (id: string): Promise<Blob> => {
+  /** Email the PO PDF to the supplier; an approved order becomes Ordered */
+  sendPurchaseOrder: async (id: string, data: PurchaseOrderSendData): Promise<PurchaseOrder> => {
+    const response = await axiosInstance.post<ApiResponse<PurchaseOrder>>(`/purchase-orders/${id}/send`, data)
+    return response.data.data
+  },
+
+  /** The supplier copy, or with `record` the full purchase record (order, invoice and payments) */
+  downloadPurchaseOrderPdf: async (id: string, options?: { record?: boolean }): Promise<Blob> => {
     const response = await axiosInstance.get(`/purchase-orders/${id}/pdf`, {
       responseType: 'blob',
+      params: options?.record ? { record: true } : undefined,
     })
     return response.data
   },
 
-  getSupplierInvoices: async (params: { page?: number; page_size?: number; supplier_id?: string; status?: string }): Promise<PaginatedResponse<SupplierInvoice>> => {
+  /** Pay the supplier before their invoice; it counts against the invoice once recorded */
+  recordAdvancePayment: async (orderId: string, data: Omit<SupplierPaymentFormData, 'invoice_id'>): Promise<SupplierPayment> => {
+    const response = await axiosInstance.post<ApiResponse<SupplierPayment>>(`/purchase-orders/${orderId}/advance-payment`, data)
+    return response.data.data
+  },
+
+  getSupplierInvoices: async (params: { page?: number; page_size?: number; supplier_id?: string; status?: string; search?: string; overdue?: boolean }): Promise<PaginatedResponse<SupplierInvoice>> => {
     const response = await axiosInstance.get<PaginatedResponse<SupplierInvoice>>('/supplier-invoices', { params })
     return response.data
+  },
+
+  getSupplierInvoice: async (id: string): Promise<SupplierInvoice> => {
+    const response = await axiosInstance.get<ApiResponse<SupplierInvoice>>(`/supplier-invoices/${id}`)
+    return response.data.data
   },
 
   createSupplierInvoice: async (data: SupplierInvoiceFormData): Promise<SupplierInvoice> => {
@@ -97,7 +123,7 @@ export const suppliersApi = {
     return response.data.data
   },
 
-  getSupplierPayments: async (params: { page?: number; page_size?: number; invoice_id?: string }): Promise<PaginatedResponse<SupplierPayment>> => {
+  getSupplierPayments: async (params: { page?: number; page_size?: number; invoice_id?: string; purchase_order_id?: string }): Promise<PaginatedResponse<SupplierPayment>> => {
     const response = await axiosInstance.get<PaginatedResponse<SupplierPayment>>('/supplier-payments', { params })
     return response.data
   },

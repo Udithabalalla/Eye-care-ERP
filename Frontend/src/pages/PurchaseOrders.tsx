@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
   RiAddLine,
   RiDownloadLine,
   RiEyeLine,
+  RiFileCopyLine,
+  RiFileEditLine,
   RiLoader4Line,
+  RiMoneyDollarCircleLine,
   RiMore2Line,
+  RiTruckLine,
 } from '@remixicon/react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -39,10 +43,10 @@ import {
   getPOCommonAction,
 } from '@/components/purchase-orders/PurchaseOrderWorkflowActions'
 import { PurchaseOrderDetailSheet } from '@/components/purchase-orders/PurchaseOrderDetailSheet'
-import CreatePurchaseOrderAssistant from '@/components/purchase-orders/CreatePurchaseOrderAssistant'
 import ReceiveGoodsDialog from '@/components/purchase-orders/ReceiveGoodsDialog'
 import CreateSupplierInvoiceDialog from '@/components/invoices/CreateSupplierInvoiceDialog'
-import SupplierPaymentForm from '@/components/suppliers/SupplierPaymentForm'
+import { RecordSupplierPaymentDialog, type PayableSupplierInvoice } from '@/components/purchase-orders/RecordSupplierPaymentDialog'
+import { SendPurchaseOrderDialog } from '@/components/purchase-orders/SendPurchaseOrderDialog'
 
 const LIFECYCLE_FILTER_TABS: Array<{ id: PurchaseOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All' },
@@ -58,33 +62,42 @@ const STATUS_FILTER_OPTIONS = LIFECYCLE_FILTER_TABS
 
 const PurchaseOrders = () => {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | ''>('')
   // Deep links (e.g. after creating reorder drafts) can pre-select a status
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const urlStatus = searchParams.get('status') as PurchaseOrderStatus | null
   useEffect(() => {
     if (urlStatus) setStatusFilter(urlStatus)
   }, [urlStatus])
+  // Deep link (e.g. straight after saving an order): /purchase-orders?detail=PO000123
+  const urlDetail = searchParams.get('detail')
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  useEffect(() => {
+    if (urlDetail) setDetailOrderId(urlDetail)
+  }, [urlDetail])
   const [receiveOrder, setReceiveOrder] = useState<PurchaseOrder | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<PurchaseOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null)
+  const [payInvoice, setPayInvoice] = useState<PayableSupplierInvoice | null>(null)
+  const [sendOrder, setSendOrder] = useState<PurchaseOrder | null>(null)
 
+  const deferredSearch = useDeferredValue(search)
   const { data, isLoading } = useQuery({
-    queryKey: ['purchase-orders', page, pageSize, statusFilter],
+    queryKey: ['purchase-orders', page, pageSize, statusFilter, deferredSearch],
     queryFn: () =>
       suppliersApi.getPurchaseOrders({
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
+        search: deferredSearch.trim() || undefined,
       }),
+    placeholderData: keepPreviousData,
   })
 
   const orders = data?.data || []
@@ -192,7 +205,16 @@ const PurchaseOrders = () => {
       {
         id: 'items',
         header: 'Items',
-        cell: ({ row }) => row.original.items.length,
+        cell: ({ row }) => {
+          const items = row.original.items
+          const first = items[0]?.item_name
+          return (
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-foreground">{first ?? `${items.length} item${items.length === 1 ? '' : 's'}`}</span>
+              {first && items.length > 1 && <span className="text-xs text-muted-foreground">+{items.length - 1} more</span>}
+            </div>
+          )
+        },
         enableSorting: false,
       },
       {
@@ -203,6 +225,40 @@ const PurchaseOrders = () => {
             {formatCurrency(row.original.total_amount)}
           </span>
         ),
+      },
+      {
+        id: 'payment',
+        header: 'Supplier invoice',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const invoice = row.original.supplier_invoice
+          if (!invoice) {
+            const ahead = row.original.advance_paid ?? 0
+            return (
+              <div className="flex flex-col">
+                {['Received', 'Partially Received'].includes(row.original.status)
+                  ? <span className="text-xs text-amber-600 dark:text-amber-400">Not invoiced yet</span>
+                  : !ahead && <span className="text-xs text-muted-foreground">—</span>}
+                {ahead > 0 && <span className="text-xs text-sky-700 dark:text-sky-300">{formatCurrency(ahead)} paid ahead</span>}
+              </div>
+            )
+          }
+          return (
+            <button
+              type="button"
+              className="flex flex-col text-left"
+              onClick={(event) => {
+                event.stopPropagation()
+                navigate(`/supplier-invoices?detail=${invoice.id}`)
+              }}
+            >
+              <span className="text-sm text-primary hover:underline">{invoice.invoice_number}</span>
+              <span className={cn('text-xs', invoice.balance_due > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                {invoice.balance_due > 0 ? `${formatCurrency(invoice.balance_due)} to pay` : 'Paid'}
+              </span>
+            </button>
+          )
+        },
       },
       {
         accessorKey: 'order_date',
@@ -224,12 +280,35 @@ const PurchaseOrders = () => {
         enableHiding: false,
         cell: ({ row }) => {
           const order = row.original
-          const nextAction = getPONextAction(order.status)
+          const invoice = order.supplier_invoice
+          // Once the supplier's bill is in, paying it is what's next
+          const owing = invoice && invoice.balance_due > 0
+          const nextAction = owing ? null : getPONextAction(order.status)
           const isRowPending = pendingRowId === order.id
           const Icon = nextAction?.icon ?? null
 
           return (
             <div className="flex items-center gap-1.5 justify-end">
+              {owing && (
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPayInvoice({
+                      id: invoice.id,
+                      invoice_number: invoice.invoice_number,
+                      total_amount: invoice.total_amount,
+                      paid_amount: invoice.paid_amount,
+                      purchase_order_id: order.id,
+                      supplier_name: order.supplier_information?.supplier_name,
+                    })
+                  }}
+                  className="h-7 gap-1 border-violet-600 bg-violet-600 px-2.5 text-xs font-semibold text-white shadow-none hover:bg-violet-700"
+                >
+                  <RiMoneyDollarCircleLine className="size-3" />
+                  Pay Supplier
+                </Button>
+              )}
               {/* Inline workflow action for non-dialog transitions */}
               {nextAction && Icon && !nextAction.requiresDialog && (
                 <Button
@@ -268,6 +347,7 @@ const PurchaseOrders = () => {
                     e.stopPropagation()
                     if (nextAction.toStatus === 'Received') setReceiveOrder(order)
                     else if (nextAction.toStatus === 'Closed') setInvoiceOrder(order)
+                    else if (nextAction.toStatus === 'Ordered') setSendOrder(order)
                   }}
                   className={cn(
                     'h-7 gap-1 px-2.5 text-xs font-semibold shadow-none',
@@ -296,6 +376,16 @@ const PurchaseOrders = () => {
                   <DropdownMenuItem onClick={() => setDetailOrderId(order.id)}>
                     <RiEyeLine className="size-4" />
                     View Details
+                  </DropdownMenuItem>
+                  {order.status === 'Draft' && (
+                    <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?draft=${order.id}`)}>
+                      <RiFileEditLine className="size-4" />
+                      Edit Draft
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?copy=${order.id}`)}>
+                    <RiFileCopyLine className="size-4" />
+                    Order Again
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -326,7 +416,7 @@ const PurchaseOrders = () => {
         },
       },
     ],
-    [pendingRowId, rowStatusMutation],
+    [pendingRowId, rowStatusMutation, navigate],
   )
 
   return (
@@ -338,17 +428,19 @@ const PurchaseOrders = () => {
             Purchase Orders
           </h1>
           <p className="text-sm text-muted-foreground">
-            Track and advance every purchase order through its lifecycle.
+            From ordering to paying the supplier — every step happens on the order.
           </p>
         </div>
-        <Button
-          size="sm"
-          className="w-full md:w-auto"
-          onClick={() => setIsCreateOpen(true)}
-        >
-          <RiAddLine className="size-4" />
-          Create PO
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button size="sm" variant="outline" className="w-full md:w-auto" onClick={() => navigate('/inventory/receiving?tab=quick')}>
+            <RiTruckLine className="size-4" />
+            Receive without a PO
+          </Button>
+          <Button size="sm" className="w-full md:w-auto" onClick={() => navigate('/purchase-orders/new')}>
+            <RiAddLine className="size-4" />
+            Create PO
+          </Button>
+        </div>
       </section>
 
       {/* Lifecycle quick-filter tabs */}
@@ -376,7 +468,11 @@ const PurchaseOrders = () => {
         orderId={detailOrderId}
         open={!!detailOrderId}
         onOpenChange={(open) => {
-          if (!open) setDetailOrderId(null)
+          if (open) return
+          setDetailOrderId(null)
+          if (searchParams.get('detail')) {
+            setSearchParams((prev) => { prev.delete('detail'); return prev }, { replace: true })
+          }
         }}
       />
 
@@ -444,7 +540,7 @@ const PurchaseOrders = () => {
               setPage(1)
             }}
             loading={isLoading}
-            searchPlaceholder="Search orders…"
+            searchPlaceholder="Search PO number, supplier or item…"
             className="px-6"
             selectedRows={selectedRows}
             rowActions={rowActions}
@@ -469,18 +565,6 @@ const PurchaseOrders = () => {
         </CardContent>
       </Card>
 
-      {/* Create PO dialog */}
-      {isCreateOpen && (
-        <CreatePurchaseOrderAssistant
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          onSuccess={() => {
-            setIsCreateOpen(false)
-            queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-          }}
-        />
-      )}
-
       {/* Receive goods dialog */}
       <ReceiveGoodsDialog
         isOpen={!!receiveOrder}
@@ -489,8 +573,8 @@ const PurchaseOrders = () => {
         onSuccess={(updatedOrder) => {
           setReceiveOrder(null)
           queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-          // After receiving, prompt invoice creation
-          setInvoiceOrder(updatedOrder)
+          // Everything's in — the supplier's invoice is next (a part delivery waits for the rest)
+          if (updatedOrder?.status === 'Received') setInvoiceOrder(updatedOrder)
         }}
       />
 
@@ -499,33 +583,20 @@ const PurchaseOrders = () => {
         isOpen={!!invoiceOrder}
         order={invoiceOrder}
         onClose={() => setInvoiceOrder(null)}
-        onSuccess={async (invoice) => {
-          const closingOrderId = invoiceOrder?.id
+        onSuccess={(invoice) => {
+          // The order closes itself once this invoice is paid in full
           setInvoiceOrder(null)
-          if (closingOrderId) {
-            try {
-              await suppliersApi.updatePurchaseOrderStatus(closingOrderId, 'Closed')
-            } catch {
-              toast.error('Invoice created but failed to close PO — please close it manually.')
-            }
-          }
           queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-          setPaymentInvoiceId(invoice.id)
+          // Advances already paid on the order count towards this invoice
+          if ((invoice.balance_due ?? invoice.total_amount) > 0) setPayInvoice(invoice)
+          else toast.success(`${invoice.invoice_number} is already covered by the advance`)
         }}
       />
 
-      {/* Record payment dialog — opens automatically after invoice creation */}
-      {paymentInvoiceId && (
-        <SupplierPaymentForm
-          invoiceId={paymentInvoiceId}
-          onSuccess={() => {
-            setPaymentInvoiceId(null)
-            queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] })
-            queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
-          }}
-          onCancel={() => setPaymentInvoiceId(null)}
-        />
-      )}
+      {/* Paying the supplier — opens straight after the invoice is recorded */}
+      <RecordSupplierPaymentDialog open={!!payInvoice} onClose={() => setPayInvoice(null)} supplierInvoice={payInvoice} />
+
+      <SendPurchaseOrderDialog order={sendOrder} open={!!sendOrder} onClose={() => setSendOrder(null)} />
     </div>
   )
 }

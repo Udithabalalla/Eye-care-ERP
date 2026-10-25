@@ -39,6 +39,7 @@ const Doctors = lazy(() => import('./pages/Doctors'))
 const Reports = lazy(() => import('./pages/Reports'))
 const Suppliers = lazy(() => import('./pages/Suppliers'))
 const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'))
+const PurchaseOrderCreate = lazy(() => import('./pages/PurchaseOrderCreate'))
 const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
 const Users = lazy(() => import('./pages/Users'))
@@ -104,6 +105,7 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/purchase-orders" element={<PurchaseOrders />} />
+            <Route path="/purchase-orders/new" element={<PurchaseOrderCreate />} />
             {/* Receiving against POs now lives on the Receive Stock page */}
             <Route path="/stock-receipts" element={<Navigate to="/inventory/receiving?tab=po" replace />} />
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />

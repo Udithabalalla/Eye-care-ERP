@@ -10,67 +10,58 @@ interface PurchaseOrderStepperProps {
 
 export function PurchaseOrderStepper({ status, className }: PurchaseOrderStepperProps) {
   const activeIndex = getPOLifecycleIndex(status)
+  // Closed is the end of the road, so it shows as done rather than in progress
+  const doneIndex = status === 'Closed' ? PO_LIFECYCLE_STEPS.length : activeIndex
 
   if (activeIndex === -1) return null
 
   return (
     <nav aria-label="Purchase order lifecycle" className={cn('w-full', className)}>
-      <ol className="flex items-center w-full">
+      {/* Equal-width columns keep the connectors the same length whatever the label */}
+      <ol className="grid w-full" style={{ gridTemplateColumns: `repeat(${PO_LIFECYCLE_STEPS.length}, minmax(0, 1fr))` }}>
         {PO_LIFECYCLE_STEPS.map((step, index) => {
-          const isCompleted = index < activeIndex
-          const isActive = index === activeIndex
-          const isUpcoming = index > activeIndex
+          const isCompleted = index < doneIndex
+          const isActive = index === doneIndex
+          const isUpcoming = index > doneIndex
           const isLast = index === PO_LIFECYCLE_STEPS.length - 1
+          const label = step.status === 'Received' && status === 'Partially Received' ? 'Part received' : step.shortLabel
 
           return (
-            <li
-              key={step.status}
-              className={cn('flex items-center', isLast ? 'flex-none' : 'flex-1')}
-            >
-              <div className="flex flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    'flex items-center justify-center rounded-full border-2 transition-all',
-                    isCompleted && 'h-7 w-7 border-emerald-500 bg-emerald-500 text-white',
-                    isActive &&
-                      'h-8 w-8 border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/30',
-                    isUpcoming &&
-                      'h-7 w-7 border-muted-foreground/30 bg-background text-muted-foreground/40',
-                  )}
-                >
-                  {isCompleted ? (
-                    <RiCheckLine className="size-3.5" />
-                  ) : (
-                    <span
-                      className={cn(
-                        'text-xs font-semibold tabular-nums',
-                        isActive && 'text-sm',
-                      )}
-                    >
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    'hidden sm:block text-center text-xs leading-tight max-w-[72px]',
-                    isCompleted && 'text-emerald-600 dark:text-emerald-400 font-medium',
-                    isActive && 'text-foreground font-semibold',
-                    isUpcoming && 'text-muted-foreground/50',
-                  )}
-                >
-                  {step.shortLabel}
-                </span>
-              </div>
-
+            <li key={step.status} className="relative flex flex-col items-center gap-1.5">
               {!isLast && (
-                <div
+                <span
+                  aria-hidden
                   className={cn(
-                    'flex-1 h-0.5 mx-2 rounded-full transition-all',
-                    index < activeIndex ? 'bg-emerald-400 dark:bg-emerald-600' : 'bg-muted',
+                    'absolute top-[15px] h-0.5 rounded-full transition-colors',
+                    index < doneIndex ? 'bg-emerald-400 dark:bg-emerald-600' : 'bg-muted',
                   )}
+                  style={{ left: 'calc(50% + 20px)', width: 'calc(100% - 40px)' }}
                 />
               )}
+              <div
+                className={cn(
+                  'relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all',
+                  isCompleted && 'border-emerald-500 bg-emerald-500 text-white',
+                  isActive && 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/30 ring-4 ring-primary/15',
+                  isUpcoming && 'border-muted-foreground/30 bg-background text-muted-foreground/50',
+                )}
+              >
+                {isCompleted ? (
+                  <RiCheckLine className="size-3.5" />
+                ) : (
+                  <span className="text-xs font-semibold tabular-nums">{index + 1}</span>
+                )}
+              </div>
+              <span
+                className={cn(
+                  'hidden sm:block px-0.5 text-center text-[11px] leading-tight',
+                  isCompleted && 'text-emerald-600 dark:text-emerald-400 font-medium',
+                  isActive && 'text-foreground font-semibold',
+                  isUpcoming && 'text-muted-foreground/60',
+                )}
+              >
+                {label}
+              </span>
             </li>
           )
         })}

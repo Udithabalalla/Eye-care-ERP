@@ -36,6 +36,11 @@ export interface PurchaseOrderItem {
   purchase_order_id: string
   product_id: string
   frame_variant_id?: string
+  /** What the line is, named when the order was written */
+  item_type?: 'frame' | 'product'
+  item_name?: string
+  item_detail?: string
+  sku?: string
   quantity: number
   /** Total received so far across deliveries; outstanding = quantity − received_quantity */
   received_quantity?: number
@@ -117,6 +122,24 @@ export interface PurchaseOrderSummary {
   total_amount?: number
 }
 
+export interface PurchaseOrderInvoiceSummary {
+  id: string
+  invoice_number: string
+  status: 'Unpaid' | 'Partial' | 'Paid'
+  total_amount: number
+  paid_amount: number
+  balance_due: number
+  due_date?: string | null
+}
+
+export interface PurchaseOrderSendData {
+  to: string
+  cc?: string
+  subject?: string
+  message?: string
+  mark_ordered?: boolean
+}
+
 export interface PurchaseOrder {
   id: string
   order_number?: string
@@ -136,6 +159,14 @@ export interface PurchaseOrder {
   authorization?: Authorization
   footer?: Footer
   receipt_summary?: PurchaseOrderReceiptSummary
+  /** The supplier's invoice for this order and where payment stands */
+  supplier_invoice?: PurchaseOrderInvoiceSummary | null
+  /** Paid ahead of the invoice and not yet counted against one */
+  advance_paid?: number
+  /** Last time the order was emailed to the supplier */
+  sent_at?: string | null
+  sent_to?: string | null
+  sent_by?: string | null
   status_history?: POStatusHistoryEntry[]
   items: PurchaseOrderItem[]
   created_at: string
@@ -215,6 +246,11 @@ export interface SupplierInvoice {
   items?: SupplierInvoiceItem[]
   matching_status?: 'Matched' | 'Flagged'
   matching_issues?: string[]
+  /** From the payments recorded against it */
+  paid_amount?: number
+  balance_due?: number
+  /** Advances that came to more than the bill */
+  overpaid_amount?: number
   created_by?: string
   updated_by?: string
   created_at: string
@@ -245,8 +281,13 @@ export interface SupplierInvoiceFormData {
 
 export interface SupplierPayment {
   id: string
-  invoice_id: string
+  /** Empty for an advance paid before the invoice arrived */
+  invoice_id?: string | null
+  is_advance?: boolean
   invoice_number?: string
+  supplier_id?: string
+  supplier_name?: string
+  purchase_order_id?: string
   payment_date: string
   payment_method: string
   amount_paid: number

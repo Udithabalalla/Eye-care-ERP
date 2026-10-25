@@ -56,12 +56,15 @@ export function MoneyStrip({
   balance,
   onRecordPayment,
   note,
+  actionLabel = 'Record payment',
 }: {
   total: number
   paid: number
   balance: number
   onRecordPayment?: () => void
-  note?: string
+  /** Short line under the numbers — text, or a link to the related record */
+  note?: React.ReactNode
+  actionLabel?: string
 }) {
   const settled = total > 0 && balance <= 0
   return (
@@ -84,11 +87,11 @@ export function MoneyStrip({
       </div>
       {(onRecordPayment || note) && (
         <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
-          <p className="text-xs text-muted-foreground">{note}</p>
+          <div className="min-w-0 text-xs text-muted-foreground">{note}</div>
           {onRecordPayment && balance > 0 && (
             <Button size="sm" className="h-8 shrink-0 gap-1.5" onClick={onRecordPayment}>
               <RiMoneyDollarCircleLine className="size-4" />
-              Record payment
+              {actionLabel}
             </Button>
           )}
         </div>
@@ -143,6 +146,9 @@ export interface DrawerLineItem {
   unitPrice: number
   total: number
   isFree?: boolean
+  /** Short status after the detail, e.g. "3 of 4 received" */
+  note?: string
+  noteTone?: 'success' | 'warning'
 }
 
 /** Line items as a list rather than a wide table, so nothing is cut off at drawer width */
@@ -156,6 +162,11 @@ export function LineItemList({ items }: { items: DrawerLineItem[] }) {
             <p className="truncate text-xs text-muted-foreground">
               {[item.detail, item.isFree ? 'Free' : `${item.qty} × ${formatCurrency(item.unitPrice)}`].filter(Boolean).join(' · ')}
             </p>
+            {item.note && (
+              <p className={cn('text-xs font-medium', item.noteTone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                {item.note}
+              </p>
+            )}
           </div>
           <span className={cn('shrink-0 text-sm font-medium tabular-nums', item.isFree && 'text-emerald-600 dark:text-emerald-400')}>
             {item.isFree ? 'Free' : formatCurrency(item.total)}
@@ -167,7 +178,18 @@ export function LineItemList({ items }: { items: DrawerLineItem[] }) {
 }
 
 /** Subtotal / discount / total block under the line items */
-export function TotalsBlock({ subtotal, discount, total }: { subtotal: number; discount?: number; total: number }) {
+export function TotalsBlock({
+  subtotal,
+  discount,
+  charges,
+  total,
+}: {
+  subtotal: number
+  discount?: number
+  /** Extra lines between the discount and the total, e.g. shipping */
+  charges?: Array<{ label: string; amount: number }>
+  total: number
+}) {
   return (
     <div className="mt-2 space-y-1 border-t border-border pt-2 text-sm">
       <div className="flex justify-between text-muted-foreground">
@@ -180,6 +202,12 @@ export function TotalsBlock({ subtotal, discount, total }: { subtotal: number; d
           <span className="tabular-nums">− {formatCurrency(discount)}</span>
         </div>
       )}
+      {charges?.filter((charge) => charge.amount > 0).map((charge) => (
+        <div key={charge.label} className="flex justify-between text-muted-foreground">
+          <span>{charge.label}</span>
+          <span className="tabular-nums">{formatCurrency(charge.amount)}</span>
+        </div>
+      ))}
       <div className="flex justify-between font-semibold">
         <span>Total</span>
         <span className="tabular-nums">{formatCurrency(total)}</span>

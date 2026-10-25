@@ -2,8 +2,8 @@ import { PurchaseOrder, PurchaseOrderStatus } from '@/types/supplier.types'
 import {
   RiShieldCheckLine,
   RiTruckLine,
-  RiBox3Line,
   RiFileTextLine,
+  RiMailSendLine,
 } from '@remixicon/react'
 
 export interface POWorkflowAction {
@@ -25,12 +25,13 @@ export const PO_WORKFLOW_ACTIONS: POWorkflowAction[] = [
     requiresDialog: false,
   },
   {
+    // Placing the order: email it, or mark it ordered when it went another way
     fromStatus: 'Approved',
     toStatus: 'Ordered',
-    label: 'Mark as Ordered',
-    icon: RiBox3Line,
+    label: 'Send to Supplier',
+    icon: RiMailSendLine,
     className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
-    requiresDialog: false,
+    requiresDialog: true,
   },
   {
     fromStatus: 'Ordered',
@@ -52,7 +53,7 @@ export const PO_WORKFLOW_ACTIONS: POWorkflowAction[] = [
   {
     fromStatus: 'Received',
     toStatus: 'Closed',
-    label: 'Create Invoice',
+    label: 'Add Supplier Invoice',
     icon: RiFileTextLine,
     className: 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary',
     requiresDialog: true,

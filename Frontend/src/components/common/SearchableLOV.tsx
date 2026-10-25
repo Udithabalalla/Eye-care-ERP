@@ -111,6 +111,8 @@ const SearchableLOV = ({
                   <CommandItem
                     key={option.value}
                     value={option.value}
+                    // Typing matches the name and subtitle people see, not just the hidden ID
+                    keywords={[option.label, option.subtitle ?? '']}
                     onSelect={handleSelect}
                     className="flex items-center gap-2"
                   >
