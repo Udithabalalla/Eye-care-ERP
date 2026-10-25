@@ -9,9 +9,11 @@ interface PrescriptionModalProps {
     onSuccess: () => void
     readOnly?: boolean
     onSwitchToEdit?: (prescription: Prescription) => void
+    /** New prescription for this patient (picked already) */
+    initialPatientId?: string
 }
 
-const PrescriptionModal = ({ isOpen, onClose, prescription, onSuccess, readOnly = false, onSwitchToEdit }: PrescriptionModalProps) => {
+const PrescriptionModal = ({ isOpen, onClose, prescription, onSuccess, readOnly = false, onSwitchToEdit, initialPatientId }: PrescriptionModalProps) => {
     return (
         <Modal
             isOpen={isOpen}
@@ -20,8 +22,9 @@ const PrescriptionModal = ({ isOpen, onClose, prescription, onSuccess, readOnly 
             size="xl"
         >
             <PrescriptionForm
-                key={prescription?.prescription_id || 'new'}
+                key={prescription?.prescription_id || `new-${initialPatientId ?? ''}`}
                 prescription={prescription}
+                initialPatientId={initialPatientId}
                 onSuccess={() => {
                     onSuccess()
                     onClose()

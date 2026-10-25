@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timezone
 import math
 
 from app.repositories.patient_repository import PatientRepository
@@ -14,7 +15,68 @@ class PatientService:
     """Patient business logic service"""
     
     def __init__(self, db: AsyncIOMotorDatabase):
+        self.db = db
         self.patient_repo = PatientRepository(db)
+
+    @staticmethod
+    def _utc(value) -> Optional[datetime]:
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        if not isinstance(value, datetime):
+            return None
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    async def _activity(self, patient_ids: list[str]) -> dict[str, dict]:
+        """
+        Visits worked out from what actually happened — confirmed orders, eye tests and
+        completed appointments (a day with any of them is one visit) — plus the next booking.
+        The stored visit fields were never kept up to date, so they can't be relied on.
+        """
+        ids = [pid for pid in set(patient_ids) if pid]
+        if not ids:
+            return {}
+        days: dict[str, set] = defaultdict(set)
+        last: dict[str, datetime] = {}
+        upcoming: dict[str, datetime] = {}
+
+        def seen(patient_id: str, when) -> None:
+            when = self._utc(when)
+            if not when:
+                return
+            days[patient_id].add(when.date())
+            if patient_id not in last or when > last[patient_id]:
+                last[patient_id] = when
+
+        orders = self.db["sales_orders"].find(
+            {"patient_id": {"$in": ids}, "status": {"$nin": ["draft", "cancelled"]}}, {"patient_id": 1, "created_at": 1}
+        )
+        async for doc in orders:
+            seen(doc["patient_id"], doc.get("created_at"))
+        prescriptions = self.db["prescriptions"].find({"patient_id": {"$in": ids}}, {"patient_id": 1, "prescription_date": 1})
+        async for doc in prescriptions:
+            seen(doc["patient_id"], doc.get("prescription_date"))
+
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        appointments = self.db["appointments"].find(
+            {"patient_id": {"$in": ids}, "status": {"$in": ["completed", "scheduled", "confirmed"]}},
+            {"patient_id": 1, "appointment_date": 1, "status": 1},
+        )
+        async for doc in appointments:
+            when = self._utc(doc.get("appointment_date"))
+            if not when:
+                continue
+            if doc.get("status") == "completed":
+                seen(doc["patient_id"], when)
+            elif when >= today and (doc["patient_id"] not in upcoming or when < upcoming[doc["patient_id"]]):
+                upcoming[doc["patient_id"]] = when
+
+        return {
+            pid: {"visits": len(days.get(pid, ())), "last": last.get(pid), "next": upcoming.get(pid)}
+            for pid in ids
+        }
     
     async def list_patients(
         self,
@@ -33,7 +95,8 @@ class PatientService:
         
         total_pages = math.ceil(total / page_size)
 
-        patient_responses = [self._to_response(p) for p in patients]
+        activity = await self._activity([p.patient_id for p in patients])
+        patient_responses = [self._to_response(p, activity.get(p.patient_id)) for p in patients]
         
         return PaginatedResponse(
             data=patient_responses,
@@ -43,9 +106,15 @@ class PatientService:
             total_pages=total_pages
         )
     
-    def _to_response(self, patient: PatientModel) -> PatientResponse:
+    def _to_response(self, patient: PatientModel, activity: Optional[dict] = None) -> PatientResponse:
         data = patient.dict()
         data["age"] = calculate_age(patient.date_of_birth)
+        if activity:
+            stored_last = self._utc(patient.last_visit)
+            derived_last = activity.get("last")
+            data["last_visit"] = max(filter(None, [stored_last, derived_last]), default=None)
+            data["total_visits"] = max(patient.total_visits or 0, activity.get("visits") or 0)
+            data["next_appointment"] = activity.get("next") or patient.next_appointment
         return PatientResponse(**data)
 
     async def get_patient(self, patient_id: str) -> PatientResponse:
@@ -55,7 +124,8 @@ class PatientService:
         if not patient:
             raise NotFoundException(f"Patient with ID {patient_id} not found")
 
-        return self._to_response(patient)
+        activity = await self._activity([patient.patient_id])
+        return self._to_response(patient, activity.get(patient.patient_id))
     
     async def create_patient(self, patient_data: PatientCreate) -> PatientResponse:
         """Create a new patient"""

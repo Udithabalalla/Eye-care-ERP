@@ -31,6 +31,7 @@ interface PrescriptionFormProps {
   onCancel: () => void
   readOnly?: boolean
   onSwitchToEdit?: (prescription: Prescription) => void
+  initialPatientId?: string
 }
 
 const emptyEyeMeasurement = (): EyeMeasurement => ({
@@ -95,7 +96,7 @@ function DatePickerField({
   )
 }
 
-const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false, onSwitchToEdit }: PrescriptionFormProps) => {
+const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false, onSwitchToEdit, initialPatientId }: PrescriptionFormProps) => {
   const [patientSearch, setPatientSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
@@ -117,7 +118,7 @@ const PrescriptionForm = ({ prescription, onSuccess, onCancel, readOnly = false,
   const [formData, setFormData] = useState<PrescriptionFormData>(() => {
     try {
       return {
-        patient_id: prescription?.patient_id || '',
+        patient_id: prescription?.patient_id || initialPatientId || '',
         doctor_id: prescription?.doctor_id || '',
         prescription_date: safeDate(prescription?.prescription_date),
         diagnosis: prescription?.diagnosis || '',
