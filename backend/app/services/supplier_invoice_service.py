@@ -1,12 +1,14 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 import math
+import re
 from datetime import datetime, date, timezone
 
 from app.repositories.purchase_order_repository import PurchaseOrderRepository
 from app.repositories.supplier_invoice_repository import SupplierInvoiceRepository
 from app.repositories.supplier_repository import SupplierRepository
 from app.repositories.stock_receipt_repository import StockReceiptRepository
+from app.repositories.supplier_payment_repository import SupplierPaymentRepository
 from app.schemas.supplier_invoice import SupplierInvoiceCreate, SupplierInvoiceUpdate, SupplierInvoiceResponse, SupplierInvoiceItemCreate
 from app.schemas.responses import PaginatedResponse
 from app.models.supplier_invoice import SupplierInvoiceModel, SupplierInvoiceItemModel
@@ -33,17 +35,78 @@ class SupplierInvoiceService:
         self.supplier_repo = SupplierRepository(db)
         self.purchase_order_repo = PurchaseOrderRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
+        self.payment_repo = SupplierPaymentRepository(db)
+
+    @staticmethod
+    def _with_money(data: dict, paid: float) -> dict:
+        total = data.get("total_amount") or 0.0
+        data["paid_amount"] = round(paid, 2)
+        data["balance_due"] = round(max(0.0, total - paid), 2)
+        # Advances can come to more than the bill (e.g. a short delivery)
+        data["overpaid_amount"] = round(max(0.0, paid - total), 2)
+        return data
 
     async def _to_response(self, invoice: SupplierInvoiceModel) -> SupplierInvoiceResponse:
         supplier = await self.supplier_repo.get_by_supplier_id(invoice.supplier_id)
         data = invoice.dict()
         data["supplier_name"] = supplier.supplier_name if supplier else None
-        return SupplierInvoiceResponse(**data)
+        paid = await self.payment_repo.sum_paid_for_invoice(invoice.id)
+        return SupplierInvoiceResponse(**self._with_money(data, paid))
 
-    async def list_supplier_invoices(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None):
+    async def get_supplier_invoice(self, invoice_id: str) -> SupplierInvoiceResponse:
+        invoice = await self.repo.get_by_invoice_id(invoice_id)
+        if not invoice:
+            raise NotFoundException(f"Supplier invoice {invoice_id} not found")
+        response = await self._to_response(invoice)
+        await self._name_lines(response)
+        return response
+
+    async def _name_lines(self, invoice: SupplierInvoiceResponse) -> None:
+        """Older invoices were saved without line names; take them from the order they bill."""
+        # Older screens stored the ID itself as the name
+        unnamed = [item for item in invoice.items if not item.product_name or item.product_name == item.product_id]
+        if not unnamed or not invoice.purchase_order_id:
+            return
+        # Lazy import: the PO service pulls in a lot, and only this path needs it
+        from app.services.purchase_order_service import PurchaseOrderService
+
+        try:
+            order = await PurchaseOrderService(self.repo.db).get_purchase_order(invoice.purchase_order_id)
+        except NotFoundException:
+            return
+        names ={item.product_id: item.item_name for item in order.items if item.item_name}
+        for item in unnamed:
+            item.product_name = names.get(item.product_id, item.product_name)
+
+    async def list_supplier_invoices(
+        self,
+        page: int,
+        page_size: int,
+        supplier_id: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        overdue: bool = False,
+    ):
         skip = (page - 1) * page_size
-        invoices, total = await self.repo.list_supplier_invoices(skip=skip, limit=page_size, supplier_id=supplier_id, status=status)
+        search = (search or "").strip() or None
+        matching_supplier_ids = None
+        if search:
+            # Searching by supplier name finds that supplier's invoices too
+            suppliers = await self.supplier_repo.get_many(
+                {"supplier_name": {"$regex": re.escape(search), "$options": "i"}}, limit=0
+            )
+            matching_supplier_ids = [s["id"] for s in suppliers if s.get("id")]
+        invoices, total = await self.repo.list_supplier_invoices(
+            skip=skip,
+            limit=page_size,
+            supplier_id=supplier_id,
+            status=status,
+            search=search,
+            matching_supplier_ids=matching_supplier_ids,
+            overdue_before=datetime.now(timezone.utc) if overdue else None,
+        )
         total_pages = math.ceil(total / page_size)
+        paid_by_invoice = await self.payment_repo.sum_paid_by_invoice([inv.id for inv in invoices])
 
         # Build supplier lookup to avoid N+1 queries
         unique_supplier_ids = list({inv.supplier_id for inv in invoices})
@@ -56,7 +119,7 @@ class SupplierInvoiceService:
         def _make_response(invoice: SupplierInvoiceModel) -> SupplierInvoiceResponse:
             data = invoice.dict()
             data["supplier_name"] = supplier_map.get(invoice.supplier_id)
-            return SupplierInvoiceResponse(**data)
+            return SupplierInvoiceResponse(**self._with_money(data, paid_by_invoice.get(invoice.id, 0.0)))
 
         return PaginatedResponse(
             data=[_make_response(inv) for inv in invoices],
@@ -96,7 +159,7 @@ class SupplierInvoiceService:
             invoice_items_input = [
                 SupplierInvoiceItemCreate(
                     product_id=item.product_id,
-                    product_name=None,
+                    product_name=item.item_name,
                     ordered_quantity=item.quantity,
                     received_quantity=received_quantities.get(item.product_id, item.quantity),
                     invoice_quantity=received_quantities.get(item.product_id, item.quantity),
@@ -128,12 +191,14 @@ class SupplierInvoiceService:
             if purchase_order and invoice_quantity != ordered_quantity:
                 warnings.append("Invoice quantity differs from purchase order quantity.")
 
+            # Name lines after what was ordered, so the invoice never shows a bare ID
+            product_name = item.product_name or (order_item.item_name if order_item else None)
             if warnings:
-                matching_issues.extend([f"{item.product_id}: {warning}" for warning in warnings])
+                matching_issues.extend([f"{product_name or item.product_id}: {warning}" for warning in warnings])
 
             normalized_items.append(SupplierInvoiceItemModel(
                 product_id=item.product_id,
-                product_name=item.product_name,
+                product_name=product_name,
                 ordered_quantity=ordered_quantity,
                 received_quantity=received_quantity,
                 invoice_quantity=invoice_quantity,
@@ -173,8 +238,28 @@ class SupplierInvoiceService:
         doc["due_date"] = _date_to_datetime(doc.get("due_date"))
         doc["invoice_date"] = _date_to_datetime(doc.get("invoice_date"))
         await self.repo.create(doc)
+        if purchase_order:
+            await self._apply_advances(purchase_order, invoice_id, created_by)
         created = await self.repo.get_by_invoice_id(invoice_id)
         return await self._to_response(created)
+
+    async def _apply_advances(self, purchase_order: PurchaseOrderModel, invoice_id: str, user_id: Optional[str]) -> None:
+        """Advances paid on the order count towards its invoice; settling it in full closes the order."""
+        moved = await self.payment_repo.apply_advances_to_invoice(purchase_order.id, invoice_id)
+        if not moved:
+            return
+        invoice = await self.repo.get_by_invoice_id(invoice_id)
+        paid = await self.payment_repo.sum_paid_for_invoice(invoice_id)
+        status = "Paid" if paid >= invoice.total_amount - 0.005 else "Partial"
+        await self.repo.update_invoice_status(invoice_id, status)
+        if status == "Paid":
+            from app.services.purchase_order_service import PurchaseOrderService
+
+            try:
+                await PurchaseOrderService(self.repo.db).update_status(purchase_order.id, "Closed", updated_by=user_id or "system")
+            except BadRequestException:
+                # Still waiting on part of the delivery; it closes when that's sorted
+                pass
 
     async def update_supplier_invoice(self, invoice_id: str, data: SupplierInvoiceUpdate, updated_by: Optional[str] = None) -> SupplierInvoiceResponse:
         existing = await self.repo.get_by_invoice_id(invoice_id)

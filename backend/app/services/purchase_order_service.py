@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
 import math
+import re
 from datetime import datetime, date, timezone
 from pathlib import Path
 import io
@@ -10,6 +11,10 @@ from app.repositories.supplier_repository import SupplierRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.frame_variant_repository import FrameVariantRepository
 from app.repositories.stock_receipt_repository import StockReceiptRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.supplier_invoice_repository import SupplierInvoiceRepository
+from app.repositories.supplier_payment_repository import SupplierPaymentRepository
+from app.services.email_service import EmailService
 from app.services.company_profile_service import CompanyProfileService
 from app.schemas.purchase_order import (
     PurchaseOrderCreate,
@@ -18,6 +23,8 @@ from app.schemas.purchase_order import (
     ReceiveStockRequest,
     ReceiveStockResponseItem,
     PurchaseOrderReceiptSummary,
+    PurchaseOrderInvoiceSummary,
+    PurchaseOrderSendRequest,
 )
 from app.schemas.responses import PaginatedResponse
 from app.models.purchase_order import (
@@ -44,7 +51,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
 
 
 def _date_to_datetime(d: Optional[date]) -> Optional[datetime]:
@@ -63,44 +70,80 @@ class PurchaseOrderService:
         self.product_repo = ProductRepository(db)
         self.frame_variant_repo = FrameVariantRepository(db)
         self.stock_receipt_repo = StockReceiptRepository(db)
+        self.user_repo = UserRepository(db)
+        self.supplier_invoice_repo = SupplierInvoiceRepository(db)
+        self.supplier_payment_repo = SupplierPaymentRepository(db)
         self.company_profile_service = CompanyProfileService(db)
         self.inventory_service = InventoryMovementService(db)
 
-    async def list_purchase_orders(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None):
+    async def list_purchase_orders(self, page: int, page_size: int, supplier_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None):
         skip = (page - 1) * page_size
-        orders, total = await self.repo.list_purchase_orders(skip=skip, limit=page_size, supplier_id=supplier_id, status=status)
+        search = (search or "").strip() or None
+        matching_item_ids = await self._catalogue_ids_matching(search) if search else None
+        orders, total = await self.repo.list_purchase_orders(
+            skip=skip, limit=page_size, supplier_id=supplier_id, status=status,
+            search=search, matching_item_ids=matching_item_ids,
+        )
         total_pages = math.ceil(total / page_size)
+        invoices = await self._invoice_summaries([order.id for order in orders])
+        advances = await self.supplier_payment_repo.sum_unapplied_advances([order.id for order in orders])
         return PaginatedResponse(
-            data=[await self._to_response(order) for order in orders],
+            data=[await self._to_response(order, invoices, advances) for order in orders],
             total=total,
             page=page,
             page_size=page_size,
             total_pages=total_pages,
         )
 
-    async def create_purchase_order(self, data: PurchaseOrderCreate, created_by: str) -> PurchaseOrderResponse:
-        supplier = await self.supplier_repo.get_by_supplier_id(data.supplier_id)
+    async def _get_supplier(self, supplier_id: str):
+        supplier = await self.supplier_repo.get_by_supplier_id(supplier_id)
         if not supplier:
-            raise NotFoundException(f"Supplier with ID {data.supplier_id} not found")
+            raise NotFoundException(f"Supplier with ID {supplier_id} not found")
+        return supplier
 
-        company_profile = await self.company_profile_service.get_company_profile()
+    @staticmethod
+    def _variant_label(variant) -> dict:
+        ref = variant.frame_master_ref
+        name = " ".join(part for part in [getattr(ref, "brand", None), getattr(ref, "model_code", None)] if part)
+        detail = " · ".join(part for part in [variant.color, f"{variant.eye_size} mm" if variant.eye_size else None] if part)
+        return {"item_type": "frame", "item_name": name or variant.sku, "item_detail": detail or None, "sku": variant.sku}
 
-        next_number = await self.repo.count({}) + 1
-        order_id = generate_id("PO", next_number)
-        item_models = []
+    @staticmethod
+    def _product_label(product) -> dict:
+        category = getattr(product.category, "value", product.category) or ""
+        return {
+            "item_type": "product",
+            "item_name": product.name,
+            "item_detail": str(category).replace("_", " ").capitalize() or None,
+            "sku": product.sku,
+        }
+
+    async def _build_lines(self, items, order_id: str, item_prefix: str) -> tuple[list, float, float]:
+        """Check every line exists, name it and price it. Returns (lines, subtotal, line discounts)."""
+        variants = {
+            v.variant_id: v
+            for v in await self.frame_variant_repo.get_many_by_variant_ids([i.frame_variant_id for i in items if i.frame_variant_id])
+        }
+        products = {
+            p.product_id: p
+            for p in await self.product_repo.get_many_by_product_ids([i.product_id for i in items if not i.frame_variant_id])
+        }
+        lines = []
         subtotal = 0.0
         line_discount_total = 0.0
-        for index, item in enumerate(data.items, start=1):
-            resolved_product_id = item.product_id
+        for index, item in enumerate(items, start=1):
             if item.frame_variant_id:
-                variant = await self.frame_variant_repo.get_by_variant_id(item.frame_variant_id)
+                variant = variants.get(item.frame_variant_id)
                 if not variant:
                     raise NotFoundException(f"Frame variant with ID {item.frame_variant_id} not found")
                 resolved_product_id = variant.variant_id
+                label = self._variant_label(variant)
             else:
-                product = await self.product_repo.get_by_product_id(item.product_id)
+                product = products.get(item.product_id)
                 if not product:
                     raise NotFoundException(f"Product with ID {item.product_id} not found")
+                resolved_product_id = product.product_id
+                label = self._product_label(product)
 
             line_subtotal = item.quantity * item.unit_cost
             line_discount_amount = self._calculate_line_discount(
@@ -108,23 +151,27 @@ class PurchaseOrderService:
                 line_discount_type=item.line_discount_type,
                 line_discount_value=item.line_discount_value,
             )
-            line_total = max(0.0, line_subtotal - line_discount_amount)
-
-            item_id = generate_id(f"POI{next_number}", index)
-            item_models.append(PurchaseOrderItemModel(
-                id=item_id,
+            lines.append(PurchaseOrderItemModel(
+                id=generate_id(item_prefix, index),
                 purchase_order_id=order_id,
                 product_id=resolved_product_id,
                 frame_variant_id=item.frame_variant_id,
+                supplier_sku=item.supplier_sku,
                 quantity=item.quantity,
                 unit_cost=item.unit_cost,
                 line_discount_type=item.line_discount_type,
                 line_discount_value=item.line_discount_value,
                 line_discount_amount=line_discount_amount,
-                total_price=line_total,
+                total_price=max(0.0, line_subtotal - line_discount_amount),
+                **label,
             ))
             subtotal += line_subtotal
             line_discount_total += line_discount_amount
+        return lines, subtotal, line_discount_total
+
+    async def _order_fields(self, data: PurchaseOrderCreate, supplier, company_profile, order_id: str, item_prefix: str) -> dict:
+        """Everything about an order that comes from what was entered (shared by create and draft edits)."""
+        item_models, subtotal, line_discount_total = await self._build_lines(data.items, order_id, item_prefix)
 
         summary_input = data.summary or None
         tax_rate = summary_input.tax_rate if summary_input else 0.0
@@ -156,17 +203,14 @@ class PurchaseOrderService:
             tax_number=buyer_payload.get("tax_number"),
         )
 
-        profile_shipping = {
+        shipping_dict = {
             "ship_to_location": getattr(company_profile, "default_ship_to_location", None),
             "delivery_address": getattr(company_profile, "default_delivery_address", None) or getattr(company_profile, "address", None),
             "receiving_department": getattr(company_profile, "default_receiving_department", None),
             "delivery_instructions": getattr(company_profile, "default_delivery_instructions", None),
         }
-
-        shipping_dict = profile_shipping.copy()
         if data.shipping_information:
-            incoming_shipping = data.shipping_information.dict()
-            for key, value in incoming_shipping.items():
+            for key, value in data.shipping_information.dict().items():
                 if isinstance(value, str):
                     cleaned = value.strip()
                     if cleaned:
@@ -174,27 +218,55 @@ class PurchaseOrderService:
                 elif value is not None:
                     shipping_dict[key] = value
 
-        shipping_information = ShippingInformationModel(**shipping_dict)
-
         payment_terms = PaymentTermsModel(currency="LKR")
         if data.payment_terms:
             payment_dict = data.payment_terms.dict()
             payment_dict["currency"] = "LKR"
             payment_terms = PaymentTermsModel(**payment_dict)
+        elif getattr(supplier, "payment_terms", None):
+            # Default to the terms agreed with this supplier
+            payment_terms = PaymentTermsModel(payment_terms=supplier.payment_terms, currency="LKR")
 
-        notes = NotesModel(**data.notes.dict()) if data.notes else None
-        authorization = AuthorizationModel(**data.authorization.dict()) if data.authorization else None
-        footer = FooterModel(**data.footer.dict()) if data.footer else None
+        return {
+            "total_amount": round(total_amount, 2),
+            "items": item_models,
+            "buyer_information": buyer_information,
+            "supplier_information": supplier_information,
+            "shipping_information": ShippingInformationModel(**shipping_dict),
+            "order_summary": OrderSummaryModel(
+                subtotal=round(subtotal, 2),
+                line_discount_total=round(line_discount_total, 2),
+                tax_rate=round(tax_rate, 4),
+                tax_amount=round(tax_amount, 2),
+                shipping_cost=round(shipping_cost, 2),
+                discount=round(po_discount, 2),
+                total_amount=round(total_amount, 2),
+            ),
+            "payment_terms": payment_terms,
+            "notes": NotesModel(**data.notes.dict()) if data.notes else None,
+            "authorization": AuthorizationModel(**data.authorization.dict()) if data.authorization else None,
+            "footer": FooterModel(**data.footer.dict()) if data.footer else None,
+        }
 
-        order_summary = OrderSummaryModel(
-            subtotal=round(subtotal, 2),
-            line_discount_total=round(line_discount_total, 2),
-            tax_rate=round(tax_rate, 4),
-            tax_amount=round(tax_amount, 2),
-            shipping_cost=round(shipping_cost, 2),
-            discount=round(po_discount, 2),
-            total_amount=round(total_amount, 2),
+    async def _catalogue_ids_matching(self, text: str) -> list[str]:
+        """Frame variants and products whose name, model or SKU matches the search text."""
+        pattern = {"$regex": re.escape(text), "$options": "i"}
+        variants = await self.frame_variant_repo.get_many({"$or": [
+            {"sku": pattern}, {"color": pattern},
+            {"frame_master_ref.brand": pattern}, {"frame_master_ref.model_code": pattern}, {"frame_master_ref.frame_name": pattern},
+        ]}, limit=300, projection={"variant_id": 1})
+        products = await self.product_repo.get_many(
+            {"$or": [{"name": pattern}, {"sku": pattern}]}, limit=300, projection={"product_id": 1},
         )
+        return [v["variant_id"] for v in variants if v.get("variant_id")] + [p["product_id"] for p in products if p.get("product_id")]
+
+    async def create_purchase_order(self, data: PurchaseOrderCreate, created_by: str) -> PurchaseOrderResponse:
+        supplier = await self._get_supplier(data.supplier_id)
+        company_profile = await self.company_profile_service.get_company_profile()
+
+        next_number = await self.repo.count({}) + 1
+        order_id = generate_id("PO", next_number)
+        fields = await self._order_fields(data, supplier, company_profile, order_id, f"POI{next_number}")
 
         order_model = PurchaseOrderModel(
             id=order_id,
@@ -202,18 +274,9 @@ class PurchaseOrderService:
             order_date=data.order_date,
             expected_delivery_date=data.expected_delivery_date,
             status="Draft",
-            total_amount=round(total_amount, 2),
             created_by=created_by,
             is_locked=False,
-            items=item_models,
-            buyer_information=buyer_information,
-            supplier_information=supplier_information,
-            shipping_information=shipping_information,
-            order_summary=order_summary,
-            payment_terms=payment_terms,
-            notes=notes,
-            authorization=authorization,
-            footer=footer,
+            **fields,
         )
         doc = order_model.dict()
         # Convert date -> datetime so BSON/Motor can store them
@@ -224,6 +287,33 @@ class PurchaseOrderService:
         # Fetch freshly from DB to get server-set timestamps
         created_order = await self.repo.get_by_order_id(order_id)
         return await self._to_response(created_order)
+
+    async def update_draft(self, order_id: str, data: PurchaseOrderCreate, updated_by: str) -> PurchaseOrderResponse:
+        """Rewrite a draft PO from the order form. Once approved, an order is fixed."""
+        order = await self.repo.get_by_order_id(order_id)
+        if not order:
+            raise NotFoundException(f"Purchase order {order_id} not found")
+        if order.status != PurchaseOrderStatus.DRAFT.value:
+            raise BadRequestException(
+                f"Only draft purchase orders can be edited; {order_id} is already {order.status.lower()}"
+            )
+
+        supplier = await self._get_supplier(data.supplier_id)
+        company_profile = await self.company_profile_service.get_company_profile()
+        number = int("".join(ch for ch in order_id if ch.isdigit()) or 0)
+        fields = await self._order_fields(data, supplier, company_profile, order_id, f"POI{number}")
+
+        update = {
+            key: ([line.dict() for line in value] if key == "items" else value.dict() if hasattr(value, "dict") else value)
+            for key, value in fields.items()
+        }
+        update.update({
+            "supplier_id": data.supplier_id,
+            "order_date": data.order_date,
+            "expected_delivery_date": _date_to_datetime(data.expected_delivery_date),
+        })
+        await self.repo.update({"id": order_id}, update)
+        return await self._to_response(await self.repo.get_by_order_id(order_id))
 
     async def get_purchase_order(self, order_id: str) -> PurchaseOrderResponse:
         order = await self.repo.get_by_order_id(order_id)
@@ -441,19 +531,169 @@ class PurchaseOrderService:
         if not order:
             raise NotFoundException(f"Purchase order {order_id} not found")
 
-        supplier = await self.supplier_repo.get_by_supplier_id(order.supplier_id)
         company_profile = await self.company_profile_service.get_company_profile()
-        product_map = {}
-        for item in order.items:
-            product = await self.product_repo.get_by_product_id(item.product_id)
-            if product:
-                product_map[item.product_id] = product
+        lines = [PurchaseOrderItemResponse(**item.dict()) for item in order.items]
+        await self._fill_item_labels(lines)
 
-        pdf_bytes = self._build_po_pdf(order, supplier, product_map, company_profile)
-        filename = f"{order.id}.pdf"
-        return pdf_bytes, filename
+        approver_name = None
+        approved_by = order.authorization.approved_by if order.authorization else None
+        if approved_by:
+            approver = await self.user_repo.get_by_user_id(approved_by)
+            approver_name = approver.name if approver else approved_by
 
-    async def _to_response(self, order: PurchaseOrderModel) -> PurchaseOrderResponse:
+        pdf_bytes = self._build_po_pdf(order, lines, company_profile, approver_name)
+        return pdf_bytes, f"{order.id}.pdf"
+
+    async def generate_purchase_record_pdf(self, order_id: str) -> tuple[bytes, str]:
+        """One PDF for the file: the order, what arrived, the supplier's invoice and every payment."""
+        order = await self.repo.get_by_order_id(order_id)
+        if not order:
+            raise NotFoundException(f"Purchase order {order_id} not found")
+
+        company_profile = await self.company_profile_service.get_company_profile()
+        lines = [PurchaseOrderItemResponse(**item.dict()) for item in order.items]
+        await self._fill_item_labels(lines)
+        approver_name = None
+        if order.authorization and order.authorization.approved_by:
+            approver = await self.user_repo.get_by_user_id(order.authorization.approved_by)
+            approver_name = approver.name if approver else order.authorization.approved_by
+
+        invoice = (await self.supplier_invoice_repo.get_latest_by_purchase_order_ids([order.id])).get(order.id)
+        invoice_ids = [invoice.id] if invoice else []
+        payments, _ = await self.supplier_payment_repo.list_payments(
+            skip=0, limit=0, purchase_order_id=order.id, order_invoice_ids=invoice_ids,
+        )
+        receipt = await self.stock_receipt_repo.get_latest_by_purchase_order_id(order.id)
+        record = {
+            "invoice": invoice,
+            # Oldest first; same-day payments in the order they were recorded
+            "payments": sorted(payments, key=lambda p: (p.payment_date, p.created_at or p.payment_date)),
+            "received_at": receipt.received_at if receipt else None,
+        }
+        pdf_bytes = self._build_po_pdf(order, lines, company_profile, approver_name, record=record)
+        return pdf_bytes, f"{order.id}-record.pdf"
+
+    async def _fill_item_labels(self, items: list) -> None:
+        """Older orders were saved without item names; look them up (two queries at most)."""
+        missing = [item for item in items if not item.item_name]
+        if not missing:
+            return
+        variants = {
+            v.variant_id: v
+            for v in await self.frame_variant_repo.get_many_by_variant_ids([i.frame_variant_id or i.product_id for i in missing])
+        }
+        products = {
+            p.product_id: p
+            for p in await self.product_repo.get_many_by_product_ids([i.product_id for i in missing if i.product_id not in variants])
+        }
+        for item in missing:
+            key = item.frame_variant_id or item.product_id
+            if key in variants:
+                label = self._variant_label(variants[key])
+            elif item.product_id in products:
+                label = self._product_label(products[item.product_id])
+            else:
+                continue
+            for field, value in label.items():
+                setattr(item, field, value)
+
+    async def _invoice_summaries(self, order_ids: list[str]) -> dict[str, PurchaseOrderInvoiceSummary]:
+        """Each order's supplier invoice and what's been paid on it (two queries for any number of orders)."""
+        invoices = await self.supplier_invoice_repo.get_latest_by_purchase_order_ids(order_ids)
+        paid = await self.supplier_payment_repo.sum_paid_by_invoice([inv.id for inv in invoices.values()])
+        summaries = {}
+        for order_id, invoice in invoices.items():
+            invoice_paid = paid.get(invoice.id, 0.0)
+            summaries[order_id] = PurchaseOrderInvoiceSummary(
+                id=invoice.id,
+                invoice_number=invoice.invoice_number,
+                status=invoice.status,
+                total_amount=invoice.total_amount,
+                paid_amount=round(invoice_paid, 2),
+                balance_due=round(max(0.0, invoice.total_amount - invoice_paid), 2),
+                due_date=invoice.due_date,
+            )
+        return summaries
+
+    # Statuses an order can be emailed in: approved onwards, until it's closed
+    SENDABLE_STATUSES = (
+        PurchaseOrderStatus.APPROVED,
+        PurchaseOrderStatus.ORDERED,
+        PurchaseOrderStatus.PARTIALLY_RECEIVED,
+        PurchaseOrderStatus.RECEIVED,
+    )
+
+    async def send_to_supplier(
+        self,
+        order_id: str,
+        request: PurchaseOrderSendRequest,
+        sent_by: str,
+        email_service: Optional[EmailService] = None,
+    ) -> PurchaseOrderResponse:
+        """Email the PO PDF to the supplier; sending an approved order places it (status → Ordered)."""
+        order = await self.repo.get_by_order_id(order_id)
+        if not order:
+            raise NotFoundException(f"Purchase order {order_id} not found")
+        if order.status == PurchaseOrderStatus.DRAFT.value:
+            raise BadRequestException("Approve the purchase order before sending it — a draft prints as DRAFT")
+        if order.status not in [s.value for s in self.SENDABLE_STATUSES]:
+            raise BadRequestException(f"{order_id} is {order.status.lower()} and can't be sent")
+
+        pdf_bytes, filename = await self.generate_purchase_order_pdf(order_id)
+        company = await self.company_profile_service.get_company_profile()
+        company_name = company.company_name or settings.APP_NAME
+        subject = (request.subject or "").strip() or f"Purchase order {order.id} from {company_name}"
+        body = (request.message or "").strip() or self._default_send_message(order, company_name, getattr(company, "phone", None))
+
+        try:
+            await (email_service or EmailService()).send_purchase_order(
+                recipient_email=str(request.to),
+                subject=subject,
+                body=body,
+                pdf_bytes=pdf_bytes,
+                filename=filename,
+                cc=str(request.cc) if request.cc else None,
+                reply_to=getattr(company, "email", None) or None,
+            )
+        except RuntimeError:
+            raise BadRequestException(
+                "Email isn't set up on the server yet. Download the PDF and send it yourself, then mark the order as ordered."
+            )
+        except Exception:
+            raise BadRequestException(
+                "The email couldn't be sent. Check the address and try again, or download the PDF and send it yourself."
+            )
+
+        await self.repo.update({"id": order_id}, {
+            "sent_at": datetime.now(timezone.utc),
+            "sent_to": str(request.to),
+            "sent_by": sent_by,
+        })
+        if request.mark_ordered and order.status == PurchaseOrderStatus.APPROVED.value:
+            return await self.update_status(order_id, PurchaseOrderStatus.ORDERED.value, sent_by)
+        return await self.get_purchase_order(order_id)
+
+    def _default_send_message(self, order: PurchaseOrderModel, company_name: str, company_phone: Optional[str]) -> str:
+        supplier = order.supplier_information
+        greeting = (supplier.contact_person or supplier.supplier_name) if supplier else None
+        shipping = order.shipping_information
+        units = sum(item.quantity for item in order.items)
+        lines = [
+            f"Dear {greeting or 'Sir/Madam'},",
+            "",
+            f"Please find attached our purchase order {order.id} for {units} unit{'s' if units != 1 else ''}, "
+            f"totalling {self._lkr(order.total_amount)}.",
+        ]
+        if order.expected_delivery_date:
+            lines.append(f"We'd like it delivered by {self._fmt_date(order.expected_delivery_date)}.")
+        if shipping and shipping.delivery_address:
+            lines.append(f"Delivery address: {shipping.delivery_address}")
+        lines += ["", "Please confirm the order and the delivery date.", "", "Thank you,", company_name]
+        if company_phone:
+            lines.append(company_phone)
+        return "\n".join(lines)
+
+    async def _to_response(self, order: PurchaseOrderModel, invoice_summaries: Optional[dict] = None, advances: Optional[dict] = None) -> PurchaseOrderResponse:
         def dump_value(value):
             if value is None:
                 return None
@@ -480,6 +720,12 @@ class PurchaseOrderService:
                 ],
             )
 
+        items = [PurchaseOrderItemResponse(**item.dict()) for item in order.items]
+        await self._fill_item_labels(items)
+        invoices = invoice_summaries if invoice_summaries is not None else await self._invoice_summaries([order.id])
+        if advances is None:
+            advances = await self.supplier_payment_repo.sum_unapplied_advances([order.id])
+
         return PurchaseOrderResponse(
             id=order.id,
             supplier_id=order.supplier_id,
@@ -489,7 +735,7 @@ class PurchaseOrderService:
             total_amount=order.total_amount,
             created_by=order.created_by,
             is_locked=order.is_locked,
-            items=[PurchaseOrderItemResponse(**item.dict()) for item in order.items],
+            items=items,
             buyer_information=dump_value(order.buyer_information),
             supplier_information=dump_value(order.supplier_information),
             shipping_information=dump_value(order.shipping_information),
@@ -499,6 +745,11 @@ class PurchaseOrderService:
             authorization=dump_value(order.authorization),
             footer=dump_value(order.footer),
             receipt_summary=dump_value(receipt_summary),
+            supplier_invoice=invoices.get(order.id),
+            advance_paid=round(advances.get(order.id, 0.0), 2),
+            sent_at=order.sent_at,
+            sent_to=order.sent_to,
+            sent_by=order.sent_by,
             status_history=[entry.dict() for entry in order.status_history] if order.status_history else [],
             created_at=order.created_at,
             updated_at=order.updated_at,
@@ -515,12 +766,6 @@ class PurchaseOrderService:
         if line_discount_type == "amount":
             return round(min(line_discount_value, line_subtotal), 2)
         raise BadRequestException("line_discount_type must be 'percent' or 'amount' when discount is provided")
-
-    @staticmethod
-    def _format_dt(value: Optional[datetime]) -> str:
-        if not value:
-            return "-"
-        return value.strftime("%Y-%m-%d")
 
     @staticmethod
     def _lkr(value: float) -> str:
@@ -546,261 +791,358 @@ class PurchaseOrderService:
                 return path
         return None
 
-    def _build_po_pdf(self, order: PurchaseOrderModel, supplier, product_map: dict, company_profile) -> bytes:
+    # Brand accent shared with the on-screen preview (Frontend PurchaseOrderPreview.tsx)
+    ACCENT = "#007595"
+    DEFAULT_LOGO = "brand/logo-full-primary.png"
+    DEFAULT_POLICY_NOTE = "All items are subject to quality inspection upon receipt."
+    DEFAULT_CONTACT_NOTE = "For questions about this order, please contact us using the details above."
+
+    @staticmethod
+    def _fmt_date(value: Optional[datetime]) -> str:
+        return value.strftime("%d %b %Y") if value else "-"
+
+    METHOD_LABELS = {"cash": "Cash", "bank-transfer": "Bank transfer", "cheque": "Cheque", "card": "Card", "upi": "UPI"}
+
+    def _build_po_pdf(
+        self,
+        order: PurchaseOrderModel,
+        lines: list,
+        company_profile,
+        approver_name: Optional[str],
+        record: Optional[dict] = None,
+    ) -> bytes:
+        """
+        Supplier copy of the order (mirrors the on-screen preview; internal notes never print).
+        With ``record`` it becomes the purchase record for your own files: the same order plus
+        what was received, the supplier's invoice and every payment made, advances included.
+        """
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            leftMargin=12 * mm,
-            rightMargin=12 * mm,
-            topMargin=12 * mm,
-            bottomMargin=12 * mm,
-            title=f"Purchase Order {order.id}",
+            leftMargin=16 * mm,
+            rightMargin=16 * mm,
+            topMargin=16 * mm,
+            bottomMargin=16 * mm,
+            title=f"Purchase {'Record' if record else 'Order'} {order.id}",
         )
-        styles = getSampleStyleSheet()
-        heading_style = ParagraphStyle(
-            "SectionHeading",
-            parent=styles["Heading3"],
-            fontSize=10,
-            leading=12,
-            textColor=colors.white,
-        )
-        small = ParagraphStyle("Small", parent=styles["Normal"], fontSize=9, leading=12)
-        normal = ParagraphStyle("NormalText", parent=styles["Normal"], fontSize=10, leading=13)
+        ink = colors.HexColor("#0F172A")
+        slate = colors.HexColor("#64748B")
+        hairline = colors.HexColor("#E2E8F0")
+        content_width = 178 * mm
 
-        buyer = order.buyer_information or BuyerInformationModel(
-            company_name=company_profile.company_name or settings.APP_NAME,
-            company_logo=company_profile.company_logo or "Logo.png",
-            company_address=company_profile.address,
-            phone=company_profile.phone,
-            email=company_profile.email,
-            tax_number=company_profile.tax_number,
-        )
-        supplier_info = order.supplier_information or SupplierInformationModel(
-            supplier_name=supplier.supplier_name if supplier else None,
-            company_name=supplier.company_name if supplier else None,
-            contact_person=supplier.contact_person if supplier else None,
-            phone=supplier.phone if supplier else None,
-            email=str(supplier.email) if supplier and supplier.email else None,
-            address=supplier.address if supplier else None,
-            supplier_id=supplier.id if supplier else order.supplier_id,
-        )
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle("POTitle", parent=styles["Heading1"], fontSize=22, leading=26, textColor=ink, spaceAfter=0)
+        label = ParagraphStyle("Label", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=slate)
+        small = ParagraphStyle("Small", parent=styles["Normal"], fontSize=9, leading=13, textColor=ink)
+        normal = ParagraphStyle("NormalText", parent=styles["Normal"], fontSize=10, leading=14, textColor=ink)
+        muted = ParagraphStyle("Muted", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=slate)
+        right_small = ParagraphStyle("RightSmall", parent=small, alignment=2)
+        head_cell = ParagraphStyle("HeadCell", parent=label, fontName="Helvetica")
+        head_cell_right = ParagraphStyle("HeadCellRight", parent=head_cell, alignment=2)
+
+        buyer = order.buyer_information or BuyerInformationModel()
+        supplier = order.supplier_information or SupplierInformationModel(supplier_id=order.supplier_id)
         shipping = order.shipping_information or ShippingInformationModel()
         summary = order.order_summary or OrderSummaryModel(total_amount=order.total_amount)
         payment = order.payment_terms or PaymentTermsModel(currency="LKR")
         notes = order.notes or NotesModel()
-        authorization = order.authorization or AuthorizationModel(
-            approved_by="WAS Kumudini" if order.status == "Approved" else None,
-            signature="sign.png" if order.status == "Approved" else None,
-            approval_date=order.updated_at if order.status == "Approved" else None,
-        )
+        authorization = order.authorization or AuthorizationModel()
         footer = order.footer or FooterModel()
+        is_draft = order.status == PurchaseOrderStatus.DRAFT.value
+        company_name = buyer.company_name or company_profile.company_name or settings.APP_NAME
 
         story = []
-        logo_path = self._resolve_asset_path(buyer.company_logo or "Logo.png")
-        header_details = [
-            f"<b>{buyer.company_name or company_profile.company_name or settings.APP_NAME}</b>",
-            buyer.company_address or company_profile.address or "-",
-            f"Phone: {buyer.phone or company_profile.phone or '-'}",
-            f"Email: {buyer.email or company_profile.email or '-'}",
-            f"Tax Number: {buyer.tax_number or company_profile.tax_number or '-'}",
+
+        # ── Header: title and number | logo ──────────────────────────────
+        logo_name = company_profile.company_logo if company_profile.company_logo not in (None, "", "Logo.png") else self.DEFAULT_LOGO
+        logo_path = self._resolve_asset_path(logo_name) or self._resolve_asset_path("Logo.png")
+        logo = Image(str(logo_path), width=24 * mm, height=18.4 * mm, kind="proportional") if logo_path else Paragraph("", normal)
+        invoice = record.get("invoice") if record else None
+        header_left = [
+            Paragraph("PURCHASE RECORD" if record else "PURCHASE ORDER", title_style),
+            Paragraph(f"PO number &nbsp;<font color='#0F172A'>#{order.id}</font>", muted),
         ]
-        header_row = [
-            Image(str(logo_path), width=28 * mm, height=28 * mm) if logo_path else Paragraph("", normal),
-            Paragraph("<br/>".join(header_details), normal),
-        ]
-        header_tbl = Table([header_row], colWidths=[35 * mm, 143 * mm])
+        if invoice:
+            header_left.append(Paragraph(f"Supplier invoice &nbsp;<font color='#0F172A'>#{invoice.invoice_number}</font>", muted))
+        if is_draft:
+            header_left.append(Spacer(1, 1.5 * mm))
+            header_left.append(Paragraph("<font color='#B45309'><b>DRAFT</b> — not yet approved</font>", muted))
+        header_tbl = Table([[header_left, logo]], colWidths=[content_width - 30 * mm, 30 * mm])
         header_tbl.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6 * mm),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.75, hairline),
         ]))
         story.append(header_tbl)
-        story.append(Spacer(1, 5 * mm))
+        story.append(Spacer(1, 6 * mm))
 
-        def section_table(title: str, body_cells: list[str]) -> Table:
-            table = Table(
-                [[Paragraph(title, heading_style)], [Paragraph("<br/>".join(body_cells), small)]],
-                colWidths=[178 * mm],
-                repeatRows=1,
-            )
+        def stack(title: str, rows: list[str]) -> list:
+            return [Paragraph(title, label)] + [Paragraph(row, small) for row in rows if row]
+
+        def columns(*cells: list) -> Table:
+            width = content_width / len(cells)
+            table = Table([list(cells)], colWidths=[width] * len(cells))
             table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ]))
             return table
 
-        story.append(section_table(
-            "Purchase Order Header",
-            [
-                f"PO Number: {order.id}",
-                f"Order Date: {self._format_dt(order.order_date)}",
-                f"Expected Delivery: {self._format_dt(order.expected_delivery_date)}",
-                f"Status: {order.status}",
-            ],
+        # ── Ordered by | supplier ─────────────────────────────────────────
+        story.append(columns(
+            stack("Ordered by", [
+                f"<b>{company_name}</b>",
+                buyer.company_address or company_profile.address or "",
+                buyer.phone or company_profile.phone or "",
+                buyer.email or company_profile.email or "",
+                f"Tax no. {buyer.tax_number or company_profile.tax_number}" if (buyer.tax_number or company_profile.tax_number) else "",
+            ]),
+            stack("Supplier", [
+                f"<b>{supplier.supplier_name or order.supplier_id}</b>",
+                supplier.company_name if supplier.company_name and supplier.company_name != supplier.supplier_name else "",
+                f"Attn: {supplier.contact_person}" if supplier.contact_person else "",
+                supplier.phone or "",
+                supplier.email or "",
+                supplier.address or "",
+            ]),
         ))
-        story.append(Spacer(1, 4 * mm))
+        story.append(Spacer(1, 5 * mm))
 
-        story.append(section_table(
-            "Buyer Information",
-            [
-                f"Company: {buyer.company_name or company_profile.company_name or '-'}",
-                f"Address: {buyer.company_address or company_profile.address or '-'}",
-                f"Phone: {buyer.phone or company_profile.phone or '-'}",
-                f"Email: {buyer.email or company_profile.email or '-'}",
-                f"Tax Number: {buyer.tax_number or company_profile.tax_number or '-'}",
-            ],
+        # ── Dates and terms ───────────────────────────────────────────────
+        story.append(columns(
+            stack("Order date", [f"<b>{self._fmt_date(order.order_date)}</b>"]),
+            stack("Received" if record and record.get("received_at") else "Expected delivery", [
+                f"<b>{self._fmt_date(record['received_at'] if record and record.get('received_at') else order.expected_delivery_date)}</b>"
+            ]),
+            stack("Payment terms", [f"<b>{payment.payment_terms or 'As agreed'}</b>"]),
         ))
-        story.append(Spacer(1, 4 * mm))
+        story.append(Spacer(1, 5 * mm))
+        if record:
+            invoice_status = {"Paid": "Paid", "Partial": "Part paid"}.get(invoice.status, "Unpaid") if invoice else "Not invoiced yet"
+            story.append(columns(
+                stack("Invoice date", [f"<b>{self._fmt_date(invoice.invoice_date) if invoice else '-'}</b>"]),
+                stack("Invoice due", [f"<b>{self._fmt_date(invoice.due_date) if invoice else '-'}</b>"]),
+                stack("Order status", [f"<b>{order.status} · {invoice_status}</b>"]),
+            ))
+            story.append(Spacer(1, 5 * mm))
 
-        story.append(section_table(
-            "Supplier Information",
-            [
-                f"Supplier: {supplier_info.supplier_name or '-'}",
-                f"Company: {supplier_info.company_name or '-'}",
-                f"Contact Person: {supplier_info.contact_person or '-'}",
-                f"Phone: {supplier_info.phone or '-'}",
-                f"Address: {supplier_info.address or '-'}",
-                f"Supplier ID: {supplier_info.supplier_id or order.supplier_id}",
-            ],
-        ))
-        story.append(Spacer(1, 4 * mm))
+        # ── Deliver to ────────────────────────────────────────────────────
+        deliver_to = [
+            f"<b>{' · '.join(p for p in [shipping.ship_to_location, shipping.receiving_department] if p)}</b>"
+            if (shipping.ship_to_location or shipping.receiving_department) else "",
+            shipping.delivery_address or "",
+            f"Instructions: {shipping.delivery_instructions}" if shipping.delivery_instructions else "",
+        ]
+        if any(deliver_to):
+            story.append(KeepTogether(columns(stack("Deliver to", deliver_to))))
+            story.append(Spacer(1, 7 * mm))
 
-        story.append(section_table(
-            "Shipping Information",
-            [
-                f"Ship To: {shipping.ship_to_location or '-'}",
-                f"Delivery Address: {shipping.delivery_address or '-'}",
-                f"Receiving Department: {shipping.receiving_department or '-'}",
-                f"Delivery Instructions: {shipping.delivery_instructions or '-'}",
-            ],
-        ))
-        story.append(Spacer(1, 4 * mm))
-
+        # ── Line items ────────────────────────────────────────────────────
+        kind_labels = {"frame": "Frame", "product": "Product"}
+        story.append(columns([Paragraph("Items ordered" + (", received and billed" if record else ""), label), Spacer(1, 1.5 * mm)]))
+        if record:
+            # Ordered · received · billed side by side, so mismatches stand out
+            billed = {item.product_id: item for item in (invoice.items if invoice else [])}
+            untracked = order.status in ("Received", "Closed") and not any(line.received_quantity for line in lines)
+            record_rows = [[
+                Paragraph("Item", head_cell),
+                Paragraph("Ordered", head_cell_right),
+                Paragraph("Received", head_cell_right),
+                Paragraph("Billed", head_cell_right),
+                Paragraph("Unit cost", head_cell_right),
+                Paragraph("Amount", head_cell_right),
+            ]]
+            for line in lines:
+                bill = billed.get(line.product_id)
+                received = line.quantity if untracked else min(line.received_quantity or 0, line.quantity)
+                amount = bill.line_total if bill else (line.total_price or line.quantity * line.unit_cost)
+                flag = (bill and bill.invoice_quantity != line.quantity) or received != line.quantity
+                detail = " · ".join(part for part in [kind_labels.get(line.item_type or ""), line.item_detail, line.sku] if part)
+                record_rows.append([
+                    Paragraph(f"<b>{line.item_name or line.product_id}</b><br/><font size=7.5 color='#64748B'>{detail}</font>", small),
+                    Paragraph(str(line.quantity), right_small),
+                    Paragraph(f"<font color='{'#B45309' if received != line.quantity else '#0F172A'}'>{received}</font>", right_small),
+                    Paragraph(f"<font color='{'#B45309' if flag and bill else '#0F172A'}'>{bill.invoice_quantity if bill else '-'}</font>", right_small),
+                    Paragraph(self._lkr(bill.unit_price if bill else line.unit_cost), right_small),
+                    Paragraph(f"<b>{self._lkr(amount)}</b>", right_small),
+                ])
+            record_table = Table(record_rows, colWidths=[70 * mm, 16 * mm, 18 * mm, 16 * mm, 29 * mm, 29 * mm], repeatRows=1)
+            record_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.5, colors.HexColor("#F1F5F9")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]))
         item_rows = [[
-            Paragraph("#", heading_style),
-            Paragraph("Product", heading_style),
-            Paragraph("SKU", heading_style),
-            Paragraph("Category", heading_style),
-            Paragraph("Qty", heading_style),
-            Paragraph("Unit Price", heading_style),
-            Paragraph("Total", heading_style),
+            Paragraph("Item", head_cell),
+            Paragraph("Qty", head_cell_right),
+            Paragraph("Unit cost", head_cell_right),
+            Paragraph("Amount", head_cell_right),
         ]]
-        for idx, item in enumerate(order.items, start=1):
-            product = product_map.get(item.product_id)
+        for line in lines:
+            detail = " · ".join(part for part in [
+                kind_labels.get(line.item_type or ""),
+                line.item_detail,
+                line.sku,
+                f"{self._lkr(line.line_discount_amount)} off" if line.line_discount_amount else "",
+            ] if part)
             item_rows.append([
-                str(idx),
-                Paragraph((product.name if product else item.product_id)[:120], small),
-                Paragraph((product.sku if product else "-")[:60], small),
-                Paragraph((str(product.category) if product and product.category else "-")[:60], small),
-                Paragraph(str(item.quantity), small),
-                Paragraph(self._lkr(item.unit_cost), small),
-                Paragraph(self._lkr(item.total_price if item.total_price else item.quantity * item.unit_cost), small),
+                Paragraph(f"<b>{line.item_name or line.product_id}</b><br/><font size=7.5 color='#64748B'>{detail}</font>", small),
+                Paragraph(str(line.quantity), right_small),
+                Paragraph(self._lkr(line.unit_cost), right_small),
+                Paragraph(f"<b>{self._lkr(line.total_price or line.quantity * line.unit_cost)}</b>", right_small),
             ])
-
-        items_table = Table(
-            item_rows,
-            colWidths=[10 * mm, 52 * mm, 24 * mm, 24 * mm, 14 * mm, 27 * mm, 27 * mm],
-            repeatRows=1,
-            splitByRow=1,
-        )
+        items_table = Table(item_rows, colWidths=[92 * mm, 16 * mm, 35 * mm, 35 * mm], repeatRows=1)
         items_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("ALIGN", (0, 1), (0, -1), "CENTER"),
-            ("ALIGN", (4, 1), (-1, -1), "RIGHT"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
-            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-            ("LEADING", (0, 0), (-1, -1), 11),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 4 * mm))
-
-        summary_table = Table([
-            [Paragraph("Subtotal", small), Paragraph(self._lkr(summary.subtotal), small)],
-            [Paragraph("Line Discount", small), Paragraph(self._lkr(summary.line_discount_total), small)],
-            [Paragraph("PO Discount", small), Paragraph(self._lkr(summary.discount), small)],
-            [Paragraph(f"Tax ({summary.tax_rate * 100:.2f}%)", small), Paragraph(self._lkr(summary.tax_amount), small)],
-            [Paragraph("Shipping", small), Paragraph(self._lkr(summary.shipping_cost), small)],
-            [Paragraph("Total Amount", small), Paragraph(self._lkr(summary.total_amount), small)],
-        ], colWidths=[45 * mm, 35 * mm])
-        summary_table.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-            ("BACKGROUND", (0, 5), (-1, 5), colors.HexColor("#E2E8F0")),
-            ("FONTNAME", (0, 5), (-1, 5), "Helvetica-Bold"),
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        summary_wrap = Table([[Paragraph("", normal), summary_table]], colWidths=[98 * mm, 80 * mm])
-        summary_wrap.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-        story.append(summary_wrap)
-        story.append(Spacer(1, 4 * mm))
-
-        story.append(section_table(
-            "Payment Terms",
-            [
-                f"Payment Terms: {payment.payment_terms or '-'}",
-                f"Payment Method: {payment.payment_method or '-'}",
-                "Currency: LKR",
-            ],
-        ))
-        story.append(Spacer(1, 4 * mm))
-
-        story.append(section_table(
-            "Notes",
-            [
-                f"Supplier Notes: {notes.supplier_notes or '-'}",
-                "Internal Notes: Hidden in supplier copy",
-            ],
-        ))
-        story.append(Spacer(1, 4 * mm))
-
-        signature_path = self._resolve_asset_path(authorization.signature or "sign.png")
-        signature_cell = Image(str(signature_path), width=36 * mm, height=14 * mm) if signature_path else Paragraph(authorization.signature or "-", small)
-        auth_table = Table([
-            [Paragraph("Approved By", heading_style), Paragraph("Signature", heading_style)],
-            [Paragraph(authorization.approved_by or "-", small), signature_cell],
-            [Paragraph("Approval Date", heading_style), Paragraph(self._format_dt(authorization.approval_date), small)],
-        ], colWidths=[89 * mm, 89 * mm], repeatRows=1)
-        auth_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("SPAN", (0, 2), (1, 2)),
-            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-            ("INNERGRID", (0, 1), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LINEBELOW", (0, 1), (-1, -1), 0.5, colors.HexColor("#F1F5F9")),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ]))
-        story.append(auth_table)
+        story.append(record_table if record else items_table)
+        story.append(Spacer(1, 5 * mm))
 
-        story.append(Spacer(1, 4 * mm))
-        story.append(section_table(
-            "Footer",
-            [
-                f"Company Policy Note: {footer.company_policy_note or 'All items are subject to quality inspection upon receipt.'}",
-                f"Contact Information: {footer.contact_information or 'For procurement support, contact the clinic purchasing desk.'}",
-            ],
-        ))
+        # ── Totals, with the approval beside them ─────────────────────────
+        totals_rows = [[Paragraph("Subtotal", muted), Paragraph(self._lkr(summary.subtotal), right_small)]]
+        if summary.line_discount_total:
+            totals_rows.append([Paragraph("Line discounts", muted), Paragraph(f"-{self._lkr(summary.line_discount_total)}", right_small)])
+        if summary.discount:
+            totals_rows.append([Paragraph("Discount", muted), Paragraph(f"-{self._lkr(summary.discount)}", right_small)])
+        if summary.tax_amount:
+            totals_rows.append([Paragraph(f"Tax ({summary.tax_rate * 100:.1f}%)", muted), Paragraph(self._lkr(summary.tax_amount), right_small)])
+        if summary.shipping_cost:
+            totals_rows.append([Paragraph("Shipping", muted), Paragraph(self._lkr(summary.shipping_cost), right_small)])
+        total_index = len(totals_rows)
+        totals_rows.append([
+            Paragraph(f"<font color='{self.ACCENT}'><b>Order total</b></font>", small),
+            Paragraph(f"<font color='{self.ACCENT}'><b>{self._lkr(summary.total_amount or order.total_amount)}</b></font>", right_small),
+        ])
+        settled = False
+        if record:
+            # Where the money stands: the bill (or the order, before it's billed) less everything paid
+            payments_made = record.get("payments") or []
+            paid_total = round(sum(p.amount_paid for p in payments_made), 2)
+            owed_on = invoice.total_amount if invoice else (summary.total_amount or order.total_amount)
+            balance = round(max(0.0, owed_on - paid_total), 2)
+            settled = owed_on > 0 and balance <= 0.005
+            if invoice:
+                totals_rows.append([Paragraph("Supplier invoice", muted), Paragraph(self._lkr(invoice.total_amount), right_small)])
+            totals_rows.append([Paragraph("Paid", muted), Paragraph(f"-{self._lkr(paid_total)}", right_small)])
+            balance_index = len(totals_rows)
+            totals_rows.append([
+                Paragraph("<b>Balance due</b>", small),
+                Paragraph(f"<b>{self._lkr(balance)}</b>", right_small),
+            ])
+        totals_table = Table(totals_rows, colWidths=[38 * mm, 42 * mm])
+        totals_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("BACKGROUND", (0, total_index), (-1, total_index), colors.HexColor("#E6F1F4")),
+            ("TOPPADDING", (0, total_index), (-1, total_index), 5),
+            ("BOTTOMPADDING", (0, total_index), (-1, total_index), 5),
+            *([("LINEABOVE", (0, balance_index), (-1, balance_index), 0.75, hairline)] if record else []),
+        ]))
+
+        approval = [Paragraph("", normal)]
+        if settled:
+            # Fully paid: the same PAID seal as customer invoices
+            from app.services.invoice_service import InvoiceService
+
+            last_paid = max((p.payment_date for p in record.get("payments") or []), default=None)
+            approval = [InvoiceService._paid_seal(last_paid)]
+        elif authorization.approved_by and not is_draft:
+            signature_path = self._resolve_asset_path(authorization.signature or "sign.png")
+            approval = [Paragraph("Approved by", label)]
+            if signature_path:
+                approval.append(Image(str(signature_path), width=32 * mm, height=12 * mm, kind="proportional"))
+            approval.append(Paragraph(f"<b>{approver_name or authorization.approved_by}</b>", small))
+            approval.append(Paragraph(self._fmt_date(authorization.approval_date), muted))
+        totals_wrap = Table([[approval, totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
+        totals_wrap.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.append(KeepTogether(totals_wrap))
+        story.append(Spacer(1, 6 * mm))
+
+        # ── Payments (record only) ────────────────────────────────────────
+        if record:
+            payments_made = record.get("payments") or []
+            pay_rows = [[
+                Paragraph("Paid on", head_cell),
+                Paragraph("For", head_cell),
+                Paragraph("Method", head_cell),
+                Paragraph("Reference", head_cell),
+                Paragraph("Amount", head_cell_right),
+            ]]
+            for p in payments_made:
+                pay_rows.append([
+                    Paragraph(self._fmt_date(p.payment_date), small),
+                    Paragraph("Advance on the order" if p.is_advance else "Against the invoice", small),
+                    Paragraph(self.METHOD_LABELS.get(p.payment_method, p.payment_method), small),
+                    Paragraph(p.reference_number or "-", small),
+                    Paragraph(self._lkr(p.amount_paid), right_small),
+                ])
+            if len(pay_rows) == 1:
+                pay_rows.append([Paragraph("<font color='#94A3B8'><i>Nothing paid yet</i></font>", small), "", "", "", ""])
+            pay_table = Table(pay_rows, colWidths=[28 * mm, 46 * mm, 30 * mm, 40 * mm, 34 * mm], repeatRows=1)
+            pay_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.5, colors.HexColor("#F1F5F9")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story.append(KeepTogether([columns([Paragraph("Payments", label), Spacer(1, 1.5 * mm)]), pay_table]))
+            story.append(Spacer(1, 6 * mm))
+
+        # ── Note to the supplier ──────────────────────────────────────────
+        if notes.supplier_notes:
+            note = Table([[Paragraph(f"<b>Note:</b> {notes.supplier_notes}", small)]], colWidths=[content_width])
+            note.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 0.5, hairline),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+            ]))
+            story.append(note)
+            story.append(Spacer(1, 6 * mm))
+        if record and notes.internal_notes:
+            # The record is for your own files, so the internal note belongs on it
+            story.append(columns(stack("Internal note", [notes.internal_notes])))
+            story.append(Spacer(1, 6 * mm))
+
+        closing_text = (
+            f"Purchase record for {order.id}, printed {self._fmt_date(datetime.now(timezone.utc))}. For your records — not a copy for the supplier."
+            if record
+            else f"{footer.company_policy_note or self.DEFAULT_POLICY_NOTE} {footer.contact_information or self.DEFAULT_CONTACT_NOTE}"
+        )
+        closing = Table([[Paragraph(closing_text, muted)]], colWidths=[content_width])
+        closing.setStyle(TableStyle([
+            ("LINEABOVE", (0, 0), (-1, 0), 0.5, hairline),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(closing)
 
         doc.build(story)
         return buffer.getvalue()

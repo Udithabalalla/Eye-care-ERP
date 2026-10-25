@@ -82,6 +82,45 @@ class EmailService:
                 logger.warning("SMTP send attempt %d failed for %s, retrying...", attempt, recipient_email)
                 await asyncio.sleep(1)
 
+    async def send_purchase_order(
+        self,
+        recipient_email: str,
+        subject: str,
+        body: str,
+        pdf_bytes: bytes,
+        filename: str,
+        cc: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        """Email a purchase order to a supplier with its PDF attached."""
+        if not self.smtp_user or not self.from_email or not self.smtp_password:
+            raise RuntimeError("SMTP is not configured (SMTP_USER, SMTP_FROM_EMAIL and SMTP_PASSWORD)")
+
+        message = EmailMessage()
+        message["Subject"] = subject
+        message["From"] = self.from_email
+        message["To"] = recipient_email
+        if cc:
+            message["Cc"] = cc
+        if reply_to:
+            message["Reply-To"] = reply_to
+        message.set_content(body)
+        message.add_attachment(pdf_bytes, maintype="application", subtype="pdf", filename=filename)
+
+        for attempt in range(1, 3):
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(self._send_message, message),
+                    timeout=self.smtp_timeout + 5,
+                )
+                logger.info("Purchase order %s emailed to %s", filename, recipient_email)
+                return
+            except Exception:
+                if attempt == 2:
+                    logger.error("SMTP send failed for purchase order %s", filename, exc_info=True)
+                    raise
+                await asyncio.sleep(1)
+
     def _send_message(self, message: EmailMessage) -> None:
         """Try STARTTLS on port 587 first, then fall back to SSL on port 465."""
         first_error = None

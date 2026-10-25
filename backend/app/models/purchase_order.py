@@ -84,6 +84,12 @@ class PurchaseOrderItemModel(BaseModel):
     product_id: str
     frame_variant_id: Optional[str] = None
     supplier_sku: Optional[str] = None
+    # What the line is, captured when the order is written so screens and the
+    # printout never have to fall back to a bare ID
+    item_type: Optional[str] = None  # "frame" | "product"
+    item_name: Optional[str] = None
+    item_detail: Optional[str] = None
+    sku: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
     line_discount_type: Optional[str] = None
@@ -114,4 +120,8 @@ class PurchaseOrderModel(TimestampModel):
     authorization: Optional[AuthorizationModel] = None
     footer: Optional[FooterModel] = None
     receipt_summary: Optional[dict] = None
+    # Last time the order was emailed to the supplier
+    sent_at: Optional[datetime] = None
+    sent_to: Optional[str] = None
+    sent_by: Optional[str] = None
     status_history: List[StatusHistoryEntryModel] = Field(default_factory=list)

@@ -1,3 +1,4 @@
+import re
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple, Dict
 from datetime import datetime, timezone
@@ -15,8 +16,20 @@ class PurchaseOrderRepository(BaseRepository):
             return PurchaseOrderModel(**doc)
         return None
 
-    async def list_purchase_orders(self, skip: int = 0, limit: int = 10, supplier_id: Optional[str] = None, status: Optional[str] = None) -> Tuple[List[PurchaseOrderModel], int]:
-        filter_query = {}
+    async def list_purchase_orders(self, skip: int = 0, limit: int = 10, supplier_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None, matching_item_ids: Optional[List[str]] = None) -> Tuple[List[PurchaseOrderModel], int]:
+        filter_query: dict = {}
+        if search:
+            # PO number, supplier or anything on the order
+            pattern = {"$regex": re.escape(search.strip()), "$options": "i"}
+            filter_query["$or"] = [
+                {"id": pattern},
+                {"supplier_information.supplier_name": pattern},
+                {"items.item_name": pattern},
+                {"items.sku": pattern},
+            ]
+            if matching_item_ids:
+                # Catalogue matches, so orders saved before lines carried names are found too
+                filter_query["$or"].append({"items.product_id": {"$in": matching_item_ids}})
         if supplier_id:
             filter_query["supplier_id"] = supplier_id
         if status:

@@ -46,6 +46,10 @@ class SupplierInvoiceResponse(BaseModel):
     items: List[SupplierInvoiceItemResponse] = Field(default_factory=list)
     matching_status: str = "Matched"
     matching_issues: List[str] = Field(default_factory=list)
+    # From the payments recorded against it
+    paid_amount: float = 0
+    balance_due: float = 0
+    overpaid_amount: float = 0
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
     created_at: datetime

@@ -22,8 +22,12 @@ class SupplierInvoicePaymentCreate(BaseModel):
 
 class SupplierPaymentResponse(BaseModel):
     id: str
-    invoice_id: str
+    invoice_id: Optional[str] = None
+    is_advance: bool = False
     invoice_number: Optional[str] = None
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    purchase_order_id: Optional[str] = None
     payment_date: datetime
     payment_method: str
     amount_paid: float

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -109,6 +109,10 @@ class PurchaseOrderItemResponse(BaseModel):
     product_id: str
     frame_variant_id: Optional[str] = None
     supplier_sku: Optional[str] = None
+    item_type: Optional[str] = None
+    item_name: Optional[str] = None
+    item_detail: Optional[str] = None
+    sku: Optional[str] = None
     quantity: int
     unit_cost: float
     line_discount_type: Optional[str] = None
@@ -117,6 +121,26 @@ class PurchaseOrderItemResponse(BaseModel):
     total_price: float = 0
     # Total received so far; outstanding = quantity - received_quantity
     received_quantity: int = 0
+
+
+class PurchaseOrderInvoiceSummary(BaseModel):
+    """The supplier's invoice for this order, so the order can show where payment stands."""
+    id: str
+    invoice_number: str
+    status: str
+    total_amount: float
+    paid_amount: float = 0
+    balance_due: float = 0
+    due_date: Optional[datetime] = None
+
+
+class PurchaseOrderSendRequest(BaseModel):
+    to: EmailStr
+    cc: Optional[EmailStr] = None
+    subject: Optional[str] = Field(default=None, max_length=200)
+    message: Optional[str] = Field(default=None, max_length=5000)
+    # Sending an approved order is what places it with the supplier
+    mark_ordered: bool = True
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -138,6 +162,12 @@ class PurchaseOrderResponse(BaseModel):
     authorization: Optional[Authorization] = None
     footer: Optional[Footer] = None
     receipt_summary: Optional["PurchaseOrderReceiptSummary"] = None
+    supplier_invoice: Optional[PurchaseOrderInvoiceSummary] = None
+    # Paid before the invoice and not yet counted against one
+    advance_paid: float = 0
+    sent_at: Optional[datetime] = None
+    sent_to: Optional[str] = None
+    sent_by: Optional[str] = None
     status_history: List[StatusHistoryEntryResponse] = []
     created_at: datetime
     updated_at: datetime
