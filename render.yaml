@@ -1,0 +1,51 @@
+# Render Blueprint: backend API on Render's free plan (no card needed).
+# Free services sleep after 15 minutes without traffic; the first request
+# afterwards takes about a minute while the container starts.
+# Setup steps: backend/DEPLOY_RENDER.md
+
+services:
+  - type: web
+    name: eye-care-api
+    runtime: docker
+    plan: free
+    region: singapore # closest Render region to the Atlas cluster in Mumbai
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MONGODB_DB_NAME
+        value: eyecare_prod
+      - key: MONGODB_URL
+        sync: false # entered in the Render dashboard, never committed
+      - key: SECRET_KEY
+        generateValue: true
+
+  - type: web
+    name: eye-care-api-staging
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: staging
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MONGODB_DB_NAME
+        value: eyecare_staging
+      - key: CORS_ORIGINS
+        value: https://eye-care-erp.vercel.app,https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app
+      - key: MONGODB_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
