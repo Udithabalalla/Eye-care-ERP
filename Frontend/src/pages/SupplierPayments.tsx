@@ -1,159 +1,167 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { RiAddLine, RiMoneyDollarCircleLine, RiMore2Line } from '@remixicon/react'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-} from '@/components/ui/table'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { RiAddLine } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import Loading from '@/components/common/Loading'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataTable } from '@/components/data-table'
+import Pagination from '@/components/common/Pagination'
 import { suppliersApi } from '@/api/suppliers.api'
 import { SupplierPayment } from '@/types/supplier.types'
-import SupplierPaymentForm from '@/components/suppliers/SupplierPaymentForm'
-import { formatCurrency } from '@/utils/formatters'
+import { formatCurrency, formatDate } from '@/utils/formatters'
+import { RecordSupplierPaymentDialog } from '@/components/purchase-orders/RecordSupplierPaymentDialog'
+
+const METHOD_LABELS: Record<string, string> = {
+  cash: 'Cash',
+  'bank-transfer': 'Bank transfer',
+  cheque: 'Cheque',
+  card: 'Card',
+  upi: 'UPI',
+}
 
 const SupplierPayments = () => {
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [sorting, setSorting] = useState<SortingState>([])
   const [search, setSearch] = useState('')
-  const [selectedPayment, setSelectedPayment] = useState<SupplierPayment | null>(null)
-  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [recordOpen, setRecordOpen] = useState(false)
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['supplier-payments', search],
-    queryFn: () => suppliersApi.getSupplierPayments({ page: 1, page_size: 100 }),
+  const { data, isLoading } = useQuery({
+    queryKey: ['supplier-payments', 'page', page, pageSize],
+    queryFn: () => suppliersApi.getSupplierPayments({ page, page_size: pageSize }),
+    placeholderData: keepPreviousData,
   })
 
-  const rows = (data?.data || []).filter((payment) => {
-    const query = search.trim().toLowerCase()
-    if (!query) return true
-    return [payment.id, payment.invoice_id, payment.payment_method]
-      .join(' ')
-      .toLowerCase()
-      .includes(query)
-  })
+  // The list endpoint has no search, so this narrows the current page
+  const query = search.trim().toLowerCase()
+  const payments = (data?.data ?? []).filter((p) =>
+    !query || [p.invoice_number, p.supplier_name, p.purchase_order_id, p.reference_number, p.payment_method].join(' ').toLowerCase().includes(query),
+  )
+
+  // A payment opens the bill it settled; an advance without one opens its order
+  const openPayment = (payment: SupplierPayment) =>
+    navigate(payment.invoice_id ? `/supplier-invoices?detail=${payment.invoice_id}` : `/purchase-orders?detail=${payment.purchase_order_id}`)
+
+  const columns = useMemo<ColumnDef<SupplierPayment>[]>(
+    () => [
+      {
+        accessorKey: 'payment_date',
+        header: 'Paid on',
+        cell: ({ row }) => formatDate(row.original.payment_date),
+      },
+      {
+        id: 'supplier',
+        header: 'Supplier',
+        cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplier_name ?? '—'}</span>,
+      },
+      {
+        id: 'invoice',
+        header: 'Invoice',
+        cell: ({ row }) =>
+          row.original.invoice_id ? (
+            <div className="flex flex-col">
+              <span className="font-medium text-primary">{row.original.invoice_number || row.original.invoice_id}</span>
+              {row.original.is_advance && <span className="text-[11px] text-sky-700 dark:text-sky-300">Paid ahead</span>}
+            </div>
+          ) : (
+            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Advance — no invoice yet</span>
+          ),
+      },
+      {
+        id: 'order',
+        header: 'Purchase order',
+        cell: ({ row }) =>
+          row.original.purchase_order_id ? (
+            <button
+              type="button"
+              className="text-sm text-primary hover:underline"
+              onClick={(event) => {
+                event.stopPropagation()
+                navigate(`/purchase-orders?detail=${row.original.purchase_order_id}`)
+              }}
+            >
+              {row.original.purchase_order_id}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: 'method',
+        header: 'Paid by',
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span>{METHOD_LABELS[row.original.payment_method] ?? row.original.payment_method}</span>
+            {row.original.reference_number && <span className="text-xs text-muted-foreground">{row.original.reference_number}</span>}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'amount_paid',
+        header: 'Amount',
+        cell: ({ row }) => <span className="font-medium tabular-nums">{formatCurrency(row.original.amount_paid)}</span>,
+      },
+    ],
+    [navigate],
+  )
 
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Supplier Payments
-          </h1>
-          <p className="text-sm text-muted-foreground">Record and review supplier payments.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Supplier Payments</h1>
+          <p className="text-sm text-muted-foreground">Every payment made to a supplier, and the bill it settled.</p>
         </div>
-        <Button
-          size="sm"
-          className="w-full md:w-auto"
-          onClick={() => { setSelectedPayment(null); setIsFormOpen(true) }}
-        >
+        <Button size="sm" className="w-full md:w-auto" onClick={() => setRecordOpen(true)}>
           <RiAddLine className="size-4" />
-          Record Payment
+          Record payment
         </Button>
       </section>
 
       <Card className="border-border/60">
-        <CardHeader className="space-y-4">
+        <CardHeader>
           <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
             <div>
-              <CardTitle className="text-xl">Payment Records</CardTitle>
-              <CardDescription>Track all supplier payment history.</CardDescription>
+              <CardTitle className="text-xl">Payments</CardTitle>
+              <CardDescription>Click a payment to open its invoice — or the order, for an advance.</CardDescription>
             </div>
-            <Badge variant="secondary" className="w-fit">
-              {data?.total || 0} total
-            </Badge>
-          </div>
-          <div className="relative w-full sm:w-72">
-            <RiMoneyDollarCircleLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search payments..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+            <Badge variant="secondary" className="w-fit">{data?.total ?? 0} total</Badge>
           </div>
         </CardHeader>
-
         <CardContent className="px-0 pb-0">
-          {isLoading ? (
-            <div className="p-8"><Loading /></div>
-          ) : (
-            <div className="overflow-x-auto px-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payment ID</TableHead>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>
-                        <span className="font-medium text-foreground">{payment.id}</span>
-                      </TableCell>
-                      <TableCell>{payment.invoice_number || payment.invoice_id}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="capitalize">
-                          {payment.payment_method}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="tabular-nums font-medium">
-                          {formatCurrency(payment.amount_paid)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="data-[state=open]:bg-muted"
-                              aria-label="Open payment actions"
-                            >
-                              <RiMore2Line className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem
-                              onClick={() => { setSelectedPayment(payment); setIsFormOpen(true) }}
-                            >
-                              View Details
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          <DataTable
+            columns={columns}
+            data={payments}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            globalFilter={search}
+            onGlobalFilterChange={setSearch}
+            loading={isLoading}
+            searchPlaceholder="Search this page…"
+            className="px-6"
+            onRowClick={openPayment}
+            emptyMessage="No supplier payments yet."
+          />
+          {data && (
+            <Pagination
+              currentPage={page}
+              totalPages={data.total_pages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size)
+                setPage(1)
+              }}
+              totalItems={data.total}
+            />
           )}
         </CardContent>
       </Card>
 
-      {isFormOpen && (
-        <SupplierPaymentForm
-          payment={selectedPayment}
-          onSuccess={() => { setSelectedPayment(null); setIsFormOpen(false); refetch() }}
-          onCancel={() => setIsFormOpen(false)}
-        />
-      )}
+      <RecordSupplierPaymentDialog open={recordOpen} onClose={() => setRecordOpen(false)} />
     </div>
   )
 }

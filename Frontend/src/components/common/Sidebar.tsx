@@ -124,8 +124,6 @@ const ALL_SECTIONS: NavSection[] = [
     items: [
       { name: 'Frames', path: '/inventory/frames', icon: RiGridLine },
       { name: 'General Inventory', path: '/inventory/general', icon: RiBox3Line },
-      { name: 'Receive Stock', path: '/inventory/receiving', icon: RiTruckLine },
-      { name: 'Low Stock & Reorder', path: '/inventory/reorder', icon: RiAlertLine },
       { name: 'Stock Movements', path: '/inventory/movements', icon: RiArrowUpDownLine },
       { name: 'Adjustments', path: '/inventory/adjustments', icon: RiEqualizer2Line },
     ],
@@ -135,7 +133,10 @@ const ALL_SECTIONS: NavSection[] = [
     title: 'Purchasing',
     icon: RiTruckLine,
     items: [
+      // Buying runs in order: what's low → the order → the supplier's bill → paying it.
+      // Receiving happens on the order itself ("Receive without a PO" is on that page).
       { name: 'Suppliers', path: '/suppliers', icon: RiBuilding2Line },
+      { name: 'Reorder', path: '/inventory/reorder', icon: RiAlertLine },
       { name: 'Purchase Orders', path: '/purchase-orders', icon: RiShoppingCartLine },
       { name: 'Supplier Invoices', path: '/supplier-invoices', icon: RiFileTextLine },
       { name: 'Supplier Payments', path: '/supplier-payments', icon: RiBankCardLine },
