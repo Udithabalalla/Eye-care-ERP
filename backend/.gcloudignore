@@ -1,0 +1,15 @@
+# Files not uploaded by `gcloud run deploy --source backend`.
+.gcloudignore
+.git/
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+scripts/
+verify_*.py
+*.log
