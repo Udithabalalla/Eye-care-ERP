@@ -31,3 +31,8 @@ export interface AppointmentFormData {
   reason: string
   notes?: string
 }
+
+/** The patient is fixed once booked; everything else can change */
+export type AppointmentUpdateData = Partial<Omit<AppointmentFormData, 'patient_id'>> & {
+  status?: AppointmentStatus
+}

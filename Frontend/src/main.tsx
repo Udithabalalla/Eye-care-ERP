@@ -37,7 +37,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           position="top-right"
           toastOptions={{
             duration: 3000,
-            className: 'dark:bg-slate-800 dark:text-white',
+            className: 'dark:!bg-popover dark:!text-popover-foreground dark:border dark:border-border',
             success: {
               duration: 3000,
               iconTheme: {

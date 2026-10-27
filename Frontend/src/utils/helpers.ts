@@ -57,3 +57,16 @@ export const getStatusColor = (status: string): string => {
   }
   return colors[status] || 'bg-gray-100 text-gray-800'
 }
+
+/** Readable message from a failed API call: FastAPI's `detail` (string or validation list), else the fallback */
+export const apiErrorMessage = (error: unknown, fallback: string): string => {
+  const detail = (error as { response?: { data?: { detail?: unknown; message?: unknown } } })?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: string }
+    if (first?.msg) return first.msg.replace(/^Value error, /, '')
+  }
+  const message = (error as { response?: { data?: { message?: unknown } } })?.response?.data?.message
+  if (typeof message === 'string' && message.trim()) return message
+  return fallback
+}

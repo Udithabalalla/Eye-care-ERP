@@ -494,7 +494,7 @@ const SalesOrders = () => {
                     )
                   }}
                   className={cn(
-                    'h-7 gap-1 px-2.5 text-xs font-semibold shadow-none',
+                    'font-semibold shadow-none',
                     nextAction.className,
                   )}
                 >

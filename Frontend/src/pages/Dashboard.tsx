@@ -196,7 +196,7 @@ const Dashboard = () => {
         <div className={cn('space-y-6 transition-opacity', isFetching && !isLoading && 'opacity-90')}>
           {/* ── Headline numbers ── */}
           {show('kpis') && (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
+            <div className="stagger grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
               <KpiTile
                 icon={RiReceiptLine}
                 label="Sales today"
@@ -331,9 +331,10 @@ const Dashboard = () => {
                               <span className="font-semibold tabular-nums">{stage.count}</span>
                             </span>
                             <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
+                              {/* Grows in once, one stage after another; later refreshes just glide */}
                               <span
-                                className="block h-full rounded-full bg-[var(--dash-accent)] transition-all"
-                                style={{ width: `${(stage.count / max) * 100}%` }}
+                                className="bar-grow block h-full rounded-full bg-[var(--dash-accent)] transition-[width] duration-500 ease-out"
+                                style={{ width: `${(stage.count / max) * 100}%`, animationDelay: `${150 + index * 70}ms` }}
                               />
                             </span>
                           </button>

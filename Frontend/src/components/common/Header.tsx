@@ -14,10 +14,19 @@ import {
   RiBox3Line,
   RiCalendarLine,
   RiCheckDoubleLine,
+  RiCheckLine,
+  RiComputerLine,
   RiGlassesLine,
 } from '@remixicon/react'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useTheme, type ThemePreference } from '@/contexts/ThemeContext'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -59,8 +68,14 @@ const readSeen = (): Record<string, number> => {
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'light', label: 'Light', icon: RiSunLine },
+  { value: 'dark', label: 'Dark', icon: RiMoonLine },
+  { value: 'system', label: 'Match system', icon: RiComputerLine },
+]
+
 const Header = () => {
-  const { theme, toggleTheme } = useTheme()
+  const { theme, preference, setPreference } = useTheme()
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -191,14 +206,24 @@ const Header = () => {
           <RiRefreshLine className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
 
-        <Button
-          onClick={toggleTheme}
-          variant="ghost"
-          size="icon"
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {theme === 'dark' ? <RiSunLine className="h-4 w-4" /> : <RiMoonLine className="h-4 w-4" />}
-        </Button>
+        {/* Theme: explicit Light / Dark / System choices instead of a blind toggle */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={`Theme: ${THEME_OPTIONS.find((o) => o.value === preference)?.label}`} title="Change theme">
+              {theme === 'dark' ? <RiMoonLine className="h-4 w-4" /> : <RiSunLine className="h-4 w-4" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Appearance</DropdownMenuLabel>
+            {THEME_OPTIONS.map((option) => (
+              <DropdownMenuItem key={option.value} onSelect={() => setPreference(option.value)} className="gap-2.5">
+                <option.icon className="h-4 w-4" />
+                <span className="flex-1">{option.label}</span>
+                {preference === option.value && <RiCheckLine className="h-4 w-4 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notifications */}
         <Popover open={notifOpen} onOpenChange={setNotifOpen}>

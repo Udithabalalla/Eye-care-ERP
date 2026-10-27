@@ -1,9 +1,10 @@
+/** Blank measurements are '' in forms and null once saved */
 export interface EyeMeasurement {
-  sphere: number | ''
-  cylinder: number | ''
-  axis: number | ''
-  add: number | ''
-  pupillary_distance: number | ''
+  sphere: number | '' | null
+  cylinder: number | '' | null
+  axis: number | '' | null
+  add: number | '' | null
+  pupillary_distance: number | '' | null
 }
 
 export interface EyePrescription {
@@ -56,7 +57,10 @@ export interface PrescriptionFormData {
   patient_id: string
   doctor_id: string
   prescription_date: string
-  eye_prescription?: EyePrescription
+  /** Defaults to a year after the prescription date */
+  valid_until?: string
+  /** null removes it when editing */
+  eye_prescription?: EyePrescription | null
   medications?: Medication[]
   contact_lenses?: ContactLenses
   diagnosis: string

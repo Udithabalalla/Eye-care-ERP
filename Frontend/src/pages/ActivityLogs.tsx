@@ -26,11 +26,16 @@ const ActivityLogs = () => {
 
   return (
     <div className="space-y-6">
+      <section>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Activity Logs</h1>
+        <p className="text-sm text-muted-foreground">A record of who changed what, and when.</p>
+      </section>
+
       <Card className="border-border/60">
         <CardHeader className="space-y-4">
           <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between">
             <div className="flex items-center gap-3">
-              <CardTitle>Activity Logs</CardTitle>
+              <CardTitle>Recent activity</CardTitle>
               <Badge variant="secondary">{rows.length}</Badge>
             </div>
             <CardDescription>Audit trail for business actions</CardDescription>

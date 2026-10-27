@@ -7,6 +7,9 @@
 
 @layer base {
   :root {
+    /* Native controls (scrollbars, date pickers) follow the app theme, not the OS */
+    color-scheme: light;
+
     --font-sans: "Figtree Variable", "Inter", "Segoe UI", sans-serif;
     --font-heading: var(--font-sans);
 
@@ -50,40 +53,45 @@
     --sidebar-ring: oklch(0.723 0.014 214.4);
   }
 
+  /* Dark theme: three clearly separated surface levels (page < sidebar < card <
+     popover), a bright teal primary with dark text so actions stand out, and
+     borders strong enough to see where one panel ends and the next begins. */
   .dark {
-    --background: oklch(0.148 0.004 228.8);
-    --foreground: oklch(0.987 0.002 197.1);
-    --card: oklch(0.218 0.008 223.9);
-    --card-foreground: oklch(0.987 0.002 197.1);
-    --popover: oklch(0.218 0.008 223.9);
-    --popover-foreground: oklch(0.987 0.002 197.1);
-    --primary: oklch(0.45 0.085 224.283);
-    --primary-foreground: oklch(0.984 0.019 200.873);
-    --secondary: oklch(0.274 0.006 286.033);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.275 0.011 216.9);
-    --muted-foreground: oklch(0.723 0.014 214.4);
-    --accent: oklch(0.275 0.011 216.9);
-    --accent-foreground: oklch(0.987 0.002 197.1);
-    --destructive: oklch(0.704 0.191 22.216);
+    color-scheme: dark;
+
+    --background: oklch(0.17 0.006 240);
+    --foreground: oklch(0.965 0.003 220);
+    --card: oklch(0.212 0.008 236);
+    --card-foreground: oklch(0.965 0.003 220);
+    --popover: oklch(0.235 0.009 236);
+    --popover-foreground: oklch(0.965 0.003 220);
+    --primary: oklch(0.74 0.12 215);
+    --primary-foreground: oklch(0.2 0.035 228);
+    --secondary: oklch(0.27 0.01 236);
+    --secondary-foreground: oklch(0.965 0.003 220);
+    --muted: oklch(0.25 0.009 236);
+    --muted-foreground: oklch(0.73 0.014 225);
+    --accent: oklch(0.28 0.012 232);
+    --accent-foreground: oklch(0.965 0.003 220);
+    --destructive: oklch(0.7 0.18 22);
     --destructive-foreground: oklch(0.985 0 0);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.56 0.021 213.5);
+    --border: oklch(1 0 0 / 11%);
+    --input: oklch(1 0 0 / 17%);
+    --ring: oklch(0.74 0.12 215);
     --chart-1: oklch(0.809 0.105 251.813);
     --chart-2: oklch(0.623 0.214 259.815);
     --chart-3: oklch(0.546 0.245 262.881);
     --chart-4: oklch(0.488 0.243 264.376);
     --chart-5: oklch(0.424 0.199 265.638);
 
-    --sidebar: oklch(0.218 0.008 223.9);
-    --sidebar-foreground: oklch(0.987 0.002 197.1);
-    --sidebar-primary: oklch(0.715 0.143 215.221);
-    --sidebar-primary-foreground: oklch(0.302 0.056 229.695);
-    --sidebar-accent: oklch(0.275 0.011 216.9);
-    --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.56 0.021 213.5);
+    --sidebar: oklch(0.192 0.007 238);
+    --sidebar-foreground: oklch(0.94 0.004 220);
+    --sidebar-primary: oklch(0.76 0.12 215);
+    --sidebar-primary-foreground: oklch(0.2 0.035 228);
+    --sidebar-accent: oklch(0.26 0.01 236);
+    --sidebar-accent-foreground: oklch(0.965 0.003 220);
+    --sidebar-border: oklch(1 0 0 / 9%);
+    --sidebar-ring: oklch(0.74 0.12 215);
   }
 
   * {
@@ -96,7 +104,6 @@
 
   body {
     @apply bg-background text-foreground;
-    color-scheme: light dark;
     font-family: var(--font-sans);
   }
 
@@ -227,6 +234,112 @@
   }
 }
 
+/* ── Motion ──────────────────────────────────────────────────────────────────
+   Small and quick on purpose: content eases out as it arrives and eases in as it
+   leaves, nothing bounces, and nothing slows down repeated work. */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Dialogs, menus, popovers and sheets get their enter/exit motion and easing from
+   tailwindcss-animate plus the small plugin in tailwind.config.js */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* A page settling in after navigation */
+.page-enter {
+  animation: rise-in 260ms var(--ease-out) both;
+}
+
+/* Children of a list or grid arriving one after another. The delay stops growing
+   after the 8th item so long lists still settle almost at once. */
+.stagger > * {
+  animation: rise-in 300ms var(--ease-out) both;
+}
+.stagger > :nth-child(2) { animation-delay: 35ms; }
+.stagger > :nth-child(3) { animation-delay: 70ms; }
+.stagger > :nth-child(4) { animation-delay: 105ms; }
+.stagger > :nth-child(5) { animation-delay: 140ms; }
+.stagger > :nth-child(6) { animation-delay: 175ms; }
+.stagger > :nth-child(7) { animation-delay: 210ms; }
+.stagger > :nth-child(n + 8) { animation-delay: 245ms; }
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Content swapped in place, e.g. free times after picking another day */
+.fade-enter {
+  animation: fade-in 200ms var(--ease-out) both;
+}
+
+/* Small dashboard charts draw in once, just after the page has settled.
+   Data refreshes don't replay them. */
+@keyframes grow-width {
+  from {
+    width: 0;
+  }
+}
+
+/* A bar growing from the left to its value (set its width inline) */
+.bar-grow {
+  animation: grow-width 700ms var(--ease-out) 150ms both;
+}
+
+@keyframes wipe-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* A stacked bar revealed left to right, so its parts keep their proportions */
+.wipe-in {
+  animation: wipe-in 800ms var(--ease-out) 150ms both;
+}
+
+/* Theme changes cross-fade instead of flashing (browsers with View Transitions) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-in-out;
+}
+
+/* "Reduce motion" in the OS: keep the soft fades (they show what changed) but drop
+   all movement — no rising, zooming, sliding, growing or cascading */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .stagger > *,
+  .bar-grow,
+  .wipe-in {
+    animation-name: fade-in;
+    animation-delay: 0ms !important;
+  }
+
+  [class*="animate-in"],
+  [class*="animate-out"] {
+    --tw-enter-scale: 1 !important;
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-exit-scale: 1 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+  }
+
+  [data-slot="collapsible-content"] {
+    animation: none !important;
+  }
+}
 
 
 

@@ -31,7 +31,7 @@ export function SalesMixCard({ mix, top }: { mix: DashboardOverview['sales_mix']
         {total > 0 && (
           <>
             {/* Part-to-whole: one bar, 2px surface gaps between segments */}
-            <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label="Sales by kind this month">
+            <div className="wipe-in flex h-3 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label="Sales by kind this month">
               {parts.map((m) => (
                 <div
                   key={m.kind}

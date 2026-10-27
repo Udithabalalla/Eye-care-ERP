@@ -112,7 +112,7 @@ export function SalesTrendCard({ daily, today }: { daily: DashboardOverview['dai
           </div>
         ) : (
           // Height includes the axis band so nothing scrolls inside the card
-          <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
+          <ChartContainer config={chartConfig} className="fade-enter aspect-auto h-64 w-full">
             <BarChart data={days} margin={{ top: 20, right: 4, left: 0, bottom: 0 }} barCategoryGap={2}>
               <CartesianGrid vertical={false} strokeWidth={1} className="stroke-border" />
               <XAxis
@@ -125,7 +125,16 @@ export function SalesTrendCard({ daily, today }: { daily: DashboardOverview['dai
               />
               <YAxis tickLine={false} axisLine={false} width={40} tickFormatter={compact} fontSize={11} allowDecimals={false} />
               <ChartTooltip cursor={{ className: 'fill-muted/60' }} content={<SalesTooltip />} />
-              <Bar dataKey="sales" fill="var(--color-sales)" radius={[4, 4, 0, 0]} maxBarSize={24}>
+              {/* Bars rise once the card has settled; Recharts skips this under "reduce motion" */}
+              <Bar
+                dataKey="sales"
+                fill="var(--color-sales)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={24}
+                animationBegin={150}
+                animationDuration={700}
+                animationEasing="ease-out"
+              >
                 {/* Only today's column carries a value label; the axis and tooltip carry the rest */}
                 <LabelList dataKey="todayLabel" position="top" offset={6} className="fill-foreground text-[10px] font-medium" />
               </Bar>

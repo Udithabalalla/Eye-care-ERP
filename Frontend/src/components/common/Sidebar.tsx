@@ -3,7 +3,6 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   RiHomeLine,
-  RiTeamLine,
   RiCalendarLine,
   RiFileTextLine,
   RiBox3Line,
@@ -13,8 +12,6 @@ import {
   RiFileChartLine,
   RiMoneyDollarCircleLine,
   RiRefundLine,
-  RiShieldCheckLine,
-  RiHistoryLine,
   RiLogoutBoxRLine,
   RiUserFollowLine,
   RiUserLine,
@@ -24,9 +21,7 @@ import {
 
   RiShoppingCartLine,
   RiEyeLine,
-  RiPriceTag3Line,
   RiWallet3Line,
-  RiPercentLine,
   RiBookOpenLine,
   RiBankCardLine,
   RiEqualizer2Line,
@@ -39,7 +34,6 @@ import {
   RiDraggable,
   RiAddLine,
   RiStethoscopeLine,
-  RiLayoutGridLine,
   RiAlertLine,
 } from '@remixicon/react'
 import { useAuth } from '@/hooks/useAuth'
@@ -73,6 +67,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import BrandLogo from '@/components/common/BrandLogo'
+import { SETTINGS_GROUPS, SETTINGS_HOME, isSettingsPath } from '@/components/settings/settingsNav'
 import { salesOrdersApi } from '@/api/erp.api'
 
 interface NavItem {
@@ -152,28 +147,8 @@ const ALL_SECTIONS: NavSection[] = [
       { name: 'Reports', path: '/reports', icon: RiBarChartLine },
     ],
   },
-  {
-    id: 'basic-data',
-    title: 'Master Data',
-    icon: RiLayoutGridLine,
-    items: [
-      { name: 'Lenses', path: '/basic-data/lenses', icon: RiEyeLine },
-      { name: 'Product Categories', path: '/basic-data/product-categories', icon: RiPriceTag3Line },
-      { name: 'Charge Types', path: '/basic-data/other-expenses', icon: RiWallet3Line },
-      { name: 'Price Rules', path: '/basic-data/complimentary-items', icon: RiPercentLine },
-    ],
-  },
-  {
-    id: 'system',
-    title: 'Administration',
-    icon: RiSettings4Line,
-    items: [
-      { name: 'Users', path: '/users', icon: RiTeamLine },
-      { name: 'Roles & Permissions', path: '/roles-permissions', icon: RiShieldCheckLine },
-      { name: 'Activity Logs', path: '/activity-logs', icon: RiHistoryLine },
-      { name: 'Company Profile', path: '/settings', icon: RiSettings4Line },
-    ],
-  },
+  // Master data and administration live under Settings (pinned at the bottom),
+  // so this list stays about day-to-day work
 ]
 
 const STORAGE_KEY = 'nav-section-order'
@@ -220,6 +195,7 @@ const AppSidebar = () => {
   const readyCount = readyData?.total ?? 0
 
   const isActive = useCallback((path: string) => matchesPath(location.pathname, path), [location.pathname])
+  const settingsActive = isSettingsPath(location.pathname)
 
   // The section holding the current page starts (and stays) open
   const activeSectionId = useMemo(
@@ -425,6 +401,54 @@ const AppSidebar = () => {
               })}
             </SidebarMenu>
           </SidebarGroup>
+
+          {/* Set-up screens, kept apart from daily work at the bottom */}
+          <SidebarGroup className="mt-auto px-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                {isCollapsed ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton tooltip="Settings" isActive={settingsActive} className={`h-9 ${ACTIVE_ITEM}`}>
+                        <RiSettings4Line />
+                        <span>Settings</span>
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="end" className="w-56">
+                      {SETTINGS_GROUPS.map((group, idx) => (
+                        <div key={group.id}>
+                          {idx > 0 && <DropdownMenuSeparator />}
+                          <DropdownMenuLabel>{group.title}</DropdownMenuLabel>
+                          {group.items.map((item) => (
+                            <DropdownMenuItem key={item.path} asChild className={`gap-2.5 ${isActive(item.path) ? 'font-medium text-primary' : ''}`}>
+                              <NavLink to={item.path}>
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.name}</span>
+                              </NavLink>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild className="gap-2.5">
+                        <NavLink to={SETTINGS_HOME}>
+                          <RiSettings4Line className="h-4 w-4" />
+                          <span>All settings</span>
+                        </NavLink>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <SidebarMenuButton asChild tooltip="Settings" isActive={settingsActive} className={`h-9 text-sm ${ACTIVE_ITEM}`}>
+                    <NavLink to={SETTINGS_HOME} onClick={handleNavClick}>
+                      <RiSettings4Line />
+                      <span>Settings</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
         </SidebarContent>
 
         {/* Account */}
@@ -455,9 +479,9 @@ const AppSidebar = () => {
                     <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => navigate('/settings')} className="gap-2">
+                  <DropdownMenuItem onSelect={() => navigate(SETTINGS_HOME)} className="gap-2">
                     <RiSettings4Line className="h-4 w-4" />
-                    Company profile
+                    Settings
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={openCustomize} className="gap-2">
                     <RiListSettingsLine className="h-4 w-4" />

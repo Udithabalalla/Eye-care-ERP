@@ -1,3 +1,6 @@
+import animate from 'tailwindcss-animate'
+import plugin from 'tailwindcss/plugin'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -110,8 +113,41 @@ export default {
         'xl': '1rem',
         '2xl': '1.5rem',
         '3xl': '2rem',
-      }
+      },
+      // Short and calm: things arrive quickly and never make people wait
+      animationDuration: {
+        DEFAULT: '180ms',
+      },
+      keyframes: {
+        'collapsible-down': {
+          from: { height: '0', opacity: '0' },
+          to: { height: 'var(--radix-collapsible-content-height)', opacity: '1' },
+        },
+        'collapsible-up': {
+          from: { height: 'var(--radix-collapsible-content-height)', opacity: '1' },
+          to: { height: '0', opacity: '0' },
+        },
+      },
+      animation: {
+        'collapsible-down': 'collapsible-down 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'collapsible-up': 'collapsible-up 150ms cubic-bezier(0.4, 0, 1, 1)',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    // Enter/exit utilities (animate-in, fade-in-0, zoom-in-95, slide-in-from-*) used by the UI components
+    animate,
+    // The components are written with Tailwind v4's data-open / data-closed shorthands;
+    // map them to Radix's data-state so their animations work on Tailwind v3
+    plugin(({ addVariant, addUtilities }) => {
+      addVariant('data-open', ['&[data-state="open"]', '&[data-open]:not([data-open="false"])'])
+      addVariant('data-closed', ['&[data-state="closed"]', '&[data-closed]:not([data-closed="false"])'])
+      // Entrances decelerate, exits accelerate. Declared here (not in CSS) so variant
+      // classes like data-open:animate-in pick the curve up too.
+      addUtilities({
+        '.animate-in': { animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+        '.animate-out': { animationTimingFunction: 'cubic-bezier(0.4, 0, 1, 1)', animationDuration: '140ms' },
+      })
+    }),
+  ],
 }

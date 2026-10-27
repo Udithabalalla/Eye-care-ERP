@@ -83,6 +83,11 @@ const RolesPermissions = () => {
 
   return (
     <div className="space-y-6">
+      <section>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Roles & Permissions</h1>
+        <p className="text-sm text-muted-foreground">Decide what each role is allowed to see and do.</p>
+      </section>
+
       <div className="flex gap-4 border-b border-border">
         <button
           onClick={() => setActiveTab('roles')}

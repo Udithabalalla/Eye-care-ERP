@@ -286,7 +286,7 @@ const ComplimentaryItems = () => {
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Complimentary Price Rules</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Free Item Rules</h1>
           <p className="text-sm text-muted-foreground">
             Map frame price ranges to inventory products — offered free in sales orders.
           </p>

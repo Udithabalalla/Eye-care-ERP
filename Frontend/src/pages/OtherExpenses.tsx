@@ -109,9 +109,9 @@ const OtherExpenses = () => {
     <div className="space-y-6">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Other Expenses</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Charge Types</h1>
           <p className="text-sm text-muted-foreground">
-            Configure reusable expense types for sales orders.
+            Extra services you can add to a sales order, like soldering, with a default cost.
           </p>
         </div>
         <Button

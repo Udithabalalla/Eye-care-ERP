@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore'
 import Layout from './components/common/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Loading from './components/common/Loading'
+import SettingsLayout from './components/settings/SettingsLayout'
 
 // Lazy load pages for better initial bundle size
 
@@ -44,6 +45,7 @@ const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
 const Users = lazy(() => import('./pages/Users'))
 const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
+const SettingsHub = lazy(() => import('./pages/SettingsHub'))
 
 // Suspense fallback component
 const PageLoader = () => <Loading fullScreen text="Loading..." />
@@ -94,10 +96,6 @@ function App() {
             <Route path="/prescriptions" element={<Prescriptions />} />
             <Route path="/sales-orders" element={<SalesOrders />} />
             <Route path="/sales-orders/assistant" element={<SalesOrderAssistant />} />
-            <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
-            <Route path="/basic-data/lenses" element={<Lenses />} />
-            <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
-            <Route path="/basic-data/product-categories" element={<ProductCategories />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/refunds" element={<Refunds />} />
@@ -110,12 +108,21 @@ function App() {
             <Route path="/stock-receipts" element={<Navigate to="/inventory/receiving?tab=po" replace />} />
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />
             <Route path="/supplier-payments" element={<SupplierPayments />} />
-            <Route path="/users" element={<Users />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/ledger" element={<Ledger />} />
-            <Route path="/activity-logs" element={<ActivityLogs />} />
-            <Route path="/roles-permissions" element={<RolesPermissions />} />
-            <Route path="/settings" element={<ClinicSettings />} />
+
+            {/* ── Settings: master data + administration share one menu ── */}
+            <Route path="/settings" element={<SettingsHub />} />
+            <Route element={<SettingsLayout />}>
+              <Route path="/basic-data/lenses" element={<Lenses />} />
+              <Route path="/basic-data/product-categories" element={<ProductCategories />} />
+              <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
+              <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
+              <Route path="/settings/company" element={<ClinicSettings />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/roles-permissions" element={<RolesPermissions />} />
+              <Route path="/activity-logs" element={<ActivityLogs />} />
+            </Route>
           </Route>
         </Route>
 
