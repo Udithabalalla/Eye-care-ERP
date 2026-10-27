@@ -20,9 +20,15 @@ class PrescriptionCreate(BaseModel):
     appointment_id: Optional[str] = None
 
 class PrescriptionUpdate(BaseModel):
-    """Schema for updating a prescription"""
+    """Schema for updating a prescription (the patient stays fixed)"""
+    doctor_id: Optional[str] = None
+    prescription_date: Optional[date] = None
+    valid_until: Optional[date] = None
+    eye_prescription: Optional[EyePrescription] = None
+    medications: Optional[List[Medication]] = None
+    contact_lenses: Optional[ContactLenses] = None
     notes: Optional[str] = None
-    diagnosis: Optional[str] = None
+    diagnosis: Optional[str] = Field(None, min_length=5)
 
 class PrescriptionResponse(BaseModel):
     """Schema for prescription response"""

@@ -118,7 +118,26 @@ class PrescriptionService:
             raise NotFoundException(f"Prescription with ID {prescription_id} not found")
         
         update_dict = prescription_data.dict(exclude_unset=True)
-        
+
+        # Changing the prescriber: resolve the name from doctor records, then users
+        if update_dict.get('doctor_id') and update_dict['doctor_id'] != existing.doctor_id:
+            doctor = await self.doctor_repo.get_by_id(update_dict['doctor_id'])
+            doctor_name = doctor.name if doctor else None
+            if not doctor_name:
+                user_doctor = await self.user_repo.get_by_user_id(update_dict['doctor_id'])
+                doctor_name = user_doctor.name if user_doctor else None
+            if not doctor_name:
+                raise NotFoundException(f"Doctor with ID {update_dict['doctor_id']} not found")
+            update_dict['doctor_name'] = doctor_name
+        else:
+            update_dict.pop('doctor_id', None)
+
+        for field in ('prescription_date', 'valid_until'):
+            if update_dict.get(field):
+                update_dict[field] = date_to_datetime(update_dict[field])
+            else:
+                update_dict.pop(field, None)
+
         if update_dict:
             await self.prescription_repo.update_prescription(prescription_id, update_dict)
         

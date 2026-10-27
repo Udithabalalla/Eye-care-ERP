@@ -130,11 +130,30 @@ class AppointmentService:
             raise NotFoundException(f"Appointment with ID {appointment_id} not found")
         
         update_dict = appointment_data.dict(exclude_unset=True)
-        
+
+        # Reassigning the doctor: resolve the name the same way create does
+        if update_dict.get('doctor_id') and update_dict['doctor_id'] != existing.doctor_id:
+            doctor = await self.doctor_repo.get_by_id(update_dict['doctor_id'])
+            doctor_name = doctor.name if doctor else None
+            if not doctor:
+                user_doctor = await self.user_repo.get_by_user_id(update_dict['doctor_id'])
+                if not user_doctor:
+                    raise NotFoundException(f"Doctor with ID {update_dict['doctor_id']} not found")
+                doctor_name = user_doctor.name
+            update_dict['doctor_name'] = doctor_name
+        else:
+            update_dict.pop('doctor_id', None)
+
+        # Moving to a new day without a new time keeps the old time of day
+        if update_dict.get('appointment_date') and not update_dict.get('appointment_time'):
+            existing_time = existing.appointment_time
+            if isinstance(existing_time, datetime):
+                update_dict['appointment_time'] = existing_time.time()
+
         # Convert date and time fields to datetime
         if 'appointment_date' in update_dict and update_dict['appointment_date']:
             update_dict['appointment_date'] = date_to_datetime(update_dict['appointment_date'])
-        
+
         if 'appointment_time' in update_dict and update_dict['appointment_time']:
             # Get the date from existing or updated appointment
             appt_date = update_dict.get('appointment_date', existing.appointment_date)

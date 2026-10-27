@@ -23,6 +23,7 @@ class AppointmentCreate(BaseModel):
 
 class AppointmentUpdate(BaseModel):
     """Schema for updating an appointment"""
+    doctor_id: Optional[str] = None
     appointment_date: Optional[date] = None
     appointment_time: Optional[time] = None
     duration_minutes: Optional[int] = Field(None, ge=15, le=240)
