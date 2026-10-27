@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import {
   RiAddLine,
-  RiArrowRightSLine,
   RiDeleteBin6Line,
   RiFileEditLine,
   RiReceiptLine,
@@ -57,50 +56,6 @@ import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatu
 import { getNextAction } from '@/components/sales-orders/SalesOrderWorkflowActions'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 
-const DraftCard = ({
-  order,
-  onContinue,
-  onDelete,
-}: {
-  order: SalesOrder
-  onContinue: () => void
-  onDelete: () => void
-}) => (
-  <div className="relative flex flex-shrink-0 flex-col gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30 w-56">
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">
-          {order.order_number}
-        </p>
-        <p className="text-sm font-medium text-foreground truncate mt-0.5">
-          {order.patient_name || 'Unknown patient'}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at)}</p>
-      </div>
-      <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
-    </div>
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      className="absolute right-2 top-2 text-amber-700 hover:bg-amber-100 hover:text-destructive dark:text-amber-300 dark:hover:bg-amber-900/40"
-      onClick={onDelete}
-      aria-label={`Delete draft ${order.order_number}`}
-    >
-      <RiDeleteBin6Line className="h-4 w-4" />
-    </Button>
-    <Button
-      size="sm"
-      variant="outline"
-      className="w-full text-xs border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/40"
-      onClick={onContinue}
-    >
-      Continue editing
-      <RiArrowRightSLine className="ml-1 h-3 w-3" />
-    </Button>
-  </div>
-)
-
 const STATUS_FILTER_OPTIONS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All Statuses' },
   { id: 'created', label: 'Order Created' },
@@ -122,6 +77,8 @@ const LIFECYCLE_FILTER_TABS: Array<{ id: SalesOrderStatus | 'all'; label: string
   { id: 'fitting', label: 'Sent for Fitting' },
   { id: 'ready', label: 'Ready' },
   { id: 'delivered', label: 'Delivered' },
+  // Unfinished orders saved to continue later
+  { id: 'draft', label: 'Drafts' },
 ]
 
 const WORKFLOW_ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -195,11 +152,12 @@ const SalesOrders = () => {
     },
   })
 
+  // Only the count: drafts are listed under the Drafts filter like any other status
   const { data: draftsData } = useQuery({
     queryKey: ['sales-orders-drafts'],
-    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 10, status: 'draft' }),
+    queryFn: () => salesOrdersApi.getAll({ page: 1, page_size: 1, status: 'draft' }),
   })
-  const drafts = draftsData?.data || []
+  const draftCount = draftsData?.total ?? 0
 
   const { data: readyCountData } = useQuery({
     queryKey: ['sales-orders-ready-count'],
@@ -507,6 +465,21 @@ const SalesOrders = () => {
                 </Button>
               )}
 
+              {/* Drafts pick up in the assistant where they were left */}
+              {order.status === 'draft' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+                  }}
+                >
+                  <RiFileEditLine />
+                  Continue
+                </Button>
+              )}
+
               {/* Utility-only ellipsis */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -584,28 +557,6 @@ const SalesOrders = () => {
 
   return (
     <div className="space-y-6">
-      {/* Draft cards */}
-      {drafts.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-950/20">
-          <div className="flex items-center gap-2 mb-3">
-            <RiFileEditLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-              {drafts.length} draft {drafts.length === 1 ? 'order' : 'orders'} in progress
-            </p>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {drafts.map((order) => (
-              <DraftCard
-                key={order.order_id}
-                order={order}
-                onContinue={() => navigate(`/sales-orders/assistant?draft=${order.order_id}`)}
-                onDelete={() => setDraftToDelete(order)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Edit order confirmation (non-draft orders) */}
       <AlertDialog open={!!orderToEdit} onOpenChange={(open) => { if (!open) setOrderToEdit(null) }}>
         <AlertDialogContent>
@@ -716,6 +667,12 @@ const SalesOrders = () => {
                   isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
                 }`}>
                   {readyCount}
+                </span>
+              )}
+              {/* A quiet count: drafts are there when needed, not competing for attention */}
+              {tab.id === 'draft' && draftCount > 0 && (
+                <span className={`ml-1.5 tabular-nums ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  {draftCount}
                 </span>
               )}
             </button>

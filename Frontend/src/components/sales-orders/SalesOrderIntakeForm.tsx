@@ -564,11 +564,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [phoneMatches, setPhoneMatches] = useState<Patient[]>([])
   const [isSavingDraft, setIsSavingDraft] = useState(false)
-  const [localDraftRestored, setLocalDraftRestored] = useState(false)
-  const [showLocalDraftBanner, setShowLocalDraftBanner] = useState(false)
-
-  // localStorage auto-save key — scoped to new orders only (not drafts or reorders)
-  const LOCAL_DRAFT_KEY = 'so_intake_local_draft'
 
   // Data fetching
   const { data: productData, isLoading: isLoadingProducts } = useQuery({
@@ -659,27 +654,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     return () => window.removeEventListener('beforeunload', handler)
   }, [isFormDirty])
 
-  // Auto-save to localStorage on every step advance (new orders only)
+  // Unfinished orders are saved as drafts (status "draft", found under Sales Orders →
+  // Drafts). Earlier versions also kept a browser-only copy, with patient details;
+  // clear it so it doesn't linger.
   useEffect(() => {
-    if (draftOrderId || reorderFromId || savedOrderNumber) return
-    if (!isFormDirty) return
-    try {
-      localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({ values: getValues(), savedAt: new Date().toISOString() }))
-    } catch { /* storage full — ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep])
-
-  // On mount check for a saved local draft (only for brand-new SO flows)
-  useEffect(() => {
-    if (draftOrderId || reorderFromId || localDraftRestored) return
-    try {
-      const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed?.values?.patient?.newData?.fullName) setShowLocalDraftBanner(true)
-      }
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    try { localStorage.removeItem('so_intake_local_draft') } catch { /* storage blocked */ }
   }, [])
 
   const handleLeaveConfirm = () => {
@@ -1258,7 +1237,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
   const handleReset = () => {
-    localStorage.removeItem(LOCAL_DRAFT_KEY)
     reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
   }
 
@@ -1329,8 +1307,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     }
 
     if (draftItems.length === 0) {
-      // Nothing selectable yet — just discard and navigate
-      handleLeaveConfirm()
+      // The server needs at least one item on an order. Stay here and say so,
+      // rather than quietly discarding what was typed.
+      toast.error('Pick a frame, lens or product first. A draft needs at least one item.')
       return
     }
 
@@ -1463,7 +1442,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       const savedOrder = draftOrderId
         ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'created' } })
         : await createSalesOrderMutation.mutateAsync(orderPayload)
-      localStorage.removeItem(LOCAL_DRAFT_KEY)
       setSavedOrderNumber(savedOrder.order_number)
       setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
@@ -1660,44 +1638,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                 Complete all steps and click "Create Order" to confirm this order and generate an invoice.
               </p>
-            </div>
-          </div>
-        )}
-
-        {/* Local draft restore banner */}
-        {showLocalDraftBanner && !localDraftRestored && (
-          <div className="flex items-center justify-between rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 dark:border-blue-700 dark:bg-blue-950/30">
-            <div className="flex items-center gap-3">
-              <RiSaveLine className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Unsaved progress found</p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">You have an unfinished order from a previous session.</p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Button
-                type="button" variant="outline" size="sm"
-                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300"
-                onClick={() => {
-                  try {
-                    const saved = localStorage.getItem(LOCAL_DRAFT_KEY)
-                    if (saved) {
-                      const parsed = JSON.parse(saved)
-                      reset(parsed.values, { keepDirty: true })
-                      setLocalDraftRestored(true)
-                      setShowLocalDraftBanner(false)
-                    }
-                  } catch { setShowLocalDraftBanner(false) }
-                }}
-              >
-                Restore
-              </Button>
-              <Button
-                type="button" variant="ghost" size="sm" className="text-blue-600"
-                onClick={() => { localStorage.removeItem(LOCAL_DRAFT_KEY); setShowLocalDraftBanner(false) }}
-              >
-                Discard
-              </Button>
             </div>
           </div>
         )}
