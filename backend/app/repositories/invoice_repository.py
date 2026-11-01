@@ -1,8 +1,14 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
 from datetime import datetime, date, timezone
+from pymongo import ReturnDocument
 from app.repositories.base import BaseRepository
 from app.models.invoice import InvoiceModel
+from app.utils.helpers import generate_id
+
+# Global sequence in the `counters` collection behind invoice_id. invoice_number restarts
+# every year, so invoice_id must not be derived from it.
+INVOICE_ID_COUNTER = "invoice_id_sequence"
 
 class InvoiceRepository(BaseRepository):
     """Invoice repository"""
@@ -119,5 +125,36 @@ class InvoiceRepository(BaseRepository):
         if result:
             next_number = result[0]["number"] + 1
             return f"{prefix}{str(next_number).zfill(6)}"
-        
+
         return f"{prefix}000001"
+
+    async def next_invoice_id(self) -> str:
+        """Allocate an invoice_id that no other invoice uses, in any year"""
+        counters = self.db["counters"]
+        while True:
+            counter = await counters.find_one_and_update(
+                {"_id": INVOICE_ID_COUNTER},
+                {"$inc": {"value": 1}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+            invoice_id = generate_id("INV", int(counter["value"]))
+            if not await self.exists({"invoice_id": invoice_id}):
+                return invoice_id
+            # The counter is behind ids already stored (seeded rows, or ids from the old
+            # per-year scheme), so move it past the highest one and allocate again.
+            await counters.update_one(
+                {"_id": INVOICE_ID_COUNTER},
+                {"$max": {"value": await self.get_max_invoice_id_number()}},
+            )
+
+    async def get_max_invoice_id_number(self) -> int:
+        """Highest numeric part of the stored INV###### invoice_ids, or 0 if there are none"""
+        pipeline = [
+            {"$match": {"invoice_id": {"$regex": r"^INV\d+$"}}},
+            {"$project": {"number": {"$toInt": {"$substr": ["$invoice_id", 3, -1]}}}},
+            {"$sort": {"number": -1}},
+            {"$limit": 1},
+        ]
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        return int(result[0]["number"]) if result else 0

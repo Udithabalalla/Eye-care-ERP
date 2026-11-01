@@ -21,7 +21,7 @@ from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, P
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id, date_to_datetime, is_prescription_valid
+from app.utils.helpers import date_to_datetime, is_prescription_valid
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.audit_service import AuditService
 from app.services.payment_service import PaymentService
@@ -129,9 +129,10 @@ class InvoiceService:
             if not sales_order:
                 raise NotFoundException(f"Sales order with ID {invoice_data.sales_order_id} not found")
         
-        # Generate invoice ID and number
+        # Generate invoice ID and number. The number restarts each year; the ID comes from
+        # a global counter so it never repeats.
         next_number = await self.invoice_repo.get_next_invoice_number(datetime.now().year)
-        invoice_id = generate_id("INV", int(next_number.split("-")[-1]))
+        invoice_id = await self.invoice_repo.next_invoice_id()
         
         # Calculate totals
         subtotal = sum(item.total for item in invoice_data.items)

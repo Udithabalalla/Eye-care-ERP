@@ -98,9 +98,13 @@ async def create_indexes():
     # Expiry date index for alerts
     await safe_create_index(db.db.products, [("expiry_date", 1), ("is_active", 1)])
     
-    # Invoices - financial queries (non-unique to handle existing data)
+    # Invoices - financial queries (invoice_number repeats per year in older data, so non-unique)
     await safe_create_index(db.db.invoices, "invoice_number")
-    await safe_create_index(db.db.invoices, "invoice_id")
+    try:
+        await ensure_unique_invoice_id_index(db.db.invoices)
+    except (DuplicateKeyError, OperationFailure) as e:
+        print(f"[WARN] Unique invoice_id index skipped: {str(e)[:50]}...")
+        await safe_create_index(db.db.invoices, "invoice_id")
     await safe_create_index(db.db.invoices, [("invoice_date", -1)])
     await safe_create_index(db.db.invoices, "payment_status")
     await safe_create_index(db.db.invoices, "patient_id")
@@ -173,6 +177,31 @@ async def create_indexes():
     await safe_create_index(db.db.quick_intakes, [("intake_date", -1)])
 
     print("[OK] Database indexes created")
+
+async def ensure_unique_invoice_id_index(invoices) -> bool:
+    """Make invoices.invoice_id unique so an id clash fails instead of updating another invoice.
+
+    Databases that already hold repeated ids (from the old per-year scheme) keep the
+    plain index and log a warning until they are cleaned up; see docs/INVOICE_ID_MIGRATION.md.
+    Returns True when the unique index is in place.
+    """
+    duplicates = await invoices.aggregate([
+        {"$group": {"_id": "$invoice_id", "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gt": 1}}},
+        {"$limit": 20},
+    ]).to_list(length=20)
+    if duplicates:
+        ids = ", ".join(str(d["_id"]) for d in duplicates)
+        print(f"[WARN] Repeated invoice_id values ({ids}); invoice_id index left non-unique. See docs/INVOICE_ID_MIGRATION.md")
+        await invoices.create_index("invoice_id")
+        return False
+
+    # The plain index from earlier versions has the same name, so replace it.
+    existing = (await invoices.index_information()).get("invoice_id_1")
+    if existing and not existing.get("unique"):
+        await invoices.drop_index("invoice_id_1")
+    await invoices.create_index("invoice_id", unique=True)
+    return True
 
 def get_database() -> AsyncIOMotorDatabase:
     """Dependency to get database"""
