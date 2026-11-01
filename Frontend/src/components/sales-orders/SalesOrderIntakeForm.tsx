@@ -28,6 +28,7 @@ import {
   RiDownloadLine,
   RiSubtractLine,
   RiSparklingLine as RiSparklingFill,
+  RiPrinterLine,
 } from '@remixicon/react'
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
@@ -67,6 +68,8 @@ import { invoicesApi } from '@/api/invoices.api'
 import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
 import PaymentPanel from '@/components/sales-orders/PaymentPanel'
+import { AdvanceReceiptDialog } from '@/components/sales-orders/AdvanceReceiptDialog'
+import { isAdvanceOnly } from '@/components/sales-orders/AdvanceReceipt'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -607,6 +610,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const [rightPanel, setRightPanel] = useState<'preview' | 'summary'>('preview')
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const [showAdvanceReceipt, setShowAdvanceReceipt] = useState(false)
 
   // Form
   const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
@@ -1625,6 +1629,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           )}
         </DialogContent>
       </Dialog>
+
+      {savedInvoice && (
+        <AdvanceReceiptDialog
+          open={showAdvanceReceipt}
+          onOpenChange={setShowAdvanceReceipt}
+          invoice={savedInvoice}
+          orderNumber={savedOrderNumber || undefined}
+          readyDate={salesOrder.deliveryDate || undefined}
+        />
+      )}
 
       <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {/* Draft edit banner */}
@@ -2951,6 +2965,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 isHistorical={salesOrder.isOld}
                 invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}
               />
+
+              {/* Part paid: hand the customer a slip now; the full receipt prints when they pay the rest */}
+              {savedInvoice && !salesOrder.isOld && isAdvanceOnly(savedInvoice) && (
+                <Button type="button" className="w-full gap-2" onClick={() => setShowAdvanceReceipt(true)}>
+                  <RiPrinterLine className="h-4 w-4" />
+                  Print advance receipt
+                </Button>
+              )}
 
               {savedInvoice && !salesOrder.isOld && (
                 <div className="grid gap-2 sm:grid-cols-2">
