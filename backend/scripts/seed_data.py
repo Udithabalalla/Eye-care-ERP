@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.config.settings import settings
 from app.core.security import get_password_hash
 from app.models.user import UserModel
+from app.repositories.invoice_repository import INVOICE_ID_COUNTER
 from app.utils.constants import UserRole
 
 def now_utc():
@@ -654,6 +655,12 @@ async def seed_invoices(db):
             print(f"  ✅ Created invoice: {invoice['invoice_number']} - {invoice['patient_name']}")
         else:
             print(f"  ⏭️  Invoice already exists: {invoice['invoice_id']}")
+
+    # New invoices take their invoice_id from this counter, so move it past the seeded ids
+    highest = max(int(invoice["invoice_id"][3:]) for invoice in invoices)
+    await db.counters.update_one(
+        {"_id": INVOICE_ID_COUNTER}, {"$max": {"value": highest}}, upsert=True
+    )
 
 async def main():
     """Main seed function"""

@@ -20,7 +20,6 @@ import {
   RiShieldCheckLine,
   RiAddLine,
   RiLoader4Line,
-  RiBriefcaseLine,
   RiGiftLine,
   RiHistoryLine,
   RiSearchLine,
@@ -28,7 +27,17 @@ import {
   RiDownloadLine,
   RiSubtractLine,
   RiSparklingLine as RiSparklingFill,
+  RiPrinterLine,
+  RiToolsLine,
+  RiShoppingBag3Line,
+  RiCalendarCheckLine,
+  RiUserHeartLine,
+  RiStickyNoteLine,
+  RiBuilding2Line,
+  RiStethoscopeLine,
+  RiCheckboxCircleLine,
 } from '@remixicon/react'
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +45,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -67,6 +77,8 @@ import { invoicesApi } from '@/api/invoices.api'
 import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
 import PaymentPanel from '@/components/sales-orders/PaymentPanel'
+import { AdvanceReceiptDialog } from '@/components/sales-orders/AdvanceReceiptDialog'
+import { isAdvanceOnly } from '@/components/sales-orders/AdvanceReceipt'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -222,7 +234,7 @@ const STEPS = [
   { id: 1, label: 'Prescription',  icon: RiEyeLine,         hint: 'Enter or confirm the eye measurements' },
   { id: 2, label: 'Frame',         icon: RiBox3Line,        hint: 'Scan or search the frame being sold' },
   { id: 3, label: 'Lens',          icon: RiSparklingLine,   hint: 'Optional — skip for a frame-only order' },
-  { id: 4, label: 'Extras',        icon: RiReceiptLine,     hint: 'Accessories, free items and other charges' },
+  { id: 4, label: 'Extras',        icon: RiReceiptLine,     hint: 'Optional — accessories, services and free items' },
   { id: 5, label: 'Order Details', icon: RiFileTextLine,    hint: 'Dates, who tested, and where it was sold' },
   { id: 6, label: 'Review & Pay',  icon: RiShieldCheckLine, hint: 'Check everything, apply discount, take payment' },
 ] as const
@@ -268,15 +280,84 @@ const InlineAlert = ({
     warning: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200',
     success: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200',
   }
+  const Icon = type === 'success' ? RiCheckboxCircleLine : RiAlertLine
   return (
     <div className={`flex items-start gap-3 rounded-lg border p-4 ${styles[type]}`}>
-      <RiAlertLine className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <Icon className="h-4 w-4 flex-shrink-0 mt-0.5" />
       <div>
         <p className="text-sm font-semibold">{title}</p>
         {description && <p className="text-sm mt-1 opacity-90">{description}</p>}
       </div>
     </div>
   )
+}
+
+// Card heading for the Extras and Order Details sections
+const SectionHeader = ({
+  icon: Icon,
+  title,
+  description,
+  tone = 'primary',
+  aside,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  description?: string
+  tone?: 'primary' | 'emerald'
+  aside?: React.ReactNode
+}) => (
+  <CardHeader>
+    {/* The aside drops below the title on narrow screens rather than squeezing it */}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+          tone === 'emerald' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-primary/10 text-primary'
+        }`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <CardTitle>{title}</CardTitle>
+          {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+      </div>
+      {aside}
+    </div>
+  </CardHeader>
+)
+
+const QtyStepper = ({ value, onChange, itemName }: { value: number; onChange: (qty: number) => void; itemName: string }) => (
+  <div className="flex w-fit items-center rounded-md border border-border bg-background">
+    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={value <= 1}
+      onClick={() => onChange(value - 1)} aria-label={`One less ${itemName}`}>
+      <RiSubtractLine className="size-3.5" />
+    </Button>
+    <span className="w-8 text-center text-sm tabular-nums">{value}</span>
+    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0"
+      onClick={() => onChange(value + 1)} aria-label={`One more ${itemName}`}>
+      <RiAddLine className="size-3.5" />
+    </Button>
+  </div>
+)
+
+const EmptyHint = ({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+    <Icon className="size-4 shrink-0" />
+    <span>{children}</span>
+  </div>
+)
+
+// "Ready in" shortcuts on the Order Details step, counted from the order date
+const READY_IN = [['Tomorrow', 1], ['In 3 days', 3], ['In 1 week', 7], ['In 2 weeks', 14]] as const
+
+const SALE_LOCATIONS = [
+  { key: 'institute', label: 'Institute', icon: RiBuilding2Line },
+  { key: 'clinic', label: 'Clinic', icon: RiStethoscopeLine },
+] as const
+
+// '' when the start date can't be read (e.g. an old draft with a non-ISO order date)
+const addDaysTo = (isoDate: string, days: number) => {
+  const start = parseISO(isoDate)
+  return isValid(start) ? format(addDays(start, days), 'yyyy-MM-dd') : ''
 }
 
 // Compact pricing panel shown below the step on smaller screens (the side panel covers xl screens)
@@ -583,10 +664,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
-  const [includeCase, setIncludeCase] = useState(true)
-  const [selectedCaseId, setSelectedCaseId] = useState('')
-  const [includeBag, setIncludeBag] = useState(true)
-  const [selectedBagId, setSelectedBagId] = useState('')
+  // Products given away with the order: saved as complimentary lines for stock, left off the invoice
+  const [freeItemIds, setFreeItemIds] = useState<string[]>([])
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
   const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
   const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
@@ -604,9 +683,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   })
   // Payment due date follows the collection date unless the user unticks this
   const [paymentDueSameAsDelivery, setPaymentDueSameAsDelivery] = useState(true)
-  const [rightPanel, setRightPanel] = useState<'preview' | 'summary'>('preview')
+  // null = follow the step: the order summary while building the order, the invoice on Review & Pay
+  const [rightPanel, setRightPanel] = useState<'preview' | 'summary' | null>(null)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const [showAdvanceReceipt, setShowAdvanceReceipt] = useState(false)
 
   // Form
   const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
@@ -783,12 +864,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       })
     })
     if (!salesOrder.isOld) {
-      const freeItem = (key: string, include: boolean, id: string) => {
-        const product = include && id ? productData?.data.find((p) => p.product_id === id) : undefined
-        if (product) lines.push({ key, type: 'Free', name: product.name, detail: product.sku, qty: 1, unitPrice: 0, discount: 0, total: 0 })
-      }
-      freeItem('free-1', includeCase, selectedCaseId)
-      freeItem('free-2', includeBag, selectedBagId)
+      freeItemIds.forEach((id) => {
+        const product = productData?.data.find((p) => p.product_id === id)
+        if (product) lines.push({ key: `free-${id}`, type: 'Free', name: product.name, detail: product.sku, qty: 1, unitPrice: 0, discount: 0, total: 0 })
+      })
     }
     return {
       invoiceNumber: savedInvoice?.invoice_number,
@@ -812,12 +891,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       prescriptionRef: prescription.existingId || undefined,
       isHistorical: salesOrder.isOld,
     }
-  }, [derivedTotals, expenseMasterData, expenses, frame, generalItems, includeBag, includeCase, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, selectedBagId, selectedCaseId, testedByName])
+  }, [derivedTotals, expenseMasterData, expenses, frame, freeItemIds, generalItems, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, testedByName])
 
   const summaryExtras = useMemo<OrderSummaryExtras>(() => {
-    const signed = (n: number) => `${n > 0 ? '+' : ''}${Number(n || 0).toFixed(2)}`
     const eye = (e: { sphere: number; cylinder: number; axis: number; add: number }) =>
-      `${signed(e.sphere)} / ${signed(e.cylinder)} × ${e.axis || 0}${e.add ? ` Add ${signed(e.add)}` : ''}`
+      ({ sphere: Number(e.sphere || 0), cylinder: Number(e.cylinder || 0), axis: Number(e.axis || 0), add: Number(e.add || 0) })
     const rx = prescription.newData
     return {
       patientMeta: [patient.newData.age ? `${patient.newData.age} yrs` : '', patient.newData.gender || ''].filter(Boolean).join(', ') || undefined,
@@ -908,7 +986,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     basicDataApi.suggestComplimentary(frame.total).then((item) => {
       if (cancelled) return
       setSuggestedCase(item)
-      if (item && !selectedCaseId) setSelectedCaseId(item.product_id)
+      // A new order starts with the suggested item; a draft keeps what was saved
+      if (item && !draftOrderId) setFreeItemIds((prev) => (prev.length ? prev : [item.product_id]))
     }).catch(() => {})
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -979,13 +1058,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       setFrameSource('variant')
       frameVariantsApi.getById(draftFrameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
     }
-    const compItems = draftOrder.items.filter((i) => i.line_type === 'complimentary')
-    const draftCase = compItems[0] ?? null
-    const draftBag  = compItems[1] ?? null
-    if (draftCase) { setIncludeCase(true); setSelectedCaseId(draftCase.product_id) }
-    else setIncludeCase(false)
-    if (draftBag) { setIncludeBag(true); setSelectedBagId(draftBag.product_id) }
-    else setIncludeBag(false)
+    setFreeItemIds(draftOrder.items.filter((i) => i.line_type === 'complimentary').map((i) => i.product_id))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
@@ -1126,15 +1199,20 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     append({ expenseTypeId: type.id, expenseTypeName: type.name, qty: 1, unitCost: type.default_cost, discount: 0, total: type.default_cost })
   }
 
+  const addFreeItem = (id: string) => { if (id) setFreeItemIds((prev) => (prev.includes(id) ? prev : [...prev, id])) }
+  const removeFreeItem = (id: string) => setFreeItemIds((prev) => prev.filter((x) => x !== id))
+  // Free items as order lines; ids that no longer match a product are dropped
+  const freeItemLines = (): SalesOrderItem[] => freeItemIds.flatMap((id) => {
+    const p = productData?.data.find((x) => x.product_id === id)
+    return p ? [{ product_id: p.product_id, product_name: p.name, sku: p.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: p.product_id, line_type: 'complimentary' as const, track_stock: true }] : []
+  })
+
   const changeAccessoryQty = (index: number, delta: number) =>
     setGeneralItems((prev) => prev.map((item, i) => (i === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item)))
 
   // "Ready in" shortcuts count from the order date
-  const setDeliveryInDays = (days: number) => {
-    const base = new Date(`${getValues('salesOrder.orderDate') || today}T00:00:00Z`)
-    base.setUTCDate(base.getUTCDate() + days)
-    setValue('salesOrder.deliveryDate', base.toISOString().slice(0, 10), { shouldDirty: true, shouldValidate: true })
-  }
+  const setDeliveryInDays = (days: number) =>
+    setValue('salesOrder.deliveryDate', addDaysTo(getValues('salesOrder.orderDate') || today, days), { shouldDirty: true, shouldValidate: true })
 
   // Inline new expense type dialog
   const [newExpenseDialogOpen, setNewExpenseDialogOpen] = useState(false)
@@ -1144,7 +1222,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     mutationFn: (data: { name: string; default_cost: number }) =>
       basicDataApi.createOtherExpense({ ...data, is_active: true }),
     onSuccess: async (created) => {
-      await queryClient.invalidateQueries({ queryKey: ['other-expenses'] })
+      await queryClient.invalidateQueries({ queryKey: ['basic-data', 'other-expenses'] })
       setNewExpenseDialogOpen(false)
       setNewExpenseName('')
       setNewExpenseCost(0)
@@ -1238,6 +1316,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const handleReset = () => {
     reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
+    // These live outside the form, so reset() doesn't clear them
+    setGeneralItems([]); setFreeItemIds([]); setSuggestedCase(null); setSelectedFrameVariant(null); setRightPanel(null)
   }
 
   const handleSubmitClick = async () => {
@@ -1297,14 +1377,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     generalItems.filter((g) => g.qty > 0).forEach((g) => {
       draftItems.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product', track_stock: true })
     })
-    if (includeCase && selectedCaseId) {
-      const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
-      if (caseItem) draftItems.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary', track_stock: true })
-    }
-    if (includeBag && selectedBagId) {
-      const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
-      if (bagItem) draftItems.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary', track_stock: true })
-    }
+    draftItems.push(...freeItemLines())
 
     if (draftItems.length === 0) {
       // The server needs at least one item on an order. Stay here and say so,
@@ -1407,16 +1480,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         itemPayload.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product' as const, track_stock: true })
       })
 
-      if (!values.salesOrder.isOld) {
-        if (includeCase && selectedCaseId) {
-          const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
-          if (caseItem) itemPayload.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary' as const, track_stock: true })
-        }
-        if (includeBag && selectedBagId) {
-          const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
-          if (bagItem) itemPayload.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary' as const, track_stock: true })
-        }
-      }
+      if (!values.salesOrder.isOld) itemPayload.push(...freeItemLines())
 
       if (itemPayload.length === 0) {
         toast.error('At least one item (frame, lens, or expense) is required to create a sales order.')
@@ -1501,6 +1565,22 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     !salesOrder.testedBy ? { message: 'Who tested the patient is not set', step: 5 } : null,
     !salesOrder.isOld && derivedTotals.advancedPayment > derivedTotals.subtotal ? { message: 'Paid now is more than the total due', step: 6 } : null,
   ].filter(Boolean) as Array<{ message: string; step: number }>
+
+  const activeRightPanel = rightPanel ?? (currentStep === STEPS.length - 1 ? 'preview' : 'summary')
+
+  // Extras step — the same split the step shows: accessories, services, free items
+  const chargesTotal = roundCurrency((expenses || []).reduce((sum, e) =>
+    sum + calculateLineTotal({ qty: Number(e.qty || 0), unitCost: Number(e.unitCost || 0), discount: Number(e.discount || 0) }), 0))
+  const accessoriesTotal = roundCurrency(generalItems.reduce((sum, g) => sum + g.unitPrice * g.qty, 0))
+  const freeProducts = freeItemIds.flatMap((id) => productData?.data.find((p) => p.product_id === id) ?? [])
+  const freeItemOptions: LookupOption[] = (productData?.data || [])
+    .filter((p) => p.is_active && !freeItemIds.includes(p.product_id))
+    .map((p) => ({ value: p.product_id, label: p.name, subtitle: [p.sku, p.category].filter(Boolean).join(' · ') }))
+  const showFreeSuggestion = !!suggestedCase && !freeItemIds.includes(suggestedCase.product_id)
+
+  // Order Details step — how far off collection is
+  const daysBetween = differenceInCalendarDays(parseISO(salesOrder.deliveryDate || ''), parseISO(salesOrder.orderDate || ''))
+  const readyInDays = Number.isNaN(daysBetween) ? null : daysBetween
 
   return (
     <>
@@ -1626,6 +1706,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         </DialogContent>
       </Dialog>
 
+      {savedInvoice && (
+        <AdvanceReceiptDialog
+          open={showAdvanceReceipt}
+          onOpenChange={setShowAdvanceReceipt}
+          invoice={savedInvoice}
+          orderNumber={savedOrderNumber || undefined}
+          readyDate={salesOrder.deliveryDate || undefined}
+        />
+      )}
+
       <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {/* Draft edit banner */}
         {draftOrderId && draftOrder && !savedOrderNumber && (
@@ -1642,7 +1732,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           </div>
         )}
 
-        <div className={`grid items-start gap-6 ${showInvoicePreview && rightPanel === 'preview' ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : 'xl:grid-cols-[minmax(0,1fr)_320px]'}`}>
+        <div className={`grid items-start gap-6 ${showInvoicePreview && activeRightPanel === 'preview' ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : 'xl:grid-cols-[minmax(0,1fr)_320px]'}`}>
         <div className="min-w-0 space-y-4">
 
         {/* Historical record toggle — only needed when keying in old paper orders */}
@@ -2488,27 +2578,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           {/* ── Step 4: Extras ──────────────────────────────────────────────── */}
           {currentStep === 4 && (
             <div className="space-y-4">
-              <p className="px-1 text-sm text-muted-foreground">
-                Everything here is optional — add whatever the patient is buying on top of the frame and lens.
-                {' '}<span className="hidden xl:inline">The invoice preview on the right updates as you go.</span>
-              </p>
-
               {/* Accessories from stock */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiBox3Line className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Accessories</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Drops, solutions, cases and other items sold from stock</p>
-                      </div>
-                    </div>
-                    {generalItems.length > 0 && <Badge variant="secondary">{generalItems.length} added</Badge>}
-                  </div>
-                </CardHeader>
+                <SectionHeader
+                  icon={RiShoppingBag3Line}
+                  title="Accessories"
+                  description="Drops, solutions, cases and other items sold from stock"
+                  aside={generalItems.length > 0 && <Badge variant="secondary" className="shrink-0">{generalItems.length} added</Badge>}
+                />
                 <Separator />
                 <CardContent className="pt-5 space-y-3">
                   <SearchableLOV
@@ -2537,17 +2614,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                             <p className="truncate text-sm font-medium">{item.productName}</p>
                             <p className="text-xs text-muted-foreground">{item.sku} · {formatCurrency(item.unitPrice)} each</p>
                           </div>
-                          <div className="flex items-center rounded-md border border-border">
-                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={item.qty <= 1}
-                              onClick={() => changeAccessoryQty(i, -1)} aria-label="Decrease quantity">
-                              <RiSubtractLine className="size-3.5" />
-                            </Button>
-                            <span className="w-8 text-center text-sm tabular-nums">{item.qty}</span>
-                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0"
-                              onClick={() => changeAccessoryQty(i, 1)} aria-label="Increase quantity">
-                              <RiAddLine className="size-3.5" />
-                            </Button>
-                          </div>
+                          <QtyStepper value={item.qty} itemName={item.productName} onChange={(qty) => changeAccessoryQty(i, qty - item.qty)} />
                           <span className="w-24 text-right text-sm font-semibold tabular-nums">{formatCurrency(item.unitPrice * item.qty)}</span>
                           <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                             onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))} aria-label={`Remove ${item.productName}`}>
@@ -2557,137 +2624,158 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Nothing added yet — search above to add an item.</p>
+                    <EmptyHint icon={RiShoppingBag3Line}>Nothing added — search above to add an item.</EmptyHint>
                   )}
                 </CardContent>
               </Card>
 
               {/* Services & charges */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiReceiptLine className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Services & Charges</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Fitting, tinting, coating and other fees</p>
-                      </div>
-                    </div>
-                    <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground"
+                <SectionHeader
+                  icon={RiToolsLine}
+                  title="Services & Charges"
+                  description="Fitting, tinting, repairs and other fees"
+                  aside={
+                    <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs text-muted-foreground"
                       onClick={() => { setNewExpenseName(''); setNewExpenseCost(0); setNewExpenseDialogOpen(true) }}>
-                      + New charge type
+                      <RiAddLine className="mr-1 size-3.5" />New charge type
                     </Button>
-                  </div>
-                </CardHeader>
+                  }
+                />
                 <Separator />
                 <CardContent className="pt-5 space-y-4">
-                  {/* One click adds the most common charges */}
+                  {/* One tap adds a common charge; tapping it again adds one more */}
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Quick add</p>
+                    <p className="text-xs font-medium text-muted-foreground">Tap to add</p>
                     <div className="flex flex-wrap gap-2">
-                      {(expenseMasterData?.data || []).slice(0, 8).map((type) => (
-                        <Button key={type.id} type="button" variant="outline" size="sm" className="h-8 gap-1.5 rounded-full"
-                          onClick={() => quickAddCharge(type)}>
-                          <RiAddLine className="size-3.5" />
-                          {type.name}
-                          <span className="text-muted-foreground">{formatCurrency(type.default_cost)}</span>
-                        </Button>
-                      ))}
+                      {(expenseMasterData?.data || []).slice(0, 8).map((type) => {
+                        const addedQty = Number((expenses || []).find((e) => e.expenseTypeId === type.id)?.qty || 0)
+                        return (
+                          <Button key={type.id} type="button" variant="outline" size="sm"
+                            className={`h-8 gap-1.5 rounded-full ${addedQty ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary' : ''}`}
+                            onClick={() => quickAddCharge(type)}>
+                            {addedQty ? <RiCheckLine className="size-3.5" /> : <RiAddLine className="size-3.5" />}
+                            {type.name}
+                            <span className={addedQty ? 'text-primary/70' : 'text-muted-foreground'}>{formatCurrency(type.default_cost)}</span>
+                            {addedQty > 1 && (
+                              <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground tabular-nums">×{addedQty}</span>
+                            )}
+                          </Button>
+                        )
+                      })}
                       <Button type="button" variant="ghost" size="sm" className="h-8 rounded-full" onClick={addExpenseRow}>
                         <RiAddLine className="mr-1 size-3.5" />Other charge
                       </Button>
                     </div>
                     {!(expenseMasterData?.data || []).length && (
                       <p className="text-xs text-muted-foreground">
-                        No charge types set up yet — use “+ New charge type” to create your common ones (e.g. Fitting).
+                        No charge types set up yet — use “New charge type” to create your common ones (e.g. Fitting).
                       </p>
                     )}
                   </div>
 
                   {expenseFields.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="hidden grid-cols-[minmax(0,1fr)_72px_110px_110px_96px_36px] gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid">
-                        <span>Charge</span><span className="text-center">Qty</span><span className="text-right">Price</span>
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <div className="hidden grid-cols-[minmax(0,1fr)_100px_110px_100px_96px_32px] gap-3 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
+                        <span>Charge</span><span>Qty</span><span className="text-right">Price</span>
                         <span className="text-right">Discount</span><span className="text-right">Amount</span><span />
                       </div>
-                      {expenseFields.map((field, index) => (
-                        <div key={field.id}
-                          className="grid grid-cols-2 items-center gap-2 rounded-lg border border-border p-2 sm:grid-cols-[minmax(0,1fr)_72px_110px_110px_96px_36px] sm:border-0 sm:p-0">
-                          <div className="col-span-2 sm:col-span-1">
-                            <SearchableLOV placeholder="Select charge" value={expenses?.[index]?.expenseTypeId || ''}
-                              onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
-                          </div>
-                          <Input type="number" min={0} step="1" className="text-center" aria-label="Quantity"
-                            value={expenses?.[index]?.qty || 0} onFocus={(e) => e.target.select()}
-                            onChange={(e) => updateExpenseRow(index, 'qty', Number(e.target.value))} />
-                          <Input type="number" min={0} step="0.01" className="text-right" aria-label="Price"
-                            value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()}
-                            onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
-                          <Input type="number" min={0} step="0.01" className="text-right" aria-label="Discount"
-                            value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()}
-                            onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
-                          <span className="text-right text-sm font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</span>
-                          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 justify-self-end p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => remove(index)} aria-label="Remove charge">
-                            <RiDeleteBin6Line className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                      <ul className="divide-y divide-border">
+                        {expenseFields.map((field, index) => (
+                          <li key={field.id}
+                            className="grid grid-cols-2 items-end gap-x-3 gap-y-2 p-3 sm:grid-cols-[minmax(0,1fr)_100px_110px_100px_96px_32px] sm:items-center sm:py-2">
+                            <div className="col-span-2 sm:col-span-1">
+                              <SearchableLOV placeholder="Select charge" value={expenses?.[index]?.expenseTypeId || ''}
+                                onChange={(value) => updateExpenseRow(index, 'expenseTypeId', value)} options={expenseOptions} />
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[11px] text-muted-foreground sm:hidden">Qty</span>
+                              <QtyStepper value={Number(expenses?.[index]?.qty || 0)} itemName="charge"
+                                onChange={(qty) => updateExpenseRow(index, 'qty', qty)} />
+                            </div>
+                            <label className="space-y-1">
+                              <span className="text-[11px] text-muted-foreground sm:hidden">Price</span>
+                              <Input type="number" min={0} step="0.01" className="text-right" aria-label="Price"
+                                value={expenses?.[index]?.unitCost || 0} onFocus={(e) => e.target.select()}
+                                onChange={(e) => updateExpenseRow(index, 'unitCost', Number(e.target.value))} />
+                            </label>
+                            <label className="space-y-1">
+                              <span className="text-[11px] text-muted-foreground sm:hidden">Discount</span>
+                              <Input type="number" min={0} step="0.01" className="text-right" aria-label="Discount"
+                                value={expenses?.[index]?.discount || 0} onFocus={(e) => e.target.select()}
+                                onChange={(e) => updateExpenseRow(index, 'discount', Number(e.target.value))} />
+                            </label>
+                            <span className="self-center text-right text-sm font-semibold tabular-nums">{formatCurrency(expenses?.[index]?.total || 0)}</span>
+                            <Button type="button" variant="ghost" size="sm" className="col-span-2 h-8 w-8 justify-self-end self-center p-0 text-muted-foreground hover:text-destructive sm:col-span-1"
+                              onClick={() => remove(index)} aria-label="Remove charge">
+                              <RiDeleteBin6Line className="h-4 w-4" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No charges added — use Quick add above.</p>
+                    <EmptyHint icon={RiToolsLine}>No charges yet — tap one above to add it.</EmptyHint>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Free items */}
+              {/* Free items — last: they cost the patient nothing and stay off the invoice */}
               {!salesOrder.isOld && (
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <RiGiftLine className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Free With This Order</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">Included at no charge — untick anything the patient doesn't want</p>
-                      </div>
-                    </div>
-                  </CardHeader>
+                  <SectionHeader
+                    icon={RiGiftLine}
+                    tone="emerald"
+                    title="Free With This Order"
+                    description="Anything given at no charge. It comes out of stock but doesn't print on the invoice or receipts."
+                    aside={freeProducts.length > 0 && (
+                      <Badge variant="secondary" className="shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                        {freeProducts.length} free
+                      </Badge>
+                    )}
+                  />
                   <Separator />
-                  <CardContent className="pt-5 grid gap-3 sm:grid-cols-2">
-                    {[
-                      { id: 'include-case', label: 'Frame case', icon: RiBriefcaseLine, include: includeCase, setInclude: setIncludeCase, value: selectedCaseId, setValue: setSelectedCaseId,
-                        suggested: !!suggestedCase && selectedCaseId === suggestedCase.product_id },
-                      { id: 'include-bag', label: 'Carry bag', icon: RiGiftLine, include: includeBag, setInclude: setIncludeBag, value: selectedBagId, setValue: setSelectedBagId, suggested: false },
-                    ].map((free) => (
-                      <div key={free.id} className={`space-y-3 rounded-xl border p-4 transition-colors ${free.include ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
-                        <label htmlFor={free.id} className="flex cursor-pointer items-center gap-2.5">
-                          <Checkbox id={free.id} checked={free.include} onCheckedChange={(v) => free.setInclude(!!v)} />
-                          <free.icon className="size-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{free.label}</span>
-                          {free.suggested && (
-                            <span className="ml-auto flex items-center gap-1 text-xs text-primary">
-                              <RiSparklingFill className="size-3" />Suggested for this price
-                            </span>
-                          )}
-                        </label>
-                        {free.include && (
-                          <Select value={free.value} onValueChange={free.setValue}>
-                            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Choose item" /></SelectTrigger>
-                            <SelectContent>
-                              {(productData?.data || []).filter((p) => p.is_active).map((p) => (
-                                <SelectItem key={p.product_id} value={p.product_id}>
-                                  {p.name}<span className="ml-1 text-xs text-muted-foreground">· {p.sku}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                  <CardContent className="pt-5 space-y-3">
+                    <SearchableLOV placeholder="Add a free item…" value="" onChange={addFreeItem} options={freeItemOptions} />
+
+                    {showFreeSuggestion && suggestedCase && (
+                      <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-4 py-2.5">
+                        <RiSparklingFill className="size-4 shrink-0 text-primary" />
+                        <p className="min-w-0 flex-1 text-sm">
+                          <span className="font-medium">{suggestedCase.product_name}</span>
+                          <span className="text-muted-foreground"> is suggested for this frame price</span>
+                        </p>
+                        <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => addFreeItem(suggestedCase.product_id)}>
+                          <RiAddLine className="mr-1 size-3.5" />Add
+                        </Button>
                       </div>
-                    ))}
+                    )}
+
+                    {freeProducts.length > 0 ? (
+                      <ul className="divide-y divide-border rounded-lg border border-emerald-200 dark:border-emerald-900">
+                        {freeProducts.map((product) => (
+                          <li key={product.product_id} className="flex items-center gap-3 px-4 py-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <RiGiftLine className="size-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{product.name}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {product.sku}
+                                {suggestedCase?.product_id === product.product_id ? ' · Suggested for this frame price' : ''}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-emerald-600 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-white">Free</span>
+                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeFreeItem(product.product_id)} aria-label={`Remove ${product.name}`}>
+                              <RiDeleteBin6Line className="size-3.5" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <EmptyHint icon={RiGiftLine}>Nothing free on this order. Search above to add an item.</EmptyHint>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -2721,9 +2809,28 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </DialogContent>
               </Dialog>
 
-              <div className="flex items-center justify-between rounded-xl border border-dashed border-border px-5 py-3">
-                <span className="text-sm text-muted-foreground">Extras total</span>
-                <span className="text-base font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.expenseTotal))}</span>
+              {/* What the extras add up to, in the same order as the cards above */}
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl border border-border bg-muted/30 px-5 py-3">
+                <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted-foreground">Accessories</dt>
+                    <dd className="font-medium tabular-nums">{formatCurrency(accessoriesTotal)}</dd>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted-foreground">Services</dt>
+                    <dd className="font-medium tabular-nums">{formatCurrency(chargesTotal)}</dd>
+                  </div>
+                  {!salesOrder.isOld && (
+                    <div className="flex gap-1.5">
+                      <dt className="text-muted-foreground">Free items</dt>
+                      <dd className="font-medium tabular-nums">{freeProducts.length}</dd>
+                    </div>
+                  )}
+                </dl>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm text-muted-foreground">Extras total</span>
+                  <span className="text-lg font-bold tabular-nums">{formatCurrency(roundCurrency(derivedTotals.expenseTotal))}</span>
+                </div>
               </div>
             </div>
           )}
@@ -2732,17 +2839,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           {currentStep === 5 && (
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <RiCalendarLine className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>When Will It Be Ready?</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">The collection date is also the invoice due date unless you change it</p>
-                    </div>
-                  </div>
-                </CardHeader>
+                <SectionHeader
+                  icon={RiCalendarLine}
+                  title="When Will It Be Ready?"
+                  description="The collection date is also the invoice due date unless you change it"
+                />
                 <Separator />
                 <CardContent className="pt-5 space-y-5">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2753,22 +2854,55 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       <Input type="date" {...register('salesOrder.deliveryDate')} />
                     </Field>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">Ready in:</span>
-                    {([['Tomorrow', 1], ['3 days', 3], ['1 week', 7], ['2 weeks', 14]] as const).map(([label, days]) => (
-                      <Button key={label} type="button" variant="outline" size="sm" className="h-7 rounded-full px-3 text-xs"
-                        onClick={() => setDeliveryInDays(days)}>
-                        {label}
-                      </Button>
-                    ))}
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Quick pick</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {READY_IN.map(([label, days]) => {
+                        const date = addDaysTo(salesOrder.orderDate || today, days)
+                        const isActive = !!date && salesOrder.deliveryDate === date
+                        return (
+                          <Button key={label} type="button" variant="outline" aria-pressed={isActive}
+                            className={`h-auto flex-col items-start gap-0 px-3 py-2 text-left ${isActive ? 'border-primary bg-primary/10 hover:bg-primary/15' : ''}`}
+                            onClick={() => setDeliveryInDays(days)}>
+                            <span className={`text-sm font-medium ${isActive ? 'text-primary' : ''}`}>{label}</span>
+                            <span className="text-xs font-normal text-muted-foreground">{date ? formatDate(date, 'EEE, MMM d') : '—'}</span>
+                          </Button>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
-                    <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-                      <Checkbox checked={paymentDueSameAsDelivery} onCheckedChange={(v) => setPaymentDueSameAsDelivery(!!v)} />
-                      Full payment is due on collection
-                    </label>
+
+                  {readyInDays !== null && (
+                    readyInDays < 0 ? (
+                      <InlineAlert type="warning" title="Collection is before the order date" description="Check the two dates above." />
+                    ) : (
+                      <div className="flex items-center gap-3 rounded-lg bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/15">
+                        <RiCalendarCheckLine className="size-5 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Ready {formatDate(salesOrder.deliveryDate, 'EEEE, MMMM d')}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {readyInDays === 0 ? 'Same day as the order' : `${readyInDays} ${readyInDays === 1 ? 'day' : 'days'} after the order`}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  <div className="rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <label htmlFor="payment-due-on-collection" className="min-w-0 cursor-pointer">
+                        <span className="block text-sm font-medium">Full payment is due on collection</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {paymentDueSameAsDelivery
+                            ? salesOrder.deliveryDate ? `Balance due ${formatDate(salesOrder.deliveryDate, 'MMM d, yyyy')}` : 'Balance due on the collection date'
+                            : 'Set a different due date below'}
+                        </span>
+                      </label>
+                      <Switch id="payment-due-on-collection" checked={paymentDueSameAsDelivery} onCheckedChange={setPaymentDueSameAsDelivery} />
+                    </div>
                     {!paymentDueSameAsDelivery && (
-                      <Field label="Full payment due" required error={errors.salesOrder?.dateOfFullPayment?.message} className="sm:max-w-xs">
+                      <Field label="Full payment due" required error={errors.salesOrder?.dateOfFullPayment?.message} className="mt-4 sm:max-w-xs">
                         <Input type="date" {...register('salesOrder.dateOfFullPayment')} />
                       </Field>
                     )}
@@ -2777,17 +2911,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               </Card>
 
               <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <RiUserLine className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>Who and Where</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">Who tested the patient, and where the sale was made</p>
-                    </div>
-                  </div>
-                </CardHeader>
+                <SectionHeader icon={RiUserHeartLine} title="Who and Where" description="Who tested the patient, and where the sale was made" />
                 <Separator />
                 <CardContent className="pt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <Field label="Tested by" required error={errors.salesOrder?.testedBy?.message}>
@@ -2799,22 +2923,28 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     />
                   </Field>
                   <div className="space-y-1.5">
-                    <p className="text-sm font-medium leading-none">Sold at</p>
-                    <div className="flex gap-2">
-                      {(['institute', 'clinic'] as const).map((loc) => {
-                        const isSelected = saleLocation === loc
+                    <p className="text-sm font-medium leading-none">
+                      Sold at <span className="font-normal text-muted-foreground">(optional)</span>
+                    </p>
+                    <div role="radiogroup" aria-label="Sold at" className="grid grid-cols-2 gap-2">
+                      {SALE_LOCATIONS.map((loc) => {
+                        const isSelected = saleLocation === loc.key
                         return (
                           <button
-                            key={loc}
+                            key={loc.key}
                             type="button"
-                            onClick={() => setValue('saleLocation', isSelected ? undefined : loc, { shouldDirty: true })}
-                            className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                            role="radio"
+                            aria-checked={isSelected}
+                            onClick={() => setValue('saleLocation', isSelected ? undefined : loc.key, { shouldDirty: true })}
+                            className={`flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${
                               isSelected
                                 ? 'border-primary bg-primary/10 text-primary'
                                 : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
                             }`}
                           >
-                            {loc === 'institute' ? 'Institute' : 'Clinic'}
+                            <loc.icon className="size-4 shrink-0" />
+                            {loc.label}
+                            {isSelected && <RiCheckLine className="ml-auto size-4" />}
                           </button>
                         )
                       })}
@@ -2824,17 +2954,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               </Card>
 
               <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <RiFileTextLine className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>Notes</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">Optional — printed on the invoice, e.g. coating or collection instructions</p>
-                    </div>
-                  </div>
-                </CardHeader>
+                <SectionHeader icon={RiStickyNoteLine} title="Notes" description="Optional — printed on the invoice, e.g. coating or collection instructions" />
                 <Separator />
                 <CardContent className="pt-5 space-y-4">
                   <Textarea {...register('remarks')} rows={3} placeholder="Add a note for this order…" className="resize-none" />
@@ -2854,6 +2974,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           {/* ── Step 6: Review & Pay ────────────────────────────────────────── */}
           {currentStep === 6 && (
             <div className="space-y-4">
+              {savedOrderNumber && (
+                <InlineAlert
+                  type="success"
+                  title={`Order saved: ${savedOrderNumber}`}
+                  description={[savedInvoice && `Invoice ${savedInvoice.invoice_number} generated.`, 'Click Done to go back to Sales Orders.'].filter(Boolean).join(' ')}
+                />
+              )}
+
               {/* Anything that would stop the order saving, with a way to fix it */}
               {reviewIssues.length > 0 && !savedOrderNumber && (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
@@ -2952,6 +3080,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}
               />
 
+              {/* Part paid: hand the customer a slip now; the full receipt prints when they pay the rest */}
+              {savedInvoice && !salesOrder.isOld && isAdvanceOnly(savedInvoice) && (
+                <Button type="button" className="w-full gap-2" onClick={() => setShowAdvanceReceipt(true)}>
+                  <RiPrinterLine className="h-4 w-4" />
+                  Print advance receipt
+                </Button>
+              )}
+
               {savedInvoice && !salesOrder.isOld && (
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Button type="button" variant="outline" onClick={handleDownloadInvoicePdf} disabled={isDownloadingPdf}>
@@ -2963,10 +3099,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     View invoice
                   </Button>
                 </div>
-              )}
-
-              {savedOrderNumber && (
-                <InlineAlert type="success" title={`Order saved: ${savedOrderNumber}`} description={savedInvoice ? `Invoice ${savedInvoice.invoice_number} generated.` : undefined} />
               )}
             </div>
           )}
@@ -2984,7 +3116,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 {savedOrderNumber
                   ? `Saved as ${savedOrderNumber}`
                   : currentStep < STEPS.length - 1
-                    ? `Next: ${STEPS[currentStep + 1].label}`
+                    ? `Up next: ${STEPS[currentStep + 1].label}`
                     : `Total ${formatCurrency(roundCurrency(derivedTotals.subtotal))}`}
               </span>
             </div>
@@ -2996,12 +3128,18 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </Button>
               )}
               {savedOrderNumber ? (
-                <Button type="button" variant="outline" onClick={handleReset}>
-                  Create Another Order
-                </Button>
+                <>
+                  <Button type="button" variant="outline" onClick={handleReset}>
+                    Create Another Order
+                  </Button>
+                  <Button type="button" onClick={() => navigate('/sales-orders')}>
+                    <RiCheckLine className="mr-1.5 h-4 w-4" />
+                    Done
+                  </Button>
+                </>
               ) : currentStep < STEPS.length - 1 ? (
                 <Button type="button" onClick={handleNext}>
-                  {currentStep === 3 && !lens.selectionId && !lens.isOld ? 'Skip — no lens' : 'Continue'}
+                  {currentStep === 3 && !lens.selectionId && !lens.isOld ? 'Skip — no lens' : 'Next'}
                   <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
@@ -3018,20 +3156,20 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         </form>
         </div>
 
-        {/* ── Right column — order summary, plus the invoice preview from Extras on ── */}
+        {/* ── Right column — order summary; from Extras on it can switch to the invoice preview ── */}
         <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto xl:block">
           {showInvoicePreview && (
             <div className="flex items-center justify-between gap-2">
               <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist">
-                {([['preview', 'Invoice preview'], ['summary', 'Order summary']] as const).map(([key, label]) => (
+                {([['summary', 'Order summary'], ['preview', 'Invoice preview']] as const).map(([key, label]) => (
                   <button
                     key={key}
                     type="button"
                     role="tab"
-                    aria-selected={rightPanel === key}
+                    aria-selected={activeRightPanel === key}
                     onClick={() => setRightPanel(key)}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      rightPanel === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      activeRightPanel === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {label}
@@ -3045,7 +3183,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               )}
             </div>
           )}
-          {showInvoicePreview && rightPanel === 'preview' ? (
+          {showInvoicePreview && activeRightPanel === 'preview' ? (
             <>
               <InvoicePreview data={invoicePreview} company={companyProfile} />
               <InvoicePreviewStatus data={invoicePreview} />

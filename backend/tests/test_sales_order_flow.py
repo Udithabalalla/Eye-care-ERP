@@ -188,3 +188,29 @@ async def test_order_download_is_the_invoice_copy_shown_on_screen(db):
     pdf, _ = await service.generate_sales_order_pdf(order.order_id)
     assert pdf.startswith(b"%PDF")
     assert calls[-1] == (invoice.invoice_number, "INVOICE", None)
+
+
+async def test_invoice_pdf_leaves_free_items_off(db, monkeypatch):
+    from reportlab import rl_config
+
+    # Uncompressed page streams, so the printed text can be checked in the bytes
+    monkeypatch.setattr(rl_config, "pageCompression", 0)
+    await db["products"].insert_one({
+        "product_id": "PRD002", "name": "Gift Pouch", "category": "accessories", "sku": "GP-1",
+        "cost_price": 10, "selling_price": 0, "mrp": 0, "current_stock": 5, "is_active": True,
+        "created_at": datetime.now(timezone.utc),
+    })
+    service = SalesOrderService(db)
+    order = await service.create_sales_order(_order(items=[
+        {"product_id": "PRD001", "quantity": 1, "unit_price": 100, "line_type": "product", "track_stock": True},
+        {"product_id": "PRD002", "quantity": 1, "unit_price": 0, "line_type": "complimentary", "track_stock": True},
+    ], discount_amount=0), USER)
+    invoice = await service.generate_invoice(order.order_id, USER)
+
+    # Still on the invoice record, and still taken from stock
+    assert any(item.line_type == "complimentary" for item in invoice.items)
+    assert (await db["products"].find_one({"product_id": "PRD002"}))["current_stock"] == 4
+
+    pdf, _ = await service.invoice_service.generate_invoice_pdf(invoice.invoice_id)
+    assert b"Cleaner" in pdf
+    assert b"Pouch" not in pdf

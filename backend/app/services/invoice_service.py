@@ -21,7 +21,7 @@ from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, P
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id, date_to_datetime, is_prescription_valid
+from app.utils.helpers import date_to_datetime, is_prescription_valid
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.audit_service import AuditService
 from app.services.payment_service import PaymentService
@@ -129,9 +129,10 @@ class InvoiceService:
             if not sales_order:
                 raise NotFoundException(f"Sales order with ID {invoice_data.sales_order_id} not found")
         
-        # Generate invoice ID and number
+        # Generate invoice ID and number. The number restarts each year; the ID comes from
+        # a global counter so it never repeats.
         next_number = await self.invoice_repo.get_next_invoice_number(datetime.now().year)
-        invoice_id = generate_id("INV", int(next_number.split("-")[-1]))
+        invoice_id = await self.invoice_repo.next_invoice_id()
         
         # Calculate totals
         subtotal = sum(item.total for item in invoice_data.items)
@@ -450,7 +451,7 @@ class InvoiceService:
         story.append(Spacer(1, 7 * mm))
 
         # ── Line items ─────────────────────────────────────────────────
-        line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service", "complimentary": "Free"}
+        line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service"}
         story.append(Paragraph("Items &amp; services", label))
         story.append(Spacer(1, 1.5 * mm))
         item_rows = [[
@@ -459,15 +460,15 @@ class InvoiceService:
             Paragraph("Price", head_cell_right),
             Paragraph("Amount", head_cell_right),
         ]]
-        for item in invoice.items:
+        # Free (complimentary) items stay on the order for stock but aren't listed for the customer
+        for item in (i for i in invoice.items if i.line_type != "complimentary"):
             kind = line_type_labels.get(item.line_type, "Product")
             detail = " · ".join(part for part in [kind, item.sku, f"{self._money(item.discount)} off" if item.discount else ""] if part)
-            is_free = item.line_type == "complimentary"
             item_rows.append([
                 Paragraph(f"<b>{item.product_name}</b><br/><font size=7.5 color='#64748B'>{detail}</font>", small),
                 Paragraph(str(item.quantity), right_small),
-                Paragraph("-" if is_free else self._money(item.unit_price), right_small),
-                Paragraph("<font color='#059669'><b>Free</b></font>" if is_free else f"<b>{self._money(item.total)}</b>", right_small),
+                Paragraph(self._money(item.unit_price), right_small),
+                Paragraph(f"<b>{self._money(item.total)}</b>", right_small),
             ])
 
         items_table = Table(item_rows, colWidths=[92 * mm, 16 * mm, 35 * mm, 35 * mm], repeatRows=1)
