@@ -3,6 +3,7 @@ import type { CompanyProfile } from '@/types/company-profile.types'
 import type { Invoice } from '@/types/invoice.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
+import { code128Widths } from '@/utils/code128'
 
 export type ReceiptPaperWidth = 58 | 80
 
@@ -13,10 +14,11 @@ export interface AdvanceReceiptLine {
   qty: number
   unitPrice: number
   total: number
-  isFree: boolean
 }
 
 export interface AdvanceReceiptData {
+  /** Printed as a barcode; scanning it on the Sales Orders page opens the order */
+  orderId?: string
   orderNumber?: string
   invoiceNumber?: string
   orderDate: string
@@ -48,19 +50,20 @@ export const invoiceToAdvanceReceipt = (
   invoice: Invoice,
   extra: { orderNumber?: string; readyDate?: string; issuedBy?: string } = {},
 ): AdvanceReceiptData => ({
+  orderId: invoice.sales_order_id || undefined,
   orderNumber: extra.orderNumber,
   invoiceNumber: invoice.invoice_number,
   orderDate: invoice.invoice_date,
   customerName: invoice.patient_name,
   customerPhone: invoice.patient_phone,
-  lines: invoice.items.map((item, index) => ({
+  // Free items aren't listed for the customer (same as the invoice)
+  lines: invoice.items.filter((item) => item.line_type !== 'complimentary').map((item, index) => ({
     key: `${item.product_id}-${index}`,
     name: item.product_name,
     detail: [LINE_LABELS[(item.line_type as string) || 'product'], item.sku].filter(Boolean).join(' · '),
     qty: item.quantity,
     unitPrice: item.unit_price,
     total: item.total,
-    isFree: item.line_type === 'complimentary',
   })),
   subtotal: invoice.subtotal,
   discount: invoice.total_discount || 0,
@@ -78,6 +81,30 @@ const amount = (value: number) =>
   roundCurrency(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const money = (value: number) => formatCurrency(roundCurrency(value))
 const day = (value?: string) => (value ? formatDate(value, 'dd MMM yyyy') : undefined)
+
+// Blank modules either side of the bars, so a scanner can find where the code starts
+const QUIET_ZONE = 10
+
+/** Code 128 bars as SVG: one unit per module, stretched to the slip's width */
+const Barcode = ({ value }: { value: string }) => {
+  const widths = code128Widths(value)
+  if (!widths) return null
+  const total = widths.reduce((sum, w) => sum + w, 0) + QUIET_ZONE * 2
+  let x = QUIET_ZONE
+  const bars = widths.flatMap((w, i) => {
+    const bar = i % 2 === 0 ? [<rect key={i} x={x} y={0} width={w} height={1} />] : []
+    x += w
+    return bar
+  })
+  return (
+    <div className="barcode">
+      <svg viewBox={`0 0 ${total} 1`} preserveAspectRatio="none" shapeRendering="crispEdges" role="img" aria-label={`Barcode ${value}`}>
+        {bars}
+      </svg>
+      <p className="barcode-text">{value}</p>
+    </div>
+  )
+}
 
 const Row = ({ label, value, className }: { label: string; value?: string; className?: string }) =>
   value ? (
@@ -109,6 +136,7 @@ const AdvanceReceiptSlip = ({ data, company }: { data: AdvanceReceiptData; compa
     <p className="subtitle">Not the final receipt</p>
 
     {data.orderNumber && <p className="order-no">{data.orderNumber}</p>}
+    {data.orderId && <Barcode value={data.orderId} />}
 
     <div className="rule" />
     <Row label="Date" value={day(data.orderDate)} />
@@ -122,10 +150,10 @@ const AdvanceReceiptSlip = ({ data, company }: { data: AdvanceReceiptData; compa
         <p className="item-name">{line.name}</p>
         <div className="row small">
           <span>
-            {line.qty} × {line.isFree ? 'Free' : amount(line.unitPrice)}
+            {line.qty} × {amount(line.unitPrice)}
             {line.detail ? ` · ${line.detail}` : ''}
           </span>
-          <span className="num strong">{line.isFree ? 'FREE' : amount(line.total)}</span>
+          <span className="num strong">{amount(line.total)}</span>
         </div>
       </div>
     ))}
@@ -182,6 +210,9 @@ body {
 .title { margin-top: 8px; padding: 4px 0; background: #000; color: #fff; text-align: center; font-size: ${narrow ? 12.5 : 14}px; font-weight: 800; letter-spacing: .18em; }
 .subtitle { margin-top: 2px; text-align: center; font-size: ${narrow ? 9 : 10}px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .order-no { margin-top: 6px; text-align: center; font-size: ${narrow ? 16 : 19}px; font-weight: 800; letter-spacing: .04em; }
+.barcode { margin: 6px auto 0; width: ${narrow ? 44 : 58}mm; }
+.barcode svg { display: block; width: 100%; height: ${narrow ? 10 : 12}mm; fill: #000; }
+.barcode-text { margin-top: 1px; text-align: center; font-size: ${narrow ? 9.5 : 10.5}px; font-weight: 700; letter-spacing: .12em; }
 .rule { margin: 6px 0; border-top: 1px dashed #000; }
 .rule-solid { margin: 4px 0; border-top: 1.5px solid #000; }
 .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }

@@ -451,7 +451,7 @@ class InvoiceService:
         story.append(Spacer(1, 7 * mm))
 
         # ── Line items ─────────────────────────────────────────────────
-        line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service", "complimentary": "Free"}
+        line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service"}
         story.append(Paragraph("Items &amp; services", label))
         story.append(Spacer(1, 1.5 * mm))
         item_rows = [[
@@ -460,15 +460,15 @@ class InvoiceService:
             Paragraph("Price", head_cell_right),
             Paragraph("Amount", head_cell_right),
         ]]
-        for item in invoice.items:
+        # Free (complimentary) items stay on the order for stock but aren't listed for the customer
+        for item in (i for i in invoice.items if i.line_type != "complimentary"):
             kind = line_type_labels.get(item.line_type, "Product")
             detail = " · ".join(part for part in [kind, item.sku, f"{self._money(item.discount)} off" if item.discount else ""] if part)
-            is_free = item.line_type == "complimentary"
             item_rows.append([
                 Paragraph(f"<b>{item.product_name}</b><br/><font size=7.5 color='#64748B'>{detail}</font>", small),
                 Paragraph(str(item.quantity), right_small),
-                Paragraph("-" if is_free else self._money(item.unit_price), right_small),
-                Paragraph("<font color='#059669'><b>Free</b></font>" if is_free else f"<b>{self._money(item.total)}</b>", right_small),
+                Paragraph(self._money(item.unit_price), right_small),
+                Paragraph(f"<b>{self._money(item.total)}</b>", right_small),
             ])
 
         items_table = Table(item_rows, colWidths=[92 * mm, 16 * mm, 35 * mm, 35 * mm], repeatRows=1)

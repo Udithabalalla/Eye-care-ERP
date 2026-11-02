@@ -15,6 +15,7 @@ import {
   RiTruckLine,
   RiLoader4Line,
   RiDownloadLine,
+  RiBarcodeLine,
 } from '@remixicon/react'
 import { downloadFile } from '@/utils/helpers'
 import toast from 'react-hot-toast'
@@ -55,6 +56,7 @@ import {
 import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
 import { getNextAction } from '@/components/sales-orders/SalesOrderWorkflowActions'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
+import { FindOrderByReceiptDialog } from '@/components/sales-orders/FindOrderByReceiptDialog'
 
 const STATUS_FILTER_OPTIONS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All Statuses' },
@@ -107,6 +109,7 @@ const SalesOrders = () => {
   const [orderToEdit, setOrderToEdit] = useState<SalesOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
+  const [findByReceiptOpen, setFindByReceiptOpen] = useState(false)
   // Deep link from an invoice or notification: /sales-orders?detail=SO000123
   const urlDetail = searchParams.get('detail')
   useEffect(() => {
@@ -610,6 +613,8 @@ const SalesOrders = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <FindOrderByReceiptDialog open={findByReceiptOpen} onOpenChange={setFindByReceiptOpen} onFound={setDetailOrderId} />
+
       {/* Sales order detail sheet */}
       <SalesOrderDetailSheet
         orderId={detailOrderId}
@@ -631,14 +636,20 @@ const SalesOrders = () => {
             Live order processing workspace — track and advance every order through its lifecycle.
           </p>
         </div>
+        <div className="flex w-full gap-2 md:w-auto">
+        <Button size="sm" variant="outline" className="flex-1 md:flex-none" onClick={() => setFindByReceiptOpen(true)}>
+          <RiBarcodeLine className="size-4" />
+          Scan receipt
+        </Button>
         <Button
           size="sm"
-          className="w-full md:w-auto"
+          className="flex-1 md:flex-none"
           onClick={() => navigate('/sales-orders/assistant')}
         >
           <RiAddLine className="size-4" />
           New Sales Order
         </Button>
+        </div>
       </section>
 
       {/* Lifecycle quick-filter tabs */}

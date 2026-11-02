@@ -20,7 +20,6 @@ import {
   RiShieldCheckLine,
   RiAddLine,
   RiLoader4Line,
-  RiBriefcaseLine,
   RiGiftLine,
   RiHistoryLine,
   RiSearchLine,
@@ -29,7 +28,6 @@ import {
   RiSubtractLine,
   RiSparklingLine as RiSparklingFill,
   RiPrinterLine,
-  RiHandbagLine,
   RiToolsLine,
   RiShoppingBag3Line,
   RiCalendarCheckLine,
@@ -236,7 +234,7 @@ const STEPS = [
   { id: 1, label: 'Prescription',  icon: RiEyeLine,         hint: 'Enter or confirm the eye measurements' },
   { id: 2, label: 'Frame',         icon: RiBox3Line,        hint: 'Scan or search the frame being sold' },
   { id: 3, label: 'Lens',          icon: RiSparklingLine,   hint: 'Optional — skip for a frame-only order' },
-  { id: 4, label: 'Extras',        icon: RiReceiptLine,     hint: 'Optional — free items, services and accessories' },
+  { id: 4, label: 'Extras',        icon: RiReceiptLine,     hint: 'Optional — accessories, services and free items' },
   { id: 5, label: 'Order Details', icon: RiFileTextLine,    hint: 'Dates, who tested, and where it was sold' },
   { id: 6, label: 'Review & Pay',  icon: RiShieldCheckLine, hint: 'Check everything, apply discount, take payment' },
 ] as const
@@ -666,10 +664,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const { data: lensMasterData } = useLensMaster({ page: 1, page_size: 100, is_active: true })
   const { data: expenseMasterData } = useOtherExpenses({ page: 1, page_size: 100, is_active: true })
 
-  const [includeCase, setIncludeCase] = useState(true)
-  const [selectedCaseId, setSelectedCaseId] = useState('')
-  const [includeBag, setIncludeBag] = useState(true)
-  const [selectedBagId, setSelectedBagId] = useState('')
+  // Products given away with the order: saved as complimentary lines for stock, left off the invoice
+  const [freeItemIds, setFreeItemIds] = useState<string[]>([])
   const [suggestedCase, setSuggestedCase] = useState<ComplimentaryProductSuggestion | null>(null)
   const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
   const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
@@ -868,12 +864,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       })
     })
     if (!salesOrder.isOld) {
-      const freeItem = (key: string, include: boolean, id: string) => {
-        const product = include && id ? productData?.data.find((p) => p.product_id === id) : undefined
-        if (product) lines.push({ key, type: 'Free', name: product.name, detail: product.sku, qty: 1, unitPrice: 0, discount: 0, total: 0 })
-      }
-      freeItem('free-1', includeCase, selectedCaseId)
-      freeItem('free-2', includeBag, selectedBagId)
+      freeItemIds.forEach((id) => {
+        const product = productData?.data.find((p) => p.product_id === id)
+        if (product) lines.push({ key: `free-${id}`, type: 'Free', name: product.name, detail: product.sku, qty: 1, unitPrice: 0, discount: 0, total: 0 })
+      })
     }
     return {
       invoiceNumber: savedInvoice?.invoice_number,
@@ -897,7 +891,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       prescriptionRef: prescription.existingId || undefined,
       isHistorical: salesOrder.isOld,
     }
-  }, [derivedTotals, expenseMasterData, expenses, frame, generalItems, includeBag, includeCase, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, selectedBagId, selectedCaseId, testedByName])
+  }, [derivedTotals, expenseMasterData, expenses, frame, freeItemIds, generalItems, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, testedByName])
 
   const summaryExtras = useMemo<OrderSummaryExtras>(() => {
     const eye = (e: { sphere: number; cylinder: number; axis: number; add: number }) =>
@@ -992,7 +986,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     basicDataApi.suggestComplimentary(frame.total).then((item) => {
       if (cancelled) return
       setSuggestedCase(item)
-      if (item && !selectedCaseId) setSelectedCaseId(item.product_id)
+      // A new order starts with the suggested item; a draft keeps what was saved
+      if (item && !draftOrderId) setFreeItemIds((prev) => (prev.length ? prev : [item.product_id]))
     }).catch(() => {})
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1063,13 +1058,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       setFrameSource('variant')
       frameVariantsApi.getById(draftFrameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
     }
-    const compItems = draftOrder.items.filter((i) => i.line_type === 'complimentary')
-    const draftCase = compItems[0] ?? null
-    const draftBag  = compItems[1] ?? null
-    if (draftCase) { setIncludeCase(true); setSelectedCaseId(draftCase.product_id) }
-    else setIncludeCase(false)
-    if (draftBag) { setIncludeBag(true); setSelectedBagId(draftBag.product_id) }
-    else setIncludeBag(false)
+    setFreeItemIds(draftOrder.items.filter((i) => i.line_type === 'complimentary').map((i) => i.product_id))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
@@ -1210,6 +1199,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     append({ expenseTypeId: type.id, expenseTypeName: type.name, qty: 1, unitCost: type.default_cost, discount: 0, total: type.default_cost })
   }
 
+  const addFreeItem = (id: string) => { if (id) setFreeItemIds((prev) => (prev.includes(id) ? prev : [...prev, id])) }
+  const removeFreeItem = (id: string) => setFreeItemIds((prev) => prev.filter((x) => x !== id))
+  // Free items as order lines; ids that no longer match a product are dropped
+  const freeItemLines = (): SalesOrderItem[] => freeItemIds.flatMap((id) => {
+    const p = productData?.data.find((x) => x.product_id === id)
+    return p ? [{ product_id: p.product_id, product_name: p.name, sku: p.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: p.product_id, line_type: 'complimentary' as const, track_stock: true }] : []
+  })
+
   const changeAccessoryQty = (index: number, delta: number) =>
     setGeneralItems((prev) => prev.map((item, i) => (i === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item)))
 
@@ -1319,6 +1316,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const handleReset = () => {
     reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
+    // These live outside the form, so reset() doesn't clear them
+    setGeneralItems([]); setFreeItemIds([]); setSuggestedCase(null); setSelectedFrameVariant(null); setRightPanel(null)
   }
 
   const handleSubmitClick = async () => {
@@ -1378,14 +1377,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     generalItems.filter((g) => g.qty > 0).forEach((g) => {
       draftItems.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product', track_stock: true })
     })
-    if (includeCase && selectedCaseId) {
-      const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
-      if (caseItem) draftItems.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary', track_stock: true })
-    }
-    if (includeBag && selectedBagId) {
-      const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
-      if (bagItem) draftItems.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary', track_stock: true })
-    }
+    draftItems.push(...freeItemLines())
 
     if (draftItems.length === 0) {
       // The server needs at least one item on an order. Stay here and say so,
@@ -1488,16 +1480,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         itemPayload.push({ product_id: g.productId, product_name: g.productName, sku: g.sku, quantity: g.qty, unit_price: g.unitPrice, total: g.unitPrice * g.qty, master_data_id: g.productId, line_type: 'product' as const, track_stock: true })
       })
 
-      if (!values.salesOrder.isOld) {
-        if (includeCase && selectedCaseId) {
-          const caseItem = productData?.data.find((p) => p.product_id === selectedCaseId)
-          if (caseItem) itemPayload.push({ product_id: caseItem.product_id, product_name: caseItem.name, sku: caseItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: caseItem.product_id, line_type: 'complimentary' as const, track_stock: true })
-        }
-        if (includeBag && selectedBagId) {
-          const bagItem = productData?.data.find((p) => p.product_id === selectedBagId)
-          if (bagItem) itemPayload.push({ product_id: bagItem.product_id, product_name: bagItem.name, sku: bagItem.sku, quantity: 1, unit_price: 0, total: 0, master_data_id: bagItem.product_id, line_type: 'complimentary' as const, track_stock: true })
-        }
-      }
+      if (!values.salesOrder.isOld) itemPayload.push(...freeItemLines())
 
       if (itemPayload.length === 0) {
         toast.error('At least one item (frame, lens, or expense) is required to create a sales order.')
@@ -1585,16 +1568,15 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const activeRightPanel = rightPanel ?? (currentStep === STEPS.length - 1 ? 'preview' : 'summary')
 
-  // Extras step — the same split the step shows: services, accessories, free items
+  // Extras step — the same split the step shows: accessories, services, free items
   const chargesTotal = roundCurrency((expenses || []).reduce((sum, e) =>
     sum + calculateLineTotal({ qty: Number(e.qty || 0), unitCost: Number(e.unitCost || 0), discount: Number(e.discount || 0) }), 0))
   const accessoriesTotal = roundCurrency(generalItems.reduce((sum, g) => sum + g.unitPrice * g.qty, 0))
-  const freeLineCount = invoicePreview.lines.filter((l) => l.type === 'Free').length
-  // A free item is only saved once it points at a real product
-  const isKnownProduct = (id: string) => !!id && !!productData?.data.some((p) => p.product_id === id)
+  const freeProducts = freeItemIds.flatMap((id) => productData?.data.find((p) => p.product_id === id) ?? [])
   const freeItemOptions: LookupOption[] = (productData?.data || [])
-    .filter((p) => p.is_active)
+    .filter((p) => p.is_active && !freeItemIds.includes(p.product_id))
     .map((p) => ({ value: p.product_id, label: p.name, subtitle: [p.sku, p.category].filter(Boolean).join(' · ') }))
+  const showFreeSuggestion = !!suggestedCase && !freeItemIds.includes(suggestedCase.product_id)
 
   // Order Details step — how far off collection is
   const daysBetween = differenceInCalendarDays(parseISO(salesOrder.deliveryDate || ''), parseISO(salesOrder.orderDate || ''))
@@ -2596,77 +2578,56 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           {/* ── Step 4: Extras ──────────────────────────────────────────────── */}
           {currentStep === 4 && (
             <div className="space-y-4">
-              {/* Free items come first: they're on by default and only need a glance */}
-              {!salesOrder.isOld && (
-                <Card>
-                  <SectionHeader
-                    icon={RiGiftLine}
-                    tone="emerald"
-                    title="Free With This Order"
-                    description={includeCase || includeBag
-                      ? 'No charge to the patient — switch off anything they don\'t want'
-                      : 'Switch on anything the patient gets at no charge'}
-                    aside={freeLineCount > 0 && (
-                      <Badge variant="secondary" className="shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                        {freeLineCount} included
-                      </Badge>
-                    )}
+              {/* Accessories from stock */}
+              <Card>
+                <SectionHeader
+                  icon={RiShoppingBag3Line}
+                  title="Accessories"
+                  description="Drops, solutions, cases and other items sold from stock"
+                  aside={generalItems.length > 0 && <Badge variant="secondary" className="shrink-0">{generalItems.length} added</Badge>}
+                />
+                <Separator />
+                <CardContent className="pt-5 space-y-3">
+                  <SearchableLOV
+                    placeholder="Search accessories and supplies…"
+                    value=""
+                    onChange={(value) => {
+                      const product = productData?.data.find((p) => p.product_id === value)
+                      if (!product) return
+                      setGeneralItems((prev) => {
+                        const existing = prev.findIndex((i) => i.productId === value)
+                        if (existing >= 0) {
+                          const next = [...prev]
+                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
+                          return next
+                        }
+                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
+                      })
+                    }}
+                    options={generalInventoryOptions}
                   />
-                  <Separator />
-                  <CardContent className="pt-5 grid gap-3 sm:grid-cols-2">
-                    {[
-                      { id: 'include-case', label: 'Frame case', noun: 'case', icon: RiBriefcaseLine, include: includeCase, setInclude: setIncludeCase, value: selectedCaseId, setValue: setSelectedCaseId,
-                        suggested: !!suggestedCase && selectedCaseId === suggestedCase.product_id },
-                      { id: 'include-bag', label: 'Carry bag', noun: 'bag', icon: RiHandbagLine, include: includeBag, setInclude: setIncludeBag, value: selectedBagId, setValue: setSelectedBagId, suggested: false },
-                    ].map((free) => {
-                      const needsItem = free.include && !isKnownProduct(free.value)
-                      return (
-                        <div key={free.id} className={`rounded-xl border p-4 transition-colors ${
-                          !free.include
-                            ? 'border-dashed border-border bg-muted/20'
-                            : needsItem
-                              ? 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/20'
-                              : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/20'
-                        }`}>
-                          <div className="flex items-start gap-3">
-                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                              free.include ? 'bg-background text-emerald-600 shadow-xs dark:text-emerald-400' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <free.icon className="size-4" />
-                            </div>
-                            <label htmlFor={free.id} className="min-w-0 flex-1 cursor-pointer">
-                              <span className="flex items-center gap-2 text-sm font-medium">
-                                {free.label}
-                                {free.include && !needsItem && (
-                                  <span className="rounded-full bg-emerald-600 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-white">Free</span>
-                                )}
-                              </span>
-                              <span className="mt-0.5 block text-xs text-muted-foreground">
-                                {!free.include
-                                  ? 'Not included'
-                                  : needsItem
-                                    ? `Choose which ${free.noun} to give`
-                                    : free.suggested
-                                      ? <span className="inline-flex items-center gap-1 text-primary"><RiSparklingFill className="size-3" />Suggested for this frame price</span>
-                                      : 'Included at no charge'}
-                              </span>
-                            </label>
-                            <Switch id={free.id} checked={free.include} onCheckedChange={free.setInclude} className="mt-1" />
+                  {generalItems.length > 0 ? (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {generalItems.map((item, i) => (
+                        <li key={item.productId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:flex-nowrap">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{item.productName}</p>
+                            <p className="text-xs text-muted-foreground">{item.sku} · {formatCurrency(item.unitPrice)} each</p>
                           </div>
-                          {free.include && (
-                            <div className="mt-3 space-y-1.5">
-                              <SearchableLOV placeholder={`Choose a ${free.noun}…`} value={free.value} onChange={free.setValue} options={freeItemOptions} />
-                              {needsItem && (
-                                <p className="text-xs text-amber-700 dark:text-amber-400">Nothing is added to the order until you pick one.</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </CardContent>
-                </Card>
-              )}
+                          <QtyStepper value={item.qty} itemName={item.productName} onChange={(qty) => changeAccessoryQty(i, qty - item.qty)} />
+                          <span className="w-24 text-right text-sm font-semibold tabular-nums">{formatCurrency(item.unitPrice * item.qty)}</span>
+                          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))} aria-label={`Remove ${item.productName}`}>
+                            <RiDeleteBin6Line className="size-3.5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyHint icon={RiShoppingBag3Line}>Nothing added — search above to add an item.</EmptyHint>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Services & charges */}
               <Card>
@@ -2759,56 +2720,65 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </CardContent>
               </Card>
 
-              {/* Accessories from stock */}
-              <Card>
-                <SectionHeader
-                  icon={RiShoppingBag3Line}
-                  title="Accessories"
-                  description="Drops, solutions, cases and other items sold from stock"
-                  aside={generalItems.length > 0 && <Badge variant="secondary" className="shrink-0">{generalItems.length} added</Badge>}
-                />
-                <Separator />
-                <CardContent className="pt-5 space-y-3">
-                  <SearchableLOV
-                    placeholder="Search accessories and supplies…"
-                    value=""
-                    onChange={(value) => {
-                      const product = productData?.data.find((p) => p.product_id === value)
-                      if (!product) return
-                      setGeneralItems((prev) => {
-                        const existing = prev.findIndex((i) => i.productId === value)
-                        if (existing >= 0) {
-                          const next = [...prev]
-                          next[existing] = { ...next[existing], qty: next[existing].qty + 1 }
-                          return next
-                        }
-                        return [...prev, { productId: product.product_id, productName: product.name, sku: product.sku, qty: 1, unitPrice: product.selling_price }]
-                      })
-                    }}
-                    options={generalInventoryOptions}
+              {/* Free items — last: they cost the patient nothing and stay off the invoice */}
+              {!salesOrder.isOld && (
+                <Card>
+                  <SectionHeader
+                    icon={RiGiftLine}
+                    tone="emerald"
+                    title="Free With This Order"
+                    description="Anything given at no charge. It comes out of stock but doesn't print on the invoice or receipts."
+                    aside={freeProducts.length > 0 && (
+                      <Badge variant="secondary" className="shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                        {freeProducts.length} free
+                      </Badge>
+                    )}
                   />
-                  {generalItems.length > 0 ? (
-                    <ul className="divide-y divide-border rounded-lg border border-border">
-                      {generalItems.map((item, i) => (
-                        <li key={item.productId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:flex-nowrap">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{item.productName}</p>
-                            <p className="text-xs text-muted-foreground">{item.sku} · {formatCurrency(item.unitPrice)} each</p>
-                          </div>
-                          <QtyStepper value={item.qty} itemName={item.productName} onChange={(qty) => changeAccessoryQty(i, qty - item.qty)} />
-                          <span className="w-24 text-right text-sm font-semibold tabular-nums">{formatCurrency(item.unitPrice * item.qty)}</span>
-                          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => setGeneralItems((prev) => prev.filter((_, j) => j !== i))} aria-label={`Remove ${item.productName}`}>
-                            <RiDeleteBin6Line className="size-3.5" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <EmptyHint icon={RiShoppingBag3Line}>Nothing added — search above to add an item.</EmptyHint>
-                  )}
-                </CardContent>
-              </Card>
+                  <Separator />
+                  <CardContent className="pt-5 space-y-3">
+                    <SearchableLOV placeholder="Add a free item…" value="" onChange={addFreeItem} options={freeItemOptions} />
+
+                    {showFreeSuggestion && suggestedCase && (
+                      <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-4 py-2.5">
+                        <RiSparklingFill className="size-4 shrink-0 text-primary" />
+                        <p className="min-w-0 flex-1 text-sm">
+                          <span className="font-medium">{suggestedCase.product_name}</span>
+                          <span className="text-muted-foreground"> is suggested for this frame price</span>
+                        </p>
+                        <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => addFreeItem(suggestedCase.product_id)}>
+                          <RiAddLine className="mr-1 size-3.5" />Add
+                        </Button>
+                      </div>
+                    )}
+
+                    {freeProducts.length > 0 ? (
+                      <ul className="divide-y divide-border rounded-lg border border-emerald-200 dark:border-emerald-900">
+                        {freeProducts.map((product) => (
+                          <li key={product.product_id} className="flex items-center gap-3 px-4 py-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <RiGiftLine className="size-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{product.name}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {product.sku}
+                                {suggestedCase?.product_id === product.product_id ? ' · Suggested for this frame price' : ''}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-emerald-600 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-white">Free</span>
+                            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeFreeItem(product.product_id)} aria-label={`Remove ${product.name}`}>
+                              <RiDeleteBin6Line className="size-3.5" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <EmptyHint icon={RiGiftLine}>Nothing free on this order. Search above to add an item.</EmptyHint>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Inline create charge type dialog */}
               <Dialog open={newExpenseDialogOpen} onOpenChange={(open) => !open && setNewExpenseDialogOpen(false)}>
@@ -2839,23 +2809,23 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 </DialogContent>
               </Dialog>
 
-              {/* What the extras add up to, split the same way as the cards above */}
+              {/* What the extras add up to, in the same order as the cards above */}
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl border border-border bg-muted/30 px-5 py-3">
                 <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                  {!salesOrder.isOld && (
-                    <div className="flex gap-1.5">
-                      <dt className="text-muted-foreground">Free items</dt>
-                      <dd className="font-medium tabular-nums">{freeLineCount}</dd>
-                    </div>
-                  )}
-                  <div className="flex gap-1.5">
-                    <dt className="text-muted-foreground">Services</dt>
-                    <dd className="font-medium tabular-nums">{formatCurrency(chargesTotal)}</dd>
-                  </div>
                   <div className="flex gap-1.5">
                     <dt className="text-muted-foreground">Accessories</dt>
                     <dd className="font-medium tabular-nums">{formatCurrency(accessoriesTotal)}</dd>
                   </div>
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted-foreground">Services</dt>
+                    <dd className="font-medium tabular-nums">{formatCurrency(chargesTotal)}</dd>
+                  </div>
+                  {!salesOrder.isOld && (
+                    <div className="flex gap-1.5">
+                      <dt className="text-muted-foreground">Free items</dt>
+                      <dd className="font-medium tabular-nums">{freeProducts.length}</dd>
+                    </div>
+                  )}
                 </dl>
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm text-muted-foreground">Extras total</span>

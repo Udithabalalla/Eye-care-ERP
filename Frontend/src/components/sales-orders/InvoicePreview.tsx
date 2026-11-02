@@ -71,6 +71,8 @@ export const InvoicePreviewStatus = ({ data }: { data: InvoicePreviewData }) => 
  */
 const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?: CompanyProfile }) => {
   const companyName = company?.company_name || 'Vision Opticals'
+  // Free items stay on the order for stock, but the customer's invoice doesn't list them (same as the PDF)
+  const lines = data.lines.filter((line) => line.type !== 'Free')
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm">
@@ -147,12 +149,12 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {data.lines.length === 0 ? (
+              {lines.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-2.5 py-6 text-center italic text-slate-400">Items appear here as you add them</td>
                 </tr>
               ) : (
-                data.lines.map((line) => (
+                lines.map((line) => (
                   <tr key={line.key} className="align-top">
                     <td className="px-2.5 py-2">
                       <p className="font-medium">{line.name}</p>
@@ -162,9 +164,9 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
                       </p>
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{line.qty}</td>
-                    <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{line.type === 'Free' ? '—' : money(line.unitPrice)}</td>
+                    <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{money(line.unitPrice)}</td>
                     <td className="px-2.5 py-2 text-right font-medium tabular-nums">
-                      {line.type === 'Free' ? <span className="text-emerald-600">Free</span> : money(line.total)}
+                      {money(line.total)}
                     </td>
                   </tr>
                 ))
