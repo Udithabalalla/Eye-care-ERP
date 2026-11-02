@@ -1,23 +1,14 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 from typing import List, Optional
-from datetime import datetime
 from app.models.common import TimestampModel
 
 
-class PermissionModel(TimestampModel):
-    """Permission database model"""
-    permission_id: str = Field(..., description="Unique permission identifier")
-    name: str = Field(..., description="Permission name")
-    description: Optional[str] = None
-    category: str = Field(..., description="Permission category (e.g., Patients, Invoices, Reports)")
-    code: str = Field(..., description="Permission code (e.g., patients.read, invoices.create)")
-
-
 class RoleModel(TimestampModel):
-    """Role database model"""
-    role_id: str = Field(..., description="Unique role identifier")
+    """Role database model: one document per ``UserRole``, keyed by its value"""
+    role_id: str = Field(..., description="The UserRole value, e.g. 'staff'")
     name: str = Field(..., description="Role name")
     description: Optional[str] = None
-    permission_ids: List[str] = Field(default_factory=list, description="List of permission IDs")
-    is_system_role: bool = False
+    permission_ids: List[str] = Field(default_factory=list, description="Permission codes, e.g. 'patients.read'")
+    is_system_role: bool = True
     is_active: bool = True
+    updated_by: Optional[str] = None

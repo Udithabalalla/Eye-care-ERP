@@ -68,6 +68,33 @@ This creates initial users:
 - **Doctor**: doctor@eyecare.com / doctor123
 - **Receptionist**: receptionist@eyecare.com / reception123
 
+To create your own admin account (or make an existing account an admin), run:
+
+```bash
+python scripts/create_admin.py --name "Your Name" --email you@example.com
+```
+
+It asks for the password at the prompt and writes to the database in `MONGODB_URL` /
+`MONGODB_DB_NAME` (from `.env` unless you set them for that one command).
+
+### Users, permissions and sessions
+
+Admins manage these under Settings → Administration in the app:
+
+- **Users**: create accounts, change roles and details, set a new password, deactivate or reactivate.
+  Accounts an admin creates must choose their own password at first sign-in (the API refuses
+  everything else until they do).
+- **Roles & Permissions**: what each role may do. Each permission is a `<module>.<read|write|delete>`
+  code from `app/core/permissions.py`, the same codes the routes check. Role changes are stored in the
+  `roles` collection and reach every worker within 30 seconds. A user can also have single permissions
+  added or removed on top of their role.
+- **Signed-in Sessions**: each sign-in is one document in `refresh_tokens` (the refresh token is stored
+  as a SHA-256 hash). Access tokens carry the session id, so signing a session out stops its refresh
+  token and its access tokens at once. Deactivating a user or setting a new password signs them out
+  everywhere.
+
+Managing users, roles and sessions is reserved for the admin role; it can't be granted as a permission.
+
 ### 8. Run the Application
 
 ```bash

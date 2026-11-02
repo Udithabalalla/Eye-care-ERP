@@ -4,18 +4,31 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 
 from app.config.settings import settings
-from app.config.database import connect_to_mongo, close_mongo_connection
+from app.config.database import connect_to_mongo, close_mongo_connection, get_database
 from app.api.v1.router import api_router
 from app.core.middleware import CacheControlMiddleware, SecurityHeadersMiddleware
+from app.services.role_service import RoleService
+from app.services.session_service import SessionService
 import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await connect_to_mongo()
+    await prepare_access_control()
     yield
     # Shutdown
     await close_mongo_connection()
+
+async def prepare_access_control():
+    """Store the default role permissions on first start, load them, and hash old refresh tokens"""
+    database = get_database()
+    roles = RoleService(database)
+    await roles.ensure_system_roles()
+    await roles.refresh_permission_cache()
+    hashed = await SessionService(database).hash_plain_tokens()
+    if hashed:
+        print(f"[OK] Hashed {hashed} refresh token(s) stored in plain text")
 
 app = FastAPI(
     title=settings.APP_NAME,

@@ -36,7 +36,15 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    await axiosInstance.post('/auth/logout')
+    await axiosInstance.post('/auth/logout', { refresh_token: localStorage.getItem('refresh_token') })
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string): Promise<User> => {
+    const response = await axiosInstance.post<ApiResponse<User>>('/auth/change-password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    })
+    return response.data.data
   },
 
   getCurrentUser: async (): Promise<User> => {

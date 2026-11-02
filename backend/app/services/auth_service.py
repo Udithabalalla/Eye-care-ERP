@@ -1,67 +1,61 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.user_repository import UserRepository
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.exceptions import UnauthorizedException, ConflictException, ForbiddenException
+from app.core.exceptions import BadRequestException, UnauthorizedException, ConflictException, ForbiddenException
 from app.utils.constants import UserRole
 from app.schemas.user import LoginResponse, UserResponse, SignupRequest
 from app.models.user import UserModel
 from app.config.settings import settings
+from app.services.session_service import ClientInfo, SessionService, hash_token
 
-REFRESH_COLLECTION = 'refresh_tokens'
+
+def issue_access_token(user: UserModel, session_id: str) -> str:
+    return create_access_token(
+        data={"sub": user.user_id, "email": user.email, "role": user.role, "sid": session_id}
+    )
+
 
 class AuthService:
     """Authentication service"""
-    
+
     def __init__(self, db: AsyncIOMotorDatabase):
         self.user_repo = UserRepository(db)
-    
-    async def login(self, email: str, password: str) -> LoginResponse:
+        self.sessions = SessionService(db)
+
+    async def _signed_in(self, user: UserModel, client: Optional[ClientInfo]) -> LoginResponse:
+        refresh_token, session_id = await self.sessions.start_session(user.user_id, client)
+        return LoginResponse(
+            access_token=issue_access_token(user, session_id),
+            token_type="bearer",
+            refresh_token=refresh_token,
+            user=UserResponse(**user.model_dump()),
+        )
+
+    async def login(self, email: str, password: str, client: Optional[ClientInfo] = None) -> LoginResponse:
         """Authenticate user and return token"""
         # Get user by email
         user = await self.user_repo.get_by_email(email)
-        
+
         if not user:
             raise UnauthorizedException("Invalid email or password")
-        
+
         # Verify password
         if not verify_password(password, user.password_hash):
             raise UnauthorizedException("Invalid email or password")
-        
+
         # Check if user is active
         if not user.is_active:
             raise UnauthorizedException("Account is deactivated")
-        
+
         # Update last login
         await self.user_repo.update_last_login(user.user_id)
-        
-        # Create access token
-        access_token = create_access_token(
-            data={"sub": user.user_id, "email": user.email, "role": user.role}
-        )
 
-        # Create refresh token and persist
-        refresh_token = uuid.uuid4().hex
-        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-        await self.user_repo.db[REFRESH_COLLECTION].insert_one({
-            "token": refresh_token,
-            "user_id": user.user_id,
-            "expires_at": expires_at,
-        })
-        
-        # Prepare response
-        user_response = UserResponse(**user.dict())
-        
-        return LoginResponse(
-            access_token=access_token,
-            token_type="bearer",
-            refresh_token=refresh_token,
-            user=user_response
-        )
+        return await self._signed_in(user, client)
 
-    async def register(self, signup_data: SignupRequest) -> LoginResponse:
+    async def register(self, signup_data: SignupRequest, client: Optional[ClientInfo] = None) -> LoginResponse:
         """Register a new user and return token"""
         if not settings.ALLOW_SELF_SIGNUP:
             raise ForbiddenException("Self-registration is disabled. Ask an administrator to create your account.")
@@ -85,46 +79,33 @@ class AuthService:
 
         # Save to database
         created_user = await self.user_repo.create_user(user_model)
-
-        # Create access token
-        access_token = create_access_token(
-            data={"sub": created_user.user_id, "email": created_user.email, "role": created_user.role}
-        )
-
-        # Create refresh token and persist
-        refresh_token = uuid.uuid4().hex
-        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-        await self.user_repo.db[REFRESH_COLLECTION].insert_one({
-            "token": refresh_token,
-            "user_id": created_user.user_id,
-            "expires_at": expires_at,
-        })
-
-        user_response = UserResponse(**created_user.dict())
-
-        return LoginResponse(
-            access_token=access_token,
-            token_type="bearer",
-            refresh_token=refresh_token,
-            user=user_response
-        )
+        return await self._signed_in(created_user, client)
 
     async def refresh_access_token(self, refresh_token: str) -> str:
         """Validate refresh token and return a new access token"""
-        doc = await self.user_repo.db[REFRESH_COLLECTION].find_one({"token": refresh_token})
-        if not doc:
-            raise UnauthorizedException("Invalid refresh token")
-        expires_at = doc.get('expires_at')
-        if not expires_at:
-            raise UnauthorizedException("Refresh token expired")
-        # Ensure expires_at is timezone-aware (MongoDB might return naive datetime)
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > expires_at:
-            raise UnauthorizedException("Refresh token expired")
-        user = await self.user_repo.get_by_user_id(doc.get('user_id'))
-        if not user:
-            raise UnauthorizedException("User not found for refresh token")
-        # Issue new access token
-        new_access = create_access_token({"sub": user.user_id, "email": user.email, "role": user.role})
-        return new_access
+        user, session_id = await self.sessions.use_refresh_token(refresh_token)
+        return issue_access_token(user, session_id)
+
+    async def logout(self, user: UserModel, session_id: Optional[str], refresh_token: Optional[str] = None) -> None:
+        """End the session the request came from (or the one ``refresh_token`` belongs to)"""
+        if not session_id and refresh_token:
+            doc = await self.sessions.repo.get_by_token_hash(hash_token(refresh_token))
+            if doc and doc.get("user_id") == user.user_id:
+                session_id = str(doc["_id"])
+        if session_id:
+            await self.sessions.repo.revoke(session_id, self.sessions._now(), user.user_id)
+
+    async def change_own_password(
+        self, user: UserModel, current_password: str, new_password: str, session_id: Optional[str]
+    ) -> UserModel:
+        """Change the signed-in user's password and sign out their other sessions"""
+        if not verify_password(current_password, user.password_hash):
+            raise BadRequestException("Current password is incorrect")
+        if verify_password(new_password, user.password_hash):
+            raise BadRequestException("Choose a password different from the current one")
+        updated = await self.user_repo.update_user(user.user_id, {
+            "password_hash": get_password_hash(new_password),
+            "must_change_password": False,
+        })
+        await self.sessions.end_user_sessions(user.user_id, user.user_id, keep_session_id=session_id)
+        return updated

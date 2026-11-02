@@ -115,6 +115,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      changePassword: async (oldPassword: string, newPassword: string) => {
+        const user = await authApi.changePassword(oldPassword, newPassword)
+        localStorage.setItem('user', JSON.stringify(user))
+        set({ user })
+        toast.success('Password changed')
+      },
+
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
     }),

@@ -28,6 +28,7 @@ import {
   RiGridLine,
   RiArrowUpDownLine,
   RiListSettingsLine,
+  RiKeyLine,
   RiBuilding2Line,
   RiExchangeDollarLine,
   RiArrowUpSLine,
@@ -64,10 +65,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import BrandLogo from '@/components/common/BrandLogo'
-import { SETTINGS_GROUPS, SETTINGS_HOME, isSettingsPath } from '@/components/settings/settingsNav'
+import ChangePasswordForm from '@/components/auth/ChangePasswordForm'
+import { SETTINGS_HOME, isSettingsPath, settingsGroupsFor } from '@/components/settings/settingsNav'
 import { salesOrdersApi } from '@/api/erp.api'
 
 interface NavItem {
@@ -175,7 +177,7 @@ const matchesPath = (pathname: string, path: string) =>
 const ACTIVE_ITEM = 'data-[active=true]:bg-sidebar-primary/10 data-[active=true]:font-medium data-[active=true]:text-sidebar-primary [&>svg]:data-[active=true]:text-sidebar-primary'
 
 const AppSidebar = () => {
-  const { user, logout } = useAuth()
+  const { user, logout, isAdmin } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const { isMobile, setOpenMobile, state } = useSidebar()
@@ -183,6 +185,7 @@ const AppSidebar = () => {
 
   const [sectionOrder, setSectionOrder] = useState<string[]>(getSavedOrder)
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [draftOrder, setDraftOrder] = useState<string[]>([])
 
   // Orders waiting for collection — shared cache with the header notifications
@@ -415,7 +418,7 @@ const AppSidebar = () => {
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="end" className="w-56">
-                      {SETTINGS_GROUPS.map((group, idx) => (
+                      {settingsGroupsFor(isAdmin).map((group, idx) => (
                         <div key={group.id}>
                           {idx > 0 && <DropdownMenuSeparator />}
                           <DropdownMenuLabel>{group.title}</DropdownMenuLabel>
@@ -487,6 +490,10 @@ const AppSidebar = () => {
                     <RiListSettingsLine className="h-4 w-4" />
                     Reorder menu sections
                   </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setPasswordOpen(true)} className="gap-2">
+                    <RiKeyLine className="h-4 w-4" />
+                    Change password
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => void logout()} className="gap-2 text-destructive focus:text-destructive">
                     <RiLogoutBoxRLine className="h-4 w-4" />
@@ -502,6 +509,16 @@ const AppSidebar = () => {
       </ShadcnSidebar>
 
       {/* ── Customize Navigation Dialog ───────────────────────────────────── */}
+      <Dialog open={passwordOpen} onOpenChange={(o) => !o && setPasswordOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change password</DialogTitle>
+            <DialogDescription>Your other signed-in devices will be signed out.</DialogDescription>
+          </DialogHeader>
+          <ChangePasswordForm onDone={() => setPasswordOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={customizeOpen} onOpenChange={(o) => !o && setCustomizeOpen(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

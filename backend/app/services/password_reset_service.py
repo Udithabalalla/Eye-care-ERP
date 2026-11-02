@@ -12,6 +12,7 @@ from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.password_reset import PasswordResetResponse
 from app.services.email_service import EmailService
+from app.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class PasswordResetService:
         self.user_repo = UserRepository(db)
         self.reset_repo = PasswordResetRepository(db)
         self.email_service = EmailService()
+        self.sessions = SessionService(db)
 
     @staticmethod
     def _generate_otp() -> str:
@@ -85,7 +87,12 @@ class PasswordResetService:
                 await self.reset_repo.increment_attempts(email, attempts)
             raise BadRequestException("Invalid or expired OTP")
 
-        await self.user_repo.update({"email": email}, {"password_hash": get_password_hash(new_password)})
+        await self.user_repo.update(
+            {"email": email},
+            {"password_hash": get_password_hash(new_password), "must_change_password": False},
+        )
         await self.reset_repo.delete_for_email(email)
+        # Whoever knew the old password is signed out everywhere
+        await self.sessions.end_user_sessions(user.user_id, user.user_id)
 
         return PasswordResetResponse(message="Password reset successfully")

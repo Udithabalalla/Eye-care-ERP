@@ -1,55 +1,41 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
 
-class PermissionBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: str
+class PermissionModuleResponse(BaseModel):
+    """One area of the system and the actions that can be granted in it"""
+    module: str
+    label: str
+    description: str
+    actions: List[str]
+
+
+class PermissionResponse(BaseModel):
     code: str
-
-
-class PermissionCreate(PermissionBase):
-    pass
-
-
-class PermissionUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-
-
-class PermissionResponse(PermissionBase):
-    permission_id: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-
-class RoleBase(BaseModel):
+    module: str
+    action: str
     name: str
-    description: Optional[str] = None
-    permission_ids: List[str] = Field(default_factory=list)
-
-
-class RoleCreate(RoleBase):
-    pass
+    category: str
+    description: str
 
 
 class RoleUpdate(BaseModel):
-    name: Optional[str] = None
     description: Optional[str] = None
     permission_ids: Optional[List[str]] = None
-    is_active: Optional[bool] = None
 
 
-class RoleResponse(RoleBase):
+class RoleResponse(BaseModel):
     role_id: str
-    is_system_role: bool
-    is_active: bool
-    created_at: datetime
+    name: str
+    description: Optional[str] = None
+    permission_ids: List[str]
+    is_system_role: bool = True
+    is_active: bool = True
+    # Admin always has every permission and can't be edited
+    editable: bool
+    matches_defaults: bool
+    user_count: int = 0
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-
-class RoleWithPermissions(RoleResponse):
-    permissions: List[PermissionResponse] = []
+    updated_by: Optional[str] = None

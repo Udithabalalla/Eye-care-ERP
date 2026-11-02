@@ -58,6 +58,14 @@ async def create_indexes():
     # Password reset OTPs
     await safe_create_index(db.db.password_reset_otps, "email", unique=True)
     await safe_create_index(db.db.password_reset_otps, "expires_at", expireAfterSeconds=0)
+
+    # Sign-in sessions (one refresh token each); MongoDB drops them once expired
+    await safe_create_index(db.db.refresh_tokens, "token_hash", unique=True, sparse=True)
+    await safe_create_index(db.db.refresh_tokens, [("user_id", 1), ("revoked_at", 1)])
+    await safe_create_index(db.db.refresh_tokens, "expires_at", expireAfterSeconds=0)
+
+    # Stored permissions for each role
+    await safe_create_index(db.db.roles, "role_id", unique=True)
     
     # Patients - search and filtering
     await safe_create_index(db.db.patients, "patient_id", unique=True)

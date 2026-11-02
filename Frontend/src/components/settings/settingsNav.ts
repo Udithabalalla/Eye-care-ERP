@@ -1,5 +1,6 @@
 import {
   RiBuilding4Line,
+  RiComputerLine,
   RiEyeLine,
   RiGiftLine,
   RiHistoryLine,
@@ -14,6 +15,8 @@ export interface SettingsItem {
   path: string
   icon: React.ComponentType<{ className?: string }>
   description: string
+  /** Only admins see it (the API refuses everyone else as well) */
+  adminOnly?: boolean
 }
 
 export interface SettingsGroup {
@@ -74,13 +77,22 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         name: 'Users',
         path: '/users',
         icon: RiTeamLine,
-        description: 'Staff accounts, their roles and who can sign in.',
+        description: 'Create accounts, set roles and passwords, and turn sign-in on or off.',
+        adminOnly: true,
       },
       {
         name: 'Roles & Permissions',
         path: '/roles-permissions',
         icon: RiShieldCheckLine,
         description: 'What each role is allowed to see and do.',
+        adminOnly: true,
+      },
+      {
+        name: 'Signed-in Sessions',
+        path: '/sessions',
+        icon: RiComputerLine,
+        description: 'Who is signed in, on which device, and signing them out.',
+        adminOnly: true,
       },
       {
         name: 'Activity Logs',
@@ -91,6 +103,13 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     ],
   },
 ]
+
+// The groups a user should see: admin-only screens are left out for everyone else
+export const settingsGroupsFor = (isAdmin: boolean): SettingsGroup[] =>
+  SETTINGS_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => isAdmin || !item.adminOnly),
+  })).filter((group) => group.items.length > 0)
 
 export const isSettingsPath = (pathname: string) =>
   pathname === SETTINGS_HOME ||

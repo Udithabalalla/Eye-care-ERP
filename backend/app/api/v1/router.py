@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 
-from app.api.deps import require_module_access, require_permission
+from app.api.deps import require_admin, require_module_access, require_permission
 from app.api.v1 import (
     auth, patients, appointments, products, invoices, prescriptions,
     reports, dashboard, doctors, users, suppliers, company_profile,
     sales_orders, payments, transactions, inventory_movements,
-    audit_logs, roles, ledger, basic_data,
+    audit_logs, roles, sessions, ledger, basic_data,
     frame_masters, frame_variants, goods_receipts, quick_intakes, inventory,
 )
 
@@ -13,6 +13,7 @@ api_router = APIRouter()
 
 # Every router except auth/users is guarded by a permission from
 # app/core/permissions.py (users applies per-route checks itself).
+# Roles and sessions are admin-only: that can't be granted as a permission.
 
 # ── Existing routes ───────────────────────────────────────────────────────────
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
@@ -33,7 +34,8 @@ api_router.include_router(transactions.router, prefix="/transactions", tags=["Tr
 api_router.include_router(inventory_movements.router, prefix="/inventory-movements", tags=["Inventory Movements"], dependencies=[Depends(require_module_access("inventory"))])
 api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["Activity Logs"], dependencies=[Depends(require_permission("audit.read"))])
 api_router.include_router(company_profile.router, prefix="/settings", tags=["Settings"], dependencies=[Depends(require_module_access("settings"))])
-api_router.include_router(roles.router, prefix="/roles", tags=["Roles & Permissions"], dependencies=[Depends(require_permission("roles.manage"))])
+api_router.include_router(roles.router, prefix="/roles", tags=["Roles & Permissions"], dependencies=[Depends(require_admin)])
+api_router.include_router(sessions.router, prefix="/sessions", tags=["Sessions"], dependencies=[Depends(require_admin)])
 api_router.include_router(ledger.router, prefix="/ledger", tags=["Ledger"], dependencies=[Depends(require_permission("finance.read"))])
 
 # ── Optical ERP routes ────────────────────────────────────────────────────────

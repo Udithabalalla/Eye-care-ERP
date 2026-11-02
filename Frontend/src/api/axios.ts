@@ -31,6 +31,43 @@ const resolveApiBaseUrl = (): string => {
 
 const API_BASE_URL = resolveApiBaseUrl()
 
+export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED'
+export const PASSWORD_CHANGE_REQUIRED_EVENT = 'auth:password-change-required'
+
+// One refresh at a time: requests that fail together wait for the same new token
+let refreshInFlight: Promise<string> | null = null
+
+const refreshAccessToken = (refreshToken: string): Promise<string> => {
+  if (!refreshInFlight) {
+    refreshInFlight = axios
+      .post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken })
+      .then((resp) => {
+        const newAccess: string | undefined = resp.data?.access_token
+        if (!newAccess) throw new Error('No access token in refresh response')
+        localStorage.setItem('token', newAccess)
+        return newAccess
+      })
+      .finally(() => {
+        refreshInFlight = null
+      })
+  }
+  return refreshInFlight
+}
+
+// Clear all auth data (including zustand persist storage) and go to sign-in
+const endLocalSession = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('auth-storage')
+  localStorage.removeItem('refresh_token')
+
+  // Only redirect if not already on login page to prevent loops
+  if (!window.location.pathname.includes('/login')) {
+    toast.error('Your session has ended. Please sign in again.')
+    window.location.href = '/login'
+  }
+}
+
 // Request deduplication map
 const pendingRequests = new Map<string, AbortController>()
 
@@ -152,44 +189,36 @@ axiosInstance.interceptors.response.use(
 
       // Attempt token refresh on 401 before failing
       const originalRequest: any = error.config
-      if (status === 401 && originalRequest && !originalRequest._retry) {
+      const isSignIn = typeof originalRequest?.url === 'string' && originalRequest.url.includes('/auth/login')
+      if (status === 401 && originalRequest && !originalRequest._retry && !isSignIn) {
         const refreshToken = localStorage.getItem('refresh_token')
         if (refreshToken) {
           originalRequest._retry = true
-          // Use raw axios to call refresh endpoint to avoid interceptor loops
-          return axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken })
-            .then((resp) => {
-              const newAccess = resp.data.access_token
-              if (newAccess) {
-                localStorage.setItem('token', newAccess)
-                // Update header and retry original request
-                if (originalRequest.headers) {
-                  originalRequest.headers.Authorization = `Bearer ${newAccess}`
-                }
-                return axiosInstance(originalRequest)
+          return refreshAccessToken(refreshToken).then(
+            (newAccess) => {
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = `Bearer ${newAccess}`
               }
-              // Fallthrough to normal 401 handling
-              throw error
-            })
-            .catch(() => {
-              // If refresh fails, fall back to existing behaviour
-            })
+              return axiosInstance(originalRequest)
+            },
+            // The session was signed out (by an admin, a password change or expiry)
+            () => {
+              endLocalSession()
+              return Promise.reject(error)
+            },
+          )
         }
+      }
+
+      // The user still has to replace a password an admin set; the app shows that screen
+      if (status === 403 && data?.detail === PASSWORD_CHANGE_REQUIRED) {
+        window.dispatchEvent(new Event(PASSWORD_CHANGE_REQUIRED_EVENT))
+        return Promise.reject(error)
       }
 
       switch (status) {
         case 401:
-          // Clear all auth data including zustand persist storage
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          localStorage.removeItem('auth-storage')  // Clear zustand persist storage
-          localStorage.removeItem('refresh_token')
-          
-          // Only redirect if not already on login page to prevent loops
-          if (!window.location.pathname.includes('/login')) {
-            toast.error('Session expired. Please login again.')
-            window.location.href = '/login'
-          }
+          endLocalSession()
           break
         case 403:
           toast.error('You do not have permission to perform this action.')

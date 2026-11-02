@@ -11,6 +11,10 @@ export interface User {
   avatar_url?: string
   last_login?: string
   created_at: string
+  /** The password was set by an admin and has to be replaced before anything else */
+  must_change_password?: boolean
+  /** Permission codes like `patients.read`; `['*']` for admins (from /auth/me) */
+  permissions?: string[]
 }
 
 export interface LoginRequest {
@@ -57,6 +61,7 @@ export interface AuthState {
   requestPasswordReset: (data: PasswordResetRequest) => Promise<PasswordResetResponse>
   confirmPasswordReset: (data: PasswordResetConfirmRequest) => Promise<PasswordResetResponse>
   logout: () => void
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
 }

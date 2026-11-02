@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import Layout from './components/common/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import AdminRoute from './components/auth/AdminRoute'
 import Loading from './components/common/Loading'
 import SettingsLayout from './components/settings/SettingsLayout'
 
@@ -44,6 +45,7 @@ const PurchaseOrderCreate = lazy(() => import('./pages/PurchaseOrderCreate'))
 const SupplierInvoices = lazy(() => import('./pages/SupplierInvoices'))
 const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
 const Users = lazy(() => import('./pages/Users'))
+const Sessions = lazy(() => import('./pages/Sessions'))
 const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
 const SettingsHub = lazy(() => import('./pages/SettingsHub'))
 
@@ -119,8 +121,11 @@ function App() {
               <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
               <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
               <Route path="/settings/company" element={<ClinicSettings />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/roles-permissions" element={<RolesPermissions />} />
+              <Route element={<AdminRoute />}>
+                <Route path="/users" element={<Users />} />
+                <Route path="/roles-permissions" element={<RolesPermissions />} />
+                <Route path="/sessions" element={<Sessions />} />
+              </Route>
               <Route path="/activity-logs" element={<ActivityLogs />} />
             </Route>
           </Route>
