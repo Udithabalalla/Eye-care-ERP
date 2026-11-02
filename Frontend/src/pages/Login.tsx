@@ -7,7 +7,6 @@ import {
   RiLockLine,
   RiMailLine,
   RiSparklingLine,
-  RiShieldCheckLine,
 } from '@remixicon/react'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
@@ -29,17 +28,6 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-
-  const applyDemoCredentials = (role: 'admin' | 'doctor' | 'receptionist') => {
-    const credentials = {
-      admin: { email: 'admin@eyecare.com', password: 'admin123' },
-      doctor: { email: 'doctor@eyecare.com', password: 'doctor123' },
-      receptionist: { email: 'receptionist@eyecare.com', password: 'reception123' },
-    }
-
-    setEmail(credentials[role].email)
-    setPassword(credentials[role].password)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,7 +85,7 @@ const Login = () => {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="admin@eyecare.com"
+                          placeholder="you@example.com"
                           className="pl-8"
                           disabled={isLoading}
                           autoComplete="email"
@@ -156,44 +144,6 @@ const Login = () => {
                 </p>
               </div>
 
-              <Card className="mt-5 border-dashed">
-                <CardContent className="space-y-2 pt-4 text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">
-                    <RiShieldCheckLine className="mr-1 inline size-3.5" />
-                    Demo credentials
-                  </p>
-                  <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => applyDemoCredentials('admin')}
-                      className="justify-start"
-                    >
-                      Admin
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => applyDemoCredentials('doctor')}
-                      className="justify-start"
-                    >
-                      Doctor
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => applyDemoCredentials('receptionist')}
-                      className="justify-start"
-                    >
-                      Receptionist
-                    </Button>
-                  </div>
-                  <p>Click a role to autofill email and password.</p>
-                </CardContent>
-              </Card>
             </CardContent>
           </Card>
         </div>

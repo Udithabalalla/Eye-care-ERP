@@ -39,8 +39,21 @@ redeploys the matching service.
   hours only (for example 08:00–20:00). That uses about 370 hours a month and
   leaves the rest for staging.
 - **No email over SMTP:** free services can't connect to mail servers on ports
-  25, 465 or 587, so password-reset emails can't be sent. To send them, switch
-  `email_service.py` to an email service with a web API (such as Resend or
-  Brevo), or use a paid instance.
+  25, 465 or 587. The backend sends password-reset codes and purchase orders
+  through Brevo's HTTPS API instead whenever `BREVO_API_KEY` is set (see Email below).
 - **Instance size:** 512 MB RAM with a small CPU share, which is enough for
   one uvicorn process.
+
+## Email (password-reset codes and purchase orders)
+
+1. Create a free Brevo account (300 emails a day) at <https://www.brevo.com>.
+2. Under **Senders, domains & dedicated IPs → Senders**, add and verify the address
+   in `SMTP_FROM_EMAIL` (default `vision.opticals.lk@gmail.com`).
+3. Under **SMTP & API → API keys**, create a key.
+4. In the Render dashboard, set `BREVO_API_KEY` on both services
+   (`eye-care-api` and `eye-care-api-staging`) and redeploy.
+
+With no key set the backend uses Gmail SMTP (`SMTP_PASSWORD`), which works locally
+but not on Render's free plan. If an email can't be sent, the reset screen still
+says a code was sent (so it doesn't reveal which emails are registered), and the
+error is in the service logs.

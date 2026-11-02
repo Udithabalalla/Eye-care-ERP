@@ -73,10 +73,19 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "vision.opticals.lk@gmail.com"
     SMTP_TIMEOUT_SECONDS: int = 10
     SMTP_SSL_PORT: int = 465
+    # Hosts that block outgoing SMTP (Render's free plan does) can send through
+    # Brevo's HTTPS API instead: set BREVO_API_KEY, and verify SMTP_FROM_EMAIL as
+    # a sender in Brevo. EMAIL_PROVIDER picks one explicitly ("smtp" or "brevo");
+    # left empty, Brevo is used whenever BREVO_API_KEY is set.
+    EMAIL_PROVIDER: Optional[str] = None
+    BREVO_API_KEY: Optional[str] = None
+    EMAIL_FROM_NAME: str = "Vision Optical"
 
 
     # Password reset
     PASSWORD_RESET_OTP_EXPIRE_MINUTES: int = 10
     PASSWORD_RESET_OTP_MAX_ATTEMPTS: int = 5
+    # A new code is sent at most this often per email address
+    PASSWORD_RESET_RESEND_SECONDS: int = 60
 
 settings = Settings()

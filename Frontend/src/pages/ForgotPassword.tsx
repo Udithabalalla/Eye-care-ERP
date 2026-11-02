@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,6 +23,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -45,6 +46,9 @@ const resetSchema = z
     path: ['confirmPassword'],
   })
 
+// Matches PASSWORD_RESET_RESEND_SECONDS on the API: it won't send a new code sooner
+const RESEND_SECONDS = 60
+
 type EmailFormValues = z.infer<typeof emailSchema>
 type ResetFormValues = z.infer<typeof resetSchema>
 
@@ -54,6 +58,13 @@ const ForgotPassword = () => {
   const [isOtpSent, setIsOtpSent] = useState(false)
   const [email, setEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [resendIn, setResendIn] = useState(0)
+
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const timer = window.setTimeout(() => setResendIn((s) => s - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendIn])
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
@@ -70,8 +81,18 @@ const ForgotPassword = () => {
       await requestPasswordReset({ email: values.email })
       setEmail(values.email)
       setIsOtpSent(true)
+      setResendIn(RESEND_SECONDS)
     } catch (error) {
       console.error('OTP request failed:', error)
+    }
+  }
+
+  const onResendOtp = async () => {
+    try {
+      await requestPasswordReset({ email })
+      setResendIn(RESEND_SECONDS)
+    } catch (error) {
+      console.error('OTP resend failed:', error)
     }
   }
 
@@ -123,7 +144,7 @@ const ForgotPassword = () => {
                             <RiMailLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                               type="email"
-                              placeholder="admin@eyecare.com"
+                              placeholder="you@example.com"
                               className="pl-8"
                               disabled={isLoading}
                               autoComplete="email"
@@ -167,6 +188,22 @@ const ForgotPassword = () => {
                             />
                           </div>
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          Sent to <span className="font-medium text-foreground">{email}</span>. Didn&apos;t get it?{' '}
+                          {resendIn > 0 ? (
+                            <span>You can ask for a new code in {resendIn}s.</span>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="link"
+                              className="h-auto p-0 text-xs"
+                              disabled={isLoading}
+                              onClick={onResendOtp}
+                            >
+                              Send a new code
+                            </Button>
+                          )}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

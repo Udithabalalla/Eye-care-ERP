@@ -25,6 +25,10 @@ services:
         sync: false # entered in the Render dashboard, never committed
       - key: SECRET_KEY
         generateValue: true
+      # Render's free plan blocks SMTP, so password-reset and purchase order emails
+      # go through Brevo's HTTPS API (backend/DEPLOY_RENDER.md, "Email")
+      - key: BREVO_API_KEY
+        sync: false
 
   - type: web
     name: eye-care-api-staging
@@ -49,3 +53,5 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: BREVO_API_KEY
+        sync: false

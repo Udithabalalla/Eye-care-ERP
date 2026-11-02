@@ -47,8 +47,15 @@ class PasswordResetService:
         if not user or not user.is_active:
             return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")
 
-        otp = self._generate_otp()
         now = datetime.now(timezone.utc)
+        # Don't send another code (or let someone flood the inbox) within the resend window
+        existing = await self.reset_repo.get_active_by_email(user.email)
+        if existing and existing.sent_at:
+            sent_at = existing.sent_at if existing.sent_at.tzinfo else existing.sent_at.replace(tzinfo=timezone.utc)
+            if now - sent_at < timedelta(seconds=settings.PASSWORD_RESET_RESEND_SECONDS):
+                return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")
+
+        otp = self._generate_otp()
         expires_at = now + timedelta(minutes=settings.PASSWORD_RESET_OTP_EXPIRE_MINUTES)
 
         otp_record = PasswordResetOTPModel(
@@ -64,8 +71,11 @@ class PasswordResetService:
         await self.reset_repo.store_otp(otp_record)
         try:
             await self.email_service.send_password_reset_otp(user.email, user.name, otp, expires_at)
-        except Exception as e:
-            logger.error("Email send failed", exc_info=True)
+        except Exception:
+            # The reply stays the same so it can't reveal which emails are registered;
+            # drop the unsent code so asking again isn't blocked by the resend window
+            logger.error("Password reset email could not be sent", exc_info=True)
+            await self.reset_repo.delete_for_email(user.email)
 
         return PasswordResetResponse(message="If the email address is registered, an OTP has been sent.")
 

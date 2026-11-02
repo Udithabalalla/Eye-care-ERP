@@ -21,13 +21,21 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import ValidationError
 
 from app.config.settings import settings
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.schemas.user import UserCreate
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
 from app.utils.constants import UserRole
 
 ACTOR = "script:create_admin"
+
+# Seed accounts whose passwords are published in seed_data.py and the README
+DEMO_ACCOUNTS = {
+    "admin@eyecare.com": "admin123",
+    "doctor@eyecare.com": "doctor123",
+    "receptionist@eyecare.com": "reception123",
+    "optometrist@eyecare.com": "optom123",
+}
 MIN_PASSWORD_LENGTH = 8
 
 
@@ -63,6 +71,31 @@ def confirm(prompt: str) -> bool:
     return input(f"{prompt} [y/N] ").strip().lower() in {"y", "yes"}
 
 
+async def offer_to_disable_demo_accounts(db, users: UserService, args: argparse.Namespace, keep: str) -> None:
+    """Anyone can sign in to a seed account that still has its published password"""
+    exposed = []
+    for email, demo_password in DEMO_ACCOUNTS.items():
+        user = await users.get_user_by_email(email)
+        if user and user.is_active and email != keep and verify_password(demo_password, user.password_hash):
+            exposed.append(user)
+    if not exposed:
+        return
+    print("These accounts are active and still use the demo passwords published in the repo:")
+    for user in exposed:
+        print(f"  {user.email} ({user.role.value})")
+    if args.yes:
+        print("Left as they are (--yes). Deactivate them on the Users page, or run this again without --yes.")
+        return
+    if not confirm("Deactivate them and sign them out?"):
+        print("Left as they are.")
+        return
+    for user in exposed:
+        await users.user_repo.update_user(user.user_id, {"is_active": False})
+        await SessionService(db).end_user_sessions(user.user_id, ACTOR)
+        await users.audit.log(ACTOR, "deactivate_demo_account", "user", user.user_id)
+    print(f"Deactivated {len(exposed)} demo account(s).")
+
+
 async def run(args: argparse.Namespace) -> int:
     print(f"Database: {database_label()}")
     email = (args.email or ask("Email: ")).lower()
@@ -92,6 +125,7 @@ async def run(args: argparse.Namespace) -> int:
             await users.audit.log(ACTOR, "make_admin", "user", existing.user_id,
                                   new_value={"sessions_signed_out": signed_out})
             print(f"Done: {email} is an admin ({existing.user_id}). Sign in with the new password.")
+            await offer_to_disable_demo_accounts(db, users, args, keep=email)
             return 0
 
         name = args.name or ask("Full name: ")
@@ -107,6 +141,7 @@ async def run(args: argparse.Namespace) -> int:
             return 1
         user = await users.create_user(data, ACTOR)
         print(f"Done: created admin {user.email} ({user.user_id}). Sign in with the password you chose.")
+        await offer_to_disable_demo_accounts(db, users, args, keep=email)
         return 0
     finally:
         client.close()
