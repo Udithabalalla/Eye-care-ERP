@@ -6,6 +6,7 @@ import {
   PasswordResetRequest,
   PasswordResetResponse,
   SignupRequest,
+  SignupStarted,
   User,
 } from '@/types/auth.types'
 import { ApiResponse } from '@/types/common.types'
@@ -16,8 +17,13 @@ export const authApi = {
     return response.data
   },
 
-  signup: async (data: SignupRequest): Promise<LoginResponse> => {
-    const response = await axiosInstance.post<LoginResponse>('/auth/register', data)
+  signup: async (data: SignupRequest): Promise<SignupStarted> => {
+    const response = await axiosInstance.post<SignupStarted>('/auth/register', data)
+    return response.data
+  },
+
+  verifySignup: async (email: string, otp: string): Promise<LoginResponse> => {
+    const response = await axiosInstance.post<LoginResponse>('/auth/register/verify', { email, otp })
     return response.data
   },
 

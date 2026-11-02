@@ -26,9 +26,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    # Public /auth/register is off by default; admins create users instead.
-    # When enabled, self-registered accounts always get the staff role.
-    ALLOW_SELF_SIGNUP: bool = False
+    # Anyone can create an account from the sign-up page, choosing their role.
+    # The account exists only after they enter the code emailed to them.
+    ALLOW_SELF_SIGNUP: bool = True
+    # Set to false to stop people from signing themselves up as admins
+    ALLOW_ADMIN_SELF_SIGNUP: bool = True
 
     # CORS
     CORS_ORIGINS: str = '["http://localhost:3000","http://localhost:5173","https://eye-care-erp.vercel.app","https://eye-care-erp-git-staging-immelon011-9217s-projects.vercel.app"]'
@@ -75,8 +77,9 @@ class Settings(BaseSettings):
     SMTP_SSL_PORT: int = 465
     # Hosts that block outgoing SMTP (Render's free plan does) can send through
     # Brevo's HTTPS API instead: set BREVO_API_KEY, and verify SMTP_FROM_EMAIL as
-    # a sender in Brevo. EMAIL_PROVIDER picks one explicitly ("smtp" or "brevo");
-    # left empty, Brevo is used whenever BREVO_API_KEY is set.
+    # a sender in Brevo. EMAIL_PROVIDER picks one explicitly ("smtp" or "brevo",
+    # or "log" to print emails instead, development only); left empty, Brevo is
+    # used whenever BREVO_API_KEY is set.
     EMAIL_PROVIDER: Optional[str] = None
     BREVO_API_KEY: Optional[str] = None
     EMAIL_FROM_NAME: str = "Vision Optical"

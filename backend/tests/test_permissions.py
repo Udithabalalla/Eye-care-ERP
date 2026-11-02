@@ -115,13 +115,17 @@ def test_change_password_only_for_own_account(client_as):
     assert client.post("/api/v1/users/USR-STAFF/change-password", json=body).status_code != BLOCKED
 
 
-def test_self_signup_disabled_by_default():
+@pytest.mark.parametrize("flag, role", [("ALLOW_SELF_SIGNUP", "staff"), ("ALLOW_ADMIN_SELF_SIGNUP", "admin")])
+def test_signup_can_be_switched_off(monkeypatch, flag, role):
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings, flag, False)
     client = TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides[get_database] = _no_db
     try:
         response = client.post(
             "/api/v1/auth/register",
-            json={"email": "new@example.com", "password": "password123", "name": "New User", "role": "admin"},
+            json={"email": "new@example.com", "password": "password123", "name": "New User", "role": role},
         )
     finally:
         app.dependency_overrides.clear()

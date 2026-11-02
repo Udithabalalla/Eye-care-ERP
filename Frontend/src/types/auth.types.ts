@@ -40,8 +40,16 @@ export interface SignupRequest {
   email: string
   password: string
   name: string
+  role: UserRole
   department?: string
   phone?: string
+}
+
+/** A code was emailed; the account exists once it is entered */
+export interface SignupStarted {
+  message: string
+  email: string
+  expires_in_minutes: number
 }
 
 export interface LoginResponse {
@@ -57,7 +65,10 @@ export interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   login: (credentials: LoginRequest) => Promise<void>
-  signup: (data: SignupRequest) => Promise<void>
+  /** Emails a confirmation code; nothing is created yet */
+  signup: (data: SignupRequest) => Promise<SignupStarted>
+  /** Creates the account from the emailed code and signs in */
+  verifySignup: (email: string, otp: string) => Promise<void>
   requestPasswordReset: (data: PasswordResetRequest) => Promise<PasswordResetResponse>
   confirmPasswordReset: (data: PasswordResetConfirmRequest) => Promise<PasswordResetResponse>
   logout: () => void

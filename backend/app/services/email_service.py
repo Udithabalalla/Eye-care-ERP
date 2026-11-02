@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+import os
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime
@@ -52,6 +53,9 @@ class EmailService:
 
     async def _deliver(self, message: EmailMessage) -> None:
         """Send with the configured provider, retrying once"""
+        if self.provider == "log":
+            self._log_instead_of_sending(message)
+            return
         self._check_configured()
         for attempt in range(1, 3):
             try:
@@ -68,6 +72,14 @@ class EmailService:
                     raise
                 logger.warning("Email send attempt %d to %s failed, retrying...", attempt, message["To"])
                 await asyncio.sleep(1)
+
+    @staticmethod
+    def _log_instead_of_sending(message: EmailMessage) -> None:
+        """EMAIL_PROVIDER=log, for local development only: print the email to the log"""
+        if os.getenv("ENVIRONMENT", "production").lower() not in {"development", "dev", "local"}:
+            raise RuntimeError("EMAIL_PROVIDER=log only works when ENVIRONMENT is development")
+        text = next((p.get_content() for p in message.walk() if p.get_content_type() == "text/plain"), "")
+        logger.warning("EMAIL NOT SENT (EMAIL_PROVIDER=log) to %s: %s\n%s", message["To"], message["Subject"], text)
 
     async def _send_with_brevo(self, message: EmailMessage) -> None:
         """Brevo transactional email over HTTPS (port 443)"""
@@ -112,45 +124,58 @@ class EmailService:
         if response.status_code >= 300:
             raise RuntimeError(f"Brevo refused the email ({response.status_code}): {response.text[:300]}")
 
-    async def send_password_reset_otp(
-        self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime
-    ) -> None:
-        """Send the password reset OTP"""
-        subject = "Vision Optical Password Reset OTP"
+    def _otp_message(self, recipient_email: str, recipient_name: str, subject: str, purpose: str,
+                     otp: str, expires_at: datetime) -> EmailMessage:
         expiry_text = expires_at.strftime("%Y-%m-%d %H:%M UTC")
-        body = (
-            f"Hello {recipient_name},\n\n"
-            f"Your password reset OTP is: {otp}\n\n"
-            f"This code expires at {expiry_text}.\n"
-            "If you did not request a password reset, you can ignore this email.\n"
-        )
-
         message = EmailMessage()
         message["Subject"] = subject
         message["From"] = self.from_email
         message["To"] = recipient_email
-        message.set_content(body)
+        message.set_content(
+            f"Hello {recipient_name},\n\n"
+            f"Your {purpose} code is: {otp}\n\n"
+            f"This code expires at {expiry_text}.\n"
+            "If you didn't ask for this, you can ignore this email.\n"
+        )
         message.add_alternative(
             f"""
             <html>
                 <body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
                     <p>Hello {recipient_name},</p>
-                    <p>Your password reset OTP is:</p>
+                    <p>Your {purpose} code is:</p>
                     <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 16px 20px; background: #f3f4f6; display: inline-block; border-radius: 12px;">{otp}</div>
                     <p style="margin-top: 16px;">This code expires at <strong>{expiry_text}</strong>.</p>
-                    <p>If you did not request a password reset, you can safely ignore this email.</p>
+                    <p>If you didn't ask for this, you can safely ignore this email.</p>
                 </body>
             </html>
             """,
             subtype="html",
         )
+        return message
 
+    async def _send_otp(self, message: EmailMessage, what: str) -> None:
         try:
             await self._deliver(message)
         except Exception:
-            logger.error("Password reset email to %s failed (%s)", recipient_email, self.provider, exc_info=True)
+            logger.error("%s email to %s failed (%s)", what, message["To"], self.provider, exc_info=True)
             raise
-        logger.info("Password reset OTP sent to %s via %s", recipient_email, self.provider)
+        logger.info("%s code sent to %s via %s", what, message["To"], self.provider)
+
+    async def send_password_reset_otp(
+        self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime
+    ) -> None:
+        """Send the password reset OTP"""
+        message = self._otp_message(recipient_email, recipient_name, "Vision Optical Password Reset OTP",
+                                    "password reset", otp, expires_at)
+        await self._send_otp(message, "Password reset")
+
+    async def send_signup_otp(
+        self, recipient_email: str, recipient_name: str, otp: str, expires_at: datetime
+    ) -> None:
+        """Send the code that confirms a new account's email address"""
+        message = self._otp_message(recipient_email, recipient_name, "Confirm your Vision Optical account",
+                                    "account confirmation", otp, expires_at)
+        await self._send_otp(message, "Sign-up")
 
     async def send_purchase_order(
         self,

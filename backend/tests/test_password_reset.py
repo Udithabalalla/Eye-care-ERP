@@ -183,3 +183,19 @@ async def test_create_admin_offers_to_deactivate_demo_accounts(db, monkeypatch):
     # Only the account still using its published password is deactivated
     assert (await db["users"].find_one({"email": "admin@eyecare.com"}))["is_active"] is False
     assert (await db["users"].find_one({"email": "doctor@eyecare.com"}))["is_active"] is True
+
+
+async def test_log_provider_only_works_in_development(monkeypatch, caplog):
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "log")
+    message = EmailMessage()
+    message["To"] = EMAIL
+    message["Subject"] = "Code"
+    message.set_content("Your code is 123456")
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    with pytest.raises(RuntimeError, match="only works"):
+        await EmailService()._deliver(message)
+
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    await EmailService()._deliver(message)
+    assert "123456" in caplog.text

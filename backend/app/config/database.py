@@ -64,6 +64,10 @@ async def create_indexes():
     await safe_create_index(db.db.refresh_tokens, [("user_id", 1), ("revoked_at", 1)])
     await safe_create_index(db.db.refresh_tokens, "expires_at", expireAfterSeconds=0)
 
+    # Sign-ups waiting for their email code; MongoDB drops them once expired
+    await safe_create_index(db.db.signup_requests, "email", unique=True)
+    await safe_create_index(db.db.signup_requests, "expires_at", expireAfterSeconds=0)
+
     # Stored permissions for each role
     await safe_create_index(db.db.roles, "role_id", unique=True)
     

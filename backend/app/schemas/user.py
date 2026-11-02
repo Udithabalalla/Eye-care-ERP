@@ -77,8 +77,19 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     name: str = Field(..., min_length=2)
+    role: UserRole = UserRole.STAFF
     department: Optional[str] = None
     phone: Optional[str] = None
+
+class SignupStarted(BaseModel):
+    """A code was emailed; the account is created once it is entered"""
+    message: str
+    email: EmailStr
+    expires_in_minutes: int
+
+class SignupVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
 
 class LoginResponse(BaseModel):
     """Schema for login response"""

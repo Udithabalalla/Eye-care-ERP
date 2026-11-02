@@ -131,7 +131,8 @@ const ForgotPassword = () => {
 
           <CardContent>
             {!isOtpSent ? (
-              <Form {...emailForm}>
+              // Distinct keys: otherwise React reuses the email field for the code box
+              <Form key="email" {...emailForm}>
                 <form onSubmit={emailForm.handleSubmit(onRequestOtp)} className="space-y-4">
                   <FormField
                     control={emailForm.control}
@@ -163,7 +164,7 @@ const ForgotPassword = () => {
                 </form>
               </Form>
             ) : (
-              <Form {...resetForm}>
+              <Form key="reset" {...resetForm}>
                 <form onSubmit={resetForm.handleSubmit(onResetPassword)} className="space-y-4">
                   <FormField
                     control={resetForm.control}

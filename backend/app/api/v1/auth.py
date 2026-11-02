@@ -7,6 +7,7 @@ from app.config.database import get_database
 from app.core.permissions import effective_permissions, permissions_for
 from app.schemas.user import (
     CurrentUserResponse, LoginRequest, LoginResponse, LogoutRequest, PasswordChange, SignupRequest,
+    SignupStarted, SignupVerifyRequest,
 )
 from app.schemas.user import RefreshRequest, RefreshResponse
 from app.schemas.password_reset import PasswordResetConfirmRequest, PasswordResetRequest, PasswordResetResponse
@@ -35,15 +36,23 @@ async def login(
     auth_service = AuthService(db)
     return await auth_service.login(login_data.email, login_data.password, client)
 
-@router.post("/register", response_model=LoginResponse)
+@router.post("/register", response_model=SignupStarted)
 async def register(
     signup_data: SignupRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Start signing up with a chosen role; a code is emailed to confirm the address"""
+    return await AuthService(db).register(signup_data)
+
+
+@router.post("/register/verify", response_model=LoginResponse)
+async def verify_registration(
+    payload: SignupVerifyRequest,
     client: ClientInfo = Depends(get_client_info),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """Register a new user"""
-    auth_service = AuthService(db)
-    return await auth_service.register(signup_data, client)
+    """Enter the emailed code: the account is created and you are signed in"""
+    return await AuthService(db).verify_registration(payload.email, payload.otp, client)
 
 @router.post("/logout")
 async def logout(

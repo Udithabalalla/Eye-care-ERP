@@ -48,25 +48,30 @@ export const useAuthStore = create<AuthState>()(
       signup: async (data: SignupRequest) => {
         set({ isLoading: true })
         try {
-          const response = await authApi.signup(data)
+          return await authApi.signup(data)
+        } finally {
+          set({ isLoading: false })
+        }
+      },
 
+      verifySignup: async (email: string, otp: string) => {
+        set({ isLoading: true })
+        try {
+          const response = await authApi.verifySignup(email, otp)
           localStorage.setItem('token', response.access_token)
-          if ((response as any).refresh_token) {
-            localStorage.setItem('refresh_token', (response as any).refresh_token)
+          if (response.refresh_token) {
+            localStorage.setItem('refresh_token', response.refresh_token)
           }
           localStorage.setItem('user', JSON.stringify(response.user))
-
           set({
             user: response.user,
             token: response.access_token,
             isAuthenticated: true,
             isLoading: false,
           })
-
           toast.success(`Welcome, ${response.user.name}!`)
-        } catch (error: any) {
+        } catch (error) {
           set({ isLoading: false })
-          toast.error(error.response?.data?.message || 'Registration failed')
           throw error
         }
       },

@@ -1,15 +1,13 @@
-import uuid
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.user_repository import UserRepository
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.exceptions import BadRequestException, UnauthorizedException, ConflictException, ForbiddenException
-from app.utils.constants import UserRole
-from app.schemas.user import LoginResponse, UserResponse, SignupRequest
+from app.core.exceptions import BadRequestException, UnauthorizedException
+from app.schemas.user import LoginResponse, UserResponse, SignupRequest, SignupStarted
 from app.models.user import UserModel
-from app.config.settings import settings
 from app.services.session_service import ClientInfo, SessionService, hash_token
+from app.services.signup_service import SignupService
 
 
 def issue_access_token(user: UserModel, session_id: str) -> str:
@@ -55,31 +53,15 @@ class AuthService:
 
         return await self._signed_in(user, client)
 
-    async def register(self, signup_data: SignupRequest, client: Optional[ClientInfo] = None) -> LoginResponse:
-        """Register a new user and return token"""
-        if not settings.ALLOW_SELF_SIGNUP:
-            raise ForbiddenException("Self-registration is disabled. Ask an administrator to create your account.")
+    async def register(self, signup_data: SignupRequest) -> SignupStarted:
+        """Start a sign-up: email the person a code; nothing is created yet"""
+        return await SignupService(self.user_repo.db).start(signup_data)
 
-        # Check if email already exists
-        existing_user = await self.user_repo.get_by_email(signup_data.email)
-        if existing_user:
-            raise ConflictException("A user with this email already exists")
-
-        # Create user model
-        user_model = UserModel(
-            user_id=f"USR-{uuid.uuid4().hex[:8].upper()}",
-            email=signup_data.email,
-            password_hash=get_password_hash(signup_data.password),
-            name=signup_data.name,
-            # Never trust a client-supplied role; admins promote users later
-            role=UserRole.STAFF,
-            department=signup_data.department,
-            phone=signup_data.phone,
-        )
-
-        # Save to database
-        created_user = await self.user_repo.create_user(user_model)
-        return await self._signed_in(created_user, client)
+    async def verify_registration(self, email: str, otp: str, client: Optional[ClientInfo] = None) -> LoginResponse:
+        """Create the account once the emailed code checks out, and sign them in"""
+        user = await SignupService(self.user_repo.db).verify(email, otp)
+        await self.user_repo.update_last_login(user.user_id)
+        return await self._signed_in(user, client)
 
     async def refresh_access_token(self, refresh_token: str) -> str:
         """Validate refresh token and return a new access token"""
