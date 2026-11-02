@@ -57,3 +57,22 @@ With no key set the backend uses Gmail SMTP (`SMTP_PASSWORD`), which works local
 but not on Render's free plan. If an email can't be sent, the reset screen still
 says a code was sent (so it doesn't reveal which emails are registered), and the
 error is in the service logs.
+
+## First admin account (no shell needed)
+
+Render's free plan has no shell, so the backend can create the first admin itself:
+
+1. In the Render dashboard, open the service → **Environment** and add
+   `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME` and `BOOTSTRAP_ADMIN_PASSWORD`
+   (a temporary password, at least 8 characters).
+2. Save and let it redeploy. The log shows `Created admin ... from BOOTSTRAP_ADMIN_*`.
+3. Sign in with that email and password; the app makes you choose a new password first.
+4. Delete the three variables (and redeploy). An account that already exists is never
+   changed, so leaving them set can't reset the password, but there's no reason to keep them.
+
+Do it once per service: `eye-care-api` (database `eyecare_prod`) and
+`eye-care-api-staging` (`eyecare_staging`).
+
+Alternatively, run `scripts/create_admin.py` from your own computer with `MONGODB_URL`
+and `MONGODB_DB_NAME` set. That connects to Atlas directly, so your IP must be on the
+Atlas **Network Access** list.

@@ -192,3 +192,19 @@ class UserService:
             new_value={"granted": granted, "revoked": revoked},
         )
         return self.permissions_view(updated)
+
+    async def bootstrap_admin(self, email: Optional[str], name: Optional[str], password: Optional[str]) -> Optional[UserModel]:
+        """Create the first admin from configuration; never touches an existing account"""
+        if not email or not password:
+            return None
+        email = email.strip().lower()
+        if await self.user_repo.get_by_email(email):
+            return None
+        data = UserCreate(
+            email=email,
+            password=password,
+            name=(name or "").strip() or email.split("@")[0],
+            role=UserRole.ADMIN,
+            must_change_password=True,
+        )
+        return await self.create_user(data, "config:bootstrap_admin")

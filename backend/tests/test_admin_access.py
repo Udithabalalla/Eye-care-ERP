@@ -393,3 +393,23 @@ async def test_plain_text_refresh_tokens_are_hashed_and_keep_working(http, db):
     assert legacy["signed_in_at"]
     assert (await http.delete(f"/sessions/{legacy['session_id']}", headers=auth(admin))).status_code == 200
     assert (await http.post("/auth/refresh", json={"refresh_token": "legacy-token"})).status_code == 401
+
+
+# ── First admin from configuration ────────────────────────────────────────────
+
+async def test_bootstrap_admin_is_created_once_and_must_change_password(http, db):
+    from app.services.user_service import UserService
+
+    service = UserService(db)
+    created = await service.bootstrap_admin(" Owner@Example.com ", "Clinic Owner", "first-pass-123")
+    assert created and created.role == UserRole.ADMIN and created.must_change_password is True
+
+    # Restarting with the same variables (or a new password) leaves the account alone
+    assert await service.bootstrap_admin("owner@example.com", "Someone", "other-pass-456") is None
+    assert await service.bootstrap_admin(None, None, None) is None
+    assert await db["users"].count_documents({"email": "owner@example.com"}) == 1
+
+    login = await http.post("/auth/login", json={"email": "owner@example.com", "password": "first-pass-123"})
+    assert login.status_code == 200
+    blocked = await http.get("/users", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+    assert blocked.status_code == 403 and blocked.json()["detail"] == PASSWORD_CHANGE_REQUIRED

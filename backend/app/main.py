@@ -9,6 +9,7 @@ from app.api.v1.router import api_router
 from app.core.middleware import CacheControlMiddleware, SecurityHeadersMiddleware
 from app.services.role_service import RoleService
 from app.services.session_service import SessionService
+from app.services.user_service import UserService
 import os
 
 @asynccontextmanager
@@ -21,7 +22,8 @@ async def lifespan(app: FastAPI):
     await close_mongo_connection()
 
 async def prepare_access_control():
-    """Store the default role permissions on first start, load them, and hash old refresh tokens"""
+    """Store the default role permissions on first start, load them, hash old refresh
+    tokens, and create the admin named in BOOTSTRAP_ADMIN_* if there isn't one"""
     database = get_database()
     roles = RoleService(database)
     await roles.ensure_system_roles()
@@ -29,6 +31,15 @@ async def prepare_access_control():
     hashed = await SessionService(database).hash_plain_tokens()
     if hashed:
         print(f"[OK] Hashed {hashed} refresh token(s) stored in plain text")
+    try:
+        admin = await UserService(database).bootstrap_admin(
+            settings.BOOTSTRAP_ADMIN_EMAIL, settings.BOOTSTRAP_ADMIN_NAME, settings.BOOTSTRAP_ADMIN_PASSWORD
+        )
+    except Exception as exc:  # noqa: BLE001 - a bad bootstrap setting must not stop the API
+        print(f"[WARN] Admin from BOOTSTRAP_ADMIN_* not created: {exc}")
+    else:
+        if admin:
+            print(f"[OK] Created admin {admin.email} from BOOTSTRAP_ADMIN_*; remove those variables now")
 
 app = FastAPI(
     title=settings.APP_NAME,

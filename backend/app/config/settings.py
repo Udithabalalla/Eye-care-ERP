@@ -82,6 +82,14 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "Vision Optical"
 
 
+    # One-time admin bootstrap for hosts without a shell (Render's free plan).
+    # On start, if no account uses BOOTSTRAP_ADMIN_EMAIL, an admin is created with
+    # this password and must choose a new one at first sign-in. An existing account
+    # is never changed. Remove these variables once you have signed in.
+    BOOTSTRAP_ADMIN_EMAIL: Optional[str] = None
+    BOOTSTRAP_ADMIN_NAME: Optional[str] = None
+    BOOTSTRAP_ADMIN_PASSWORD: Optional[str] = None
+
     # Password reset
     PASSWORD_RESET_OTP_EXPIRE_MINUTES: int = 10
     PASSWORD_RESET_OTP_MAX_ATTEMPTS: int = 5
