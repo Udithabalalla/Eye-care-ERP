@@ -34,10 +34,12 @@ redeploys the matching service.
   them all, *every* free service is suspended until the next month. Two
   services awake all the time would need about 1,440 hours, so don't keep both
   awake around the clock.
-- **Keeping production awake:** create a free job at <https://cron-job.org>
-  that calls `https://<prod-url>/health` every 10 minutes, during opening
-  hours only (for example 08:00–20:00). That uses about 370 hours a month and
-  leaves the rest for staging.
+- **Keeping production awake:** Render's own health checks don't count as
+  traffic. `.github/workflows/keep-awake.yml` calls `/health` on production
+  every 10 minutes from 07:30 to 18:20 Sri Lanka time (change the `cron` line
+  for other hours). That's about 340 hours a month and leaves the rest for
+  staging. GitHub pauses scheduled workflows after 60 days without a commit to
+  the repository; re-enable it under **Actions** if that happens.
 - **No email over SMTP:** free services can't connect to mail servers on ports
   25, 465 or 587. The backend sends password-reset codes and purchase orders
   through Brevo's HTTPS API instead whenever `BREVO_API_KEY` is set (see Email below).

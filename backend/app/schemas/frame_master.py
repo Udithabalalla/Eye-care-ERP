@@ -1,10 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from app.models.frame_master import FrameImage
 
 
 class FrameMasterCreate(BaseModel):
+    # "model_code" is a frame field, not a pydantic method
+    model_config = ConfigDict(protected_namespaces=())
+
     brand: str = Field(..., min_length=1)
     model_code: str = Field(..., min_length=1)
     frame_name: str = Field(..., min_length=1)
@@ -22,6 +25,9 @@ class FrameMasterCreate(BaseModel):
 
 
 class FrameMasterUpdate(BaseModel):
+    # "model_code" is a frame field, not a pydantic method
+    model_config = ConfigDict(protected_namespaces=())
+
     brand: Optional[str] = None
     model_code: Optional[str] = None
     frame_name: Optional[str] = None
@@ -40,6 +46,9 @@ class FrameMasterUpdate(BaseModel):
 
 
 class FrameMasterResponse(BaseModel):
+    # "model_code" is a frame field, not a pydantic method
+    model_config = ConfigDict(protected_namespaces=())
+
     frame_master_id: str
     brand: str
     model_code: str

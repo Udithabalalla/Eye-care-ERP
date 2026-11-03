@@ -31,6 +31,8 @@ class FrameMasterModel(TimestampModel):
     is_active: bool = True
 
     class Config:
+        # "model_code" is a frame field, not a pydantic method
+        protected_namespaces = ()
         json_schema_extra = {
             "example": {
                 "frame_master_id": "FM-000001",

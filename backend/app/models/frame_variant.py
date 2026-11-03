@@ -1,10 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Literal
 from app.models.common import TimestampModel
 
 
 class FrameMasterRef(BaseModel):
     """Denormalized snapshot stored on the variant for fast reads."""
+    # "model_code" is a frame field, not a pydantic method
+    model_config = ConfigDict(protected_namespaces=())
+
     brand: str
     model_code: str
     frame_name: str
