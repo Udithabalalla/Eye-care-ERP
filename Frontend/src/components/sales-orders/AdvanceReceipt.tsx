@@ -39,9 +39,15 @@ export interface AdvanceReceiptData {
 // Same labels as the invoice, so the slip and the final receipt read alike
 const LINE_LABELS: Record<string, string> = { frame: 'Frame', lens: 'Lens', expense: 'Service', product: 'Product' }
 
-/** The advance slip is only for an invoice that is part paid — once settled, the invoice itself is the receipt */
-export const isAdvanceOnly = (invoice?: Pick<Invoice, 'paid_amount' | 'balance_due'>) =>
-  !!invoice && invoice.paid_amount > 0 && invoice.balance_due > 0
+/**
+ * The slip is for any invoice with a balance still to pay, whether or not an
+ * advance was taken. Once settled, the invoice itself is the receipt.
+ */
+export const hasBalanceDue = (invoice?: Pick<Invoice, 'balance_due'>) => !!invoice && invoice.balance_due > 0
+
+/** "advance receipt" once something is paid, "order receipt" while nothing is */
+export const receiptSlipLabel = (invoice?: Pick<Invoice, 'paid_amount'>) =>
+  invoice && invoice.paid_amount > 0 ? 'advance receipt' : 'order receipt'
 
 export const isFullyPaid = (invoice?: Pick<Invoice, 'total_amount' | 'balance_due'>) =>
   !!invoice && invoice.total_amount > 0 && invoice.balance_due <= 0
@@ -132,7 +138,7 @@ const AdvanceReceiptSlip = ({ data, company }: { data: AdvanceReceiptData; compa
       {company?.phone && <p className="small">Tel: {company.phone}</p>}
     </header>
 
-    <p className="title">ADVANCE RECEIPT</p>
+    <p className="title">{data.paid > 0 ? 'ADVANCE RECEIPT' : 'ORDER RECEIPT'}</p>
     <p className="subtitle">Not the final receipt</p>
 
     {data.orderNumber && <p className="order-no">{data.orderNumber}</p>}
@@ -165,7 +171,7 @@ const AdvanceReceiptSlip = ({ data, company }: { data: AdvanceReceiptData; compa
 
     {/* The balance is what the customer comes back with, so it gets the most weight */}
     <div className="pay">
-      <Row label="ADVANCE PAID" value={money(data.paid)} className="money strong" />
+      <Row label={data.paid > 0 ? 'ADVANCE PAID' : 'PAID SO FAR'} value={money(data.paid)} className="money strong" />
       <div className="rule-solid" />
       <p className="balance-label">BALANCE DUE</p>
       <p className="balance">{money(data.balance)}</p>
@@ -239,7 +245,7 @@ export const buildAdvanceReceiptDocument = (
 <html>
 <head>
 <meta charset="utf-8" />
-${renderToStaticMarkup(<title>{`Advance receipt ${data.orderNumber ?? data.invoiceNumber ?? ''}`}</title>)}
+${renderToStaticMarkup(<title>{`${data.paid > 0 ? 'Advance' : 'Order'} receipt ${data.orderNumber ?? data.invoiceNumber ?? ''}`}</title>)}
 <style>${styles(width)}</style>
 <style id="page-size"></style>
 </head>

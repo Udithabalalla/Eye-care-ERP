@@ -8,7 +8,7 @@ import { companyProfileApi } from '@/api/company-profile.api'
 import { useAuth } from '@/hooks/useAuth'
 import type { Invoice } from '@/types/invoice.types'
 import { PX_PER_MM, printReceiptFrame } from '@/utils/print'
-import { buildAdvanceReceiptDocument, invoiceToAdvanceReceipt, type ReceiptPaperWidth } from './AdvanceReceipt'
+import { buildAdvanceReceiptDocument, invoiceToAdvanceReceipt, receiptSlipLabel, type ReceiptPaperWidth } from './AdvanceReceipt'
 
 const WIDTH_KEY = 'receipt-paper-width'
 
@@ -70,10 +70,10 @@ export function AdvanceReceiptDialog({ open, onOpenChange, invoice, orderNumber,
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RiPrinterLine className="size-5 text-primary" />
-            Advance receipt
+            <span className="capitalize">{receiptSlipLabel(invoice)}</span>
           </DialogTitle>
           <DialogDescription>
-            A small slip for the receipt printer. The customer brings it back to pay the balance — the full receipt prints once the order is paid.
+            A small slip for the receipt printer showing what's paid and what's still due. The customer brings it back to pay the balance — the full receipt prints once the order is paid.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +91,7 @@ export function AdvanceReceiptDialog({ open, onOpenChange, invoice, orderNumber,
         <div className="flex justify-center rounded-lg bg-muted p-4">
           <iframe
             ref={frameRef}
-            title="Advance receipt preview"
+            title="Receipt slip preview"
             srcDoc={html}
             // A few spare pixels: the slip measures in fractions of a pixel and must not get scrollbars
             onLoad={(e) => setFrameHeight((e.currentTarget.contentDocument?.documentElement.scrollHeight ?? 480) + 4)}

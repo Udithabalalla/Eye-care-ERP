@@ -63,7 +63,7 @@ import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
 import { printPdfBlob } from '@/utils/print'
 import { AdvanceReceiptDialog } from './AdvanceReceiptDialog'
-import { isAdvanceOnly, isFullyPaid } from './AdvanceReceipt'
+import { hasBalanceDue, isFullyPaid, receiptSlipLabel } from './AdvanceReceipt'
 
 const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -247,7 +247,8 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const paid = orderInvoice?.paid_amount ?? advancePayment
   const balance = orderInvoice ? orderInvoice.balance_due : Math.max(total - paid, 0)
   const deliveryBlocked = nextAction?.toStatus === 'delivered' && !!orderInvoice && orderInvoice.balance_due > 0
-  const advanceOnly = isAdvanceOnly(orderInvoice)
+  // Balance still to pay, with or without an advance: the slip, not the final receipt
+  const advanceOnly = hasBalanceDue(orderInvoice)
   const settled = isFullyPaid(orderInvoice)
 
   const lineItems: DrawerLineItem[] = (order?.items ?? []).map((item, i) => ({
@@ -416,11 +417,11 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                 </Tooltip>
               </TooltipProvider>
             )}
-            {/* Part paid → the small advance slip; paid in full → the invoice is the receipt */}
+            {/* Balance still due → the small slip; paid in full → the invoice is the receipt */}
             {advanceOnly ? (
               <Button variant="outline" className="w-full gap-1.5" onClick={() => setReceiptOpen(true)}>
                 <RiPrinterLine className="size-4" />
-                Print advance receipt
+                Print {receiptSlipLabel(orderInvoice)}
               </Button>
             ) : settled && (
               <Button variant="outline" className="w-full gap-1.5" onClick={handlePrintReceipt} disabled={printing}>

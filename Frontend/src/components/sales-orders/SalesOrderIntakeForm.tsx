@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useFieldArray, useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch, type UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -78,7 +78,7 @@ import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewS
 import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
 import PaymentPanel from '@/components/sales-orders/PaymentPanel'
 import { AdvanceReceiptDialog } from '@/components/sales-orders/AdvanceReceiptDialog'
-import { isAdvanceOnly } from '@/components/sales-orders/AdvanceReceipt'
+import { hasBalanceDue, receiptSlipLabel } from '@/components/sales-orders/AdvanceReceipt'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -339,6 +339,22 @@ const QtyStepper = ({ value, onChange, itemName }: { value: number; onChange: (q
   </div>
 )
 
+// The frame and lens price: the one field on those steps that changes the bill, so it stands out a little
+const PriceField = ({ disabled, registration }: { disabled?: boolean; registration: UseFormRegisterReturn }) => (
+  <Field label="Price">
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">LKR</span>
+      <Input
+        type="number" step="0.01" placeholder="0.00"
+        disabled={disabled}
+        onFocus={(e) => e.target.select()}
+        className="border-primary/40 bg-primary/5 pl-11 text-right font-semibold tabular-nums focus-visible:border-primary"
+        {...registration}
+      />
+    </div>
+  </Field>
+)
+
 const EmptyHint = ({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) => (
   <div className="flex items-center gap-3 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
     <Icon className="size-4 shrink-0" />
@@ -556,12 +572,41 @@ const mapProductToFrame = (product: Product) => ({
 
 // ─── Draft → form mapper ──────────────────────────────────────────────────────
 
+// Categories sold as frames; everything else on a "product" line is an accessory
+const FRAME_CATEGORIES = ['frames', 'sunglasses']
+
+/**
+ * The frame line of a saved order. Variant and manual frames are saved as
+ * "frame" lines. A catalog frame is a "product" line, like an accessory, so it
+ * is told apart by its category, or, for a product no longer in the catalog,
+ * by the frame price saved with the order.
+ */
+const findFrameLine = (order: SalesOrder, products: Product[]) => {
+  const frameLine = order.items.find((i) => i.line_type === 'frame')
+  if (frameLine) return frameLine
+  const productLines = order.items.filter((i) => i.line_type === 'product')
+  const byCategory = productLines.find((i) =>
+    FRAME_CATEGORIES.includes(products.find((p) => p.product_id === i.product_id)?.category?.toLowerCase() ?? ''))
+  if (byCategory) return byCategory
+  const frameTotal = Number((order.measurements as Record<string, any> | undefined)?.frame_total || 0)
+  return frameTotal > 0
+    ? productLines.find((i) => i.unit_price === frameTotal && !products.some((p) => p.product_id === i.product_id))
+    : undefined
+}
+
+/** Accessories sold with a saved order: its "product" lines other than the frame */
+const accessoryLinesOf = (order: SalesOrder, frameLine: SalesOrderItem | undefined) =>
+  order.items
+    .filter((i) => i.line_type === 'product' && i !== frameLine)
+    .map((i) => ({ productId: i.product_id, productName: i.product_name || i.product_id, sku: i.sku || '', qty: i.quantity, unitPrice: i.unit_price }))
+
 const mapDraftToFormValues = (
   order: SalesOrder,
   patient: Patient | null,
   prescription: import('@/types/prescription.types').Prescription | null,
+  products: Product[],
 ): SalesOrderIntakeValues => {
-  const frameItem = order.items.find((i) => i.line_type === 'product')
+  const frameItem = findFrameLine(order, products)
   const lensItem  = order.items.find((i) => i.line_type === 'lens')
   const expItems  = order.items.filter((i) => i.line_type === 'expense')
   const meas = (order.measurements || {}) as Record<string, any>
@@ -585,12 +630,13 @@ const mapDraftToFormValues = (
     frame: frameItem ? {
       isOld:        ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id),
       isReference:  frameItem.product_id === 'REF_FRAME',
-      selectionId:  ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id) ? '' : frameItem.product_id,
+      selectionId:  ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id) ? '' : (frameItem.frame_variant_id || frameItem.product_id),
       barcode:      frameItem.sku || '',
       model:        frameItem.product_name || '',
       color:        '',
       size:         '',
-      frameId:      frameItem.sku || '',
+      // For a manual frame this field is the brand, which the saved name already includes
+      frameId:      ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id) ? '' : (frameItem.sku || ''),
       frameNo:      frameItem.sku || '',
       total:        frameItem.unit_price,
     } : defaultValues.frame,
@@ -609,7 +655,7 @@ const mapDraftToFormValues = (
       expenseTypeName: e.product_name || '',
       qty:             e.quantity,
       unitCost:        e.unit_price,
-      discount:        0,
+      discount:        e.discount || 0,
       total:           e.total,
     })),
     salesOrder: {
@@ -801,6 +847,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const resolvedFrame = useMemo(() => {
     const selected = productData?.data?.find((item) => item.product_id === frame.selectionId)
     if (selected) return selected
+    // A selection that isn't a catalog product is a frame variant: don't swap it for a name match
+    if (frame.selectionId) return null
     const manualValue = normalizeText(frame.model || frame.frameId || frame.barcode)
     if (!manualValue) return null
     return productData?.data?.find((item) =>
@@ -994,25 +1042,32 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   }, [frame.total])
 
   useEffect(() => {
+    // Picking a frame fills everything (applyFrameSelection). This only fills gaps, e.g. a
+    // reopened order, and leaves the price alone: it's what the patient was quoted.
     if (frame.selectionId && resolvedFrame) {
-      setValue('frame.model', resolvedFrame.name, { shouldDirty: false, shouldValidate: false })
-      setValue('frame.color', resolvedFrame.specifications?.color ? String(resolvedFrame.specifications.color) : resolvedFrame.brand || '', { shouldDirty: false, shouldValidate: false })
-      setValue('frame.size', resolvedFrame.specifications?.size ? String(resolvedFrame.specifications.size) : resolvedFrame.unit_of_measure || '', { shouldDirty: false, shouldValidate: false })
-      setValue('frame.frameId', resolvedFrame.sku, { shouldDirty: false, shouldValidate: false })
-      setValue('frame.barcode', resolvedFrame.barcode || resolvedFrame.sku, { shouldDirty: false, shouldValidate: false })
-      setValue('frame.total', resolvedFrame.selling_price, { shouldDirty: false, shouldValidate: false })
+      const fill = (name: 'frame.model' | 'frame.color' | 'frame.size' | 'frame.frameId' | 'frame.barcode', value: string) => {
+        if (!getValues(name)) setValue(name, value, { shouldDirty: false, shouldValidate: false })
+      }
+      fill('frame.model', resolvedFrame.name)
+      fill('frame.color', resolvedFrame.specifications?.color ? String(resolvedFrame.specifications.color) : resolvedFrame.brand || '')
+      fill('frame.size', resolvedFrame.specifications?.size ? String(resolvedFrame.specifications.size) : resolvedFrame.unit_of_measure || '')
+      fill('frame.frameId', resolvedFrame.sku)
+      fill('frame.barcode', resolvedFrame.barcode || resolvedFrame.sku)
     }
-  }, [frame.selectionId, resolvedFrame, setValue])
+  }, [frame.selectionId, getValues, resolvedFrame, setValue])
 
   useEffect(() => {
+    // Same as the frame: fill gaps, keep the quoted price (applyLensSelection prices a new pick)
     if (lens.selectionId && resolvedLens) {
-      setValue('lens.lensType', resolvedLens.lens_type, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.color', resolvedLens.color, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.size', resolvedLens.size, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.lensId', resolvedLens.lens_code, { shouldDirty: false, shouldValidate: false })
-      setValue('lens.total', resolvedLens.price, { shouldDirty: false, shouldValidate: false })
+      const fill = (name: 'lens.lensType' | 'lens.color' | 'lens.size' | 'lens.lensId', value: string) => {
+        if (!getValues(name)) setValue(name, value, { shouldDirty: false, shouldValidate: false })
+      }
+      fill('lens.lensType', resolvedLens.lens_type)
+      fill('lens.color', resolvedLens.color)
+      fill('lens.size', resolvedLens.size)
+      fill('lens.lensId', resolvedLens.lens_code)
     }
-  }, [lens.selectionId, resolvedLens, setValue])
+  }, [getValues, lens.selectionId, resolvedLens, setValue])
 
   useEffect(() => {
     const next = (expenses || []).map((row) => ({
@@ -1047,18 +1102,30 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   })
 
   // Pre-fill form once draft + patient data are loaded
-  const draftLoaded = !!draftOrder && (draftOrder.prescription_id ? !!draftPrescription : true) && !!draftPatient
+  // Products are needed too: they tell a catalog frame apart from an accessory
+  const draftLoaded = !!draftOrder && (draftOrder.prescription_id ? !!draftPrescription : true) && !!draftPatient && !!productData
   useEffect(() => {
     if (!draftLoaded) return
-    const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null)
+    const products = productData?.data ?? []
+    const mapped = mapDraftToFormValues(draftOrder, draftPatient ?? null, draftPrescription ?? null, products)
     reset(mapped, { keepDirty: false })
-    // Restore frame source if draft used a frame variant
-    const draftFrameItem = draftOrder.items.find((i) => i.line_type === 'frame')
-    if (draftFrameItem?.frame_variant_id) {
-      setFrameSource('variant')
-      frameVariantsApi.getById(draftFrameItem.frame_variant_id).then(setSelectedFrameVariant).catch(() => {})
+    const frameLine = findFrameLine(draftOrder, products)
+    if (frameLine) setFrameSource(frameLine.frame_variant_id ? 'variant' : 'catalog')
+    if (frameLine?.frame_variant_id) {
+      frameVariantsApi.getById(frameLine.frame_variant_id)
+        .then((variant) => {
+          setSelectedFrameVariant(variant)
+          // The order line has no colour or size; the price stays as sold
+          setValue('frame.color', variant.color, { shouldDirty: false })
+          setValue('frame.size', String(variant.eye_size), { shouldDirty: false })
+          if (variant.supplier_frame_no) setValue('frame.frameNo', variant.supplier_frame_no, { shouldDirty: false })
+        })
+        .catch(() => toast.error("Couldn't load this order's frame from stock. Its saved details are shown instead."))
     }
+    setGeneralItems(accessoryLinesOf(draftOrder, frameLine))
     setFreeItemIds(draftOrder.items.filter((i) => i.line_type === 'complimentary').map((i) => i.product_id))
+    // Every step already has the order's details, so any step can be opened directly
+    setMaxStepReached(STEPS.length - 1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
@@ -1075,12 +1142,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     enabled: !!reorderSource?.patient_id,
     staleTime: Infinity,
   })
-  const reorderLoaded = !!reorderSource && !!reorderPatient
+  const reorderLoaded = !!reorderSource && !!reorderPatient && !!productData
   useEffect(() => {
     if (!reorderLoaded) return
     const src = reorderSource
     const pat = reorderPatient!
-    const frameItem = src.items.find((i) => i.line_type === 'frame' || i.line_type === 'product')
+    const frameItem = findFrameLine(src, productData?.data ?? [])
     const lensItem  = src.items.find((i) => i.line_type === 'lens')
     const expItems  = src.items.filter((i) => i.line_type === 'expense')
     reset({
@@ -1093,7 +1160,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         isOld:       ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id),
         isReference: frameItem.product_id === 'REF_FRAME',
         selectionId: '', barcode: frameItem.sku || '', model: frameItem.product_name || '',
-        color: '', size: '', frameId: frameItem.sku || '', frameNo: frameItem.sku || '', total: frameItem.unit_price,
+        color: '', size: '',
+        frameId: ['HISTORICAL_FRAME', 'REF_FRAME'].includes(frameItem.product_id) ? '' : (frameItem.sku || ''),
+        frameNo: frameItem.sku || '', total: frameItem.unit_price,
       } : defaultValues.frame,
       lens: lensItem ? {
         isOld:       ['HISTORICAL_LENS', 'REF_LENS'].includes(lensItem.product_id),
@@ -1104,10 +1173,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       expenses: expItems.map((e) => ({
         expenseTypeId: e.master_data_id || e.product_id || '',
         expenseTypeName: e.product_name || '',
-        qty: e.quantity, unitCost: e.unit_price, discount: 0, total: e.total,
+        qty: e.quantity, unitCost: e.unit_price, discount: e.discount || 0, total: e.total,
       })),
       salesOrder: { ...defaultValues.salesOrder, isOld: false },
     }, { keepDirty: false })
+    setGeneralItems(accessoryLinesOf(src, frameItem))
     // Try to restore the frame variant if it was one
     if (frameItem?.frame_variant_id) {
       setFrameSource('variant')
@@ -1503,8 +1573,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         items: itemPayload,
       }
 
+      // A draft becomes a created order; an order already in progress keeps its status
+      // (the server only allows moving forward, so "created" would be rejected)
       const savedOrder = draftOrderId
-        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: 'created' } })
+        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: { ...orderPayload, status: isEditingOrder ? undefined : 'created' } })
         : await createSalesOrderMutation.mutateAsync(orderPayload)
       setSavedOrderNumber(savedOrder.order_number)
       setValue('salesOrder.orderNumber', savedOrder.order_number, { shouldDirty: false, shouldValidate: false })
@@ -1551,6 +1623,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     )
   }
 
+  // Reopened an order that's past draft, rather than finishing a draft
+  const isEditingOrder = !!draftOrder && draftOrder.status !== 'draft'
   const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || updateSalesOrderMutation.isPending || generateInvoiceMutation.isPending
   const showPricingPanel = currentStep >= 2 && currentStep <= 5
   // From Extras on, the printable invoice preview is available beside (or above) the form
@@ -1590,8 +1664,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         isOpen={showSaveDialog}
         onOpenChange={setShowSaveDialog}
         recordName="sales order"
-        isCreating={true}
-        confirmLabel="Create Order"
+        isCreating={!isEditingOrder}
+        confirmLabel={isEditingOrder ? 'Save Changes' : 'Create Order'}
         onSaveDraft={handleSaveDraft}
         onCancel={() => setShowSaveDialog(false)}
       />
@@ -1723,10 +1797,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
             <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                Editing draft — {draftOrder.order_number}
+                {isEditingOrder ? 'Editing order' : 'Editing draft'} — {draftOrder.order_number}
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                Complete all steps and click "Create Order" to confirm this order and generate an invoice.
+                {isEditingOrder
+                  ? 'Click any step above to change it, then save your changes on Review & Pay.'
+                  : 'Click any step above to change it, then click "Create Order" to confirm it and generate an invoice.'}
               </p>
             </div>
           </div>
@@ -2355,14 +2431,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
                       <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
                       <Field label="Barcode / Ref"><Input {...register('frame.barcode')} placeholder="Barcode or reference" /></Field>
-                      <Field label="Price">
-                        <Input
-                          type="number" step="0.01" placeholder="0.00"
-                          disabled={frame.isReference}
-                          onFocus={(e) => e.target.select()}
-                          {...register('frame.total', { valueAsNumber: true })}
-                        />
-                      </Field>
+                      <PriceField disabled={frame.isReference} registration={register('frame.total', { valueAsNumber: true })} />
                     </div>
                   </div>
                 ) : (
@@ -2395,13 +2464,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                           <Field label="Color"><Input {...register('frame.color')} placeholder="Color" /></Field>
                           <Field label="Size"><Input {...register('frame.size')} placeholder="Size" /></Field>
                           <Field label="Barcode / SKU"><Input {...register('frame.barcode')} placeholder="Barcode or SKU" /></Field>
-                          <Field label="Price">
-                            <Input
-                              type="number" step="0.01" placeholder="0.00"
-                              onFocus={(e) => e.target.select()}
-                              {...register('frame.total', { valueAsNumber: true })}
-                            />
-                          </Field>
+                          <PriceField registration={register('frame.total', { valueAsNumber: true })} />
                         </div>
                       </div>
                     ) : (
@@ -2505,14 +2568,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
                       <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
                       <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
-                      <Field label="Price">
-                        <Input
-                          type="number" step="0.01" placeholder="0.00"
-                          disabled={lens.isReference}
-                          onFocus={(e) => e.target.select()}
-                          {...register('lens.total', { valueAsNumber: true })}
-                        />
-                      </Field>
+                      <PriceField disabled={lens.isReference} registration={register('lens.total', { valueAsNumber: true })} />
                     </div>
                   </div>
                 ) : (
@@ -2546,13 +2602,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                           <Field label="Color"><Input {...register('lens.color')} placeholder="Color" /></Field>
                           <Field label="Size"><Input {...register('lens.size')} placeholder="Size" /></Field>
                           <Field label="Code"><Input {...register('lens.lensId')} placeholder="Lens code" /></Field>
-                          <Field label="Price">
-                            <Input
-                              type="number" step="0.01" placeholder="0.00"
-                              onFocus={(e) => e.target.select()}
-                              {...register('lens.total', { valueAsNumber: true })}
-                            />
-                          </Field>
+                          <PriceField registration={register('lens.total', { valueAsNumber: true })} />
                         </div>
                       </div>
                     ) : (
@@ -3080,11 +3130,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}
               />
 
-              {/* Part paid: hand the customer a slip now; the full receipt prints when they pay the rest */}
-              {savedInvoice && !salesOrder.isOld && isAdvanceOnly(savedInvoice) && (
+              {/* Balance still to pay (with or without an advance today): hand the customer a slip now;
+                  the full receipt prints when they pay the rest */}
+              {savedInvoice && !salesOrder.isOld && hasBalanceDue(savedInvoice) && (
                 <Button type="button" className="w-full gap-2" onClick={() => setShowAdvanceReceipt(true)}>
                   <RiPrinterLine className="h-4 w-4" />
-                  Print advance receipt
+                  Print {receiptSlipLabel(savedInvoice)}
                 </Button>
               )}
 
@@ -3147,7 +3198,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   {isSaving ? (
                     <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
                   ) : (
-                    <>Create Sales Order<RiArrowRightSLine className="ml-1.5 h-4 w-4" /></>
+                    <>{isEditingOrder ? 'Save Changes' : 'Create Sales Order'}<RiArrowRightSLine className="ml-1.5 h-4 w-4" /></>
                   )}
                 </Button>
               )}

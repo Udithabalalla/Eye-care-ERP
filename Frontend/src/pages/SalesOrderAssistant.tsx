@@ -1,5 +1,7 @@
 import { RiArrowLeftSLine } from '@remixicon/react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { salesOrdersApi } from '@/api/erp.api'
 import { Button } from '@/components/ui/button'
 import SalesOrderIntakeForm from '@/components/sales-orders/SalesOrderIntakeForm'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
@@ -12,8 +14,18 @@ const SalesOrderAssistant = () => {
   const draftOrderId = searchParams.get('draft') || undefined
   const reorderFromId = searchParams.get('reorder') || undefined
   const initialPatient: Patient | undefined = location.state?.patient
+  // Same query as the form, so this reads its cache rather than fetching again
+  const { data: draftOrder } = useQuery({
+    queryKey: ['sales-order-draft', draftOrderId],
+    queryFn: () => salesOrdersApi.getById(draftOrderId!),
+    enabled: !!draftOrderId,
+    staleTime: Infinity,
+  })
+  const isEditingOrder = !!draftOrder && draftOrder.status !== 'draft'
 
-  const title = draftOrderId
+  const title = isEditingOrder
+    ? `Edit Order — ${draftOrder.order_number}`
+    : draftOrderId
     ? 'Continue Draft Order'
     : reorderFromId
       ? 'Reorder'
@@ -21,7 +33,9 @@ const SalesOrderAssistant = () => {
         ? `New Order — ${initialPatient.name}`
         : 'New Sales Order'
 
-  const subtitle = draftOrderId
+  const subtitle = isEditingOrder
+    ? 'Change any step, then save on Review & Pay.'
+    : draftOrderId
     ? 'Pick up where you left off and complete this draft.'
     : reorderFromId
       ? 'Pre-filled from a previous order — review and confirm details.'
