@@ -9,7 +9,7 @@ from app.schemas.payment import PaymentCreate, PaymentResponse
 from app.schemas.responses import PaginatedResponse
 from app.schemas.transaction import TransactionCreate
 from app.services.transaction_service import TransactionService
-from app.utils.constants import LedgerReferenceType, LedgerTransactionType
+from app.utils.constants import LedgerReferenceType, LedgerTransactionType, PaymentMethod
 from app.utils.helpers import generate_id, date_to_datetime
 from app.core.exceptions import BadRequestException, NotFoundException
 
@@ -49,6 +49,28 @@ class PaymentService:
         created = await self.repo.get_by_payment_id(payment_id)
         await self._sync_reference_after_payment(data, transaction.transaction_id)
         return PaymentResponse(**created.dict())
+
+    async def record_order_advance(
+        self, invoice_id: str, amount: float, payment_method: PaymentMethod, transaction_id: Optional[str], created_by: str,
+    ) -> None:
+        """
+        List an advance taken on a sales order with the other payments. The order already booked the
+        money (its customer-payment transaction) and the invoice already counts it as paid, so this only
+        adds the payment record, linked to that transaction; it touches neither.
+        """
+        if amount <= 0 or await self.repo.count({"reference_type": LedgerReferenceType.INVOICE.value, "reference_id": invoice_id}):
+            return
+        payment_id = generate_id("PAY", await self.repo.count({}) + 1)
+        await self.repo.create({
+            "payment_id": payment_id,
+            "amount": round(amount, 2),
+            "payment_method": payment_method,
+            "reference_type": LedgerReferenceType.INVOICE,
+            "reference_id": invoice_id,
+            "payment_date": datetime.now(timezone.utc),
+            "created_by": created_by,
+            "transaction_id": transaction_id,
+        })
 
     async def _sync_reference_after_payment(self, data: PaymentCreate, transaction_id: str):
         if data.reference_type != LedgerReferenceType.INVOICE:

@@ -19,6 +19,7 @@ from app.services.audit_service import AuditService
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.transaction_service import TransactionService
 from app.services.invoice_service import InvoiceService
+from app.services.payment_service import PaymentService
 from app.services.company_profile_service import CompanyProfileService
 from app.schemas.inventory_movement import InventoryMovementCreate
 from app.schemas.transaction import TransactionCreate
@@ -31,6 +32,7 @@ from app.utils.constants import (
     InventoryMovementType,
     LedgerReferenceType,
     LedgerTransactionType,
+    PaymentMethod,
     PaymentStatus,
 )
 from datetime import datetime, date, timezone
@@ -50,6 +52,7 @@ class SalesOrderService:
         self.inventory_movement_service = InventoryMovementService(db)
         self.transaction_service = TransactionService(db)
         self.invoice_service = InvoiceService(db)
+        self.payment_service = PaymentService(db)
         self.invoice_repo = InvoiceRepository(db)
         self.company_profile_service = CompanyProfileService(db)
         self.db = db
@@ -109,6 +112,14 @@ class SalesOrderService:
             return 0.0
         return round(amount, 2) if amount > 0 else 0.0
 
+    @staticmethod
+    def _extract_advance_method(measurements: Optional[dict]) -> PaymentMethod:
+        """How the advance was paid; orders saved before the wizard asked are taken as cash."""
+        try:
+            return PaymentMethod((measurements or {}).get("advance_payment_method") or PaymentMethod.CASH)
+        except ValueError:
+            return PaymentMethod.CASH
+
     async def _record_advance_payment_transaction(self, order_id: str, measurements: Optional[dict], created_by: str):
         amount = self._extract_advance_payment(measurements)
         if amount <= 0:
@@ -130,6 +141,7 @@ class SalesOrderService:
                 reference_type=LedgerReferenceType.SALES_ORDER,
                 reference_id=order_id,
                 amount=amount,
+                payment_method=self._extract_advance_method(measurements),
                 status="completed",
             ),
             created_by=created_by,
@@ -800,7 +812,8 @@ class SalesOrderService:
         # Line totals are already net of line discounts; the order-level discount comes off the invoice total
         total_amount = order.total_amount
         advance = self._extract_advance_payment(order.measurements)
-        new_paid = round(advance, 2) if 0 < advance <= total_amount else 0.0
+        # Capped at the total: an advance a cent over (rounding) used to drop to nothing paid
+        new_paid = round(min(advance, total_amount), 2) if advance > 0 else 0.0
         new_balance = round(total_amount - new_paid, 2)
         payment_status = self._payment_status_for(new_paid, new_balance)
         await self.invoice_repo.update_invoice(
@@ -818,6 +831,18 @@ class SalesOrderService:
         invoice.paid_amount = new_paid
         invoice.balance_due = new_balance
         invoice.payment_status = payment_status
+
+        if new_paid > 0:
+            # The advance shows under Payments too, linked to the payment the order booked
+            advance_tx = await self.db["transactions"].find_one({
+                "reference_type": LedgerReferenceType.SALES_ORDER.value,
+                "reference_id": order.order_id,
+                "transaction_type": LedgerTransactionType.CUSTOMER_PAYMENT.value,
+            })
+            await self.payment_service.record_order_advance(
+                invoice.invoice_id, new_paid, self._extract_advance_method(order.measurements),
+                advance_tx.get("transaction_id") if advance_tx else None, created_by,
+            )
 
         await self.repo.update({"order_id": order_id}, {"invoice_id": invoice.invoice_id})
         await self.audit_service.log(

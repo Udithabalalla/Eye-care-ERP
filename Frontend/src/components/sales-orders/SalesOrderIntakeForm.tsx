@@ -74,6 +74,8 @@ import { salesOrdersApi } from '@/api/erp.api'
 import { usersApi } from '@/api/users.api'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { invoicesApi } from '@/api/invoices.api'
+import { paymentsApi } from '@/api/payments.api'
+import { extractApiErrorMessage } from '@/api/axios'
 import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
 import PaymentPanel from '@/components/sales-orders/PaymentPanel'
@@ -84,7 +86,7 @@ import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
 import { ComplimentaryProductSuggestion } from '@/types/basic-data.types'
 import { Invoice } from '@/types/invoice.types'
-import { Gender } from '@/types/common.types'
+import { Gender, PaymentMethod } from '@/types/common.types'
 import { Patient } from '@/types/patient.types'
 import { Prescription } from '@/types/prescription.types'
 import { Product } from '@/types/product.types'
@@ -198,6 +200,7 @@ const salesOrderIntakeSchema = z
       discountType: z.enum(['AMOUNT', 'PERCENT']).default('AMOUNT'),
       discount: requiredMoney.default(0),
       advancedPayment: requiredMoney.default(0),
+      paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
       fullPaymentDate: z.string().optional().default(''),
       invoiceNumber: z.string().optional().default(''),
     }),
@@ -487,7 +490,7 @@ const defaultValues: SalesOrderIntakeValues = {
   frame: { isOld: false, isReference: false, selectionId: '', barcode: '', model: '', color: '', size: '', frameId: '', frameNo: '', total: 0 },
   lens: { isOld: false, isReference: false, selectionId: '', lensType: '', color: '', size: '', lensId: '', total: 0 },
   expenses: [],
-  totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, fullPaymentDate: '', invoiceNumber: '' },
+  totals: { discountType: 'AMOUNT', discount: 0, advancedPayment: 0, paymentMethod: PaymentMethod.CASH, fullPaymentDate: '', invoiceNumber: '' },
   remarks: '',
   saleLocation: undefined,
 }
@@ -670,6 +673,7 @@ const mapDraftToFormValues = (
       discountType: 'AMOUNT',
       discount:        Number(meas.discount        || 0),
       advancedPayment: Number(meas.advance_payment || 0),
+      paymentMethod:   Object.values(PaymentMethod).includes(meas.advance_payment_method) ? meas.advance_payment_method : PaymentMethod.CASH,
       fullPaymentDate: '',
       invoiceNumber:   '',
     },
@@ -861,6 +865,27 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     [lens.selectionId, lensMasterData]
   )
 
+  // The draft or order being reopened, if any
+  const { data: draftOrder, isLoading: isLoadingDraft } = useQuery({
+    queryKey: ['sales-order-draft', draftOrderId],
+    queryFn: () => salesOrdersApi.getById(draftOrderId!),
+    enabled: !!draftOrderId,
+    staleTime: Infinity,
+  })
+
+  // Reopened an order that's past draft, rather than finishing a draft
+  const isEditingOrder = !!draftOrder && draftOrder.status !== 'draft'
+  // Its invoice says what's been paid so far; today's payment comes on top
+  const { data: editedInvoice } = useQuery({
+    queryKey: ['invoice', draftOrder?.invoice_id],
+    queryFn: () => invoicesApi.getById(draftOrder!.invoice_id!),
+    enabled: isEditingOrder && !!draftOrder?.invoice_id,
+    staleTime: 0,
+  })
+  const alreadyPaid = isEditingOrder
+    ? roundCurrency(editedInvoice?.paid_amount ?? Number((draftOrder?.measurements as Record<string, any> | undefined)?.advance_payment || 0))
+    : 0
+
   const derivedTotals = useMemo(() =>
     calculateOrderTotals({
       frameTotal: frame.total || 0,
@@ -875,6 +900,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       isOldOrder: salesOrder.isOld,
     })
   , [expenses, frame.total, generalItems, lens.total, salesOrder.isOld, totals.advancedPayment, totals.discount, totals.discountType])
+  // What's left after everything paid: earlier payments (when editing) and today's
+  const balanceDue = salesOrder.isOld ? 0 : roundCurrency(Math.max(derivedTotals.subtotal - alreadyPaid - derivedTotals.advancedPayment, 0))
 
   const testedByName = testedByOptions.find((u) => u.value === salesOrder.testedBy)?.label
 
@@ -932,14 +959,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       subtotal: derivedTotals.subtotalBeforeDiscount,
       discount: derivedTotals.discountTotal,
       total: derivedTotals.subtotal,
-      paid: salesOrder.isOld ? 0 : derivedTotals.advancedPayment,
-      balance: derivedTotals.balancePayment,
+      paid: salesOrder.isOld ? 0 : roundCurrency(alreadyPaid + derivedTotals.advancedPayment),
+      balance: balanceDue,
       notes: remarks?.trim() || undefined,
       testedBy: testedByName,
       prescriptionRef: prescription.existingId || undefined,
       isHistorical: salesOrder.isOld,
     }
-  }, [derivedTotals, expenseMasterData, expenses, frame, freeItemIds, generalItems, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, testedByName])
+  }, [alreadyPaid, balanceDue, derivedTotals, expenseMasterData, expenses, frame, freeItemIds, generalItems, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, testedByName])
 
   const summaryExtras = useMemo<OrderSummaryExtras>(() => {
     const eye = (e: { sphere: number; cylinder: number; axis: number; add: number }) =>
@@ -1079,14 +1106,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     }
   }, [expenses, setValue])
 
-  // Draft loading
-  const { data: draftOrder, isLoading: isLoadingDraft } = useQuery({
-    queryKey: ['sales-order-draft', draftOrderId],
-    queryFn: () => salesOrdersApi.getById(draftOrderId!),
-    enabled: !!draftOrderId,
-    staleTime: Infinity,
-  })
-
+  // Draft loading (the order itself is fetched further up)
   const { data: draftPatient } = useQuery({
     queryKey: ['patient', draftOrder?.patient_id],
     queryFn: () => patientsApi.getById(draftOrder!.patient_id),
@@ -1126,6 +1146,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     setFreeItemIds(draftOrder.items.filter((i) => i.line_type === 'complimentary').map((i) => i.product_id))
     // Every step already has the order's details, so any step can be opened directly
     setMaxStepReached(STEPS.length - 1)
+    if (draftOrder.status !== 'draft') {
+      setValue('totals.advancedPayment', 0, { shouldDirty: false })
+      setValue('totals.paymentMethod', PaymentMethod.CASH, { shouldDirty: false })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoaded])
 
@@ -1478,7 +1502,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       toast.success(`Draft saved as ${createdOrder.order_number}`)
       handleLeaveConfirm()
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save draft')
+      toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to save draft'))
     } finally {
       setIsSavingDraft(false)
     }
@@ -1557,6 +1581,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         return
       }
 
+      const editedMeasurements = (draftOrder?.measurements || {}) as Record<string, any>
       const convertDateToISO = (dateStr: string) => dateStr ? `${dateStr}T00:00:00Z` : undefined
 
       const orderPayload = {
@@ -1567,7 +1592,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         date_of_full_payment: convertDateToISO(values.salesOrder.dateOfFullPayment),
         notes: [values.remarks.trim(), values.salesOrder.isOld ? `Legacy SO Number: ${values.salesOrder.orderNumber || 'manual entry'}` : ''].filter(Boolean).join('\n'),
         discount_amount: derivedTotals.discountTotal,
-        measurements: { order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER', frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal, advance_payment: values.totals.advancedPayment },
+        measurements: {
+          order_date: values.salesOrder.orderDate, order_type: isFullOrder ? 'FULL_ORDER' : 'PARTIAL_ORDER',
+          frame_total: values.frame.total, lens_total: values.lens.total, other_expenses_total: derivedTotals.expenseTotal, discount: derivedTotals.discountTotal,
+          // When editing, the advance stays what was taken with the order; today's money is recorded as a payment below
+          advance_payment: isEditingOrder ? Number(editedMeasurements.advance_payment || 0) : values.totals.advancedPayment,
+          advance_payment_method: isEditingOrder ? (editedMeasurements.advance_payment_method || PaymentMethod.CASH) : values.totals.paymentMethod,
+        },
         sale_location: values.saleLocation || undefined,
         status: 'created' as const,
         items: itemPayload,
@@ -1586,7 +1617,25 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       queryClient.invalidateQueries({ queryKey: ['patient-prescriptions', patientId] })
 
       if (!values.salesOrder.isOld) {
-        const invoice = await generateInvoiceMutation.mutateAsync(savedOrder.order_id)
+        let invoice = await generateInvoiceMutation.mutateAsync(savedOrder.order_id)
+        const paidToday = roundCurrency(Number(values.totals.advancedPayment || 0))
+        if (isEditingOrder && paidToday > 0) {
+          // The changes are saved by now; a failed payment shouldn't hide that
+          try {
+            await paymentsApi.create({
+              amount: paidToday,
+              payment_method: values.totals.paymentMethod,
+              reference_type: 'INVOICE',
+              reference_id: invoice.invoice_id,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+            })
+            invoice = await invoicesApi.getById(invoice.invoice_id)
+            queryClient.invalidateQueries({ queryKey: ['payments'] })
+            toast.success(`Payment of ${formatCurrency(paidToday)} recorded`)
+          } catch (paymentError: any) {
+            toast.error(`Changes saved, but the ${formatCurrency(paidToday)} payment wasn't recorded: ${extractApiErrorMessage(paymentError?.response?.data?.detail, 'record it from the invoice instead')}`)
+          }
+        }
         setSavedInvoice(invoice)
         setValue('totals.invoiceNumber', invoice.invoice_number, { shouldDirty: false, shouldValidate: false })
         queryClient.invalidateQueries({ queryKey: ['invoices'] })
@@ -1611,7 +1660,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           // ignore rollback failures; original error is the one we report
         }
       }
-      toast.error(error?.response?.data?.detail || 'Failed to save sales order')
+      toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to save sales order'))
     }
   }
 
@@ -1623,8 +1672,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     )
   }
 
-  // Reopened an order that's past draft, rather than finishing a draft
-  const isEditingOrder = !!draftOrder && draftOrder.status !== 'draft'
   const isSaving = createPatientMutation.isPending || createPrescriptionMutation.isPending || createSalesOrderMutation.isPending || updateSalesOrderMutation.isPending || generateInvoiceMutation.isPending
   const showPricingPanel = currentStep >= 2 && currentStep <= 5
   // From Extras on, the printable invoice preview is available beside (or above) the form
@@ -1637,7 +1684,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     !patient.newData.fullName || !patient.newData.phone ? { message: 'Patient name or phone is missing', step: 0 } : null,
     !salesOrder.isOld && !frame.isOld && !frame.selectionId && !selectedFrameVariant ? { message: 'No frame selected', step: 2 } : null,
     !salesOrder.testedBy ? { message: 'Who tested the patient is not set', step: 5 } : null,
-    !salesOrder.isOld && derivedTotals.advancedPayment > derivedTotals.subtotal ? { message: 'Paid now is more than the total due', step: 6 } : null,
+    !salesOrder.isOld && alreadyPaid + derivedTotals.advancedPayment > derivedTotals.subtotal + 0.001 ? { message: 'Paid today is more than what is left to pay', step: 6 } : null,
   ].filter(Boolean) as Array<{ message: string; step: number }>
 
   const activeRightPanel = rightPanel ?? (currentStep === STEPS.length - 1 ? 'preview' : 'summary')
@@ -3116,8 +3163,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 subtotal={derivedTotals.subtotalBeforeDiscount}
                 discountTotal={derivedTotals.discountTotal}
                 total={derivedTotals.subtotal}
+                alreadyPaid={alreadyPaid}
                 paid={salesOrder.isOld ? 0 : derivedTotals.advancedPayment}
-                balance={derivedTotals.balancePayment}
+                balance={balanceDue}
                 discountType={totals.discountType}
                 discountValue={Number(totals.discount || 0)}
                 onDiscountChange={(type, value) => {
@@ -3125,6 +3173,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   setValue('totals.discount', value, { shouldDirty: true })
                 }}
                 onPaidChange={(amount) => setValue('totals.advancedPayment', amount, { shouldDirty: true })}
+                paymentMethod={totals.paymentMethod ?? PaymentMethod.CASH}
+                onPaymentMethodChange={(method) => setValue('totals.paymentMethod', method, { shouldDirty: true })}
+                disabled={!!savedOrderNumber}
                 dueDate={salesOrder.dateOfFullPayment}
                 isHistorical={salesOrder.isOld}
                 invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}

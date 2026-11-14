@@ -65,6 +65,7 @@ export enum PaymentMethod {
   UPI = 'upi',
   NETBANKING = 'netbanking',
   INSURANCE = 'insurance',
+  BANK_TRANSFER = 'bank-transfer',
 }
 
 

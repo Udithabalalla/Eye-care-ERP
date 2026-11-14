@@ -214,3 +214,31 @@ async def test_invoice_pdf_leaves_free_items_off(db, monkeypatch):
     pdf, _ = await service.invoice_service.generate_invoice_pdf(invoice.invoice_id)
     assert b"Cleaner" in pdf
     assert b"Pouch" not in pdf
+
+
+async def test_advance_is_listed_with_payments_once(db):
+    service = SalesOrderService(db)
+    # 2 × 100 + fitting 50 − 10, less 20 off the order → total 220; 100 paid by card when the order was taken
+    order = await service.create_sales_order(_order(measurements={"advance_payment": 100, "advance_payment_method": "card"}), USER)
+    invoice = await service.generate_invoice(order.order_id, USER)
+    assert invoice.paid_amount == 100 and invoice.balance_due == 120
+
+    payments = await db["payments"].find({"reference_type": "INVOICE", "reference_id": invoice.invoice_id}).to_list(None)
+    assert len(payments) == 1
+    assert payments[0]["amount"] == 100 and payments[0]["payment_method"] == "card"
+    advance_tx = await db["transactions"].find_one({"reference_id": order.order_id, "transaction_type": "CUSTOMER_PAYMENT"})
+    assert payments[0]["transaction_id"] == advance_tx["transaction_id"]
+
+    # Asking for the invoice again doesn't list the advance twice, and the invoice still counts it once
+    again = await service.generate_invoice(order.order_id, USER)
+    assert again.paid_amount == 100
+    assert await db["payments"].count_documents({"reference_id": invoice.invoice_id}) == 1
+
+
+async def test_advance_a_cent_over_the_total_is_capped_not_dropped(db):
+    service = SalesOrderService(db)
+    order = await service.create_sales_order(_order(measurements={"advance_payment": 220.01}), USER)
+    invoice = await service.generate_invoice(order.order_id, USER)
+    assert invoice.paid_amount == 220 and invoice.balance_due == 0
+    payment = await db["payments"].find_one({"reference_id": invoice.invoice_id})
+    assert payment["amount"] == 220 and payment["payment_method"] == "cash"
