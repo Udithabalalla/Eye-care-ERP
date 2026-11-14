@@ -15,6 +15,7 @@ import {
   RiCloseLine,
 } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -127,21 +128,23 @@ const CategoryDialog = ({ open, onClose, category }: CategoryDialogProps) => {
             <FormField control={form.control} name="color" render={({ field }) => (
               <FormItem>
                 <FormLabel>Badge Color</FormLabel>
-                <div className="flex flex-wrap gap-2 pt-1">
+                <ToggleGroup
+                  type="single"
+                  value={field.value ?? ''}
+                  onValueChange={(value) => value && field.onChange(value)}
+                  aria-label="Badge colour"
+                  className="flex-wrap justify-start gap-2 pt-1"
+                >
                   {DEFAULT_COLORS.map((c) => (
-                    <button
+                    <ToggleGroupItem
                       key={c}
-                      type="button"
-                      onClick={() => field.onChange(c)}
-                      className="h-7 w-7 rounded-full border-2 transition-all"
-                      style={{
-                        backgroundColor: c,
-                        borderColor: field.value === c ? 'hsl(var(--foreground))' : 'transparent',
-                        transform: field.value === c ? 'scale(1.15)' : 'scale(1)',
-                      }}
+                      value={c}
+                      aria-label={c}
+                      className="size-7 min-w-0 rounded-full border-2 border-transparent p-0 transition-all hover:opacity-90 data-[state=on]:scale-110 data-[state=on]:border-foreground"
+                      style={{ backgroundColor: c }}
                     />
                   ))}
-                </div>
+                </ToggleGroup>
                 <FormMessage />
               </FormItem>
             )} />

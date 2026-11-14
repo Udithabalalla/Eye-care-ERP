@@ -5,13 +5,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   RiMailLine,
-  RiKeyLine,
   RiLockLine,
   RiEyeLine,
   RiEyeOffLine,
 } from '@remixicon/react'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { Input } from '@/components/ui/input'
 import {
   Card,
@@ -111,7 +112,7 @@ const ForgotPassword = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,hsl(var(--primary)/0.12),transparent_35%),radial-gradient(circle_at_85%_20%,hsl(var(--accent)/0.16),transparent_28%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_35%),radial-gradient(circle_at_85%_20%,color-mix(in_oklab,var(--accent)_16%,transparent),transparent_28%)]" />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-md items-center justify-center p-4 md:p-8">
         <Card className="w-full border-border/60 bg-card/95 backdrop-blur">
@@ -173,21 +174,18 @@ const ForgotPassword = () => {
                       <FormItem>
                         <FormLabel>One-time password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <RiKeyLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              placeholder="Enter 6-digit code"
-                              className="pl-8 tracking-[0.35em]"
-                              disabled={isLoading}
-                              inputMode="numeric"
-                              autoComplete="one-time-code"
-                              maxLength={6}
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))
-                              }
-                            />
-                          </div>
+                          <InputOTP
+                            maxLength={6}
+                            pattern={REGEXP_ONLY_DIGITS}
+                            autoComplete="one-time-code"
+                            disabled={isLoading}
+                            aria-label="One-time password"
+                            {...field}
+                          >
+                            <InputOTPGroup>
+                              {[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} />)}
+                            </InputOTPGroup>
+                          </InputOTP>
                         </FormControl>
                         <FormDescription className="text-xs">
                           Sent to <span className="font-medium text-foreground">{email}</span>. Didn&apos;t get it?{' '}

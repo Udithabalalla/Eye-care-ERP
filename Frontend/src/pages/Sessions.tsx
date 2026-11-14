@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RiComputerLine, RiLogoutBoxRLine, RiMore2Line, RiRefreshLine, RiSearchLine } from '@remixicon/react'
+import { RiCloseLine, RiComputerLine, RiLogoutBoxRLine, RiMore2Line, RiRefreshLine, RiSearchLine } from '@remixicon/react'
 import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -146,14 +146,16 @@ const Sessions = () => {
             {filteredName && (
               <Badge variant="outline" className="h-8 gap-2 px-3">
                 Only {filteredName}
-                <button
+                <Button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground"
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   onClick={() => setSearchParams({})}
                   aria-label="Show everyone"
                 >
-                  ×
-                </button>
+                  <RiCloseLine />
+                </Button>
               </Badge>
             )}
           </div>

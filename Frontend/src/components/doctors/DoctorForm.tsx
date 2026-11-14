@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Doctor, DoctorFormData } from '@/types/doctor.types'
-import { cn } from '@/utils/helpers'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -177,24 +177,24 @@ const DoctorForm = ({ doctor, prefill, isPending, onSubmit, onCancel }: DoctorFo
             render={({ field }) => (
               <FormItem>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {WEEK.map((day) => {
-                    const chosen = field.value ?? []
-                    const on = chosen.includes(day)
-                    return (
-                      <button
+                  <ToggleGroup
+                    type="multiple"
+                    value={field.value ?? []}
+                    // keep the week order however the days were picked
+                    onValueChange={(days) => field.onChange(WEEK.filter((d) => days.includes(d)))}
+                    aria-label="Working days"
+                    className="flex-wrap gap-1.5"
+                  >
+                    {WEEK.map((day) => (
+                      <ToggleGroupItem
                         key={day}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => field.onChange(on ? chosen.filter((d) => d !== day) : [...chosen, day])}
-                        className={cn(
-                          'h-9 w-12 rounded-md border text-sm font-medium transition-colors',
-                          on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                        )}
+                        value={day}
+                        className="h-9 w-12 rounded-md border border-border text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-transparent hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                       >
                         {day.slice(0, 3)}
-                      </button>
-                    )
-                  })}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
                   <span className="mx-1 h-5 w-px bg-border" aria-hidden />
                   {DAY_PRESETS.map((preset) => (
                     <Button key={preset.label} type="button" variant="ghost" size="sm" onClick={() => field.onChange(preset.days)}>

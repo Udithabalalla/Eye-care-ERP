@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 import {
   RiEyeLine,
   RiEyeOffLine,
@@ -20,25 +22,28 @@ import {
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Field, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field'
+
+const loginSchema = z.object({
+  email: z.string().trim().min(1, 'Enter your email address').email('Enter a valid email address'),
+  password: z.string().min(1, 'Enter your password'),
+})
+type LoginValues = z.infer<typeof loginSchema>
 
 const Login = () => {
   const navigate = useNavigate()
   const { login, isLoading } = useAuthStore()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: '', password: '' } })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!email || !password) {
-      toast.error('Please enter email and password')
-      return
-    }
-
+  // The auth store shows the error toast when the API refuses the login
+  const onSubmit = async (values: LoginValues) => {
     try {
-      await login({ email, password })
+      await login(values)
       navigate('/')
     } catch (error) {
       console.error('Login failed:', error)
@@ -47,7 +52,7 @@ const Login = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,hsl(var(--primary)/0.12),transparent_35%),radial-gradient(circle_at_85%_20%,hsl(var(--accent)/0.16),transparent_28%),radial-gradient(circle_at_60%_80%,hsl(var(--secondary)/0.4),transparent_36%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_35%),radial-gradient(circle_at_85%_20%,color-mix(in_oklab,var(--accent)_16%,transparent),transparent_28%),radial-gradient(circle_at_60%_80%,color-mix(in_oklab,var(--secondary)_40%,transparent),transparent_36%)]" />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center p-4 md:p-8">
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -73,41 +78,40 @@ const Login = () => {
             </CardHeader>
 
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
                 <FieldGroup>
                   <FieldSet>
-                    <Field>
+                    <Field data-invalid={!!errors.email}>
                       <FieldLabel htmlFor="email">Email address</FieldLabel>
                       <div className="relative">
                         <RiMailLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="email"
                           type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@example.com"
                           className="pl-8"
                           disabled={isLoading}
                           autoComplete="email"
-                          required
+                          aria-invalid={!!errors.email}
+                          {...register('email')}
                         />
                       </div>
+                      <FieldError errors={[errors.email]} />
                     </Field>
 
-                    <Field>
+                    <Field data-invalid={!!errors.password}>
                       <FieldLabel htmlFor="password">Password</FieldLabel>
                       <div className="relative">
                         <RiLockLine className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
                           className="pl-8 pr-8"
                           disabled={isLoading}
                           autoComplete="current-password"
-                          required
+                          aria-invalid={!!errors.password}
+                          {...register('password')}
                         />
                         <Button
                           type="button"
@@ -124,6 +128,7 @@ const Login = () => {
                           )}
                         </Button>
                       </div>
+                      <FieldError errors={[errors.password]} />
                     </Field>
                   </FieldSet>
                 </FieldGroup>
