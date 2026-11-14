@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),

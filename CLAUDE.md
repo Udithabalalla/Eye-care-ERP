@@ -122,6 +122,19 @@ For controlled open state:
 
 ---
 
+## Confirmations, toasts and status colours
+
+- **Confirm before a destructive action** with `useConfirm()` from `@/hooks/useConfirm` (a shadcn `AlertDialog` you can await), never `window.confirm()`:
+  ```tsx
+  const { confirm, confirmDialog } = useConfirm()
+  if (!(await confirm({ title: 'Delete this frame?', destructive: true, confirmLabel: 'Delete' }))) return
+  // render {confirmDialog} once in the component
+  ```
+- **Toasts:** `import { toast } from 'sonner'` (`toast.success`, `toast.error`, `toast.promise`; pass `action: { label, onClick }` for a button). The `Toaster` is mounted once in `main.tsx`.
+- **Status colours:** use the `success`, `warning` and `info` tokens (`text-success`, `bg-warning/10`, `<Badge variant="success">`, `<Alert variant="warning">`) instead of raw palette classes like `text-emerald-600`.
+
+---
+
 ## Table Policy
 
 - Use **`DataTable`** (`@/components/data-table.tsx`) for server-side paginated TanStack tables.

@@ -30,7 +30,7 @@ import QRScanner from '@/components/common/QRScanner'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/types/product.types'
 import { StockBadge } from '@/components/frames/StockBadge'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 export default function GeneralInventory() {
   const qc = useQueryClient()

@@ -39,7 +39,7 @@ import { formatDate, formatCurrency } from '@/utils/formatters'
 import { downloadFile } from '@/utils/helpers'
 import { Invoice } from '@/types/invoice.types'
 import { Prescription } from '@/types/prescription.types'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   paid: 'default',

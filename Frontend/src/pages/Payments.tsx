@@ -32,7 +32,7 @@ import { invoicesApi } from '@/api/invoices.api'
 import { PaymentMethod } from '@/types/common.types'
 import { LedgerReferenceType, Payment } from '@/types/erp.types'
 import { formatDate, formatCurrency } from '@/utils/formatters'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 const Payments = () => {
   const queryClient = useQueryClient()

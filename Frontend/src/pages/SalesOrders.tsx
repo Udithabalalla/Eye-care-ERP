@@ -18,7 +18,7 @@ import {
   RiBarcodeLine,
 } from '@remixicon/react'
 import { downloadFile } from '@/utils/helpers'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'

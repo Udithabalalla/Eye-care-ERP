@@ -13,7 +13,7 @@ import {
   RiMore2Line,
   RiTruckLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, PurchaseOrderStatus } from '@/types/supplier.types'

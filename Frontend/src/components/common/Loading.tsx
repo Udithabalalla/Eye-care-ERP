@@ -1,5 +1,5 @@
-import { RiLoader4Line } from '@remixicon/react'
-import { cn } from '@/utils/helpers'
+import { cn } from '@/lib/utils'
+import { Spinner } from '@/components/ui/spinner'
 
 interface LoadingProps {
   size?: 'sm' | 'md' | 'lg'
@@ -7,23 +7,23 @@ interface LoadingProps {
   fullScreen?: boolean
 }
 
-const Loading = ({ size = 'md', text, fullScreen = false }: LoadingProps) => {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-  }
+const sizeClasses = {
+  sm: 'size-4',
+  md: 'size-8',
+  lg: 'size-12',
+}
 
+const Loading = ({ size = 'md', text, fullScreen = false }: LoadingProps) => {
   const content = (
     <div className="flex flex-col items-center justify-center space-y-3">
-      <RiLoader4Line className={cn(sizeClasses[size], 'animate-spin text-primary')} />
+      <Spinner className={cn(sizeClasses[size], 'text-primary')} />
       {text && <p className="text-sm text-muted-foreground">{text}</p>}
     </div>
   )
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-background bg-opacity-90 dark:bg-opacity-95 flex items-center justify-center z-50">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 dark:bg-background/95">
         {content}
       </div>
     )

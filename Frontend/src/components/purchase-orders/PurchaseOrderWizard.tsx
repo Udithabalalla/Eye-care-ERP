@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format } from 'date-fns'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAddLine,
   RiAlertLine,

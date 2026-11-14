@@ -12,7 +12,7 @@ import {
   RiUserForbidLine,
   RiUserFollowLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'

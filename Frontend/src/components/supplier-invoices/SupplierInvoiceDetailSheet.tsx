@@ -14,7 +14,7 @@ import {
   RiMoneyDollarCircleLine,
   RiShoppingCartLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { suppliersApi } from '@/api/suppliers.api'
 import { usersApi } from '@/api/users.api'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'

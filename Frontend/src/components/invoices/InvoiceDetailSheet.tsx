@@ -22,7 +22,7 @@ import {
   RiBankCardLine,
   RiStickyNoteLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { downloadFile } from '@/utils/helpers'
 import { formatDate } from '@/utils/formatters'

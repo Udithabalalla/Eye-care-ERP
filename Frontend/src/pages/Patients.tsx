@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
 import { formatDistanceToNowStrict, parseISO, startOfMonth } from 'date-fns'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAddLine,
   RiCalendarLine,

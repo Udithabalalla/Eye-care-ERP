@@ -31,6 +31,7 @@ module.exports = {
         { name: '@radix-ui/react-icons', message: 'Use @remixicon/react.' },
         { name: 'react-aria-components', message: 'Use the shadcn/Radix component instead.' },
         { name: 'react-aria', message: 'Use the shadcn/Radix component instead.' },
+        { name: 'react-hot-toast', message: "Use toast from 'sonner' (Toaster is mounted in main.tsx)." },
       ],
       patterns: [
         { group: ['@/components/ui/base/*', '@/components/ui/application/*'], message: 'The Untitled UI wrappers were removed; use the shadcn component.' },

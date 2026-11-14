@@ -36,7 +36,7 @@ import { companyProfileApi } from '@/api/company-profile.api'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
 import type { Invoice } from '@/types/invoice.types'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 const schema = z.object({
   amount: z.number({ invalid_type_error: 'Enter a valid amount' }).min(0.01, 'Amount must be greater than 0'),

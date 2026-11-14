@@ -3,7 +3,7 @@ import { useFieldArray, useForm, useWatch, type UseFormRegisterReturn } from 're
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAlertLine,
   RiArrowRightSLine,

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { RiDownloadLine, RiEditLine } from '@remixicon/react'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { Prescription } from '@/types/prescription.types'

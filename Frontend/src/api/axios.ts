@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import axiosRetry, { isNetworkOrIdempotentRequestError, exponentialDelay } from 'axios-retry'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 const HOSTED_API_BASE_URL = 'https://eye-care-api-g01u.onrender.com/api/v1'
 const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'

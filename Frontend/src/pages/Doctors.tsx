@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { toast } from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAddLine,
   RiCalendarLine,

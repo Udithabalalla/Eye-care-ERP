@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, addWeeks, format, isSameDay, startOfWeek } from 'date-fns'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAddLine,
   RiArrowLeftSLine,

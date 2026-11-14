@@ -45,7 +45,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import SearchableLOV from '@/components/common/SearchableLOV'
 import { formatCurrency } from '@/utils/formatters'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 

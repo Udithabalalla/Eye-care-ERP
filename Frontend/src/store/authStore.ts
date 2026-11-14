@@ -8,7 +8,7 @@ import {
   PasswordResetRequest,
   SignupRequest,
 } from '@/types/auth.types'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 export const useAuthStore = create<AuthState>()(
   persist(

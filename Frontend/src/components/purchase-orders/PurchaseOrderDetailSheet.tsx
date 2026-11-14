@@ -19,7 +19,7 @@ import {
   RiStickyNoteLine,
   RiTruckLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { suppliersApi } from '@/api/suppliers.api'
 import { usersApi } from '@/api/users.api'
 import { companyProfileApi } from '@/api/company-profile.api'

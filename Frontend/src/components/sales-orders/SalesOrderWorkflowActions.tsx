@@ -9,7 +9,7 @@ import {
   RiTruckLine,
   RiLoader4Line,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 export interface WorkflowAction {

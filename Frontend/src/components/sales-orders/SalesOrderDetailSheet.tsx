@@ -46,7 +46,7 @@ import {
   RiArrowDownSLine,
   RiPrinterLine,
 } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { downloadFile } from '@/utils/helpers'

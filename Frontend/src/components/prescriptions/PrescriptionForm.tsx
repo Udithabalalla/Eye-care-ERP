@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addMonths, format } from 'date-fns'
-import { toast } from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   RiAddLine,
   RiArrowDownLine,

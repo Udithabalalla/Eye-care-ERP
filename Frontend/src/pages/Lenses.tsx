@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RiAddLine, RiMore2Line, RiSparklingLine } from '@remixicon/react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
   Table,
   TableHeader,

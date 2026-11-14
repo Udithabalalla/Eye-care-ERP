@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import Modal from '@/components/common/Modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

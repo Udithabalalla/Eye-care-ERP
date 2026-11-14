@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { suppliersApi } from '@/api/suppliers.api'
 import { FrameVariant } from '@/types/frames.types'
 import { Product } from '@/types/product.types'
@@ -134,20 +134,10 @@ export function CreatePODrawer({ open, onClose, subject, onSuccess }: Props) {
       })
     },
     onSuccess: (po) => {
-      toast.success(
-        (t) => (
-          <span className="flex items-center gap-2">
-            {po.id} created as Draft
-            <button
-              className="underline font-medium"
-              onClick={() => { toast.dismiss(t.id); navigate('/purchase-orders') }}
-            >
-              View PO
-            </button>
-          </span>
-        ),
-        { duration: 6000 }
-      )
+      toast.success(`${po.id} created as Draft`, {
+        duration: 6000,
+        action: { label: 'View PO', onClick: () => navigate('/purchase-orders') },
+      })
       qc.invalidateQueries({ queryKey: ['purchase-orders'] })
       resetForm()
       onSuccess?.()

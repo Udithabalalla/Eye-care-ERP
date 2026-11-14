@@ -82,21 +82,29 @@ export default {
           900: token('--primary'),
           DEFAULT: token('--primary'),
         },
+        // Status colours (globals.css). The numbered shades are old aliases kept for
+        // existing classes; new code uses text-success, bg-warning/10 and so on.
         success: {
+          DEFAULT: token('--success'),
+          foreground: token('--success-foreground'),
           50: token('--accent'),
           100: token('--accent'),
-          500: token('--chart-2'),
-          600: token('--chart-2'),
-          700: token('--chart-2'),
-          DEFAULT: token('--chart-2'),
+          500: token('--success'),
+          600: token('--success'),
+          700: token('--success'),
         },
         warning: {
+          DEFAULT: token('--warning'),
+          foreground: token('--warning-foreground'),
           50: token('--accent'),
           100: token('--accent'),
-          500: token('--chart-4'),
-          600: token('--chart-4'),
-          700: token('--chart-4'),
-          DEFAULT: token('--chart-4'),
+          500: token('--warning'),
+          600: token('--warning'),
+          700: token('--warning'),
+        },
+        info: {
+          DEFAULT: token('--info'),
+          foreground: token('--info-foreground'),
         },
         error: {
           50: token('--accent'),
@@ -131,9 +139,17 @@ export default {
         9.5: '2.375rem',
         10.5: '2.625rem',
         11.5: '2.875rem',
+        13: '3.25rem',
+        15: '3.75rem',
+        17: '4.25rem',
+        18: '4.5rem',
+        19: '4.75rem',
       },
       boxShadow: {
         xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      },
+      ringWidth: {
+        3: '3px',
       },
       backdropBlur: {
         xs: '4px',
@@ -184,6 +200,10 @@ export default {
       addVariant('data-placeholder', '&[data-placeholder]')
       addVariant('data-inset', '&[data-inset]')
       addVariant('aria-invalid', '&[aria-invalid="true"]')
+      addVariant('not-data-checked', '&:not([data-state="checked"]):not([data-checked]:not([data-checked="false"]))')
+      addVariant('has-aria-invalid', '&:has([aria-invalid="true"])')
+      addVariant('has-aria-expanded', '&:has([aria-expanded="true"])')
+      addVariant('has-disabled', '&:has(:disabled)')
       addVariant('has-data-checked', [
         '&:has([data-state="checked"])',
         '&:has([data-checked]:not([data-checked="false"]))',
@@ -196,6 +216,17 @@ export default {
       matchVariant('not-aria', (value) => `&:not([aria-${value}])`)
       matchVariant('group-has-data', (value, { modifier }) =>
         `:merge(.group${modifier ? `\\/${modifier}` : ''}):has([data-${value}]) &`)
+      // group-data-horizontal/tabs: (bare, with an optional group name)
+      for (const [name, selector] of [
+        ['horizontal', '[data-orientation="horizontal"]'],
+        ['vertical', '[data-orientation="vertical"]'],
+      ]) {
+        matchVariant(
+          `group-data-${name}`,
+          (_, { modifier }) => `:merge(.group${modifier ? `\\/${modifier}` : ''})${selector} &`,
+          { values: { DEFAULT: '' } },
+        )
+      }
 
       addUtilities({
         // Entrances decelerate, exits accelerate. Declared here (not in CSS) so variant
