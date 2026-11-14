@@ -48,7 +48,7 @@ const PrescriptionSelectionModal = ({
                                 onClick={() => onSelect(prescription)}
                                 className={`relative group cursor-pointer p-4 rounded-xl border-2 transition-all ${
                                     selectedId === prescription.prescription_id
-                                        ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/50'
+                                        ? 'border-primary bg-primary/5'
                                         : 'border-border hover:border-brand-200 hover:bg-secondary'
                                 }`}
                             >

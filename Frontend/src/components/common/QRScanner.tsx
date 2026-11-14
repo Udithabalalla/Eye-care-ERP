@@ -95,8 +95,8 @@ const QRScanner = ({ onScan, onClose, isOpen }: QRScannerProps) => {
 
                 <div className="p-6">
                     {error ? (
-                        <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-4 text-center">
-                            <p className="text-error-600 dark:text-error-400 text-sm">{error}</p>
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center">
+                            <p className="text-sm text-destructive">{error}</p>
                             <Button
                                 variant="outline"
                                 size="sm"

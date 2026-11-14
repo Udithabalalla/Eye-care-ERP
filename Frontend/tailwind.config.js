@@ -1,6 +1,12 @@
 import animate from 'tailwindcss-animate'
 import plugin from 'tailwindcss/plugin'
 
+// The shadcn tokens in globals.css are complete colours (oklch(...)), so Tailwind v3
+// can't apply opacity modifiers like bg-primary/10 to a bare var(--primary) and
+// silently drops those classes. color-mix() lets it: <alpha-value> is 1 without a
+// modifier and 0.1 for /10.
+const token = (name) => `color-mix(in oklab, var(${name}) calc(<alpha-value> * 100%), transparent)`
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -11,97 +17,97 @@ export default {
   theme: {
     extend: {
       colors: {
-        border: 'var(--border)',
-        input: 'var(--input)',
-        ring: 'var(--ring)',
-        background: 'var(--background)',
-        foreground: 'var(--foreground)',
+        border: token('--border'),
+        input: token('--input'),
+        ring: token('--ring'),
+        background: token('--background'),
+        foreground: token('--foreground'),
         chart: {
-          1: 'var(--chart-1)',
-          2: 'var(--chart-2)',
-          3: 'var(--chart-3)',
-          4: 'var(--chart-4)',
-          5: 'var(--chart-5)',
+          1: token('--chart-1'),
+          2: token('--chart-2'),
+          3: token('--chart-3'),
+          4: token('--chart-4'),
+          5: token('--chart-5'),
         },
         sidebar: {
-          DEFAULT: 'var(--sidebar)',
-          foreground: 'var(--sidebar-foreground)',
-          primary: 'var(--sidebar-primary)',
-          'primary-foreground': 'var(--sidebar-primary-foreground)',
-          accent: 'var(--sidebar-accent)',
-          'accent-foreground': 'var(--sidebar-accent-foreground)',
-          border: 'var(--sidebar-border)',
-          ring: 'var(--sidebar-ring)',
+          DEFAULT: token('--sidebar'),
+          foreground: token('--sidebar-foreground'),
+          primary: token('--sidebar-primary'),
+          'primary-foreground': token('--sidebar-primary-foreground'),
+          accent: token('--sidebar-accent'),
+          'accent-foreground': token('--sidebar-accent-foreground'),
+          border: token('--sidebar-border'),
+          ring: token('--sidebar-ring'),
         },
         primary: {
-          DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)',
+          DEFAULT: token('--primary'),
+          foreground: token('--primary-foreground'),
         },
         secondary: {
-          DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)',
+          DEFAULT: token('--secondary'),
+          foreground: token('--secondary-foreground'),
         },
         destructive: {
-          DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)',
+          DEFAULT: token('--destructive'),
+          foreground: token('--destructive-foreground'),
         },
         muted: {
-          DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)',
+          DEFAULT: token('--muted'),
+          foreground: token('--muted-foreground'),
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)',
+          DEFAULT: token('--accent'),
+          foreground: token('--accent-foreground'),
         },
         popover: {
-          DEFAULT: 'var(--popover)',
-          foreground: 'var(--popover-foreground)',
+          DEFAULT: token('--popover'),
+          foreground: token('--popover-foreground'),
         },
         card: {
-          DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)',
+          DEFAULT: token('--card'),
+          foreground: token('--card-foreground'),
         },
         // Compatibility aliases mapped to shadcn tokens.
         // These keep existing classes working while still using shadcn variables.
         brand: {
-          50: 'var(--accent)',
-          100: 'var(--accent)',
-          200: 'var(--accent)',
-          300: 'var(--primary)',
-          400: 'var(--primary)',
-          500: 'var(--primary)',
-          600: 'var(--primary)',
-          700: 'var(--primary)',
-          800: 'var(--primary)',
-          900: 'var(--primary)',
-          DEFAULT: 'var(--primary)',
+          50: token('--accent'),
+          100: token('--accent'),
+          200: token('--accent'),
+          300: token('--primary'),
+          400: token('--primary'),
+          500: token('--primary'),
+          600: token('--primary'),
+          700: token('--primary'),
+          800: token('--primary'),
+          900: token('--primary'),
+          DEFAULT: token('--primary'),
         },
         success: {
-          50: 'var(--accent)',
-          100: 'var(--accent)',
-          500: 'var(--chart-2)',
-          600: 'var(--chart-2)',
-          700: 'var(--chart-2)',
-          DEFAULT: 'var(--chart-2)',
+          50: token('--accent'),
+          100: token('--accent'),
+          500: token('--chart-2'),
+          600: token('--chart-2'),
+          700: token('--chart-2'),
+          DEFAULT: token('--chart-2'),
         },
         warning: {
-          50: 'var(--accent)',
-          100: 'var(--accent)',
-          500: 'var(--chart-4)',
-          600: 'var(--chart-4)',
-          700: 'var(--chart-4)',
-          DEFAULT: 'var(--chart-4)',
+          50: token('--accent'),
+          100: token('--accent'),
+          500: token('--chart-4'),
+          600: token('--chart-4'),
+          700: token('--chart-4'),
+          DEFAULT: token('--chart-4'),
         },
         error: {
-          50: 'var(--accent)',
-          100: 'var(--accent)',
-          500: 'var(--destructive)',
-          600: 'var(--destructive)',
-          700: 'var(--destructive)',
-          DEFAULT: 'var(--destructive)',
+          50: token('--accent'),
+          100: token('--accent'),
+          500: token('--destructive'),
+          600: token('--destructive'),
+          700: token('--destructive'),
+          DEFAULT: token('--destructive'),
         },
-        tertiary: 'var(--muted)',
-        quaternary: 'var(--muted-foreground)',
+        tertiary: token('--muted'),
+        quaternary: token('--muted-foreground'),
       },
       fontFamily: {
         sans: ['Figtree Variable', 'Inter', 'Segoe UI', 'sans-serif'],
@@ -113,6 +119,27 @@ export default {
         'xl': '1rem',
         '2xl': '1.5rem',
         '3xl': '2rem',
+      },
+      // Tailwind v4 scale steps that the shadcn components use. v4 accepts any multiple
+      // of 0.25rem for spacing (pl-7.5, size-4.5); v3 only has the steps listed here.
+      spacing: {
+        4.5: '1.125rem',
+        5.5: '1.375rem',
+        6.5: '1.625rem',
+        7.5: '1.875rem',
+        8.5: '2.125rem',
+        9.5: '2.375rem',
+        10.5: '2.625rem',
+        11.5: '2.875rem',
+      },
+      boxShadow: {
+        xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      },
+      backdropBlur: {
+        xs: '4px',
+      },
+      textUnderlineOffset: {
+        3: '3px',
       },
       // Short and calm: things arrive quickly and never make people wait
       animationDuration: {
@@ -137,16 +164,46 @@ export default {
   plugins: [
     // Enter/exit utilities (animate-in, fade-in-0, zoom-in-95, slide-in-from-*) used by the UI components
     animate,
-    // The components are written with Tailwind v4's data-open / data-closed shorthands;
-    // map them to Radix's data-state so their animations work on Tailwind v3
-    plugin(({ addVariant, addUtilities }) => {
-      addVariant('data-open', ['&[data-state="open"]', '&[data-open]:not([data-open="false"])'])
-      addVariant('data-closed', ['&[data-state="closed"]', '&[data-closed]:not([data-closed="false"])'])
-      // Entrances decelerate, exits accelerate. Declared here (not in CSS) so variant
-      // classes like data-open:animate-in pick the curve up too.
+    // The shadcn components are written for Tailwind v4. These variants mirror the
+    // @custom-variant rules in shadcn/tailwind.css (inert under v3) plus the v4 shorthands
+    // the generated files use, so `npx shadcn add` output works without hand edits.
+    plugin(({ addVariant, matchVariant, addUtilities }) => {
+      const state = (name, value = name) => [
+        `&[data-state="${value}"]`,
+        `&[data-${name}]:not([data-${name}="false"])`,
+      ]
+      addVariant('data-open', state('open'))
+      addVariant('data-closed', state('closed'))
+      addVariant('data-checked', state('checked'))
+      addVariant('data-unchecked', state('unchecked'))
+      addVariant('data-active', state('active'))
+      addVariant('data-disabled', ['&[data-disabled="true"]', '&[data-disabled]:not([data-disabled="false"])'])
+      addVariant('data-selected', '&[data-selected="true"]')
+      addVariant('data-horizontal', '&[data-orientation="horizontal"]')
+      addVariant('data-vertical', '&[data-orientation="vertical"]')
+      addVariant('data-placeholder', '&[data-placeholder]')
+      addVariant('data-inset', '&[data-inset]')
+      addVariant('aria-invalid', '&[aria-invalid="true"]')
+      addVariant('has-data-checked', [
+        '&:has([data-state="checked"])',
+        '&:has([data-checked]:not([data-checked="false"]))',
+      ])
+
+      // v4 shorthands for attribute tests: has-data-[slot=x]:, in-data-[slot=x]:, not-data-[x]:
+      matchVariant('has-data', (value) => `&:has([data-${value}])`)
+      matchVariant('in-data', (value) => `:where([data-${value}]) &`)
+      matchVariant('not-data', (value) => `&:not([data-${value}])`)
+      matchVariant('not-aria', (value) => `&:not([aria-${value}])`)
+      matchVariant('group-has-data', (value, { modifier }) =>
+        `:merge(.group${modifier ? `\\/${modifier}` : ''}):has([data-${value}]) &`)
+
       addUtilities({
+        // Entrances decelerate, exits accelerate. Declared here (not in CSS) so variant
+        // classes like data-open:animate-in pick the curve up too.
         '.animate-in': { animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' },
         '.animate-out': { animationTimingFunction: 'cubic-bezier(0.4, 0, 1, 1)', animationDuration: '140ms' },
+        // v4's outline-hidden: hides the outline but keeps it in forced-colours mode
+        '.outline-hidden': { outline: '2px solid transparent', outlineOffset: '2px' },
       })
     }),
   ],
