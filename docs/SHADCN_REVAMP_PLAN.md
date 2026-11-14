@@ -1,6 +1,30 @@
 # shadcn/ui revamp plan: Eye Care ERP frontend
 
-Status: plan only, no code changed. Surveyed on `origin/main` at `3e44167` (2026-11-14).
+Status (2026-11-14): **Phases 0a–7 are done** and merged to `main` and `staging`; see "Progress" below.
+Surveyed on `origin/main` at `3e44167`.
+
+## Progress
+
+| Phase | State |
+|---|---|
+| 0a Tailwind v3 compatibility | Done: tokens via `color-mix`, shadcn v4 variants in the config, `npm run check:tw` |
+| 0b Dead code and packages | Done: 61 files and 6 packages removed |
+| 1 Building blocks | Done: alert, toggle-group, radio-group, input-group, spinner, empty, kbd, input-otp, progress, sonner; status tokens; `useConfirm()` |
+| 2 Front desk | Done |
+| 3 Sales orders, billing, prescriptions | Done (status colours app-wide, all `common/Modal` users on `Dialog`) |
+| 4 Inventory | Done, except the useState forms below |
+| 5 Purchasing and suppliers | Done |
+| 6 Finance, settings, admin, auth | Done |
+| 7 Wrap-up | Done: legacy CSS, colour aliases, `common/{Button,Input,Modal}` and `tw-animate-css` removed; ESLint guards |
+
+Left for later:
+- Forms still on `useState` (already shadcn components, behaviour unchanged): the adjust-stock, receive-stock,
+  product-receive and create-PO drawers, the bulk-variant dialog, the Lenses / Other expenses dialogs.
+- `npm run lint` still fails on 25 warnings that predate this work (`--max-warnings 0`); 0 errors.
+- Status configs, chart, avatar and category colours keep their categorical palettes on purpose.
+- Dev data: duplicate invoice ids (`INV000001`, …) cause duplicate-key warnings in invoice pickers.
+
+The original plan follows.
 Scope: `Frontend/src` (React 18, Vite 5, Tailwind CSS 3.4.18). The rules come from `CLAUDE.md`:
 shadcn first, RemixIcon only, react-hook-form + zod, shadcn `Dialog`, `DataTable` / shadcn `Table`, `SearchableLOV`.
 

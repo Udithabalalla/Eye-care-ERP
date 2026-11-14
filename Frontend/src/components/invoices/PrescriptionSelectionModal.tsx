@@ -39,7 +39,7 @@ const PrescriptionSelectionModal = ({
                                 className={`relative group cursor-pointer p-4 rounded-xl border-2 transition-all ${
                                     selectedId === prescription.prescription_id
                                         ? 'border-primary bg-primary/5'
-                                        : 'border-border hover:border-brand-200 hover:bg-secondary'
+                                        : 'border-border hover:border-primary/30 hover:bg-secondary'
                                 }`}
                             >
                                 <div className="flex items-start justify-between">
@@ -48,7 +48,7 @@ const PrescriptionSelectionModal = ({
                                             <RiCalendarLine className="w-4 h-4" />
                                             <span>{new Date(prescription.prescription_date).toLocaleDateString()}</span>
                                             <span className="text-muted-foreground">•</span>
-                                            <span className={new Date(prescription.valid_until) < new Date() ? 'text-error-500' : 'text-success-600'}>
+                                            <span className={new Date(prescription.valid_until) < new Date() ? 'text-destructive' : 'text-success'}>
                                                 Valid until {new Date(prescription.valid_until).toLocaleDateString()}
                                             </span>
                                         </div>
@@ -67,7 +67,7 @@ const PrescriptionSelectionModal = ({
                                     </div>
 
                                     {selectedId === prescription.prescription_id && (
-                                        <div className="absolute top-4 right-4 bg-brand-500 text-white p-1 rounded-full">
+                                        <div className="absolute top-4 right-4 bg-primary text-white p-1 rounded-full">
                                             <RiCheckLine className="w-4 h-4" />
                                         </div>
                                     )}

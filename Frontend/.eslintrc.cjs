@@ -35,7 +35,10 @@ module.exports = {
       ],
       patterns: [
         { group: ['@/components/ui/base/*', '@/components/ui/application/*'], message: 'The Untitled UI wrappers were removed; use the shadcn component.' },
+        { group: ['@/components/common/Button', '@/components/common/Input', '@/components/common/Modal'], message: 'Removed wrappers: use @/components/ui/button, input or dialog.' },
       ],
     }],
+    // Confirm with useConfirm() from @/hooks/useConfirm (a shadcn AlertDialog)
+    'no-restricted-globals': ['error', { name: 'confirm', message: 'Use useConfirm() from @/hooks/useConfirm.' }],
   },
 }

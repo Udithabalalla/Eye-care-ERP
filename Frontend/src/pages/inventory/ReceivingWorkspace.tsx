@@ -125,6 +125,8 @@ function GRNTab() {
 
   const handleCreate = () => {
     if (!supplierId) { toast.error('Select a supplier'); return }
+    // drop the UI-only fields (_id, variantObj) before sending
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const items = lines.filter((l) => l.variant_id).map(({ _id, variantObj, ...rest }) => rest)
     if (!items.length) { toast.error('Add at least one line'); return }
     createMutation.mutate({ supplier_id: supplierId, purchase_order_id: poId || undefined, items, notes: notes || undefined })

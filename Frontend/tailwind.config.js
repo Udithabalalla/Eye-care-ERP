@@ -67,55 +67,19 @@ export default {
           DEFAULT: token('--card'),
           foreground: token('--card-foreground'),
         },
-        // Compatibility aliases mapped to shadcn tokens.
-        // These keep existing classes working while still using shadcn variables.
-        brand: {
-          50: token('--accent'),
-          100: token('--accent'),
-          200: token('--accent'),
-          300: token('--primary'),
-          400: token('--primary'),
-          500: token('--primary'),
-          600: token('--primary'),
-          700: token('--primary'),
-          800: token('--primary'),
-          900: token('--primary'),
-          DEFAULT: token('--primary'),
-        },
-        // Status colours (globals.css). The numbered shades are old aliases kept for
-        // existing classes; new code uses text-success, bg-warning/10 and so on.
+        // Status colours (globals.css): text-success, bg-warning/10, <Badge variant="info"> …
         success: {
           DEFAULT: token('--success'),
           foreground: token('--success-foreground'),
-          50: token('--accent'),
-          100: token('--accent'),
-          500: token('--success'),
-          600: token('--success'),
-          700: token('--success'),
         },
         warning: {
           DEFAULT: token('--warning'),
           foreground: token('--warning-foreground'),
-          50: token('--accent'),
-          100: token('--accent'),
-          500: token('--warning'),
-          600: token('--warning'),
-          700: token('--warning'),
         },
         info: {
           DEFAULT: token('--info'),
           foreground: token('--info-foreground'),
         },
-        error: {
-          50: token('--accent'),
-          100: token('--accent'),
-          500: token('--destructive'),
-          600: token('--destructive'),
-          700: token('--destructive'),
-          DEFAULT: token('--destructive'),
-        },
-        tertiary: token('--muted'),
-        quaternary: token('--muted-foreground'),
       },
       fontFamily: {
         sans: ['Figtree Variable', 'Inter', 'Segoe UI', 'sans-serif'],

@@ -19,7 +19,7 @@ const Reports = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="pt-6">
-            <RiBarChartLine className="w-8 h-8 text-brand-600 mb-3" />
+            <RiBarChartLine className="w-8 h-8 text-primary mb-3" />
             <h3 className="font-semibold text-foreground mb-2">Sales Report</h3>
             <p className="text-sm text-muted-foreground mb-4">View sales performance and revenue</p>
             <Button variant="outline" className="w-full">Generate</Button>
@@ -28,7 +28,7 @@ const Reports = () => {
 
         <Card>
           <CardContent className="pt-6">
-            <RiBarChartLine className="w-8 h-8 text-success-600 mb-3" />
+            <RiBarChartLine className="w-8 h-8 text-success mb-3" />
             <h3 className="font-semibold text-foreground mb-2">Inventory Report</h3>
             <p className="text-sm text-muted-foreground mb-4">Check stock levels and products</p>
             <Button variant="outline" className="w-full">Generate</Button>
@@ -37,7 +37,7 @@ const Reports = () => {
 
         <Card>
           <CardContent className="pt-6">
-            <RiBarChart2Line className="w-8 h-8 text-brand-600 mb-3" />
+            <RiBarChart2Line className="w-8 h-8 text-primary mb-3" />
             <h3 className="font-semibold text-foreground mb-2">Patient Report</h3>
             <p className="text-sm text-muted-foreground mb-4">View patient statistics</p>
             <Button variant="outline" className="w-full">Generate</Button>

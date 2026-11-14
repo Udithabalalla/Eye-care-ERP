@@ -34,8 +34,7 @@ The shadcn components are generated for Tailwind v4 and React 19. This app runs 
   import { Button } from '@/components/ui/button'
   import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
   ```
-- **Never import from the barrel index** `@/components/ui` — that resolves to legacy Untitled UI wrappers.
-- The legacy wrappers in `src/components/ui/base/` and `src/components/ui/application/` should be **replaced**, not used.
+- There is no barrel index: `@/components/ui` does not exist (ESLint blocks it). The old Untitled UI wrappers and `common/Button`, `common/Input`, `common/Modal` were removed.
 
 ---
 
@@ -94,7 +93,7 @@ import { RiAddLine, RiSearchLine, RiCloseLine } from '@remixicon/react'
 
 ## Form Policy
 
-Use **`react-hook-form` + `zod` + shadcn `Form`** for all forms. Avoid raw `useState` form management.
+Use **`react-hook-form` + `zod`** for all forms, rendered with shadcn **`Form`** (`FormField`, `FormItem`, `FormMessage`) — or, for large multi-step forms such as the sales order wizard and the sign-in page, shadcn **`Field`** with `register` / `Controller` and `FieldError`. Avoid raw `useState` form management.
 
 ```tsx
 import { useForm } from 'react-hook-form'
@@ -109,7 +108,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 
 ## Modal / Dialog Policy
 
-Use shadcn **`Dialog`** (`src/components/ui/dialog.tsx`) for all modals. The `Modal` component in `@/components/common/Modal` is a thin wrapper around `Dialog` — prefer using `Dialog` directly in new code.
+Use shadcn **`Dialog`** (`src/components/ui/dialog.tsx`) for all modals (`AlertDialog` for confirmations, through `useConfirm()`; `Sheet` for detail drawers).
 
 ```tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -139,7 +138,6 @@ For controlled open state:
 
 - Use **`DataTable`** (`@/components/data-table.tsx`) for server-side paginated TanStack tables.
 - Use shadcn `Table` primitives (`@/components/ui/table`) for simple display tables.
-- Replace `TableCard` from `@/components/ui` with `Card` + `CardHeader` from `@/components/ui/card`.
 
 ---
 
@@ -160,8 +158,9 @@ Use `SearchableLOV` from `@/components/common/SearchableLOV` — it is built on 
 - Do not `import` from `lucide-react`
 - Do not `import` from `@untitledui/icons`
 - Do not `import` from `@radix-ui/react-icons`
-- Do not `import { Button, Input, Select, Table, Modal, Pagination }` from `@/components/ui` (barrel index)
-- Do not add raw CSS class strings like `btn-primary`, `card`, `input` (legacy custom CSS)
+- Do not use raw `<button>`, `<select>` or `<table>`: use `Button` (any variant, incl. `link`/`ghost` for rows and links), `ToggleGroup` / `Tabs` for choices, `Select` / `SearchableLOV`, `Table` / `DataTable`. Print documents (`InvoicePreview`, `PurchaseOrderPreview`, `AdvanceReceipt`) are the exception.
+- Do not use raw palette colours (`text-emerald-600`, `bg-amber-50`) for status: use the `success` / `warning` / `info` / `destructive` tokens. Categorical palettes (status configs, chart and avatar colours) are the exception.
+- Do not wrap theme tokens in `hsl(...)`: they are complete oklch colours. Use `var(--primary)`, opacity modifiers (`bg-primary/10`) or `color-mix(in_oklab,var(--primary)_12%,transparent)` in arbitrary values.
 - Do not use `react-aria-components` for UI primitives — Radix/shadcn covers these
 - Do not write custom dropdown/modal/tooltip implementations when shadcn already has them
 
