@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RiAddLine, RiMoneyDollarCircleLine } from '@remixicon/react'
 import {
@@ -26,6 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Spinner } from '@/components/ui/spinner'
 import Loading from '@/components/common/Loading'
 import { paymentsApi } from '@/api/payments.api'
 import { invoicesApi } from '@/api/invoices.api'
@@ -34,17 +39,33 @@ import { LedgerReferenceType, Payment } from '@/types/erp.types'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import { toast } from 'sonner'
 
+const today = () => new Date().toISOString().split('T')[0]
+
+const paymentSchema = z.object({
+  reference_id: z.string().min(1, 'Choose the invoice being paid'),
+  amount: z.coerce.number({ invalid_type_error: 'Enter an amount' }).positive('Payment amount must be greater than 0'),
+  payment_method: z.nativeEnum(PaymentMethod),
+  payment_date: z.string().min(1, 'Choose the payment date'),
+})
+type PaymentFormValues = z.infer<typeof paymentSchema>
+
+const emptyPayment = (): PaymentFormValues => ({
+  reference_id: '',
+  amount: '' as unknown as number,
+  payment_method: PaymentMethod.CASH,
+  payment_date: today(),
+})
+
 const Payments = () => {
   const queryClient = useQueryClient()
   const [referenceType, setReferenceType] = useState<LedgerReferenceType | ''>('')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [form, setForm] = useState({
-    reference_id: '',
-    amount: '',
-    payment_method: PaymentMethod.CASH,
-    payment_date: new Date().toISOString().split('T')[0],
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: emptyPayment(),
   })
+  const referenceId = form.watch('reference_id')
 
   const { data, isLoading } = useQuery({
     queryKey: ['payments', referenceType],
@@ -58,29 +79,20 @@ const Payments = () => {
   })
 
   const createMutation = useMutation({
-    mutationFn: async () => {
-      const numericAmount = Number(form.amount)
-      if (!form.reference_id) throw new Error('Invoice is required')
-      if (!numericAmount || numericAmount <= 0) throw new Error('Payment amount must be greater than 0')
-      return paymentsApi.create({
-        amount: numericAmount,
-        payment_method: form.payment_method,
-        payment_date: new Date(form.payment_date).toISOString(),
+    mutationFn: (values: PaymentFormValues) =>
+      paymentsApi.create({
+        amount: values.amount,
+        payment_method: values.payment_method,
+        payment_date: new Date(values.payment_date).toISOString(),
         reference_type: 'INVOICE',
-        reference_id: form.reference_id,
-      })
-    },
+        reference_id: values.reference_id,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
       toast.success('Payment recorded successfully')
       setIsModalOpen(false)
-      setForm({
-        reference_id: '',
-        amount: '',
-        payment_method: PaymentMethod.CASH,
-        payment_date: new Date().toISOString().split('T')[0],
-      })
+      form.reset(emptyPayment())
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Failed to record payment')
@@ -88,8 +100,8 @@ const Payments = () => {
   })
 
   const selectedInvoice = useMemo(
-    () => (invoicesData?.data || []).find((invoice) => invoice.invoice_id === form.reference_id),
-    [invoicesData, form.reference_id],
+    () => (invoicesData?.data || []).find((invoice) => invoice.invoice_id === referenceId),
+    [invoicesData, referenceId],
   )
 
   const rows = (data?.data || []).filter((payment) => {
@@ -210,89 +222,107 @@ const Payments = () => {
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Invoice *</label>
-              <Select
-                value={form.reference_id || 'none'}
-                onValueChange={(invoiceId) => {
-                  if (invoiceId === 'none') return
-                  const invoice = (invoicesData?.data || []).find(
-                    (item) => item.invoice_id === invoiceId,
-                  )
-                  setForm((current) => ({
-                    ...current,
-                    reference_id: invoiceId,
-                    amount: invoice ? String(invoice.balance_due || '') : current.amount,
-                  }))
-                }}
-                disabled={isInvoicesLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select invoice" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(invoicesData?.data || []).map((invoice) => (
-                    <SelectItem key={invoice.invoice_id} value={invoice.invoice_id}>
-                      {invoice.invoice_number} — {invoice.patient_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Amount *</label>
-              <Input
-                type="number"
-                min={0.01}
-                step="0.01"
-                value={form.amount}
-                onChange={(event) => setForm((c) => ({ ...c, amount: event.target.value }))}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit((values) => createMutation.mutate(values))} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="reference_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Invoice *</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={(invoiceId) => {
+                        field.onChange(invoiceId)
+                        // Start from what is still owed on that invoice
+                        const invoice = (invoicesData?.data || []).find((item) => item.invoice_id === invoiceId)
+                        if (invoice?.balance_due) form.setValue('amount', invoice.balance_due, { shouldValidate: true })
+                      }}
+                      disabled={isInvoicesLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select invoice" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(invoicesData?.data || []).map((invoice) => (
+                          <SelectItem key={invoice.invoice_id} value={invoice.invoice_id}>
+                            {invoice.invoice_number} — {invoice.patient_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {selectedInvoice && (
-                <p className="text-xs text-muted-foreground">
-                  Balance due: {formatCurrency(selectedInvoice.balance_due)}
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Payment Method *</label>
-              <Select
-                value={form.payment_method}
-                onValueChange={(val) => setForm((c) => ({ ...c, payment_method: val as PaymentMethod }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={PaymentMethod.CASH}>Cash</SelectItem>
-                  <SelectItem value={PaymentMethod.CARD}>Card</SelectItem>
-                  <SelectItem value={PaymentMethod.UPI}>UPI</SelectItem>
-                  <SelectItem value={PaymentMethod.NETBANKING}>Net Banking</SelectItem>
-                  <SelectItem value={PaymentMethod.INSURANCE}>Insurance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Payment Date *</label>
-              <Input
-                type="date"
-                value={form.payment_date}
-                onChange={(event) => setForm((c) => ({ ...c, payment_date: event.target.value }))}
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount *</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0.01} step="0.01" {...field} />
+                    </FormControl>
+                    {selectedInvoice && (
+                      <FormDescription>Balance due: {formatCurrency(selectedInvoice.balance_due)}</FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-                {createMutation.isPending && <span className="mr-2 animate-spin">⟳</span>}
-                Record Payment
-              </Button>
-            </div>
-          </div>
+              <FormField
+                control={form.control}
+                name="payment_method"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Method *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={PaymentMethod.CASH}>Cash</SelectItem>
+                        <SelectItem value={PaymentMethod.CARD}>Card</SelectItem>
+                        <SelectItem value={PaymentMethod.UPI}>UPI</SelectItem>
+                        <SelectItem value={PaymentMethod.NETBANKING}>Net Banking</SelectItem>
+                        <SelectItem value={PaymentMethod.INSURANCE}>Insurance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="payment_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Date *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending && <Spinner />}
+                  Record Payment
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

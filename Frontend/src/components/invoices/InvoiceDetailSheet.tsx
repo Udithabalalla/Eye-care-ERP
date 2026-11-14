@@ -187,10 +187,10 @@ export function InvoiceDetailSheet({ invoiceId, open, onOpenChange }: Props) {
                         <DrawerRow
                           label="Sales order"
                           value={
-                            <button type="button" className="inline-flex items-center font-medium text-primary hover:underline" onClick={() => goTo(`/sales-orders?detail=${invoice.sales_order_id}`)}>
+                            <Button type="button" variant="link" className="h-auto gap-0 p-0 font-medium" onClick={() => goTo(`/sales-orders?detail=${invoice.sales_order_id}`)}>
                               {invoice.sales_order_id}
                               <RiArrowRightSLine className="size-4" />
-                            </button>
+                            </Button>
                           }
                         />
                       )}

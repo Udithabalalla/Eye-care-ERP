@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import Button from '@/components/common/Button'
 import Input from '@/components/common/Input'
 import { productsApi } from '@/api/products.api'
@@ -63,59 +63,61 @@ const ReceiveGoodsAssistant = ({ isOpen, onClose, onSuccess, order }: ReceiveGoo
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Receive Goods - ${order.id}`}
-      size="xl"
-      footer={(
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} isLoading={receiveMutation.isPending}>Confirm Receipt</Button>
-        </div>
-      )}
-    >
-      <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-            <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
-            <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_id}</div>
-            <div><span className="font-medium text-muted-foreground">Status:</span> {order.status}</div>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">Confirm the quantities received from the supplier before updating stock.</p>
-        </div>
-
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <div key={item.product_id} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-12 md:items-end">
-              <div className="md:col-span-5">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Product</label>
-                <Input value={item.product_name} readOnly />
-                <p className="mt-1 text-xs text-muted-foreground">Ordered: {item.ordered_quantity}</p>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-6xl">
+        <DialogHeader className="border-b border-border px-6 py-5">
+          <DialogTitle className="text-xl font-bold">{`Receive Goods - ${order.id}`}</DialogTitle>
+        </DialogHeader>
+        <div className="p-6">
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+              <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
+                <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
+                <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_id}</div>
+                <div><span className="font-medium text-muted-foreground">Status:</span> {order.status}</div>
               </div>
-              <div className="md:col-span-3">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Ordered Quantity</label>
-                <Input value={item.ordered_quantity} readOnly />
-              </div>
-              <div className="md:col-span-4">
-                <label className="mb-2 block text-sm font-medium text-muted-foreground">Received Quantity</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={item.ordered_quantity}
-                  value={item.received_quantity}
-                  onChange={(event) => {
-                    const next = [...items]
-                    next[index] = { ...next[index], received_quantity: Number(event.target.value) }
-                    setItems(next)
-                  }}
-                />
-              </div>
+              <p className="mt-2 text-sm text-muted-foreground">Confirm the quantities received from the supplier before updating stock.</p>
             </div>
-          ))}
+
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <div key={item.product_id} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-12 md:items-end">
+                  <div className="md:col-span-5">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Product</label>
+                    <Input value={item.product_name} readOnly />
+                    <p className="mt-1 text-xs text-muted-foreground">Ordered: {item.ordered_quantity}</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Ordered Quantity</label>
+                    <Input value={item.ordered_quantity} readOnly />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Received Quantity</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={item.ordered_quantity}
+                      value={item.received_quantity}
+                      onChange={(event) => {
+                        const next = [...items]
+                        next[index] = { ...next[index], received_quantity: Number(event.target.value) }
+                        setItems(next)
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-    </Modal>
+        <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={save} isLoading={receiveMutation.isPending}>Confirm Receipt</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

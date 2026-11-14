@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -340,15 +341,17 @@ const SalesOrders = () => {
         accessorKey: 'order_number',
         header: 'Order #',
         cell: ({ row }) => (
-          <button
-            className="flex flex-col text-left group"
+          <Button
+            type="button"
+            variant="link"
+            className="group h-auto flex-col items-start gap-0 p-0 text-left font-normal hover:no-underline"
             onClick={(e) => { e.stopPropagation(); setDetailOrderId(row.original.order_id) }}
           >
             <span className="font-medium text-primary group-hover:underline underline-offset-2">
               {row.original.order_number}
             </span>
             <span className="text-xs text-muted-foreground">{row.original.order_id}</span>
-          </button>
+          </Button>
         ),
       },
       {
@@ -653,29 +656,36 @@ const SalesOrders = () => {
       </section>
 
       {/* Lifecycle quick-filter tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <ToggleGroup
+        type="single"
+        value={statusFilter || 'all'}
+        onValueChange={(value) => {
+          if (!value) return
+          setStatusFilter(value === 'all' ? '' : (value as SalesOrderStatus))
+          setPage(1)
+        }}
+        aria-label="Filter by status"
+        className="w-full justify-start gap-1.5 overflow-x-auto pb-1"
+      >
         {LIFECYCLE_FILTER_TABS.map((tab) => {
           const isActive = (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
           const isReady = tab.id === 'ready'
           return (
-            <button
+            <ToggleGroupItem
               key={tab.id}
-              onClick={() => {
-                setStatusFilter(tab.id === 'all' ? '' : (tab.id as SalesOrderStatus))
-                setPage(1)
-              }}
-              className={`relative flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              value={tab.id}
+              className={`relative h-auto flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium ${
                 isActive
-                  ? 'border-primary bg-primary text-primary-foreground'
+                  ? 'border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
                   : isReady && readyCount > 0
-                    ? 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300'
-                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    ? 'border-warning/50 bg-warning/10 text-warning-foreground dark:text-warning hover:bg-warning/15'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-background hover:text-foreground'
               }`}
             >
               {tab.label}
               {isReady && readyCount > 0 && (
                 <span className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-warning text-warning-foreground'
                 }`}>
                   {readyCount}
                 </span>
@@ -686,10 +696,10 @@ const SalesOrders = () => {
                   {draftCount}
                 </span>
               )}
-            </button>
+            </ToggleGroupItem>
           )
         })}
-      </div>
+      </ToggleGroup>
 
       <Card className="border-border/60">
         <CardHeader className="space-y-4">

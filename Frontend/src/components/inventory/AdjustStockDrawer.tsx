@@ -129,7 +129,7 @@ export function AdjustStockDrawer({ open, onClose, variant, onSuccess }: Props) 
                   <p className="font-semibold text-lg tabular-nums">
                     {variant.current_stock} →{' '}
                     <span>{parseInt(newStock, 10)}</span>
-                    <span className={`ml-2 text-base ${delta > 0 ? 'text-green-600 dark:text-green-400' : delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    <span className={`ml-2 text-base ${delta > 0 ? 'text-success' : delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                       ({delta > 0 ? '+' : ''}{delta})
                     </span>
                   </p>

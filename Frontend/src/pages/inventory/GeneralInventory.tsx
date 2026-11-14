@@ -163,7 +163,7 @@ export default function GeneralInventory() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Inventory Value</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(inventoryValue)}</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(inventoryValue)}</p>
             </div>
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-xs font-semibold">LKR</div>
           </CardContent>
@@ -226,7 +226,7 @@ export default function GeneralInventory() {
               <Separator orientation="vertical" className="h-5" />
               {singleSelected && (
                 <>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-success hover:text-success hover:bg-success/10"
                     onClick={() => { openReceive(singleSelected); clearSelection() }}>
                     <RiArrowDownCircleLine className="size-3.5" />Receive Stock
                   </Button>
@@ -379,7 +379,7 @@ export default function GeneralInventory() {
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost" size="sm"
-                                      className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                                      className="h-7 w-7 p-0 text-success hover:text-success hover:bg-success/10"
                                       onClick={() => openReceive(product)}
                                     >
                                       <RiArrowDownCircleLine className="size-3.5" />

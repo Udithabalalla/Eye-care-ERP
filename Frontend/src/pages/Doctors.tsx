@@ -23,7 +23,7 @@ import { Doctor, DoctorFormData } from '@/types/doctor.types'
 import { useClinicalUsers, isSamePerson } from '@/hooks/usePractitioners'
 import { formatCurrency, getInitials } from '@/utils/formatters'
 import { apiErrorMessage, cn } from '@/utils/helpers'
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import DoctorForm from '@/components/doctors/DoctorForm'
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import { WEEK, isActiveBooking, isWithDoctor, timeOf, todayKey, worksOn } from '@/components/appointments/appointmentUtils'
@@ -257,12 +257,12 @@ const Doctors = () => {
                   </div>
 
                   {/* Today at a glance */}
-                  <div className={cn('rounded-lg px-3 py-2 text-sm', inToday ? 'bg-emerald-500/10' : 'bg-muted/60')}>
+                  <div className={cn('rounded-lg px-3 py-2 text-sm', inToday ? 'bg-success/10' : 'bg-muted/60')}>
                     {!doctor.is_active ? (
                       <span className="text-muted-foreground">Not taking bookings</span>
                     ) : inToday ? (
                       <>
-                        <span className="font-medium text-emerald-700 dark:text-emerald-300">In today</span>
+                        <span className="font-medium text-success">In today</span>
                         <span className="text-muted-foreground"> · {doctor.available_time_start}–{doctor.available_time_end}</span>
                         <span className="block text-muted-foreground">
                           {bookings.length === 0
@@ -325,23 +325,25 @@ const Doctors = () => {
         </div>
       )}
 
-      <Modal
-        isOpen={!!editor}
-        onClose={() => setEditor(null)}
-        title={editor?.doctor ? `Edit ${editor.doctor.name}` : 'Add a doctor'}
-        size="md"
-      >
-        {editor && (
-          <DoctorForm
-            key={editor.doctor?.doctor_id ?? editor.prefill?.name ?? 'new'}
-            doctor={editor.doctor}
-            prefill={editor.prefill}
-            isPending={saveMutation.isPending}
-            onSubmit={(data) => saveMutation.mutate({ id: editor.doctor?.doctor_id, data })}
-            onCancel={() => setEditor(null)}
-          />
-        )}
-      </Modal>
+      <Dialog open={!!editor} onOpenChange={(open) => !open && setEditor(null)}>
+        <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-2xl">
+          <DialogHeader className="border-b border-border px-6 py-5">
+            <DialogTitle className="text-xl font-bold">{editor?.doctor ? `Edit ${editor.doctor.name}` : 'Add a doctor'}</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            {editor && (
+              <DoctorForm
+                key={editor.doctor?.doctor_id ?? editor.prefill?.name ?? 'new'}
+                doctor={editor.doctor}
+                prefill={editor.prefill}
+                isPending={saveMutation.isPending}
+                onSubmit={(data) => saveMutation.mutate({ id: editor.doctor?.doctor_id, data })}
+                onCancel={() => setEditor(null)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AppointmentModal
         isOpen={!!bookWith}

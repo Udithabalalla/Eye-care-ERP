@@ -150,7 +150,7 @@ export function RecordPaymentDialog({
       <DialogContent className={preview ? 'max-h-[92vh] overflow-y-auto sm:max-w-4xl' : 'max-w-md'}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RiMoneyDollarCircleLine className="h-5 w-5 text-emerald-500" />
+            <RiMoneyDollarCircleLine className="h-5 w-5 text-success" />
             {title}
           </DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -180,7 +180,7 @@ export function RecordPaymentDialog({
               {paidAmount > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Already Paid</span>
-                  <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                  <span className="font-medium tabular-nums text-success">
                     {formatCurrency(paidAmount)}
                   </span>
                 </div>
@@ -188,7 +188,7 @@ export function RecordPaymentDialog({
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Balance Due</span>
-                <span className="tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(balanceDue)}</span>
+                <span className="tabular-nums text-destructive">{formatCurrency(balanceDue)}</span>
               </div>
             </div>
 
@@ -270,8 +270,8 @@ export function RecordPaymentDialog({
             />
 
             {amount > 0 && amount <= balanceDue && (
-              <div className={`rounded-lg border p-3 text-sm ${willBeFullyPaid ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800'}`}>
-                <p className={`font-semibold mb-1.5 ${willBeFullyPaid ? 'text-emerald-700 dark:text-emerald-300' : 'text-blue-700 dark:text-blue-300'}`}>
+              <div className={`rounded-lg border p-3 text-sm ${willBeFullyPaid ? 'bg-success/10 border-success/30' : 'bg-info/10 border-info/30'}`}>
+                <p className={`font-semibold mb-1.5 ${willBeFullyPaid ? 'text-success' : 'text-info'}`}>
                   After this payment:
                 </p>
                 <div className="space-y-1">
@@ -281,7 +281,7 @@ export function RecordPaymentDialog({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status</span>
-                    <span className={`font-bold flex items-center gap-1 ${willBeFullyPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    <span className={`font-bold flex items-center gap-1 ${willBeFullyPaid ? 'text-success' : 'text-info'}`}>
                       {willBeFullyPaid ? <><RiCheckLine className="h-3.5 w-3.5" /> Fully Paid</> : 'Partial Payment'}
                     </span>
                   </div>
@@ -296,7 +296,7 @@ export function RecordPaymentDialog({
               <Button
                 type="submit"
                 disabled={mutation.isPending || amount <= 0 || amount > balanceDue}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                className="gap-2 bg-success text-success-foreground hover:bg-success/90 border-success"
               >
                 {mutation.isPending ? <RiLoader4Line className="h-4 w-4 animate-spin" /> : <RiMoneyDollarCircleLine className="h-4 w-4" />}
                 Record Payment

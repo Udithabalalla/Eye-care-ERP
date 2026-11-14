@@ -41,6 +41,9 @@ import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'da
 import { useNavigate } from 'react-router-dom'
 import { RiSaveLine, RiFileEditLine } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -279,9 +282,9 @@ const InlineAlert = ({
   description?: string
 }) => {
   const styles = {
-    info: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200',
-    warning: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200',
-    success: 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/30 dark:text-green-200',
+    info: 'border-info/30 bg-info/10 text-info',
+    warning: 'border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning',
+    success: 'border-success/30 bg-success/10 text-success',
   }
   const Icon = type === 'success' ? RiCheckboxCircleLine : RiAlertLine
   return (
@@ -314,7 +317,7 @@ const SectionHeader = ({
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-          tone === 'emerald' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-primary/10 text-primary'
+          tone === 'emerald' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
         }`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -432,25 +435,28 @@ const StepIndicator = ({
               style={{ left: 'calc(50% + 24px)', width: 'calc(100% - 48px)' }}
             />
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             disabled={!isClickable}
             onClick={() => onStepClick(step.id)}
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`Step ${step.id + 1}: ${step.label}`}
-            className={[
-              'relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 disabled:cursor-default',
+            className={cn(
+              // the current step is disabled (not clickable) but must not fade
+              'relative z-10 size-9 rounded-full border-2 transition-all duration-200 disabled:cursor-default disabled:opacity-100',
               isCurrent
-                ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
+                ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20 dark:bg-primary'
                 : isPast
-                  ? 'border-primary bg-primary text-primary-foreground hover:opacity-75'
+                  ? 'border-primary bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground hover:opacity-75 dark:bg-primary'
                   : isClickable
-                    ? 'border-primary bg-background text-primary hover:bg-muted/50'
-                    : 'border-border bg-background text-muted-foreground',
-            ].join(' ')}
+                    ? 'border-primary bg-background text-primary hover:bg-muted/50 hover:text-primary dark:bg-background'
+                    : 'border-border bg-background text-muted-foreground dark:bg-background',
+            )}
           >
-            {isPast ? <RiCheckLine className="h-4 w-4" /> : <span className="text-xs font-bold">{step.id + 1}</span>}
-          </button>
+            {isPast ? <RiCheckLine className="size-4" /> : <span className="text-xs font-bold">{step.id + 1}</span>}
+          </Button>
           <span
             onClick={() => isClickable && onStepClick(step.id)}
             className={[
@@ -1840,13 +1846,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {/* Draft edit banner */}
         {draftOrderId && draftOrder && !savedOrderNumber && (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-            <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+            <RiFileEditLine className="h-4 w-4 flex-shrink-0 text-warning" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              <p className="text-sm font-semibold text-warning-foreground dark:text-warning">
                 {isEditingOrder ? 'Editing order' : 'Editing draft'} — {draftOrder.order_number}
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              <p className="text-xs text-warning mt-0.5">
                 {isEditingOrder
                   ? 'Click any step above to change it, then save your changes on Review & Pay.'
                   : 'Click any step above to change it, then click "Create Order" to confirm it and generate an invoice.'}
@@ -1862,7 +1868,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         <label
           className={`flex cursor-pointer select-none items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors ${
             salesOrder.isOld
-              ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
+              ? 'border-warning/50 bg-warning/10'
               : 'border-border bg-card hover:bg-muted/30'
           }`}
         >
@@ -1877,13 +1883,13 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               setValue('lens.isReference', false, { shouldDirty: true })
             }}
           />
-          <RiHistoryLine className={`h-4 w-4 shrink-0 ${salesOrder.isOld ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+          <RiHistoryLine className={`h-4 w-4 shrink-0 ${salesOrder.isOld ? 'text-warning' : 'text-muted-foreground'}`} />
           <div className="min-w-0">
-            <p className={`text-sm font-medium ${salesOrder.isOld ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'}`}>
+            <p className={`text-sm font-medium ${salesOrder.isOld ? 'text-warning-foreground dark:text-warning' : 'text-foreground'}`}>
               Entering a past order from paper records
             </p>
             {salesOrder.isOld && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 Frame and lens default to manual entry, no stock is deducted and no invoice is created.
               </p>
             )}
@@ -1931,12 +1937,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               <Separator />
               <CardContent className="pt-6 space-y-5">
                 {patientIsLinked ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-950/30">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <RiCheckLine className="h-4 w-4 shrink-0 text-green-600" />
+                      <RiCheckLine className="h-4 w-4 shrink-0 text-success" />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-green-800 dark:text-green-200">{patient.newData.fullName}</p>
-                        <p className="text-xs text-green-700 dark:text-green-300">Existing patient · {patient.newData.phone}</p>
+                        <p className="truncate text-sm font-semibold text-success">{patient.newData.fullName}</p>
+                        <p className="text-xs text-success">Existing patient · {patient.newData.phone}</p>
                       </div>
                     </div>
                     <Button type="button" variant="outline" size="sm" onClick={unlinkPatient}>Change patient</Button>
@@ -1965,9 +1971,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                             <ul className="max-h-60 divide-y divide-border overflow-y-auto">
                               {(patientQueryResults?.data || []).slice(0, 8).map((p) => (
                                 <li key={p.patient_id}>
-                                  <button
+                                  <Button
                                     type="button"
-                                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                                    variant="ghost"
+                                    className="h-auto w-full justify-between gap-3 rounded-none px-4 py-2.5 text-left font-normal hover:bg-muted/50"
                                     onClick={() => { handlePatientAction(p); setPatientQuery('') }}
                                   >
                                     <div className="min-w-0">
@@ -1977,7 +1984,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                       </p>
                                     </div>
                                     <span className="shrink-0 text-xs font-medium text-primary">Select</span>
-                                  </button>
+                                  </Button>
                                 </li>
                               ))}
                             </ul>
@@ -2092,8 +2099,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       </div>
                       {prescriptionIsLinked && (
                         <div>
-                          <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40 px-4 py-3 mt-4 flex items-center justify-between">
-                            <p className="text-sm font-medium text-green-800 dark:text-green-200 flex items-center gap-2">
+                          <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 mt-4 flex items-center justify-between">
+                            <p className="text-sm font-medium text-success flex items-center gap-2">
                               <RiCheckLine className="h-4 w-4" />
                               Prescription loaded successfully
                             </p>
@@ -2123,40 +2130,40 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                 <div className="space-y-4">
                                   {/* Rx table — read-only */}
                                   <div className="overflow-x-auto rounded-lg border border-border/60">
-                                    <table className="w-full text-sm">
-                                      <thead>
-                                        <tr className="bg-muted/50 border-b border-border/60">
-                                          <th className="py-2.5 px-4 text-left font-semibold text-muted-foreground w-20"></th>
+                                    <Table className="text-sm">
+                                      <TableHeader>
+                                        <TableRow className="bg-muted/50 border-b border-border/60 hover:bg-transparent">
+                                          <TableHead className="h-auto py-2.5 px-4 text-left font-semibold text-muted-foreground w-20"></TableHead>
                                           {['Sphere', 'Cylinder', 'Axis', 'Add', 'PD'].map((col) => (
-                                            <th key={col} className="py-2.5 px-3 text-center font-semibold text-muted-foreground uppercase tracking-wide text-xs">{col}</th>
+                                            <TableHead key={col} className="h-auto py-2.5 px-3 text-center font-semibold text-muted-foreground uppercase tracking-wide text-xs">{col}</TableHead>
                                           ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr className="border-b border-border/40 bg-primary/5">
-                                          <td className="py-3 px-4">
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        <TableRow className="border-b border-border/40 bg-primary/5 hover:bg-transparent">
+                                          <TableCell className="py-3 px-4">
                                             <div className="flex items-center gap-2">
                                               <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-bold text-xs">OD</Badge>
                                               <span className="text-xs text-muted-foreground hidden sm:inline">Right</span>
                                             </div>
-                                          </td>
+                                          </TableCell>
                                           {[form.rightEye.sphere, form.rightEye.cylinder, form.rightEye.axis, form.rightEye.add, form.rightEye.pd].map((val, i) => (
-                                            <td key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</td>
+                                            <TableCell key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</TableCell>
                                           ))}
-                                        </tr>
-                                        <tr className="bg-blue-50/40 dark:bg-blue-950/20">
-                                          <td className="py-3 px-4">
+                                        </TableRow>
+                                        <TableRow className="bg-info/5 hover:bg-transparent">
+                                          <TableCell className="py-3 px-4">
                                             <div className="flex items-center gap-2">
-                                              <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-bold text-xs">OS</Badge>
+                                              <Badge variant="secondary" className="bg-info/10 text-info border-info/30 font-bold text-xs">OS</Badge>
                                               <span className="text-xs text-muted-foreground hidden sm:inline">Left</span>
                                             </div>
-                                          </td>
+                                          </TableCell>
                                           {[form.leftEye.sphere, form.leftEye.cylinder, form.leftEye.axis, form.leftEye.add, form.leftEye.pd].map((val, i) => (
-                                            <td key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</td>
+                                            <TableCell key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</TableCell>
                                           ))}
-                                        </tr>
-                                      </tbody>
-                                    </table>
+                                        </TableRow>
+                                      </TableBody>
+                                    </Table>
                                   </div>
                                   <div className="grid grid-cols-2 gap-4 pt-1">
                                     <div>
@@ -2193,10 +2200,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
                     {/* Prescription table — OD / OS rows */}
                     <div className="overflow-x-auto rounded-lg border border-border/60">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border/60">
-                            <th className="py-2.5 pl-4 pr-2 text-left font-semibold text-muted-foreground w-24 shrink-0">Eye</th>
+                      <Table className="text-sm">
+                        <TableHeader>
+                          <TableRow className="bg-muted/50 border-b border-border/60 hover:bg-transparent">
+                            <TableHead className="h-auto py-2.5 pl-4 pr-2 text-left font-semibold text-muted-foreground w-24 shrink-0">Eye</TableHead>
                             {[
                               { label: 'Sphere', hint: '±0.25' },
                               { label: 'Cylinder', hint: '±0.25' },
@@ -2204,24 +2211,24 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                               { label: 'Add', hint: '0–4' },
                               { label: 'PD', hint: 'mm' },
                             ].map(({ label, hint }) => (
-                              <th key={label} className="py-2.5 px-2 text-center font-semibold text-muted-foreground">
+                              <TableHead key={label} className="h-auto py-2.5 px-2 text-center font-semibold text-muted-foreground">
                                 <div className="text-xs uppercase tracking-wide">{label}</div>
                                 <div className="text-[10px] font-normal text-muted-foreground/60">{hint}</div>
-                              </th>
+                              </TableHead>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {/* OD — Right Eye */}
-                          <tr className="border-b border-border/40 bg-primary/5">
-                            <td className="pl-4 pr-2 py-3 align-top pt-3">
+                          <TableRow className="border-b border-border/40 bg-primary/5 hover:bg-transparent">
+                            <TableCell className="pl-4 pr-2 py-3 align-top pt-3">
                               <div className="flex flex-col gap-0.5">
                                 <Badge variant="default" className="bg-primary/20 text-primary border-primary/40 font-bold text-xs w-fit">OD</Badge>
                                 <span className="text-[10px] text-muted-foreground">Right</span>
                               </div>
-                            </td>
+                            </TableCell>
                             {/* Sphere — has PL/NPL shortcuts below the input */}
-                            <td className="px-2 py-3 align-top">
+                            <TableCell className="px-2 py-3 align-top">
                               <div className="space-y-1">
                                 <Input
                                   type="text"
@@ -2235,12 +2242,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   }}
                                 />
                                 <div className="flex gap-1">
-                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'PLANO' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">PL</button>
-                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'NPL' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">NPL</button>
+                                  <Button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'PLANO' as any, { shouldDirty: true })} variant="outline" size="sm" className="h-auto flex-1 rounded border-border/60 bg-muted/60 px-0 py-0.5 text-[10px] font-semibold hover:bg-muted disabled:opacity-40">PL</Button>
+                                  <Button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.rightEye.sphere', 'NPL' as any, { shouldDirty: true })} variant="outline" size="sm" className="h-auto flex-1 rounded border-border/60 bg-muted/60 px-0 py-0.5 text-[10px] font-semibold hover:bg-muted disabled:opacity-40">NPL</Button>
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2248,8 +2255,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', v + 0.25) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.cylinder')) || 0; setValue('prescription.newData.rightEye.cylinder', v - 0.25) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
                                 {...register('prescription.newData.rightEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2257,8 +2264,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', (v + 1) % 181) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.axis')) || 0; setValue('prescription.newData.rightEye.axis', v === 0 ? 180 : v - 1) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2266,8 +2273,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.min(v + 0.25, 4)) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(v - 0.25, 0)) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.rightEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2275,19 +2282,19 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.min(v + 0.5, 75)) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.pd')) || 0; setValue('prescription.newData.rightEye.pd', Math.max(v - 0.5, 50)) }
                                 }} />
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
 
                           {/* OS — Left Eye */}
-                          <tr className="bg-blue-50/40 dark:bg-blue-950/20">
-                            <td className="pl-4 pr-2 py-3 align-top pt-3">
+                          <TableRow className="bg-info/5 hover:bg-transparent">
+                            <TableCell className="pl-4 pr-2 py-3 align-top pt-3">
                               <div className="flex flex-col gap-0.5">
-                                <Badge variant="secondary" className="bg-blue-100/60 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-bold text-xs w-fit">OS</Badge>
+                                <Badge variant="secondary" className="bg-info/10 text-info border-info/30 font-bold text-xs w-fit">OS</Badge>
                                 <span className="text-[10px] text-muted-foreground">Left</span>
                               </div>
-                            </td>
+                            </TableCell>
                             {/* Sphere */}
-                            <td className="px-2 py-3 align-top">
+                            <TableCell className="px-2 py-3 align-top">
                               <div className="space-y-1">
                                 <Input
                                   type="text"
@@ -2301,12 +2308,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   }}
                                 />
                                 <div className="flex gap-1">
-                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'PLANO' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">PL</button>
-                                  <button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'NPL' as any, { shouldDirty: true })} className="flex-1 text-[10px] font-semibold rounded border border-border/60 bg-muted/60 hover:bg-muted py-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">NPL</button>
+                                  <Button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'PLANO' as any, { shouldDirty: true })} variant="outline" size="sm" className="h-auto flex-1 rounded border-border/60 bg-muted/60 px-0 py-0.5 text-[10px] font-semibold hover:bg-muted disabled:opacity-40">PL</Button>
+                                  <Button type="button" disabled={prescriptionIsLinked} onClick={() => setValue('prescription.newData.leftEye.sphere', 'NPL' as any, { shouldDirty: true })} variant="outline" size="sm" className="h-auto flex-1 rounded border-border/60 bg-muted/60 px-0 py-0.5 text-[10px] font-semibold hover:bg-muted disabled:opacity-40">NPL</Button>
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.cylinder', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2314,8 +2321,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', v + 0.25) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.cylinder')) || 0; setValue('prescription.newData.leftEye.cylinder', v - 0.25) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="1" placeholder="0" className="text-center h-9 font-medium tabular-nums min-w-[60px]"
                                 {...register('prescription.newData.leftEye.axis', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2323,8 +2330,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', (v + 1) % 181) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.axis')) || 0; setValue('prescription.newData.leftEye.axis', v === 0 ? 180 : v - 1) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.25" placeholder="0.00" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.add', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2332,8 +2339,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.min(v + 0.25, 4)) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.add')) || 0; setValue('prescription.newData.leftEye.add', Math.max(v - 0.25, 0)) }
                                 }} />
-                            </td>
-                            <td className="px-2 py-3 align-top">
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2341,10 +2348,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.min(v + 0.5, 75)) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.leftEye.pd')) || 0; setValue('prescription.newData.leftEye.pd', Math.max(v - 0.5, 50)) }
                                 }} />
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
                     </div>
 
                     {/* Prescription helpers row */}
@@ -2418,12 +2425,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 {frame.isOld ? (
                   /* Manual mode: historical (with price) or reference-only (no charge) */
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-600 dark:bg-amber-950/30">
+                    <div className="flex flex-col gap-2 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2.5">
-                        <RiHistoryLine className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <RiHistoryLine className="h-4 w-4 shrink-0 text-warning" />
                         <div>
-                          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Entering the frame manually</p>
-                          <p className="text-xs text-amber-700 dark:text-amber-400">For frames not in inventory — no stock is deducted</p>
+                          <p className="text-xs font-semibold text-warning-foreground dark:text-warning">Entering the frame manually</p>
+                          <p className="text-xs text-warning">For frames not in inventory — no stock is deducted</p>
                         </div>
                       </div>
                       <Button
@@ -2440,7 +2447,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     <div
                       className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
                         frame.isReference
-                          ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30'
+                          ? 'border-info/30 bg-info/10'
                           : 'border-border bg-muted/10 hover:bg-muted/30'
                       }`}
                       onClick={() => {
@@ -2450,12 +2457,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <RiFileTextLine className={`h-3.5 w-3.5 ${frame.isReference ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
+                        <RiFileTextLine className={`h-3.5 w-3.5 ${frame.isReference ? 'text-info' : 'text-muted-foreground'}`} />
                         <div>
-                          <p className={`text-xs font-semibold ${frame.isReference ? 'text-blue-800 dark:text-blue-300' : 'text-foreground'}`}>
+                          <p className={`text-xs font-semibold ${frame.isReference ? 'text-info' : 'text-foreground'}`}>
                             Reference only — no charge
                           </p>
-                          <p className={`text-xs ${frame.isReference ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>
+                          <p className={`text-xs ${frame.isReference ? 'text-info' : 'text-muted-foreground'}`}>
                             {frame.isReference ? 'Existing frame noted for records — $0, no stock change' : 'Toggle on if noting an existing frame the patient already has (e.g. lens-change visit)'}
                           </p>
                         </div>
@@ -2465,7 +2472,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         aria-checked={frame.isReference}
                         onClick={(e) => e.stopPropagation()}
                         className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                          frame.isReference ? 'bg-blue-500 border-blue-500' : 'border-blue-400/60 bg-transparent'
+                          frame.isReference ? 'bg-info border-info' : 'border-info/60 bg-transparent'
                         }`}
                       >
                         {frame.isReference && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
@@ -2557,12 +2564,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 {lens.isOld ? (
                   /* Manual mode: historical (with price) or reference-only (no charge) */
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-600 dark:bg-amber-950/30">
+                    <div className="flex flex-col gap-2 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2.5">
-                        <RiHistoryLine className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <RiHistoryLine className="h-4 w-4 shrink-0 text-warning" />
                         <div>
-                          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Entering the lens manually</p>
-                          <p className="text-xs text-amber-700 dark:text-amber-400">For lenses not in the catalog</p>
+                          <p className="text-xs font-semibold text-warning-foreground dark:text-warning">Entering the lens manually</p>
+                          <p className="text-xs text-warning">For lenses not in the catalog</p>
                         </div>
                       </div>
                       <Button
@@ -2579,7 +2586,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     <div
                       className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer select-none transition-all ${
                         lens.isReference
-                          ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30'
+                          ? 'border-info/30 bg-info/10'
                           : 'border-border bg-muted/10 hover:bg-muted/30'
                       }`}
                       onClick={() => {
@@ -2589,12 +2596,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <RiFileTextLine className={`h-3.5 w-3.5 ${lens.isReference ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
+                        <RiFileTextLine className={`h-3.5 w-3.5 ${lens.isReference ? 'text-info' : 'text-muted-foreground'}`} />
                         <div>
-                          <p className={`text-xs font-semibold ${lens.isReference ? 'text-blue-800 dark:text-blue-300' : 'text-foreground'}`}>
+                          <p className={`text-xs font-semibold ${lens.isReference ? 'text-info' : 'text-foreground'}`}>
                             Reference only — no charge
                           </p>
-                          <p className={`text-xs ${lens.isReference ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>
+                          <p className={`text-xs ${lens.isReference ? 'text-info' : 'text-muted-foreground'}`}>
                             {lens.isReference ? 'Existing lens noted for records — $0, no stock change' : 'Toggle on if noting an existing lens the patient already has (e.g. frame-change visit)'}
                           </p>
                         </div>
@@ -2604,7 +2611,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         aria-checked={lens.isReference}
                         onClick={(e) => e.stopPropagation()}
                         className={`h-4 w-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-colors ${
-                          lens.isReference ? 'bg-blue-500 border-blue-500' : 'border-blue-400/60 bg-transparent'
+                          lens.isReference ? 'bg-info border-info' : 'border-info/60 bg-transparent'
                         }`}
                       >
                         {lens.isReference && <RiCheckLine className="h-2.5 w-2.5 text-white" />}
@@ -2826,7 +2833,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     title="Free With This Order"
                     description="Anything given at no charge. It comes out of stock but doesn't print on the invoice or receipts."
                     aside={freeProducts.length > 0 && (
-                      <Badge variant="secondary" className="shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                      <Badge variant="secondary" className="shrink-0 bg-success/10 text-success">
                         {freeProducts.length} free
                       </Badge>
                     )}
@@ -2849,10 +2856,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     )}
 
                     {freeProducts.length > 0 ? (
-                      <ul className="divide-y divide-border rounded-lg border border-emerald-200 dark:border-emerald-900">
+                      <ul className="divide-y divide-border rounded-lg border border-success/30">
                         {freeProducts.map((product) => (
                           <li key={product.product_id} className="flex items-center gap-3 px-4 py-2.5">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
                               <RiGiftLine className="size-4" />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -2862,7 +2869,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                 {suggestedCase?.product_id === product.product_id ? ' · Suggested for this frame price' : ''}
                               </p>
                             </div>
-                            <span className="rounded-full bg-emerald-600 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-white">Free</span>
+                            <span className="rounded-full bg-success px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-success-foreground">Free</span>
                             <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                               onClick={() => removeFreeItem(product.product_id)} aria-label={`Remove ${product.name}`}>
                               <RiDeleteBin6Line className="size-3.5" />
@@ -3023,29 +3030,28 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                     <p className="text-sm font-medium leading-none">
                       Sold at <span className="font-normal text-muted-foreground">(optional)</span>
                     </p>
-                    <div role="radiogroup" aria-label="Sold at" className="grid grid-cols-2 gap-2">
+                    <ToggleGroup
+                      type="single"
+                      value={saleLocation ?? ''}
+                      onValueChange={(value) => setValue('saleLocation', (value || undefined) as typeof saleLocation, { shouldDirty: true })}
+                      aria-label="Sold at"
+                      className="grid w-full grid-cols-2 gap-2"
+                    >
                       {SALE_LOCATIONS.map((loc) => {
                         const isSelected = saleLocation === loc.key
                         return (
-                          <button
+                          <ToggleGroupItem
                             key={loc.key}
-                            type="button"
-                            role="radio"
-                            aria-checked={isSelected}
-                            onClick={() => setValue('saleLocation', isSelected ? undefined : loc.key, { shouldDirty: true })}
-                            className={`flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                            }`}
+                            value={loc.key}
+                            className="h-9 justify-start gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-muted-foreground hover:border-primary/50 hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
                           >
                             <loc.icon className="size-4 shrink-0" />
                             {loc.label}
                             {isSelected && <RiCheckLine className="ml-auto size-4" />}
-                          </button>
+                          </ToggleGroupItem>
                         )
                       })}
-                    </div>
+                    </ToggleGroup>
                   </div>
                 </CardContent>
               </Card>
@@ -3081,14 +3087,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
               {/* Anything that would stop the order saving, with a way to fix it */}
               {reviewIssues.length > 0 && !savedOrderNumber && (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                <div className="rounded-xl border border-warning/30 bg-warning/10 p-4">
                   <div className="flex items-center gap-2">
-                    <RiAlertLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Check these before saving</p>
+                    <RiAlertLine className="h-4 w-4 text-warning" />
+                    <p className="text-sm font-semibold text-warning-foreground dark:text-warning">Check these before saving</p>
                   </div>
                   <ul className="mt-2 space-y-1.5">
                     {reviewIssues.map((issue) => (
-                      <li key={issue.message} className="flex items-center justify-between gap-3 text-sm text-amber-900 dark:text-amber-200">
+                      <li key={issue.message} className="flex items-center justify-between gap-3 text-sm text-warning-foreground dark:text-warning">
                         <span>{issue.message}</span>
                         {issue.step !== currentStep && (
                           <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => setCurrentStep(issue.step)}>
@@ -3262,22 +3268,12 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto xl:block">
           {showInvoicePreview && (
             <div className="flex items-center justify-between gap-2">
-              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist">
-                {([['summary', 'Order summary'], ['preview', 'Invoice preview']] as const).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeRightPanel === key}
-                    onClick={() => setRightPanel(key)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      activeRightPanel === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <Tabs value={activeRightPanel} onValueChange={(value) => setRightPanel(value as typeof activeRightPanel)}>
+                <TabsList className="group-data-[orientation=horizontal]/tabs:h-8">
+                  <TabsTrigger value="summary" className="px-3 text-xs">Order summary</TabsTrigger>
+                  <TabsTrigger value="preview" className="px-3 text-xs">Invoice preview</TabsTrigger>
+                </TabsList>
+              </Tabs>
               {savedInvoice && (
                 <Button type="button" size="sm" variant="outline" onClick={handleDownloadInvoicePdf} disabled={isDownloadingPdf}>
                   <RiDownloadLine className="mr-1.5 h-4 w-4" />PDF

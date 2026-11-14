@@ -113,7 +113,7 @@ export function VariantHistoryDrawer({ open, onClose, variant }: Props) {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className={`font-semibold tabular-nums text-sm ${
-                              m.movement_type === 'SALE_OUT' ? 'text-destructive' : 'text-green-600 dark:text-green-400'
+                              m.movement_type === 'SALE_OUT' ? 'text-destructive' : 'text-success'
                             }`}>
                               {m.movement_type === 'SALE_OUT' ? '-' : '+'}{Math.abs(m.quantity)}
                             </span>

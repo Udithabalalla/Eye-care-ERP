@@ -64,10 +64,10 @@ const SupplierPayments = () => {
           row.original.invoice_id ? (
             <div className="flex flex-col">
               <span className="font-medium text-primary">{row.original.invoice_number || row.original.invoice_id}</span>
-              {row.original.is_advance && <span className="text-[11px] text-sky-700 dark:text-sky-300">Paid ahead</span>}
+              {row.original.is_advance && <span className="text-[11px] text-info">Paid ahead</span>}
             </div>
           ) : (
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Advance — no invoice yet</span>
+            <span className="rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info">Advance — no invoice yet</span>
           ),
       },
       {

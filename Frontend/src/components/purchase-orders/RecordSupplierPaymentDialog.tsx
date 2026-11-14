@@ -189,11 +189,11 @@ export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplier
                 </div>
                 <div className="px-3 py-2.5">
                   <p className="text-[11px] text-muted-foreground">{advanceFor ? 'Paid ahead' : 'Paid so far'}</p>
-                  <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(alreadyPaid)}</p>
+                  <p className="font-semibold tabular-nums text-success">{formatCurrency(alreadyPaid)}</p>
                 </div>
                 <div className="px-3 py-2.5">
                   <p className="text-[11px] text-muted-foreground">{advanceFor ? 'Up to' : 'To pay'}</p>
-                  <p className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(balanceDue)}</p>
+                  <p className="font-semibold tabular-nums text-warning">{formatCurrency(balanceDue)}</p>
                 </div>
               </div>
 
@@ -284,7 +284,7 @@ export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplier
               />
 
               {amount > 0 && !overpaying && (
-                <p className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm', remainingAfter <= 0.005 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-muted/50 text-muted-foreground')}>
+                <p className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm', remainingAfter <= 0.005 ? 'bg-success/10 text-success' : 'bg-muted/50 text-muted-foreground')}>
                   {advanceFor ? (
                     remainingAfter <= 0.005 ? (
                       <>

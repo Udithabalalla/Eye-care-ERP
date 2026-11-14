@@ -159,8 +159,8 @@ export function CreatePODrawer({ open, onClose, subject, onSuccess }: Props) {
       <SheetContent side="right" className="flex flex-col sm:max-w-lg overflow-hidden p-0">
         <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
           <div className="flex items-start gap-3 pr-20">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-              <RiFileTextLine className="size-5 text-blue-700 dark:text-blue-400" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info/15">
+              <RiFileTextLine className="size-5 text-info" />
             </div>
             <div className="space-y-0.5">
               <SheetTitle className="text-base">Create Purchase Order</SheetTitle>

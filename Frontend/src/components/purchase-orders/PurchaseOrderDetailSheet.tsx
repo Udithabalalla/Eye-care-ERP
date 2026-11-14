@@ -292,7 +292,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                         </div>
                         <div className="px-3 py-2.5">
                           <p className="text-[11px] text-muted-foreground">{receivingStarted ? 'Received' : 'Units'}</p>
-                          <p className={cn('text-sm font-semibold tabular-nums', receivingStarted && receivedUnits < orderedUnits && 'text-amber-600 dark:text-amber-400', receivingStarted && receivedUnits >= orderedUnits && 'text-emerald-600 dark:text-emerald-400')}>
+                          <p className={cn('text-sm font-semibold tabular-nums', receivingStarted && receivedUnits < orderedUnits && 'text-warning', receivingStarted && receivedUnits >= orderedUnits && 'text-success')}>
                             {receivingStarted ? `${receivedUnits} of ${orderedUnits}` : orderedUnits}
                           </p>
                         </div>
@@ -303,7 +303,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                       </div>
                       {receivingStarted && orderedUnits > 0 && (
                         <div className="h-1 bg-muted">
-                          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, (receivedUnits / orderedUnits) * 100)}%` }} />
+                          <div className="h-full bg-success transition-all" style={{ width: `${Math.min(100, (receivedUnits / orderedUnits) * 100)}%` }} />
                         </div>
                       )}
                       {(NEXT_STEP_NOTES[order.status] || order.sent_at) && (
@@ -319,7 +319,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                           <span className="min-w-0 text-muted-foreground">
                             {advancePaid > 0 ? (
                               <>
-                                Paid ahead <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(advancePaid)}</span>
+                                Paid ahead <span className="font-semibold text-success">{formatCurrency(advancePaid)}</span>
                                 {' '}· counts against the invoice
                               </>
                             ) : (
@@ -396,7 +396,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                                     {formatDate(payment.payment_date)}
                                     <span className={cn(
                                       'rounded-full px-1.5 py-px text-[10px] font-medium',
-                                      payment.is_advance ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' : 'bg-muted text-muted-foreground',
+                                      payment.is_advance ? 'bg-info/10 text-info' : 'bg-muted text-muted-foreground',
                                     )}>
                                       {payment.is_advance ? 'Advance' : `Invoice ${payment.invoice_number ?? ''}`.trim()}
                                     </span>
@@ -405,7 +405,7 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                                     {[METHOD_LABELS[payment.payment_method] ?? payment.payment_method, payment.reference_number].filter(Boolean).join(' · ')}
                                   </p>
                                 </div>
-                                <span className="shrink-0 text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(payment.amount_paid)}</span>
+                                <span className="shrink-0 text-sm font-medium tabular-nums text-success">{formatCurrency(payment.amount_paid)}</span>
                               </li>
                             ))}
                           </ul>

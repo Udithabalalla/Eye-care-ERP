@@ -46,7 +46,7 @@ export interface FrameModelActions {
 const Stat = ({ label, value, tone }: { label: string; value: number; tone?: 'warn' | 'bad' }) => (
   <div className="px-3 py-2.5">
     <p className="text-[11px] text-muted-foreground">{label}</p>
-    <p className={cn('text-sm font-semibold tabular-nums', tone === 'warn' && 'text-amber-600 dark:text-amber-400', tone === 'bad' && 'text-destructive')}>
+    <p className={cn('text-sm font-semibold tabular-nums', tone === 'warn' && 'text-warning', tone === 'bad' && 'text-destructive')}>
       {value}
     </p>
   </div>
@@ -167,7 +167,7 @@ export function FrameModelDrawer({
                             <RiEqualizer2Line className="size-3.5" />Count
                           </Button>
                           {v.current_stock <= v.reorder_level && (
-                            <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs text-amber-700 dark:text-amber-400" onClick={() => actions.onReorder(v)}>
+                            <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs text-warning" onClick={() => actions.onReorder(v)}>
                               <RiShoppingCartLine className="size-3.5" />Reorder
                             </Button>
                           )}

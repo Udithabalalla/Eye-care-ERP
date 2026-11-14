@@ -97,7 +97,7 @@ const SupplierInvoices = () => {
           <div className="flex min-w-0 flex-col">
             <span className="font-medium text-primary">{row.original.invoice_number}</span>
             {row.original.matching_status === 'Flagged' && (
-              <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+              <span className="flex items-center gap-1 text-[11px] text-warning">
                 <RiAlertLine className="size-3" /> Doesn’t match order
               </span>
             )}
@@ -161,9 +161,9 @@ const SupplierInvoices = () => {
         cell: ({ row }) => {
           const balance = row.original.balance_due ?? row.original.total_amount
           return balance > 0 ? (
-            <span className="font-medium tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(balance)}</span>
+            <span className="font-medium tabular-nums text-warning">{formatCurrency(balance)}</span>
           ) : (
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Paid</span>
+            <span className="text-xs font-medium text-success">Paid</span>
           )
         },
       },
@@ -252,7 +252,7 @@ const SupplierInvoices = () => {
           onClick={() => pickTab('overdue')}
           className={cn(
             'rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-destructive/40',
-            owing?.overdueCount ? 'border-red-200 dark:border-red-900' : 'border-border',
+            owing?.overdueCount ? 'border-destructive/30' : 'border-border',
           )}
         >
           <p className="text-xs text-muted-foreground">Overdue</p>

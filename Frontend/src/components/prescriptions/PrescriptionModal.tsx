@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import PrescriptionForm from './PrescriptionForm'
 import PrescriptionDetail from './PrescriptionDetail'
 import { Prescription } from '@/types/prescription.types'
@@ -47,30 +47,37 @@ const PrescriptionModal = ({
     const title = viewing ? 'Prescription' : prescription ? 'Edit prescription' : 'New prescription'
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title} size={viewing ? 'md' : 'lg'}>
-            {isOpen && (viewing ? (
-                <PrescriptionDetail
-                    prescription={prescription!}
-                    onClose={onClose}
-                    onEdit={readOnly ? undefined : () => setEditing(true)}
-                />
-            ) : (
-                <PrescriptionForm
-                    key={prescription?.prescription_id || `new-${initialPatientId ?? ''}-${initialAppointmentId ?? ''}`}
-                    prescription={prescription}
-                    initialPatientId={initialPatientId}
-                    initialDoctorId={initialDoctorId}
-                    initialDoctorName={initialDoctorName}
-                    initialAppointmentId={initialAppointmentId}
-                    onSuccess={() => {
-                        onSuccess()
-                        onClose()
-                    }}
-                    onCancel={() => (prescription && !startEditing ? setEditing(false) : onClose())}
-                    onSwitchToEdit={onSwitchToEdit}
-                />
-            ))}
-        </Modal>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className={`max-h-[90vh] gap-0 overflow-y-auto p-0 ${viewing ? 'sm:max-w-2xl' : 'sm:max-w-4xl'}`}>
+                <DialogHeader className="border-b border-border px-6 py-5">
+                    <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+                </DialogHeader>
+                <div className="p-6">
+                    {isOpen && (viewing ? (
+                        <PrescriptionDetail
+                            prescription={prescription!}
+                            onClose={onClose}
+                            onEdit={readOnly ? undefined : () => setEditing(true)}
+                        />
+                    ) : (
+                        <PrescriptionForm
+                            key={prescription?.prescription_id || `new-${initialPatientId ?? ''}-${initialAppointmentId ?? ''}`}
+                            prescription={prescription}
+                            initialPatientId={initialPatientId}
+                            initialDoctorId={initialDoctorId}
+                            initialDoctorName={initialDoctorName}
+                            initialAppointmentId={initialAppointmentId}
+                            onSuccess={() => {
+                                onSuccess()
+                                onClose()
+                            }}
+                            onCancel={() => (prescription && !startEditing ? setEditing(false) : onClose())}
+                            onSwitchToEdit={onSwitchToEdit}
+                        />
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 

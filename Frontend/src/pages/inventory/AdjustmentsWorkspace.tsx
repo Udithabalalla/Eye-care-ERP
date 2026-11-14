@@ -94,7 +94,7 @@ export default function AdjustmentsWorkspace() {
                 <p className="text-xs text-muted-foreground">
                   Current stock: <span className="font-semibold text-foreground">{variant.current_stock ?? 0}</span>
                   {delta !== null && !isNaN(delta) && (
-                    <span className={`ml-2 font-semibold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    <span className={`ml-2 font-semibold ${delta > 0 ? 'text-success' : delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                       ({delta > 0 ? '+' : ''}{delta})
                     </span>
                   )}
@@ -171,7 +171,7 @@ export default function AdjustmentsWorkspace() {
                         {m.sku && <p className="font-mono text-xs text-muted-foreground">{m.sku}</p>}
                       </TableCell>
                       <TableCell>
-                        <span className={`font-semibold tabular-nums ${m.quantity > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        <span className={`font-semibold tabular-nums ${m.quantity > 0 ? 'text-success' : 'text-destructive'}`}>
                           {m.quantity > 0 ? '+' : ''}{m.quantity}
                         </span>
                       </TableCell>

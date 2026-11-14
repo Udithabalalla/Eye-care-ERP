@@ -209,7 +209,7 @@ export function SendPurchaseOrderDialog({ order, open, onClose, onDone }: Props)
               )}
 
               {sendError && (
-                <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   <RiAlertLine className="mt-0.5 size-4 shrink-0" />
                   {sendError}
                 </p>

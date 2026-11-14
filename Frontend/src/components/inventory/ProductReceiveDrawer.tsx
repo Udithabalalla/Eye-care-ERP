@@ -124,8 +124,8 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
       <SheetContent side="right" className="flex flex-col sm:max-w-lg overflow-hidden p-0">
         <SheetHeader className="border-b px-6 py-5 flex-shrink-0">
           <div className="flex items-start gap-3 pr-20">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
-              <RiArrowDownCircleLine className="size-5 text-green-700 dark:text-green-400" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success/15">
+              <RiArrowDownCircleLine className="size-5 text-success" />
             </div>
             <div className="space-y-0.5">
               <SheetTitle className="text-base">Receive Stock</SheetTitle>
@@ -180,7 +180,7 @@ export function ProductReceiveDrawer({ open, onClose, product, onSuccess }: Prop
                   <p className="text-xs text-muted-foreground mb-1">After receiving</p>
                   <p className="font-semibold text-lg tabular-nums">
                     {product.current_stock} + {qtyNum} ={' '}
-                    <span className="text-green-600 dark:text-green-400">{newTotal} units</span>
+                    <span className="text-success">{newTotal} units</span>
                   </p>
                 </div>
               )}

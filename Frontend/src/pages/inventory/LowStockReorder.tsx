@@ -92,9 +92,9 @@ const LowStockReorder = () => {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Running low</p>
-              <p className={`text-2xl font-bold ${counts.low ? 'text-amber-600' : ''}`}>{counts.low}</p>
+              <p className={`text-2xl font-bold ${counts.low ? 'text-warning' : ''}`}>{counts.low}</p>
             </div>
-            <RiTruckLine className={`h-8 w-8 ${counts.low ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+            <RiTruckLine className={`h-8 w-8 ${counts.low ? 'text-warning' : 'text-muted-foreground/40'}`} />
           </CardContent>
         </Card>
       </div>
@@ -135,7 +135,7 @@ const LowStockReorder = () => {
                 {chosen.length} item{chosen.length === 1 ? '' : 's'} · {supplierCount} supplier{supplierCount === 1 ? '' : 's'}
                 {estimate > 0 && ` · est. ${formatCurrency(estimate)}`}
               </span>
-              {noSupplier > 0 && <span className="text-xs text-amber-700 dark:text-amber-400">{noSupplier} without a supplier will be skipped</span>}
+              {noSupplier > 0 && <span className="text-xs text-warning">{noSupplier} without a supplier will be skipped</span>}
               <div className="flex-1" />
               <Button size="sm" className="gap-1.5" disabled={reorderMutation.isPending} onClick={() => reorderMutation.mutate()}>
                 {reorderMutation.isPending ? <RiLoader4Line className="size-4 animate-spin" /> : <RiShoppingCartLine className="size-4" />}
@@ -151,7 +151,7 @@ const LowStockReorder = () => {
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <RiCheckDoubleLine className="mb-2 h-8 w-8 text-emerald-500" />
+              <RiCheckDoubleLine className="mb-2 h-8 w-8 text-success" />
               <p className="text-sm font-medium">Nothing is running low</p>
               <p className="text-xs text-muted-foreground">Items appear here when they reach their reorder level.</p>
             </div>
@@ -187,7 +187,7 @@ const LowStockReorder = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">{[item.detail, item.sku].filter(Boolean).join(' · ')}</p>
                       </TableCell>
-                      <TableCell className={`text-right tabular-nums font-semibold ${item.out_of_stock ? 'text-destructive' : 'text-amber-600'}`}>
+                      <TableCell className={`text-right tabular-nums font-semibold ${item.out_of_stock ? 'text-destructive' : 'text-warning'}`}>
                         {item.current_stock}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">{item.reorder_level}</TableCell>

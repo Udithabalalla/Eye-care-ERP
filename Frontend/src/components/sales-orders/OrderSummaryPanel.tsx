@@ -8,6 +8,7 @@ import {
   RiUserLine,
 } from '@remixicon/react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -55,12 +56,12 @@ const Section = ({
       <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="size-3.5" />
         {title}
-        {complete && <RiCheckboxCircleFill className="size-3.5 text-emerald-500" aria-label="done" />}
+        {complete && <RiCheckboxCircleFill className="size-3.5 text-success" aria-label="done" />}
       </h3>
       {onEdit && (
-        <button type="button" onClick={onEdit} className="flex items-center text-[11px] font-medium text-primary hover:underline">
-          Edit <RiArrowRightSLine className="h-3 w-3" />
-        </button>
+        <Button type="button" variant="link" onClick={onEdit} className="h-auto gap-0 p-0 text-[11px] font-medium">
+          Edit <RiArrowRightSLine className="size-3" />
+        </Button>
       )}
     </div>
     {children}
@@ -83,7 +84,7 @@ const LineItem = ({ line, kind }: { line: InvoicePreviewLine; kind?: string }) =
         {detail && <p className="truncate text-xs text-muted-foreground">{detail}</p>}
       </div>
       {line.type === 'Free' ? (
-        <Badge variant="secondary" className="mt-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">Free</Badge>
+        <Badge variant="secondary" className="mt-0.5 bg-success/10 text-success">Free</Badge>
       ) : (
         <span className="shrink-0 text-sm tabular-nums">{money(line.total)}</span>
       )}

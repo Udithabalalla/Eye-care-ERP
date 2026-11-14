@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import Modal from '@/components/common/Modal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import Input from '@/components/common/Input'
 import Button from '@/components/common/Button'
 import { suppliersApi } from '@/api/suppliers.api'
@@ -84,38 +84,40 @@ const SupplierForm = ({ supplier, onSuccess, onCancel }: SupplierFormProps) => {
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Modal
-      isOpen
-      onClose={onCancel}
-      title={supplier ? 'Edit Supplier' : 'Add Supplier'}
-      size="lg"
-      footer={(
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
-          <Button onClick={save} isLoading={isSaving}>Save</Button>
+    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-4xl">
+        <DialogHeader className="border-b border-border px-6 py-5">
+          <DialogTitle className="text-xl font-bold">{supplier ? 'Edit Supplier' : 'Add Supplier'}</DialogTitle>
+        </DialogHeader>
+        <div className="p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input label="Supplier Name" value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} />
+            <Input label="Company Name" value={form.company_name ?? ''} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+            <Input label="Contact Person" value={form.contact_person ?? ''} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
+            <Input label="Phone" value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Input label="Email" type="email" value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input label="Payment Terms" value={form.payment_terms ?? ''} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} />
+            <div className="md:col-span-2">
+              <Input label="Address" value={form.address ?? ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Notes</label>
+              <textarea
+                className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={form.notes ?? ''}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+          </div>
         </div>
-      )}
-    >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Input label="Supplier Name" value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} />
-        <Input label="Company Name" value={form.company_name ?? ''} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
-        <Input label="Contact Person" value={form.contact_person ?? ''} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
-        <Input label="Phone" value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        <Input label="Email" type="email" value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <Input label="Payment Terms" value={form.payment_terms ?? ''} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} />
-        <div className="md:col-span-2">
-          <Input label="Address" value={form.address ?? ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-        </div>
-        <div className="md:col-span-2">
-          <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Notes</label>
-          <textarea
-            className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={form.notes ?? ''}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
-        </div>
-      </div>
-    </Modal>
+        <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
+            <Button onClick={save} isLoading={isSaving}>Save</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

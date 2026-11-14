@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RiMoneyDollarCircleLine } from '@remixicon/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { PaymentMethod } from '@/types/common.types'
@@ -37,23 +38,25 @@ const Segmented = ({
   ariaLabel: string
   disabled?: boolean
 }) => (
-  <div role="radiogroup" aria-label={ariaLabel} className="inline-flex flex-wrap rounded-lg border border-border bg-muted/40 p-0.5">
+  <ToggleGroup
+    type="single"
+    value={value}
+    onValueChange={(next) => next && onChange(next)}
+    disabled={disabled}
+    aria-label={ariaLabel}
+    spacing={0}
+    className="flex-wrap rounded-lg border border-border bg-muted/40 p-0.5"
+  >
     {options.map((option) => (
-      <button
+      <ToggleGroupItem
         key={option.key}
-        type="button"
-        role="radio"
-        aria-checked={value === option.key}
-        disabled={disabled}
-        onClick={() => onChange(option.key)}
-        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-60 ${
-          value === option.key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-        }`}
+        value={option.key}
+        className="h-auto rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground disabled:opacity-60 data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm group-data-[spacing=0]/toggle-group:rounded-md group-data-[spacing=0]/toggle-group:px-2.5"
       >
         {option.label}
-      </button>
+      </ToggleGroupItem>
     ))}
-  </div>
+  </ToggleGroup>
 )
 
 /** Amount box that's always there: type straight in, or let a quick pick fill it */

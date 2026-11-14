@@ -109,7 +109,7 @@ const Segmented = <T extends string>({
           <span
             className={cn(
               'rounded-full px-1.5 text-[11px] tabular-nums',
-              option.tone === 'bad' ? 'bg-destructive/10 text-destructive' : option.tone === 'warn' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-muted text-muted-foreground',
+              option.tone === 'bad' ? 'bg-destructive/10 text-destructive' : option.tone === 'warn' ? 'bg-warning/15 text-warning' : 'bg-muted text-muted-foreground',
             )}
           >
             {option.count}
@@ -588,7 +588,7 @@ export default function FramesWorkspace() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {flags?.out ? <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">{flags.out} out</span> : null}
-                          {flags?.low ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{flags.low} low</span> : null}
+                          {flags?.low ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">{flags.low} low</span> : null}
                           {!flags && m.variant_count === 0 && <span className="text-xs text-muted-foreground">No variants</span>}
                           {!flags && m.variant_count > 0 && <span className="text-xs text-muted-foreground">—</span>}
                         </div>

@@ -30,12 +30,12 @@ import { formatCurrency, formatDate } from '@/utils/formatters'
 import { LedgerReferenceType } from '@/types/erp.types'
 
 const TX_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  SALE:             { label: 'Sale',             color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800' },
-  PURCHASE:         { label: 'Purchase',         color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800' },
+  SALE:             { label: 'Sale',             color: 'bg-success/15 text-success border-success/30' },
+  PURCHASE:         { label: 'Purchase',         color: 'bg-info/15 text-info border-info/30' },
   SUPPLIER_PAYMENT: { label: 'Supplier Payment', color: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800' },
-  CUSTOMER_PAYMENT: { label: 'Customer Payment', color: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800' },
-  REFUND:           { label: 'Refund',           color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800' },
-  SALE_REVERSAL:    { label: 'Sale Reversal',    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' },
+  CUSTOMER_PAYMENT: { label: 'Customer Payment', color: 'bg-info/15 text-info border-info/30' },
+  REFUND:           { label: 'Refund',           color: 'bg-destructive/15 text-destructive border-destructive/30' },
+  SALE_REVERSAL:    { label: 'Sale Reversal',    color: 'bg-warning/15 text-warning border-warning/30' },
 }
 
 const REF_ROUTE: Partial<Record<LedgerReferenceType, string>> = {
@@ -65,10 +65,10 @@ function TxDetailSheet({ tx, open, onClose }: { tx: any; open: boolean; onClose:
       <SheetContent className="sm:max-w-md flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60">
           <div className="flex items-center gap-3 pr-20">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCredit ? 'bg-emerald-100 dark:bg-emerald-950/50' : 'bg-rose-100 dark:bg-rose-950/50'}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCredit ? 'bg-success/15' : 'bg-destructive/15'}`}>
               {isCredit
-                ? <RiArrowDownLine className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                : <RiArrowUpLine className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+                ? <RiArrowDownLine className="h-5 w-5 text-success" />
+                : <RiArrowUpLine className="h-5 w-5 text-destructive" />}
             </div>
             <div>
               <SheetTitle className="text-base leading-tight">Transaction Detail</SheetTitle>
@@ -81,9 +81,9 @@ function TxDetailSheet({ tx, open, onClose }: { tx: any; open: boolean; onClose:
 
         <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
           {/* Amount hero */}
-          <div className={`rounded-xl p-4 text-center ${isCredit ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'}`}>
+          <div className={`rounded-xl p-4 text-center ${isCredit ? 'bg-success/10' : 'bg-destructive/10'}`}>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{isCredit ? 'Credit' : 'Debit'}</p>
-            <p className={`text-3xl font-bold tabular-nums ${isCredit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
+            <p className={`text-3xl font-bold tabular-nums ${isCredit ? 'text-success' : 'text-destructive'}`}>
               {formatCurrency(tx.amount)}
             </p>
             {tx.currency && <p className="text-xs text-muted-foreground mt-1">{tx.currency}</p>}
@@ -323,7 +323,7 @@ const Ledger = () => {
                               {tx.reference_id && <p className="text-xs font-mono text-foreground/70 truncate max-w-[120px]">{tx.reference_id}</p>}
                             </TableCell>
                             <TableCell className="text-right pr-4">
-                              <span className={`tabular-nums font-semibold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                              <span className={`tabular-nums font-semibold ${isCredit ? 'text-success' : 'text-foreground'}`}>
                                 {isCredit ? '+' : '-'}{formatCurrency(tx.amount)}
                               </span>
                             </TableCell>
@@ -374,22 +374,22 @@ const Ledger = () => {
                           <TableRow key={account._id} className="hover:bg-muted/30">
                             <TableCell className="pl-6">
                               <div className="flex items-center gap-2">
-                                <div className={`h-2 w-2 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                <div className={`h-2 w-2 rounded-full ${isPositive ? 'bg-success' : 'bg-destructive'}`} />
                                 <span className="font-medium text-sm">{account._id || 'Unknown'}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="tabular-nums text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span className="tabular-nums text-sm text-success font-medium">
                                 {formatCurrency(account.total_debit)}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="tabular-nums text-sm text-rose-600 dark:text-rose-400 font-medium">
+                              <span className="tabular-nums text-sm text-destructive font-medium">
                                 {formatCurrency(account.total_credit)}
                               </span>
                             </TableCell>
                             <TableCell className="text-right pr-6">
-                              <span className={`tabular-nums font-bold text-sm ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                              <span className={`tabular-nums font-bold text-sm ${isPositive ? 'text-success' : 'text-destructive'}`}>
                                 {isPositive ? '+' : ''}{formatCurrency(account.balance)}
                               </span>
                             </TableCell>

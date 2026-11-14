@@ -26,7 +26,7 @@ export const WORKFLOW_ACTIONS: WorkflowAction[] = [
     toStatus: 'lens_ordered',
     label: 'Order Lens',
     icon: RiBox3Line,
-    className: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500',
+    className: 'bg-warning text-warning-foreground hover:bg-warning/90 border-warning',
   },
   {
     fromStatus: 'lens_ordered',
@@ -40,7 +40,7 @@ export const WORKFLOW_ACTIONS: WorkflowAction[] = [
     toStatus: 'ready',
     label: 'Mark as Ready',
     icon: RiShieldCheckLine,
-    className: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600',
+    className: 'bg-success text-success-foreground hover:bg-success/90 border-success',
   },
   {
     fromStatus: 'ready',

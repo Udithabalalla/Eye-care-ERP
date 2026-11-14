@@ -202,7 +202,7 @@ const Sessions = () => {
                       <TableCell className="text-sm">
                         {isActiveNow(session) ? (
                           <Badge variant="outline" className="gap-1.5">
-                            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                            <span className="size-1.5 rounded-full bg-success" aria-hidden />
                             Active now
                           </Badge>
                         ) : (

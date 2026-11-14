@@ -237,9 +237,9 @@ const PurchaseOrders = () => {
             return (
               <div className="flex flex-col">
                 {['Received', 'Partially Received'].includes(row.original.status)
-                  ? <span className="text-xs text-amber-600 dark:text-amber-400">Not invoiced yet</span>
+                  ? <span className="text-xs text-warning">Not invoiced yet</span>
                   : !ahead && <span className="text-xs text-muted-foreground">—</span>}
-                {ahead > 0 && <span className="text-xs text-sky-700 dark:text-sky-300">{formatCurrency(ahead)} paid ahead</span>}
+                {ahead > 0 && <span className="text-xs text-info">{formatCurrency(ahead)} paid ahead</span>}
               </div>
             )
           }
@@ -253,7 +253,7 @@ const PurchaseOrders = () => {
               }}
             >
               <span className="text-sm text-primary hover:underline">{invoice.invoice_number}</span>
-              <span className={cn('text-xs', invoice.balance_due > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+              <span className={cn('text-xs', invoice.balance_due > 0 ? 'text-warning' : 'text-success')}>
                 {invoice.balance_due > 0 ? `${formatCurrency(invoice.balance_due)} to pay` : 'Paid'}
               </span>
             </button>

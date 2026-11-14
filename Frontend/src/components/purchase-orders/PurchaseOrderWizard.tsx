@@ -592,9 +592,9 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
 
       <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {draftId && (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-            <RiFileEditLine className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">
+          <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+            <RiFileEditLine className="h-4 w-4 shrink-0 text-warning" />
+            <p className="text-sm text-warning-foreground dark:text-warning">
               <span className="font-semibold">Editing draft {draftId}.</span> Changes replace the draft; approving locks it.
             </p>
           </div>
@@ -657,7 +657,7 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                           <p className="text-muted-foreground">Terms: <span className="text-foreground">{supplier.payment_terms || 'Not set'}</span></p>
                         </div>
                         {suggestions.length > 0 && (
-                          <p className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                          <p className="flex items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning-foreground dark:text-warning">
                             <RiAlertLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                             {suggestions.length} item{suggestions.length === 1 ? '' : 's'} from this supplier {suggestions.length === 1 ? 'is' : 'are'} running low — you can add {suggestions.length === 1 ? 'it' : 'them'} in one click on the next step.
                           </p>
@@ -721,9 +721,9 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                     )}
                   >
                     {suggestions.length > 0 && (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
-                        <div className="flex items-center justify-between gap-3 border-b border-amber-200/70 px-4 py-2.5 dark:border-amber-900/70">
-                          <p className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+                      <div className="rounded-lg border border-warning/30 bg-warning/10">
+                        <div className="flex items-center justify-between gap-3 border-b border-warning/30 px-4 py-2.5">
+                          <p className="flex items-center gap-2 text-sm font-medium text-warning-foreground dark:text-warning">
                             <RiAlertLine className="h-4 w-4" />
                             Running low at {supplier?.supplier_name ?? 'this supplier'} ({suggestions.length})
                           </p>
@@ -731,7 +731,7 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                             Add all
                           </Button>
                         </div>
-                        <ul className="max-h-56 divide-y divide-amber-200/60 overflow-y-auto dark:divide-amber-900/60">
+                        <ul className="max-h-56 divide-y divide-warning/60 overflow-y-auto">
                           {suggestions.map((row) => {
                             const added = isOnOrder(row.kind, row.id)
                             return (
@@ -971,12 +971,12 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                     </div>
 
                     {issues.length > 0 ? (
-                      <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+                      <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+                        <p className="flex items-center gap-2 text-sm font-semibold text-warning-foreground dark:text-warning">
                           <RiAlertLine className="h-4 w-4" /> Before you can save
                         </p>
                         {issues.map((issue) => (
-                          <div key={issue.message} className="flex items-center justify-between gap-3 text-sm text-amber-900 dark:text-amber-200">
+                          <div key={issue.message} className="flex items-center justify-between gap-3 text-sm text-warning-foreground dark:text-warning">
                             <span>{issue.message}</span>
                             <Button type="button" size="sm" variant="outline" className="h-7 bg-background text-xs" onClick={() => goTo(issue.step)}>Fix</Button>
                           </div>

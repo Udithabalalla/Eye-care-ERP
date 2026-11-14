@@ -187,8 +187,8 @@ const Signup = () => {
                     )}
                   />
                   {role === 'admin' && (
-                    <p className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
-                      <RiAlertLine className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                    <p className="flex gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+                      <RiAlertLine className="mt-0.5 size-4 shrink-0 text-warning" />
                       An admin can see everything and manage every account. You confirm your email with a code first.
                     </p>
                   )}

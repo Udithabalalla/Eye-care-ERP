@@ -128,7 +128,7 @@ export default function MovementsLog() {
                             // Outgoing types are stored as positive quantities; adjustments carry their own sign
                             const change = ['SALE_OUT', 'COMPLIMENTARY_OUT'].includes(m.movement_type) ? -Math.abs(m.quantity) : m.quantity
                             return (
-                              <span className={`font-semibold tabular-nums ${change < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-400'}`}>
+                              <span className={`font-semibold tabular-nums ${change < 0 ? 'text-destructive' : 'text-success'}`}>
                                 {change > 0 ? '+' : ''}{change}
                               </span>
                             )

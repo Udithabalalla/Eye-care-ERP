@@ -21,7 +21,7 @@ export const PO_WORKFLOW_ACTIONS: POWorkflowAction[] = [
     toStatus: 'Approved',
     label: 'Approve Order',
     icon: RiShieldCheckLine,
-    className: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600',
+    className: 'bg-success text-success-foreground hover:bg-success/90 border-success',
     requiresDialog: false,
   },
   {
@@ -30,7 +30,7 @@ export const PO_WORKFLOW_ACTIONS: POWorkflowAction[] = [
     toStatus: 'Ordered',
     label: 'Send to Supplier',
     icon: RiMailSendLine,
-    className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
+    className: 'bg-info text-info-foreground hover:bg-info/90 border-info',
     requiresDialog: true,
   },
   {

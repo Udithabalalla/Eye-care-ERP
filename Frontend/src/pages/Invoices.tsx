@@ -260,7 +260,7 @@ const Invoices = () => {
         accessorKey: 'paid_amount',
         header: 'Paid',
         cell: ({ row }) => (
-          <span className="tabular-nums text-green-600 dark:text-green-400">
+          <span className="tabular-nums text-success">
             {formatCurrency(row.original.paid_amount)}
           </span>
         ),

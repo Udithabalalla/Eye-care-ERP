@@ -146,12 +146,12 @@ export function SupplierInvoiceDetailSheet({ invoiceId, open, onOpenChange }: Pr
                     }
                   />
                   {(invoice.overpaid_amount ?? 0) > 0 && (
-                    <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200">
+                    <p className="rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-xs text-info">
                       Advances came to {formatCurrency(invoice.overpaid_amount ?? 0)} more than this bill — the supplier owes you that, or it carries to your next order.
                     </p>
                   )}
                   {invoice.matching_status === 'Flagged' && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning-foreground dark:text-warning">
                       <p className="flex items-center gap-1.5 font-semibold">
                         <RiAlertLine className="size-3.5" />
                         Doesn’t match the purchase order
@@ -159,7 +159,7 @@ export function SupplierInvoiceDetailSheet({ invoiceId, open, onOpenChange }: Pr
                       <ul className="mt-1 list-disc space-y-0.5 pl-5">
                         {(invoice.matching_issues ?? []).slice(0, 5).map((issue) => <li key={issue}>{issue}</li>)}
                       </ul>
-                      <p className="mt-1.5 text-amber-800/80 dark:text-amber-300/80">Check with the supplier before paying.</p>
+                      <p className="mt-1.5 text-warning/80">Check with the supplier before paying.</p>
                     </div>
                   )}
                 </div>
@@ -220,14 +220,14 @@ export function SupplierInvoiceDetailSheet({ invoiceId, open, onOpenChange }: Pr
                               <p className="flex items-center gap-1.5 text-sm font-medium">
                                 {formatDate(payment.payment_date)}
                                 {payment.is_advance && (
-                                  <span className="rounded-full bg-sky-50 px-1.5 py-px text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Paid ahead</span>
+                                  <span className="rounded-full bg-info/10 px-1.5 py-px text-[10px] font-medium text-info">Paid ahead</span>
                                 )}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
                                 {[METHOD_LABELS[payment.payment_method] ?? payment.payment_method, payment.reference_number].filter(Boolean).join(' · ')}
                               </p>
                             </div>
-                            <span className="shrink-0 text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(payment.amount_paid)}</span>
+                            <span className="shrink-0 text-sm font-medium tabular-nums text-success">{formatCurrency(payment.amount_paid)}</span>
                           </li>
                         ))}
                       </ul>

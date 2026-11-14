@@ -53,12 +53,12 @@ const referenceTypes: LedgerReferenceType[] = [
 const paymentMethods = ['cash', 'card', 'upi', 'netbanking', 'bank-transfer', 'insurance']
 
 const TYPE_CONFIG: Record<LedgerTransactionType, { label: string; color: string }> = {
-  SALE:             { label: 'Sale',             color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800' },
-  PURCHASE:         { label: 'Purchase',         color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800' },
+  SALE:             { label: 'Sale',             color: 'bg-success/15 text-success border-success/30' },
+  PURCHASE:         { label: 'Purchase',         color: 'bg-info/15 text-info border-info/30' },
   SUPPLIER_PAYMENT: { label: 'Supplier Payment', color: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800' },
-  CUSTOMER_PAYMENT: { label: 'Customer Payment', color: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800' },
-  REFUND:           { label: 'Refund',           color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800' },
-  SALE_REVERSAL:    { label: 'Sale Reversal',    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' },
+  CUSTOMER_PAYMENT: { label: 'Customer Payment', color: 'bg-info/15 text-info border-info/30' },
+  REFUND:           { label: 'Refund',           color: 'bg-destructive/15 text-destructive border-destructive/30' },
+  SALE_REVERSAL:    { label: 'Sale Reversal',    color: 'bg-warning/15 text-warning border-warning/30' },
 }
 
 const REF_ROUTE: Partial<Record<LedgerReferenceType, string>> = {
@@ -94,10 +94,10 @@ function TransactionDetailSheet({ tx, open, onClose }: { tx: Transaction | null;
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60">
           <div className="flex items-start justify-between gap-3 pr-20">
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCredit ? 'bg-emerald-100 dark:bg-emerald-950/50' : 'bg-rose-100 dark:bg-rose-950/50'}`}>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCredit ? 'bg-success/15' : 'bg-destructive/15'}`}>
                 {isCredit
-                  ? <RiArrowDownLine className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  : <RiArrowUpLine className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+                  ? <RiArrowDownLine className="h-5 w-5 text-success" />
+                  : <RiArrowUpLine className="h-5 w-5 text-destructive" />}
               </div>
               <div>
                 <SheetTitle className="text-base leading-tight">Transaction Detail</SheetTitle>
@@ -109,9 +109,9 @@ function TransactionDetailSheet({ tx, open, onClose }: { tx: Transaction | null;
 
         <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
           {/* Amount hero */}
-          <div className={`rounded-xl p-4 text-center ${isCredit ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'}`}>
+          <div className={`rounded-xl p-4 text-center ${isCredit ? 'bg-success/10' : 'bg-destructive/10'}`}>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{isCredit ? 'Credit' : 'Debit'}</p>
-            <p className={`text-3xl font-bold tabular-nums ${isCredit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
+            <p className={`text-3xl font-bold tabular-nums ${isCredit ? 'text-success' : 'text-destructive'}`}>
               {formatCurrency(tx.amount)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">{tx.currency}</p>
@@ -257,9 +257,9 @@ const Transactions = () => {
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Money In</p>
-                <RiArrowDownLine className="h-4 w-4 text-emerald-500" />
+                <RiArrowDownLine className="h-4 w-4 text-success" />
               </div>
-              <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(creditTotal)}</p>
+              <p className="text-2xl font-bold tabular-nums text-success">{formatCurrency(creditTotal)}</p>
               <p className="text-xs text-muted-foreground mt-1">Sales &amp; customer payments</p>
             </CardContent>
           </Card>
@@ -267,9 +267,9 @@ const Transactions = () => {
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Money Out</p>
-                <RiArrowUpLine className="h-4 w-4 text-rose-500" />
+                <RiArrowUpLine className="h-4 w-4 text-destructive" />
               </div>
-              <p className="text-2xl font-bold tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(debitTotal)}</p>
+              <p className="text-2xl font-bold tabular-nums text-destructive">{formatCurrency(debitTotal)}</p>
               <p className="text-xs text-muted-foreground mt-1">Purchases, payments &amp; refunds</p>
             </CardContent>
           </Card>
@@ -398,7 +398,7 @@ const Transactions = () => {
                             : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`tabular-nums font-semibold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                          <span className={`tabular-nums font-semibold ${isCredit ? 'text-success' : 'text-foreground'}`}>
                             {isCredit ? '+' : '-'}{formatCurrency(tx.amount)}
                           </span>
                         </TableCell>

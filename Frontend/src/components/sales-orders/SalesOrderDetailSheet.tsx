@@ -58,6 +58,7 @@ import { RecordPaymentDialog } from '@/components/common/RecordPaymentDialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { EyeRxTable } from '@/components/prescriptions/EyeRxTable'
 import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemList, MoneyStrip, TotalsBlock, type DrawerLineItem } from '@/components/common/DetailDrawer'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
@@ -579,24 +580,7 @@ function PrescriptionCard({ prescription }: { prescription: Prescription }) {
 
       {/* Eye chart — R / L */}
       {hasEyeRx && (
-        <div className="rounded-lg border border-border/70 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground w-8">Eye</th>
-                <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">SPH</th>
-                <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">CYL</th>
-                <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">AXIS</th>
-                <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">ADD</th>
-                <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">PD</th>
-              </tr>
-            </thead>
-            <tbody>
-              <EyeRow label="R" eye={rx.right_eye} />
-              <EyeRow label="L" eye={rx.left_eye} isLast />
-            </tbody>
-          </table>
-        </div>
+        <EyeRxTable rx={rx!} />
       )}
 
       {prescription.diagnosis && (
@@ -615,31 +599,6 @@ function PrescriptionCard({ prescription }: { prescription: Prescription }) {
   )
 }
 
-function EyeRow({
-  label,
-  eye,
-  isLast,
-}: {
-  label: string
-  eye: Prescription['eye_prescription'] extends undefined ? never : NonNullable<Prescription['eye_prescription']>['right_eye']
-  isLast?: boolean
-}) {
-  const fmt = (v: number) => {
-    if (v === 0) return '0.00'
-    return (v > 0 ? '+' : '') + v.toFixed(2)
-  }
-
-  return (
-    <tr className={cn('text-center', !isLast && 'border-b border-border/50')}>
-      <td className="py-2 px-2 font-bold text-left text-foreground">{label}</td>
-      <td className="py-2 px-2 tabular-nums">{fmt(Number(eye.sphere))}</td>
-      <td className="py-2 px-2 tabular-nums">{fmt(Number(eye.cylinder))}</td>
-      <td className="py-2 px-2 tabular-nums">{eye.axis}°</td>
-      <td className="py-2 px-2 tabular-nums">{Number(eye.add) !== 0 ? fmt(Number(eye.add)) : '—'}</td>
-      <td className="py-2 px-2 tabular-nums">{eye.pupillary_distance || '—'}</td>
-    </tr>
-  )
-}
 
 // ── Audit Trail ───────────────────────────────────────────────────────────────
 

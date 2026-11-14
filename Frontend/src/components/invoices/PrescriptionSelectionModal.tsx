@@ -1,6 +1,6 @@
-import { RiCloseLine, RiCalendarLine, RiUserLine, RiFileTextLine, RiCheckLine } from '@remixicon/react'
+import { RiCalendarLine, RiUserLine, RiFileTextLine, RiCheckLine } from '@remixicon/react'
 import { Prescription } from '@/types/prescription.types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
 interface PrescriptionSelectionModalProps {
@@ -22,18 +22,8 @@ const PrescriptionSelectionModal = ({
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0">
                 <DialogHeader className="p-4 border-b border-border">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <DialogTitle>Select Prescription</DialogTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">Choose a prescription to link to this invoice</p>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
-                        >
-                            <RiCloseLine className="w-5 h-5" />
-                        </button>
-                    </div>
+                    <DialogTitle>Select Prescription</DialogTitle>
+                    <DialogDescription>Choose a prescription to link to this invoice</DialogDescription>
                 </DialogHeader>
 
                 <div className="overflow-y-auto p-4 space-y-3 flex-1">

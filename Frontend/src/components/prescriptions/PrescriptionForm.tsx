@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { PRESCRIPTION_TYPES, eyeSummary } from './rxFormat'
 
@@ -432,25 +433,24 @@ const PrescriptionForm = ({
                 ))}
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] border-separate border-spacing-x-2 border-spacing-y-1.5">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground">
-                      <th className="w-16 text-left font-medium" />
+              <Table className="min-w-[480px] border-separate border-spacing-x-2 border-spacing-y-1.5">
+                  <TableHeader className="[&_tr]:border-0">
+                    <TableRow className="text-xs hover:bg-transparent">
+                      <TableHead className="h-auto w-16 p-0" />
                       {eyeFields.map((f) => (
-                        <th key={f.key} className="text-left font-medium">{f.label}</th>
+                        <TableHead key={f.key} className="h-auto p-0 text-xs font-medium text-muted-foreground">{f.label}</TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {(['right_eye', 'left_eye'] as const).map((eye) => (
-                      <tr key={eye}>
-                        <td className="align-top pt-2 text-sm font-semibold">
+                      <TableRow key={eye} className="border-0 hover:bg-transparent">
+                        <TableCell className="p-0 pt-2 align-top text-sm font-semibold">
                           {eye === 'right_eye' ? 'Right' : 'Left'}
                           <span className="block text-[11px] font-normal text-muted-foreground">{eye === 'right_eye' ? 'OD' : 'OS'}</span>
-                        </td>
+                        </TableCell>
                         {eyeFields.map((f) => (
-                          <td key={f.key} className="align-top">
+                          <TableCell key={f.key} className="p-0 align-top">
                             <FormField
                               control={form.control}
                               name={`${eye}.${f.key}`}
@@ -471,13 +471,12 @@ const PrescriptionForm = ({
                                 </FormItem>
                               )}
                             />
-                          </td>
+                          </TableCell>
                         ))}
-                      </tr>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableBody>
+              </Table>
               <Button type="button" variant="ghost" size="sm" className="text-primary" onClick={copyRightToLeft}>
                 <RiArrowDownLine />
                 Copy right eye to left
@@ -496,19 +495,22 @@ const PrescriptionForm = ({
                 <FormLabel>Diagnosis <span className="text-destructive">*</span></FormLabel>
                 <div className="flex flex-wrap gap-1.5">
                   {DIAGNOSES.map((d) => (
-                    <button
+                    <Button
                       key={d}
                       type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-pressed={diagnosis.toLowerCase().includes(d.toLowerCase())}
                       onClick={() => addDiagnosis(d)}
                       className={cn(
-                        'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                        'h-auto rounded-full px-2.5 py-1 text-xs font-normal',
                         diagnosis.toLowerCase().includes(d.toLowerCase())
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                          ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary dark:bg-primary/10'
+                          : 'text-muted-foreground hover:border-primary/40 hover:text-foreground',
                       )}
                     >
                       {d}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <FormControl>
