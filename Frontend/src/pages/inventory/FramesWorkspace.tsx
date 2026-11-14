@@ -7,6 +7,8 @@ import {
   RiArrowDownCircleLine, RiEqualizer2Line, RiCloseLine, RiShoppingCartLine, RiGlassesLine,
 } from '@remixicon/react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useConfirm } from '@/hooks/useConfirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -91,18 +93,19 @@ const Segmented = <T extends string>({
   options: Array<{ value: T; label: string; count?: number; tone?: 'warn' | 'bad' }>
   label: string
 }) => (
-  <div role="radiogroup" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-lg border border-border bg-muted/40 p-0.5">
+  <ToggleGroup
+    type="single"
+    value={value}
+    onValueChange={(next) => next && onChange(next as T)}
+    aria-label={label}
+    spacing={0}
+    className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted/40 p-0.5"
+  >
     {options.map((option) => (
-      <button
+      <ToggleGroupItem
         key={option.value}
-        type="button"
-        role="radio"
-        aria-checked={value === option.value}
-        onClick={() => onChange(option.value)}
-        className={cn(
-          'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-          value === option.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-        )}
+        value={option.value}
+        className="h-auto gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm group-data-[spacing=0]/toggle-group:rounded-md group-data-[spacing=0]/toggle-group:px-3"
       >
         {option.label}
         {option.count !== undefined && (
@@ -115,12 +118,13 @@ const Segmented = <T extends string>({
             {option.count}
           </span>
         )}
-      </button>
+      </ToggleGroupItem>
     ))}
-  </div>
+  </ToggleGroup>
 )
 
 export default function FramesWorkspace() {
+  const { confirm: askConfirm, confirmDialog } = useConfirm()
   const qc = useQueryClient()
   const navigate = useNavigate()
 
@@ -389,12 +393,16 @@ export default function FramesWorkspace() {
     onReorder: (v) => runAction(v, setReorderOpen),
     onHistory: (v) => runAction(v, setHistoryOpen),
     onEditVariant: openEditVariant,
-    onDeleteVariant: (v) => { if (confirm(`Delete ${v.color} ${v.eye_size}mm (${v.sku})?`)) deleteVariantMutation.mutate(v.variant_id) },
+    onDeleteVariant: async (v) => {
+      if (await askConfirm({ title: `Delete ${v.color} ${v.eye_size}mm (${v.sku})?`, destructive: true, confirmLabel: 'Delete' })) deleteVariantMutation.mutate(v.variant_id)
+    },
     onPrintLabels: (variants) => setLabelItems(labelItemsFor(variants)),
     onAddVariants: setBulkMaster,
     onAddOne: openCreateVariant,
     onEditModel: openEditMaster,
-    onDeleteModel: (m) => { if (confirm(`Delete ${m.brand} ${m.model_code}? Remove its variants first.`)) deleteMasterMutation.mutate(m.frame_master_id) },
+    onDeleteModel: async (m) => {
+      if (await askConfirm({ title: `Delete ${m.brand} ${m.model_code}?`, description: 'Remove its variants first.', destructive: true, confirmLabel: 'Delete' })) deleteMasterMutation.mutate(m.frame_master_id)
+    },
   }
 
   const masterPending = createMasterMutation.isPending || updateMasterMutation.isPending
@@ -407,6 +415,7 @@ export default function FramesWorkspace() {
 
   return (
     <div className="space-y-5">
+      {confirmDialog}
       {/* Header */}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
@@ -518,9 +527,9 @@ export default function FramesWorkspace() {
               </Button>
               <Button
                 variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
-                onClick={() => {
+                onClick={async () => {
                   const ids = [...selectedVariants.keys()]
-                  if (confirm(`Delete ${ids.length} variant${ids.length > 1 ? 's' : ''}?`)) {
+                  if (await askConfirm({ title: `Delete ${ids.length} variant${ids.length > 1 ? 's' : ''}?`, destructive: true, confirmLabel: 'Delete' })) {
                     ids.forEach((id) => deleteVariantMutation.mutate(id))
                     clearVariantSelection()
                   }

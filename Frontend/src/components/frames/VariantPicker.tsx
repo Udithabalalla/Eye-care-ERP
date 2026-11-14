@@ -82,14 +82,13 @@ export function VariantPicker({
       <div className={cn('flex gap-2', className)}>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <button
+            <Button
               type="button"
+              variant="outline"
               disabled={disabled}
               className={cn(
-                'flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
-                'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                'disabled:cursor-not-allowed disabled:opacity-50',
-                open && 'ring-2 ring-ring ring-offset-2',
+                'h-9 w-full justify-between border-input bg-background px-3 py-2 font-normal hover:bg-background',
+                open && 'border-ring ring-2 ring-ring/30',
               )}
               onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
             >
@@ -108,7 +107,7 @@ export function VariantPicker({
               ) : (
                 <span className="text-muted-foreground">{placeholder}</span>
               )}
-            </button>
+            </Button>
           </PopoverTrigger>
 
           <PopoverContent className="w-[480px] p-0" align="start">
@@ -152,10 +151,11 @@ export function VariantPicker({
                 </p>
               )}
               {variants.map((v) => (
-                <button
+                <Button
                   key={v.variant_id}
                   type="button"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent transition-colors"
+                  variant="ghost"
+                  className="h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left font-normal"
                   onClick={() => handleSelect(v)}
                 >
                   <div className="flex-1 min-w-0">
@@ -174,7 +174,7 @@ export function VariantPicker({
                       <span className="text-xs font-semibold">{formatCurrency(v.selling_price)}</span>
                     )}
                   </div>
-                </button>
+                </Button>
               ))}
 
               <div className="flex items-center justify-between border-t px-3 py-2">

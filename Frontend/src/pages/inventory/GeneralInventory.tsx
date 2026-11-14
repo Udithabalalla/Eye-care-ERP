@@ -9,6 +9,7 @@ import {
   RiEqualizer2Line, RiMore2Line, RiCloseLine, RiFilterLine, RiShoppingCartLine,
 } from '@remixicon/react'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/useConfirm'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import { StockBadge } from '@/components/frames/StockBadge'
 import { toast } from 'sonner'
 
 export default function GeneralInventory() {
+  const { confirm: askConfirm, confirmDialog } = useConfirm()
   const qc = useQueryClient()
 
   const [page, setPage] = useState(1)
@@ -124,6 +126,7 @@ export default function GeneralInventory() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">General Inventory</h1>
@@ -273,9 +276,9 @@ export default function GeneralInventory() {
                   )}
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => {
+                    onClick={async () => {
                       const ids = [...selectedProducts.keys()]
-                      if (confirm(`Delete ${ids.length} product${ids.length > 1 ? 's' : ''}?`)) {
+                      if (await askConfirm({ title: `Delete ${ids.length} product${ids.length > 1 ? 's' : ''}?`, destructive: true, confirmLabel: 'Delete' })) {
                         ids.forEach((id) => deleteMutation.mutate(id))
                         clearSelection()
                       }
@@ -424,7 +427,7 @@ export default function GeneralInventory() {
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                      onClick={() => { if (confirm('Delete this product?')) deleteMutation.mutate(product.product_id) }}
+                                      onClick={async () => { if (await askConfirm({ title: 'Delete this product?', destructive: true, confirmLabel: 'Delete' })) deleteMutation.mutate(product.product_id) }}
                                     >
                                       <RiDeleteBinLine className="size-3.5" />
                                     </Button>

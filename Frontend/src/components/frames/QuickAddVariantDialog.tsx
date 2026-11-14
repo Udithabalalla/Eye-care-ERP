@@ -155,13 +155,16 @@ export function QuickAddVariantDialog({ open, onClose, onCreated, lockedMasterId
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             {step !== 'select-master' && (
-              <button
+              <Button
                 type="button"
-                className="rounded p-0.5 hover:bg-muted transition-colors"
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                aria-label="Back to frame models"
                 onClick={() => { setStep('select-master'); setPickedMaster(null) }}
               >
                 <RiArrowLeftSLine className="size-4" />
-              </button>
+              </Button>
             )}
             {stepTitle}
           </DialogTitle>
@@ -182,10 +185,11 @@ export function QuickAddVariantDialog({ open, onClose, onCreated, lockedMasterId
                 <p className="p-4 text-sm text-center text-muted-foreground">No models found.</p>
               ) : (
                 filteredMasters.map((m) => (
-                  <button
+                  <Button
                     key={m.frame_master_id}
                     type="button"
-                    className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
+                    variant="ghost"
+                    className="h-auto w-full justify-between rounded-none px-3 py-2.5 text-left font-normal hover:bg-muted/60"
                     onClick={() => selectMaster(m)}
                   >
                     <div>
@@ -196,7 +200,7 @@ export function QuickAddVariantDialog({ open, onClose, onCreated, lockedMasterId
                       <Badge variant="secondary" className="text-xs capitalize">{m.category}</Badge>
                       <span className="text-xs text-muted-foreground">{m.variant_count} variants</span>
                     </div>
-                  </button>
+                  </Button>
                 ))
               )}
             </div>

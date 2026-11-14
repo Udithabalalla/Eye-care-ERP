@@ -42,9 +42,16 @@ const ChipInput = ({
         {values.map((value) => (
           <span key={value} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
             {value}
-            <button type="button" onClick={() => onChange(values.filter((v) => v !== value))} aria-label={`Remove ${value}`}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-4 rounded-sm p-0 hover:bg-background"
+              onClick={() => onChange(values.filter((v) => v !== value))}
+              aria-label={`Remove ${value}`}
+            >
               <RiCloseLine className="size-3" />
-            </button>
+            </Button>
           </span>
         ))}
         <input

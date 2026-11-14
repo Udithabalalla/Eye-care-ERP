@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { RiAlertLine, RiCheckDoubleLine, RiLoader4Line, RiShoppingCartLine, RiTruckLine } from '@remixicon/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
@@ -109,20 +110,13 @@ const LowStockReorder = () => {
             <Badge variant="secondary">{items.length} items</Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist">
-              {([['all', 'All'], ['frame', 'Frames'], ['product', 'Products']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={kind === value}
-                  onClick={() => { setKind(value); setSelected(new Set()) }}
-                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${kind === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Tabs value={kind} onValueChange={(value) => { setKind(value as typeof kind); setSelected(new Set()) }}>
+              <TabsList className="group-data-[orientation=horizontal]/tabs:h-8">
+                {([['all', 'All'], ['frame', 'Frames'], ['product', 'Products']] as const).map(([value, label]) => (
+                  <TabsTrigger key={value} value={value} className="px-3 text-xs">{label}</TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <Checkbox checked={outOnly} onCheckedChange={(v) => { setOutOnly(!!v); setSelected(new Set()) }} />
               Out of stock only

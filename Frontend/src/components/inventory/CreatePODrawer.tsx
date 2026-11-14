@@ -310,12 +310,9 @@ export function CreatePODrawer({ open, onClose, subject, onSuccess }: Props) {
           <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
             <RiArrowRightLine className="size-3" />
             PO will open as Draft — approve and advance it from
-            <button
-              className="underline"
-              onClick={() => navigate('/purchase-orders')}
-            >
+            <Button type="button" variant="link" className="h-auto p-0 text-xs text-muted-foreground underline" onClick={() => navigate('/purchase-orders')}>
               Purchase Orders
-            </button>
+            </Button>
           </div>
         </div>
       </SheetContent>

@@ -8,6 +8,7 @@ import {
   RiDownloadLine, RiHistoryLine, RiTruckLine,
 } from '@remixicon/react'
 import { Card, CardContent } from '@/components/ui/card'
+import { useConfirm } from '@/hooks/useConfirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +41,7 @@ function makeBlankLine(): GrnLine {
 }
 
 function GRNTab() {
+  const { confirm: askConfirm, confirmDialog } = useConfirm()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -130,6 +132,7 @@ function GRNTab() {
 
   return (
     <div className="space-y-4">
+      {confirmDialog}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Formal goods receipts linked to purchase orders.</p>
         <Button size="sm" onClick={openCreate}>
@@ -168,7 +171,7 @@ function GRNTab() {
                           {g.status === 'pending' && (
                             <Button
                               variant="outline" size="sm"
-                              onClick={() => { if (confirm('Commit this GRN? Stock will be updated.')) commitMutation.mutate(g.grn_number) }}
+                              onClick={async () => { if (await askConfirm({ title: 'Commit this GRN?', description: 'Stock will be updated.', confirmLabel: 'Commit' })) commitMutation.mutate(g.grn_number) }}
                               disabled={commitMutation.isPending}
                             >
                               <RiCheckLine className="size-3.5" />
@@ -275,6 +278,7 @@ function GRNTab() {
 // ─── Quick Intake Tab ─────────────────────────────────────────────────────────
 
 function QuickIntakeTab() {
+  const { confirm: askConfirm, confirmDialog } = useConfirm()
   const qc = useQueryClient()
   const [mode, setMode] = useState<'new' | 'history'>('new')
   const [supplierId, setSupplierId] = useState('')
@@ -329,7 +333,7 @@ function QuickIntakeTab() {
 
   const commitIntake = useCallback(async () => {
     if (!savedIntakeId) { await saveDraft(); return }
-    if (!confirm(`Commit ${savedIntakeId}? This will update stock immediately and cannot be undone.`)) return
+    if (!(await askConfirm({ title: `Commit ${savedIntakeId}?`, description: 'This will update stock immediately and cannot be undone.', confirmLabel: 'Commit', destructive: true }))) return
     setIsCommitting(true)
     try {
       await quickIntakesApi.commit(savedIntakeId)
@@ -344,13 +348,14 @@ function QuickIntakeTab() {
     } catch (e: any) {
       toast.error(e?.response?.data?.detail ?? 'Commit failed')
     } finally { setIsCommitting(false) }
-  }, [savedIntakeId, saveDraft, qc])
+  }, [savedIntakeId, saveDraft, qc, askConfirm])
 
   const totalQty = rows.reduce((s, r) => s + (r.variant ? r.qty : 0), 0)
   const totalCost = rows.reduce((s, r) => s + (r.variant ? r.qty * r.cost_price : 0), 0)
 
   return (
     <div className="space-y-4">
+      {confirmDialog}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Rapid ad-hoc stock entry. Tab between cells, Ctrl+Enter to add a row.</p>
         <div className="flex gap-2">
@@ -397,8 +402,8 @@ function QuickIntakeTab() {
             </div>
             <div className="flex gap-2">
               {savedIntakeId && (
-                <Button variant="outline" size="sm" onClick={() => {
-                  if (confirm('Discard this draft?')) {
+                <Button variant="outline" size="sm" onClick={async () => {
+                  if (await askConfirm({ title: 'Discard this draft?', destructive: true, confirmLabel: 'Discard' })) {
                     quickIntakesApi.delete(savedIntakeId).then(() => {
                       setSavedIntakeId(null); setRows([makeEmptyRow()])
                       qc.invalidateQueries({ queryKey: ['quick-intakes'] })
