@@ -146,10 +146,10 @@ export function AddSupplierInvoiceDialog({ open, onClose, onPickOrder, onCreated
               <ul className="divide-y divide-border rounded-lg border border-border">
                 {orders.map((order) => (
                   <li key={order.id}>
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => onPickOrder(order)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                      className="h-auto whitespace-normal rounded-none font-normal flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
                         <RiShoppingCartLine className="size-4 shrink-0 text-muted-foreground" />
@@ -165,7 +165,7 @@ export function AddSupplierInvoiceDialog({ open, onClose, onPickOrder, onCreated
                         {formatCurrency(order.total_amount)}
                         <RiArrowRightSLine className="size-4 text-muted-foreground" />
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

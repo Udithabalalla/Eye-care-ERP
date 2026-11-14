@@ -206,17 +206,17 @@ export function RecordSupplierPaymentDialog({ open, onClose, onSuccess, supplier
                       <FormLabel>Amount</FormLabel>
                       <div className="flex gap-1">
                         {[['Full', balanceDue], ['Half', Math.round(balanceDue * 50) / 100]].map(([label, value]) => (
-                          <button
+                          <Button variant="outline"
                             key={label}
                             type="button"
                             onClick={() => form.setValue('amount_paid', Number(value), { shouldValidate: true })}
                             className={cn(
-                              'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                              'h-auto whitespace-normal font-normal', 'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                               Math.abs(amount - Number(value)) < 0.005 ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
                             )}
                           >
                             {label}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>

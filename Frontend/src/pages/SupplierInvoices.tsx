@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { RiAddLine, RiAlertLine, RiEyeLine, RiMoneyDollarCircleLine, RiMore2Line, RiShoppingCartLine } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -115,16 +116,16 @@ const SupplierInvoices = () => {
         header: 'Purchase order',
         cell: ({ row }) =>
           row.original.purchase_order_id ? (
-            <button
+            <Button variant="link"
               type="button"
-              className="text-sm text-primary hover:underline"
+              className="h-auto gap-1 p-0 font-normal text-sm text-primary hover:underline"
               onClick={(event) => {
                 event.stopPropagation()
                 openPurchaseOrder(row.original.purchase_order_id!)
               }}
             >
               {row.original.purchase_order_id}
-            </button>
+            </Button>
           ) : (
             <span className="text-xs text-muted-foreground">No order</span>
           ),
@@ -238,45 +239,42 @@ const SupplierInvoices = () => {
 
       {/* What's owed */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <button
+        <Button variant="outline"
           type="button"
           onClick={() => pickTab('all')}
-          className="rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40"
+          className="h-auto flex-col items-stretch gap-0 whitespace-normal rounded-xl border border-border bg-card px-4 py-3 text-left font-normal hover:border-primary/40 hover:bg-card dark:bg-card dark:hover:bg-card"
         >
           <p className="text-xs text-muted-foreground">Still to pay</p>
           <p className="mt-0.5 text-xl font-semibold tabular-nums">{owing ? formatCurrency(owing.total) : '…'}</p>
           <p className="text-xs text-muted-foreground">{owing ? `${owing.count} bill${owing.count === 1 ? '' : 's'} open` : ' '}</p>
-        </button>
-        <button
+        </Button>
+        <Button variant="outline"
           type="button"
           onClick={() => pickTab('overdue')}
           className={cn(
-            'rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-destructive/40',
+            'h-auto flex-col items-stretch gap-0 whitespace-normal rounded-xl border bg-card px-4 py-3 text-left font-normal hover:border-destructive/40 hover:bg-card dark:bg-card dark:hover:bg-card',
             owing?.overdueCount ? 'border-destructive/30' : 'border-border',
           )}
         >
           <p className="text-xs text-muted-foreground">Overdue</p>
           <p className={cn('mt-0.5 text-xl font-semibold tabular-nums', owing?.overdueCount && 'text-destructive')}>{owing ? formatCurrency(owing.overdueTotal) : '…'}</p>
           <p className="text-xs text-muted-foreground">{owing ? (owing.overdueCount ? `${owing.overdueCount} past their due date` : 'Nothing overdue') : ' '}</p>
-        </button>
+        </Button>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <ToggleGroup
+        type="single"
+        value={tab}
+        onValueChange={(value) => value && pickTab(value as typeof tab)}
+        aria-label="Filter invoices"
+        className="w-full justify-start gap-1.5 overflow-x-auto pb-1"
+      >
         {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => pickTab(t.id)}
-            className={cn(
-              'flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
-              tab === t.id
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
-            )}
-          >
+          <ToggleGroupItem key={t.id} value={t.id} className="h-auto flex-shrink-0 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             {t.label}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
       <SupplierInvoiceDetailSheet
         invoiceId={detailId}

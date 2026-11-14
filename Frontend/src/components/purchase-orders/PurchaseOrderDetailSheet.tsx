@@ -278,9 +278,9 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                       onRecordPayment={invoiceBalance > 0 ? () => setPayInvoice(payable) : undefined}
                       actionLabel="Pay supplier"
                       note={
-                        <button type="button" className="font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
+                        <Button variant="link" type="button" className="h-auto gap-1 p-0 font-normal font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
                           Invoice {supplierInvoice.invoice_number} ›
-                        </button>
+                        </Button>
                       }
                     />
                   ) : (
@@ -375,9 +375,9 @@ export function PurchaseOrderDetailSheet({ orderId, open, onOpenChange }: Props)
                         <DrawerRow
                           label="Invoice"
                           value={
-                            <button type="button" className="font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
+                            <Button variant="link" type="button" className="h-auto gap-1 p-0 font-normal font-medium text-primary hover:underline" onClick={() => goTo(`/supplier-invoices?detail=${supplierInvoice.id}`)}>
                               {supplierInvoice.invoice_number} · {supplierInvoice.status === 'Paid' ? 'paid' : `${formatCurrency(invoiceBalance)} to pay`}
-                            </button>
+                            </Button>
                           }
                         />
                       )}

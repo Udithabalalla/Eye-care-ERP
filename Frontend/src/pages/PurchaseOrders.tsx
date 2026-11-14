@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, PurchaseOrderStatus } from '@/types/supplier.types'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -167,8 +168,8 @@ const PurchaseOrders = () => {
         accessorKey: 'id',
         header: 'Order #',
         cell: ({ row }) => (
-          <button
-            className="flex flex-col text-left group"
+          <Button variant="link" type="button"
+            className="h-auto flex-col items-start gap-0 p-0 font-normal hover:no-underline flex flex-col text-left group"
             onClick={(e) => {
               e.stopPropagation()
               setDetailOrderId(row.original.id)
@@ -177,7 +178,7 @@ const PurchaseOrders = () => {
             <span className="font-medium text-primary group-hover:underline underline-offset-2">
               {row.original.id}
             </span>
-          </button>
+          </Button>
         ),
       },
       {
@@ -244,9 +245,9 @@ const PurchaseOrders = () => {
             )
           }
           return (
-            <button
+            <Button variant="link"
               type="button"
-              className="flex flex-col text-left"
+              className="h-auto flex-col items-start gap-0 p-0 font-normal hover:no-underline flex flex-col text-left"
               onClick={(event) => {
                 event.stopPropagation()
                 navigate(`/supplier-invoices?detail=${invoice.id}`)
@@ -256,7 +257,7 @@ const PurchaseOrders = () => {
               <span className={cn('text-xs', invoice.balance_due > 0 ? 'text-warning' : 'text-success')}>
                 {invoice.balance_due > 0 ? `${formatCurrency(invoice.balance_due)} to pay` : 'Paid'}
               </span>
-            </button>
+            </Button>
           )
         },
       },
@@ -444,24 +445,23 @@ const PurchaseOrders = () => {
       </section>
 
       {/* Lifecycle quick-filter tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <ToggleGroup
+        type="single"
+        value={statusFilter || 'all'}
+        onValueChange={(value) => {
+          if (!value) return
+          setStatusFilter(value === 'all' ? '' : (value as PurchaseOrderStatus))
+          setPage(1)
+        }}
+        aria-label="Filter by status"
+        className="w-full justify-start gap-1.5 overflow-x-auto pb-1"
+      >
         {LIFECYCLE_FILTER_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setStatusFilter(tab.id === 'all' ? '' : (tab.id as PurchaseOrderStatus))
-              setPage(1)
-            }}
-            className={`flex-shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
-            }`}
-          >
+          <ToggleGroupItem key={tab.id} value={tab.id} className="h-auto flex-shrink-0 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             {tab.label}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
       {/* Detail sheet */}
       <PurchaseOrderDetailSheet

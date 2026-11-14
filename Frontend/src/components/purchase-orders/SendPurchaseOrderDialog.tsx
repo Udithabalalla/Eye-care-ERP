@@ -178,10 +178,10 @@ export function SendPurchaseOrderDialog({ order, open, onClose, onDone }: Props)
                 </FormItem>
               )} />
 
-              <button
+              <Button variant="outline"
                 type="button"
                 onClick={downloadPdf}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+                className="h-auto whitespace-normal font-normal flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
               >
                 <span className="flex items-center gap-2">
                   <RiAttachment2 className="size-4 text-muted-foreground" />
@@ -192,7 +192,7 @@ export function SendPurchaseOrderDialog({ order, open, onClose, onDone }: Props)
                   {downloading ? <RiLoader4Line className="size-3.5 animate-spin" /> : <RiDownloadLine className="size-3.5" />}
                   Download
                 </span>
-              </button>
+              </Button>
 
               {isApproved && (
                 <FormField control={form.control} name="markOrdered" render={({ field }) => (

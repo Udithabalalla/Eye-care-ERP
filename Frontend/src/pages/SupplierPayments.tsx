@@ -75,16 +75,16 @@ const SupplierPayments = () => {
         header: 'Purchase order',
         cell: ({ row }) =>
           row.original.purchase_order_id ? (
-            <button
+            <Button variant="link"
               type="button"
-              className="text-sm text-primary hover:underline"
+              className="h-auto gap-1 p-0 font-normal text-sm text-primary hover:underline"
               onClick={(event) => {
                 event.stopPropagation()
                 navigate(`/purchase-orders?detail=${row.original.purchase_order_id}`)
               }}
             >
               {row.original.purchase_order_id}
-            </button>
+            </Button>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           ),

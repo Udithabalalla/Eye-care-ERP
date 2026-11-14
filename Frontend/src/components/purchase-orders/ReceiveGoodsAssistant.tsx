@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import Button from '@/components/common/Button'
-import Input from '@/components/common/Input'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, ReceiveGoodsLineItem } from '@/types/supplier.types'
@@ -70,7 +72,7 @@ const ReceiveGoodsAssistant = ({ isOpen, onClose, onSuccess, order }: ReceiveGoo
         </DialogHeader>
         <div className="p-6">
           <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
                 <div><span className="font-medium text-muted-foreground">Order ID:</span> {order.id}</div>
                 <div><span className="font-medium text-muted-foreground">Supplier:</span> {order.supplier_id}</div>
@@ -81,18 +83,18 @@ const ReceiveGoodsAssistant = ({ isOpen, onClose, onSuccess, order }: ReceiveGoo
 
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={item.product_id} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-12 md:items-end">
+                <div key={item.product_id} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-card p-4 shadow-sm md:grid-cols-12 md:items-end">
                   <div className="md:col-span-5">
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Product</label>
+                    <Label className="mb-2 text-muted-foreground">Product</Label>
                     <Input value={item.product_name} readOnly />
                     <p className="mt-1 text-xs text-muted-foreground">Ordered: {item.ordered_quantity}</p>
                   </div>
                   <div className="md:col-span-3">
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Ordered Quantity</label>
+                    <Label className="mb-2 text-muted-foreground">Ordered Quantity</Label>
                     <Input value={item.ordered_quantity} readOnly />
                   </div>
                   <div className="md:col-span-4">
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Received Quantity</label>
+                    <Label className="mb-2 text-muted-foreground">Received Quantity</Label>
                     <Input
                       type="number"
                       min={0}
@@ -113,7 +115,10 @@ const ReceiveGoodsAssistant = ({ isOpen, onClose, onSuccess, order }: ReceiveGoo
         <DialogFooter className="border-t border-border bg-muted/30 px-6 py-4">
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={save} isLoading={receiveMutation.isPending}>Confirm Receipt</Button>
+            <Button onClick={save} disabled={receiveMutation.isPending}>
+              {receiveMutation.isPending && <Spinner />}
+              Confirm Receipt
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>

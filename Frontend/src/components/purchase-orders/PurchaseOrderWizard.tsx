@@ -220,25 +220,26 @@ const StepIndicator = ({ current, reached, onPick }: { current: number; reached:
               style={{ left: 'calc(50% + 24px)', width: 'calc(100% - 48px)' }}
             />
           )}
-          <button
+          <Button variant="outline"
             type="button"
             disabled={!isClickable}
             onClick={() => onPick(index)}
             aria-current={isCurrent ? 'step' : undefined}
             aria-label={`Step ${index + 1}: ${step.label}`}
             className={cn(
-              'relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 disabled:cursor-default',
+              // the current step is disabled (not clickable) but must not fade
+              'relative z-10 size-9 rounded-full border-2 font-normal transition-all duration-200 disabled:cursor-default disabled:opacity-100',
               isCurrent
-                ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20'
+                ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/20 dark:bg-primary'
                 : isPast
-                  ? 'border-primary bg-primary text-primary-foreground hover:opacity-75'
+                  ? 'border-primary bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground hover:opacity-75 dark:bg-primary'
                   : isClickable
-                    ? 'border-primary bg-background text-primary hover:bg-muted/50'
-                    : 'border-border bg-background text-muted-foreground',
+                    ? 'border-primary bg-background text-primary hover:bg-muted/50 hover:text-primary dark:bg-background'
+                    : 'border-border bg-background text-muted-foreground dark:bg-background',
             )}
           >
             {isPast ? <RiCheckLine className="h-4 w-4" /> : <span className="text-xs font-bold">{index + 1}</span>}
-          </button>
+          </Button>
           <span
             onClick={() => isClickable && onPick(index)}
             className={cn(
@@ -282,9 +283,9 @@ const StepCard = ({ icon: Icon, title, subtitle, action, children }: {
 
 const QtyStepper = ({ value, onChange, invalid }: { value: number; onChange: (value: number) => void; invalid?: boolean }) => (
   <div className={cn('flex h-9 items-center rounded-md border border-input', invalid && 'border-destructive')}>
-    <button type="button" className="flex h-full w-8 items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40" disabled={value <= 1} onClick={() => onChange(Math.max(1, (Number(value) || 1) - 1))} aria-label="One fewer">
+    <Button variant="ghost" type="button" className="h-auto whitespace-normal font-normal flex h-full w-8 items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40" disabled={value <= 1} onClick={() => onChange(Math.max(1, (Number(value) || 1) - 1))} aria-label="One fewer">
       <RiSubtractLine className="h-3.5 w-3.5" />
-    </button>
+    </Button>
     <input
       type="number"
       min={1}
@@ -294,9 +295,9 @@ const QtyStepper = ({ value, onChange, invalid }: { value: number; onChange: (va
       className="h-full w-12 bg-transparent text-center text-sm tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
       aria-label="Quantity"
     />
-    <button type="button" className="flex h-full w-8 items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => onChange((Number(value) || 0) + 1)} aria-label="One more">
+    <Button variant="ghost" type="button" className="h-auto whitespace-normal font-normal flex h-full w-8 items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => onChange((Number(value) || 0) + 1)} aria-label="One more">
       <RiAddLine className="h-3.5 w-3.5" />
-    </button>
+    </Button>
   </div>
 )
 
@@ -690,14 +691,14 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                             </FormControl>
                             <div className="flex flex-wrap gap-1.5">
                               {[['In 3 days', 3], ['1 week', 7], ['2 weeks', 14]].map(([label, days]) => (
-                                <button
+                                <Button variant="outline"
                                   key={label}
                                   type="button"
                                   onClick={() => field.onChange(format(addDays(new Date(values.orderDate || today()), Number(days)), 'yyyy-MM-dd'))}
-                                  className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                  className="h-auto whitespace-normal font-normal rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                                 >
                                   {label}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                             <FormMessage />
@@ -757,20 +758,20 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist" aria-label="Item type">
                           {([['frame', 'Frames', RiGlassesLine], ['product', 'Products', RiBox3Line]] as const).map(([kind, label, Icon]) => (
-                            <button
+                            <Button variant="ghost"
                               key={kind}
                               type="button"
                               role="tab"
                               aria-selected={addKind === kind}
                               onClick={() => setAddKind(kind)}
                               className={cn(
-                                'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                'h-auto whitespace-normal font-normal', 'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                                 addKind === kind ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                               )}
                             >
                               <Icon className="h-3.5 w-3.5" />
                               {label}
-                            </button>
+                            </Button>
                           ))}
                         </div>
                         <Button type="button" variant="ghost" size="sm" className="ml-auto h-8 gap-1 text-xs" onClick={() => (addKind === 'frame' ? setNewFrameOpen(true) : setNewProductOpen(true))}>
@@ -811,9 +812,9 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                                   </p>
                                 </div>
                                 <p className="text-right text-sm font-semibold tabular-nums md:order-4">{formatCurrency(lineTotal(line))}</p>
-                                <button type="button" onClick={() => lineFields.remove(index)} className="-mt-1 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive md:order-5 md:mt-0" aria-label={`Remove ${line.name}`}>
+                                <Button variant="ghost" type="button" onClick={() => lineFields.remove(index)} className="h-auto whitespace-normal font-normal -mt-1 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive md:order-5 md:mt-0" aria-label={`Remove ${line.name}`}>
                                   <RiCloseLine className="h-4 w-4" />
-                                </button>
+                                </Button>
                                 <div className="col-span-3 flex items-start gap-3 md:contents">
                                   <FormField
                                     control={control}
@@ -1034,16 +1035,16 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
           <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto xl:block">
             <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist">
               {([['preview', 'PO preview'], ['summary', 'Summary']] as const).map(([key, label]) => (
-                <button
+                <Button variant="ghost"
                   key={key}
                   type="button"
                   role="tab"
                   aria-selected={aside === key}
                   onClick={() => setAside(key)}
-                  className={cn('rounded-md px-3 py-1.5 text-xs font-medium transition-colors', aside === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+                  className={cn('h-auto whitespace-normal font-normal', 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors', aside === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
             {aside === 'preview' ? (
@@ -1057,10 +1058,10 @@ const PurchaseOrderWizard = ({ draftId, copyFromId, initialSupplierId }: Props) 
                     { label: 'Expected', value: values.expectedDelivery ? formatDate(values.expectedDelivery, 'dd MMM yyyy') : undefined, empty: 'No date set', step: 0 },
                     { label: 'Deliver to', value: [values.shipTo, values.address].filter(Boolean).join(' · ') || undefined, empty: 'Not set', step: 2 },
                   ].map((row) => (
-                    <button key={row.label} type="button" disabled={row.step > reached} onClick={() => goTo(row.step)} className="flex w-full items-start justify-between gap-3 text-left disabled:cursor-default">
+                    <Button variant="ghost" key={row.label} type="button" disabled={row.step > reached} onClick={() => goTo(row.step)} className="h-auto whitespace-normal font-normal flex w-full items-start justify-between gap-3 text-left disabled:cursor-default">
                       <span className="text-muted-foreground">{row.label}</span>
                       <span className={cn('min-w-0 truncate text-right', row.value ? 'font-medium' : 'italic text-muted-foreground')}>{row.value ?? row.empty}</span>
-                    </button>
+                    </Button>
                   ))}
                   <div className="flex items-baseline justify-between border-t border-border pt-3">
                     <span className="font-semibold">Order total</span>

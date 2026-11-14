@@ -193,9 +193,9 @@ export function SupplierInvoiceDetailSheet({ invoiceId, open, onOpenChange }: Pr
                       label="Purchase order"
                       value={
                         invoice.purchase_order_id ? (
-                          <button type="button" className="font-medium text-primary hover:underline" onClick={() => goTo(`/purchase-orders?detail=${invoice.purchase_order_id}`)}>
+                          <Button variant="link" type="button" className="h-auto gap-1 p-0 font-normal font-medium text-primary hover:underline" onClick={() => goTo(`/purchase-orders?detail=${invoice.purchase_order_id}`)}>
                             {invoice.purchase_order_id}
-                          </button>
+                          </Button>
                         ) : (
                           'Not linked'
                         )

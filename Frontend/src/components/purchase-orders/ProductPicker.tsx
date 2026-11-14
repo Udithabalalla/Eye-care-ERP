@@ -101,10 +101,10 @@ export function ProductPicker({
             <p className="py-6 text-center text-sm text-muted-foreground">No products found.</p>
           )}
           {products.map((p) => (
-            <button
+            <Button variant="ghost"
               key={p.product_id}
               type="button"
-              className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors"
+              className="h-auto whitespace-normal rounded-none font-normal flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors"
               onClick={() => handleSelect(p)}
             >
               <div className="min-w-0 flex-1">
@@ -117,7 +117,7 @@ export function ProductPicker({
                 <p className="text-xs tabular-nums">{formatCurrency(p.cost_price)}</p>
                 <p className="text-[10px] text-muted-foreground">{p.sku}</p>
               </div>
-            </button>
+            </Button>
           ))}
         </div>
       </PopoverContent>
