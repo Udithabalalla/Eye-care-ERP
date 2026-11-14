@@ -36,14 +36,10 @@ const IGNORE = [
   /^[A-Za-z]+!$/, // "updated!" in a toast message
 ]
 
-// Untitled UI leftovers that nothing imports; deleted in the cleanup PR, not migrated
-const SKIP_DIRS = ['src/components/ui/base', 'src/components/ui/application', 'src/components/ui/foundations']
-
 const targets = process.argv.slice(2).length ? process.argv.slice(2) : ['src']
 const files = []
 const walk = (p) => {
   const abs = path.resolve(root, p)
-  if (SKIP_DIRS.some((dir) => p.split(path.sep).join('/').startsWith(dir))) return
   if (fs.statSync(abs).isDirectory()) {
     for (const entry of fs.readdirSync(abs)) walk(path.join(p, entry))
   } else if (/\.(tsx?|jsx?)$/.test(p)) {

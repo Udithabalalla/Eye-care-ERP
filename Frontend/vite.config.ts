@@ -36,7 +36,7 @@ export default defineConfig({
           // Vendor chunks - separate large dependencies
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['lucide-react', '@untitledui/icons'],
+          'vendor-ui': ['radix-ui'],
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'vendor-charts': ['recharts'],
           'vendor-utils': ['axios', 'date-fns', 'clsx', 'tailwind-merge'],
