@@ -64,24 +64,30 @@ function StatTile({
   tone?: 'warn' | 'good'
   onClick?: () => void
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className="flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors enabled:hover:border-primary/40 disabled:cursor-default"
-    >
+  const tile =
+    'flex h-auto min-w-0 items-start justify-start gap-3 whitespace-normal rounded-xl border border-border bg-card px-4 py-3 text-left font-normal'
+  const body = (
+    <>
       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Icon className="size-4" />
       </span>
       <span className="min-w-0">
         <span className="block text-xs text-muted-foreground">{label}</span>
-        <span className={cn('block text-lg font-semibold tabular-nums', tone === 'warn' && 'text-amber-600 dark:text-amber-400', tone === 'good' && 'text-emerald-600 dark:text-emerald-400')}>
+        <span className={cn('block text-lg font-semibold tabular-nums', tone === 'warn' && 'text-warning', tone === 'good' && 'text-success')}>
           {value}
         </span>
         {hint && <span className="block truncate text-xs text-muted-foreground">{hint}</span>}
       </span>
-    </button>
+    </>
+  )
+
+  // Clickable tiles are buttons; the rest are plain cards (a disabled button would fade out)
+  return onClick ? (
+    <Button type="button" variant="outline" onClick={onClick} className={cn(tile, 'hover:border-primary/40 hover:bg-card dark:bg-card dark:hover:bg-card')}>
+      {body}
+    </Button>
+  ) : (
+    <div className={tile}>{body}</div>
   )
 }
 
@@ -268,9 +274,9 @@ const Patients = () => {
         header: 'Next appointment',
         cell: ({ row }) =>
           row.original.next_appointment ? (
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+            <Badge variant="info" className="h-auto px-2 py-0.5 text-xs">
               {formatDate(row.original.next_appointment, 'EEE dd MMM')}
-            </span>
+            </Badge>
           ) : (
             <span className="text-muted-foreground">—</span>
           ),
@@ -389,14 +395,16 @@ const Patients = () => {
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted-foreground">Ready to collect:</span>
           {ready.slice(0, 8).map((order) => (
-            <button
+            <Button
               key={order.order_id}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setDetailId(order.patient_id)}
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+              className="h-auto rounded-full bg-success/10 px-2.5 py-1 text-xs text-success hover:bg-success/20 hover:text-success"
             >
               {order.patient_name ?? order.order_number}
-            </button>
+            </Button>
           ))}
         </div>
       )}

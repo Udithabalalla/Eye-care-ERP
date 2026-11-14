@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatCurrency } from '@/utils/formatters'
 import type { DashboardOverview } from '@/api/dashboard.api'
 
@@ -12,7 +12,7 @@ type Day = DashboardOverview['daily'][number] & { label: string; isToday: boolea
 
 // One series, one hue: the brand teal (validated at 3:1+ on the light and dark card surfaces)
 const chartConfig = {
-  sales: { label: 'Sales', color: 'var(--dash-accent)' },
+  sales: { label: 'Sales', color: 'var(--primary)' },
 } satisfies ChartConfig
 
 const compact = (value: number) => (value >= 1000 ? `${Math.round(value / 100) / 10}K` : `${value}`)
@@ -26,7 +26,7 @@ function SalesTooltip({ active, payload }: { active?: boolean; payload?: Array<{
       <div className="space-y-1">
         <p className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="h-0.5 w-3 rounded-full bg-[var(--dash-accent)]" aria-hidden />
+            <span className="h-0.5 w-3 rounded-full bg-primary" aria-hidden />
             Sales
           </span>
           <span className="font-semibold tabular-nums text-foreground">{formatCurrency(day.sales)}</span>
@@ -68,23 +68,12 @@ export function SalesTrendCard({ daily, today }: { daily: DashboardOverview['dai
             {best && !empty ? ` · best day ${format(parseISO(best.date), 'dd MMM')}` : ''}
           </CardDescription>
         </div>
-        <div className="inline-flex shrink-0 rounded-lg border border-border bg-muted/40 p-0.5" role="tablist" aria-label="Chart or table">
-          {(['Chart', 'Table'] as const).map((label) => (
-            <button
-              key={label}
-              type="button"
-              role="tab"
-              aria-selected={asTable === (label === 'Table')}
-              onClick={() => setAsTable(label === 'Table')}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                asTable === (label === 'Table') ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Tabs value={asTable ? 'table' : 'chart'} onValueChange={(value) => setAsTable(value === 'table')} className="shrink-0">
+          <TabsList aria-label="Chart or table" className="group-data-[orientation=horizontal]/tabs:h-8">
+            <TabsTrigger value="chart" className="px-2.5 text-xs">Chart</TabsTrigger>
+            <TabsTrigger value="table" className="px-2.5 text-xs">Table</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
       <CardContent className="flex-1 pb-4">
         {asTable ? (

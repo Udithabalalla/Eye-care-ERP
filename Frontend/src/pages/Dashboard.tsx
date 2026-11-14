@@ -22,6 +22,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -106,8 +107,10 @@ function Panel({
   )
 }
 
-const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">{children}</p>
+const EmptyNote = ({ children }: { children: React.ReactNode }) => (
+  <Empty className="gap-0 rounded-lg border border-dashed border-border px-3 py-6">
+    <EmptyDescription className="text-sm">{children}</EmptyDescription>
+  </Empty>
 )
 
 const Dashboard = () => {
@@ -139,7 +142,7 @@ const Dashboard = () => {
 
   return (
     // The one accent every chart on the page draws with (brand teal; lighter step for dark)
-    <div className="space-y-6 [--dash-accent:#007595] dark:[--dash-accent:#38a3c2]">
+    <div className="space-y-6">
       {/* ── Header ── */}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
@@ -226,7 +229,7 @@ const Dashboard = () => {
                   <span className="text-xs text-muted-foreground">
                     {data.receivables.count} invoice{data.receivables.count === 1 ? '' : 's'}
                     {data.receivables.overdue_count > 0 && (
-                      <span className="font-medium text-red-600 dark:text-red-400"> · {data.receivables.overdue_count} overdue</span>
+                      <span className="font-medium text-destructive"> · {data.receivables.overdue_count} overdue</span>
                     )}
                   </span>
                 }
@@ -239,7 +242,7 @@ const Dashboard = () => {
                 footer={
                   <span className="text-xs text-muted-foreground">
                     {data.payables.overdue_count > 0 ? (
-                      <span className="font-medium text-red-600 dark:text-red-400">{data.payables.overdue_count} overdue</span>
+                      <span className="font-medium text-destructive">{data.payables.overdue_count} overdue</span>
                     ) : (
                       `${data.payables.count} bill${data.payables.count === 1 ? '' : 's'} open`
                     )}
@@ -268,7 +271,7 @@ const Dashboard = () => {
                 >
                   {data.appointments_today.length === 0 ? (
                     <div className="space-y-3">
-                      <Empty>Nothing booked for today.</Empty>
+                      <EmptyNote>Nothing booked for today.</EmptyNote>
                       <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={() => setAppointmentOpen(true)}>
                         <RiCalendarLine className="size-4" />
                         Book an appointment
@@ -278,10 +281,11 @@ const Dashboard = () => {
                     <ul className="divide-y divide-border/70">
                       {data.appointments_today.map((appt) => (
                         <li key={appt.appointment_id}>
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
                             onClick={() => navigate(`/patients?detail=${appt.patient_id}`)}
-                            className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted/50"
+                            className="-mx-2 h-auto w-[calc(100%+1rem)] justify-start gap-3 px-2 py-2 text-left font-normal hover:bg-muted/50"
                           >
                             <span className="w-11 shrink-0 text-sm font-semibold tabular-nums">{appt.time ?? '—'}</span>
                             <span className="min-w-0 flex-1">
@@ -291,7 +295,7 @@ const Dashboard = () => {
                               </span>
                             </span>
                             <span className="shrink-0 text-xs capitalize text-muted-foreground">{appt.status?.replace(/-/g, ' ')}</span>
-                          </button>
+                          </Button>
                         </li>
                       ))}
                     </ul>
@@ -317,10 +321,11 @@ const Dashboard = () => {
                       const max = Math.max(...data.pipeline.map((s) => s.count), 1)
                       return (
                         <li key={stage.stage}>
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
                             onClick={() => navigate(`/sales-orders?status=${info.status}`)}
-                            className="group w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50"
+                            className="group h-auto w-full flex-col items-stretch gap-0 rounded-lg px-2 py-1.5 text-left font-normal hover:bg-muted/50"
                           >
                             <span className="flex items-center justify-between gap-3 text-sm">
                               <span className="flex items-center gap-2">
@@ -333,11 +338,11 @@ const Dashboard = () => {
                             <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
                               {/* Grows in once, one stage after another; later refreshes just glide */}
                               <span
-                                className="bar-grow block h-full rounded-full bg-[var(--dash-accent)] transition-[width] duration-500 ease-out"
+                                className="bar-grow block h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
                                 style={{ width: `${(stage.count / max) * 100}%`, animationDelay: `${150 + index * 70}ms` }}
                               />
                             </span>
-                          </button>
+                          </Button>
                         </li>
                       )
                     })}
@@ -352,24 +357,29 @@ const Dashboard = () => {
                   action={data.ready_count ? { label: 'All', onClick: () => navigate('/sales-orders?status=ready') } : undefined}
                 >
                   {data.ready_for_collection.length === 0 ? (
-                    <Empty>No glasses waiting to be collected.</Empty>
+                    <EmptyNote>No glasses waiting to be collected.</EmptyNote>
                   ) : (
                     <ul className="divide-y divide-border/70">
                       {data.ready_for_collection.map((order) => (
                         <li key={order.order_id} className="flex items-center gap-3 py-2">
                           <PatientAvatar name={order.patient_name || '?'} seed={order.patient_id} className="size-8 text-[11px]" />
-                          <button type="button" onClick={() => navigate(`/sales-orders?detail=${order.order_id}`)} className="min-w-0 flex-1 text-left">
-                            <span className="block truncate text-sm font-medium hover:text-primary">{order.patient_name ?? order.order_number}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => navigate(`/sales-orders?detail=${order.order_id}`)}
+                            className="group h-auto min-w-0 flex-1 flex-col items-stretch gap-0 p-0 text-left font-normal hover:bg-transparent"
+                          >
+                            <span className="block truncate text-sm font-medium group-hover:text-primary">{order.patient_name ?? order.order_number}</span>
                             <span className="block truncate text-xs text-muted-foreground">
                               {order.order_number}
                               {order.waiting_days != null && ` · ${order.waiting_days === 0 ? 'ready today' : `waiting ${order.waiting_days} day${order.waiting_days === 1 ? '' : 's'}`}`}
                             </span>
-                          </button>
+                          </Button>
                           <span className="shrink-0 text-right">
                             {order.balance_due > 0 ? (
-                              <span className="block text-xs font-medium text-amber-600 dark:text-amber-400">{formatCurrency(order.balance_due)} due</span>
+                              <span className="block text-xs font-medium text-warning">{formatCurrency(order.balance_due)} due</span>
                             ) : (
-                              <span className="block text-xs font-medium text-emerald-600 dark:text-emerald-400">Paid</span>
+                              <span className="block text-xs font-medium text-success">Paid</span>
                             )}
                             {order.phone && (
                               <a href={`tel:${order.phone}`} className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground">
@@ -398,7 +408,7 @@ const Dashboard = () => {
                   description={
                     data.stock.low + data.stock.out === 0 ? 'Everything is above its reorder level' : (
                       <>
-                        <span className={cn(data.stock.out > 0 && 'font-medium text-red-600 dark:text-red-400')}>{data.stock.out} out of stock</span>
+                        <span className={cn(data.stock.out > 0 && 'font-medium text-destructive')}>{data.stock.out} out of stock</span>
                         {` · ${data.stock.low} running low`}
                       </>
                     )
@@ -406,13 +416,13 @@ const Dashboard = () => {
                   action={data.stock.low + data.stock.out ? { label: 'Reorder', onClick: () => navigate('/inventory/reorder') } : undefined}
                 >
                   {data.stock.items.length === 0 ? (
-                    <Empty>Nothing needs reordering.</Empty>
+                    <EmptyNote>Nothing needs reordering.</EmptyNote>
                   ) : (
                     <ul className="divide-y divide-border/70">
                       {data.stock.items.map((item) => (
                         <li key={`${item.kind}-${item.id}`} className="flex items-center justify-between gap-3 py-2">
                           <span className="flex min-w-0 items-center gap-2.5">
-                            <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', item.out_of_stock ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400')}>
+                            <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', item.out_of_stock ? 'bg-destructive/10 text-destructive' : 'bg-warning/15 text-warning')}>
                               {item.kind === 'frame' ? <RiGlassesLine className="size-3.5" /> : <RiAlertLine className="size-3.5" />}
                             </span>
                             <span className="min-w-0">
@@ -421,7 +431,7 @@ const Dashboard = () => {
                             </span>
                           </span>
                           <span className="shrink-0 text-right text-xs">
-                            <span className={cn('block font-semibold', item.out_of_stock ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
+                            <span className={cn('block font-semibold', item.out_of_stock ? 'text-destructive' : 'text-warning')}>
                               {item.out_of_stock ? 'Out of stock' : `${item.current_stock} left`}
                             </span>
                             <span className="text-muted-foreground">reorder at {item.reorder_level}</span>
@@ -442,16 +452,17 @@ const Dashboard = () => {
                       { label: 'Supplier bills overdue', value: data.payables.overdue_count, hint: data.payables.overdue_total ? formatCurrency(data.payables.overdue_total) : 'None', to: '/supplier-invoices?status=overdue', warn: data.payables.overdue_count > 0 },
                       { label: 'Due this week', value: formatCurrency(data.payables.due_this_week), hint: 'To suppliers', to: '/supplier-invoices' },
                     ].map((stat) => (
-                      <button
+                      <Button
                         key={stat.label}
                         type="button"
+                        variant="outline"
                         onClick={() => navigate(stat.to)}
-                        className="rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:border-primary/40"
+                        className="h-auto min-w-0 flex-col items-stretch gap-0 rounded-lg px-3 py-2.5 text-left font-normal hover:border-primary/40 hover:bg-transparent dark:bg-transparent"
                       >
                         <span className="block text-xs text-muted-foreground">{stat.label}</span>
-                        <span className={cn('block text-lg font-semibold', stat.warn && 'text-red-600 dark:text-red-400')}>{stat.value}</span>
+                        <span className={cn('block text-lg font-semibold', stat.warn && 'text-destructive')}>{stat.value}</span>
                         <span className="block truncate text-xs text-muted-foreground">{stat.hint}</span>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                   <Button variant="outline" size="sm" className="mt-3 w-full gap-1.5" onClick={() => navigate('/purchase-orders/new')}>

@@ -1,5 +1,6 @@
 import { RiMoneyDollarCircleLine } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/utils/formatters'
 
@@ -28,24 +29,15 @@ export function DrawerViewSwitch<T extends string>({
   options: Array<{ value: T; label: string; disabled?: boolean }>
 }) {
   return (
-    <div role="tablist" className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={value === option.value}
-          disabled={option.disabled}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40',
-            value === option.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <Tabs value={value} onValueChange={(next) => onChange(next as T)}>
+      <TabsList className="group-data-[orientation=horizontal]/tabs:h-8">
+        {options.map((option) => (
+          <TabsTrigger key={option.value} value={option.value} disabled={option.disabled} className="px-3 text-xs">
+            {option.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 }
 
@@ -76,11 +68,11 @@ export function MoneyStrip({
         </div>
         <div className="px-3 py-2.5">
           <p className="text-[11px] text-muted-foreground">Paid</p>
-          <p className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(paid)}</p>
+          <p className="text-sm font-semibold tabular-nums text-success">{formatCurrency(paid)}</p>
         </div>
         <div className="px-3 py-2.5">
           <p className="text-[11px] text-muted-foreground">Balance</p>
-          <p className={cn('text-sm font-semibold tabular-nums', settled ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+          <p className={cn('text-sm font-semibold tabular-nums', settled ? 'text-success' : 'text-warning')}>
             {settled ? 'Paid' : formatCurrency(balance)}
           </p>
         </div>
@@ -163,12 +155,12 @@ export function LineItemList({ items }: { items: DrawerLineItem[] }) {
               {[item.detail, item.isFree ? 'Free' : `${item.qty} × ${formatCurrency(item.unitPrice)}`].filter(Boolean).join(' · ')}
             </p>
             {item.note && (
-              <p className={cn('text-xs font-medium', item.noteTone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+              <p className={cn('text-xs font-medium', item.noteTone === 'success' ? 'text-success' : 'text-warning')}>
                 {item.note}
               </p>
             )}
           </div>
-          <span className={cn('shrink-0 text-sm font-medium tabular-nums', item.isFree && 'text-emerald-600 dark:text-emerald-400')}>
+          <span className={cn('shrink-0 text-sm font-medium tabular-nums', item.isFree && 'text-success')}>
             {item.isFree ? 'Free' : formatCurrency(item.total)}
           </span>
         </li>

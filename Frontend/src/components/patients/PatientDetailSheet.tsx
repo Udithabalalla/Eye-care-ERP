@@ -27,6 +27,7 @@ import { salesOrdersApi } from '@/api/erp.api'
 import { Patient } from '@/types/patient.types'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { DrawerLoadingBar, DrawerRow, DrawerSection } from '@/components/common/DetailDrawer'
@@ -61,12 +62,32 @@ const whatsappNumber = (phone: string) => {
   return digits
 }
 
+const ACTION_TONES = {
+  success: 'bg-success/10 text-success hover:bg-success/15 hover:text-success',
+  warning: 'bg-warning/15 text-warning-foreground hover:bg-warning/20 hover:text-warning-foreground dark:text-warning dark:hover:text-warning',
+  neutral: 'bg-muted/60 text-foreground hover:bg-muted',
+} as const
+
+/** A full-width tinted row that takes you to the thing to act on */
+function ActionRow({ tone, onClick, children }: { tone: keyof typeof ACTION_TONES; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onClick}
+      className={cn('h-auto w-full justify-between gap-2 whitespace-normal rounded-lg px-3 py-2 text-left text-xs font-normal', ACTION_TONES[tone])}
+    >
+      {children}
+    </Button>
+  )
+}
+
 const ago = (value?: string) => (value ? formatDistanceToNowStrict(parseISO(value), { addSuffix: true }) : undefined)
 
 const APPOINTMENT_TONES: Record<string, string> = {
-  scheduled: 'text-sky-700 dark:text-sky-300',
-  confirmed: 'text-emerald-700 dark:text-emerald-300',
-  'in-progress': 'text-amber-700 dark:text-amber-300',
+  scheduled: 'text-info',
+  confirmed: 'text-success',
+  'in-progress': 'text-warning',
   completed: 'text-muted-foreground',
   cancelled: 'text-muted-foreground line-through',
   'no-show': 'text-destructive',
@@ -205,7 +226,7 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                   </div>
                   <div className="px-3 py-2.5">
                     <p className="text-[11px] text-muted-foreground">Owes</p>
-                    <p className={cn('text-sm font-semibold tabular-nums', balanceDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                    <p className={cn('text-sm font-semibold tabular-nums', balanceDue > 0 ? 'text-warning' : 'text-success')}>
                       {invoicesData ? (balanceDue > 0 ? formatCurrency(balanceDue) : 'Nothing') : '…'}
                     </p>
                   </div>
@@ -215,44 +236,33 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                 {(allergies.length > 0 || readyOrders.length > 0 || rxExpired || owing.length > 0) && (
                   <div className="space-y-1.5">
                     {allergies.length > 0 && (
-                      <p className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800 dark:bg-red-950/30 dark:text-red-300">
-                        <RiAlertLine className="size-3.5 shrink-0" />
-                        <span><span className="font-semibold">Allergies:</span> {allergies.join(', ')}</span>
-                      </p>
+                      <Alert variant="destructive" className="border-destructive/30 bg-destructive/10 px-3 py-2">
+                        <RiAlertLine />
+                        <AlertDescription>
+                          <span className="font-semibold">Allergies:</span> {allergies.join(', ')}
+                        </AlertDescription>
+                      </Alert>
                     )}
                     {readyOrders.map((order) => (
-                      <button
-                        key={order.order_id}
-                        type="button"
-                        onClick={() => goTo(`/sales-orders?detail=${order.order_id}`)}
-                        className="flex w-full items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-left text-xs text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300"
-                      >
+                      <ActionRow key={order.order_id} tone="success" onClick={() => goTo(`/sales-orders?detail=${order.order_id}`)}>
                         <span><span className="font-semibold">Ready to collect</span> — {order.order_number}</span>
                         <span className="font-medium">Open ›</span>
-                      </button>
+                      </ActionRow>
                     ))}
                     {rxExpired && latestRx && (
-                      <button
-                        type="button"
-                        onClick={() => actions.onBookAppointment(patient)}
-                        className="flex w-full items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200"
-                      >
+                      <ActionRow tone="warning" onClick={() => actions.onBookAppointment(patient)}>
                         <span><span className="font-semibold">Due for an eye test</span> — prescription expired {formatDate(latestRx.valid_until, 'dd MMM yyyy')}</span>
                         <span className="font-medium">Book ›</span>
-                      </button>
+                      </ActionRow>
                     )}
                     {owing.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => goTo(`/invoices?detail=${owing[0].invoice_id}`)}
-                        className="flex w-full items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-left text-xs text-foreground hover:bg-muted"
-                      >
+                      <ActionRow tone="neutral" onClick={() => goTo(`/invoices?detail=${owing[0].invoice_id}`)}>
                         <span>
                           <span className="font-semibold">{formatCurrency(balanceDue)} to collect</span>
                           {' '}on {owing.length === 1 ? `invoice ${owing[0].invoice_number}` : `${owing.length} invoices`}
                         </span>
                         <span className="font-medium text-primary">Collect ›</span>
-                      </button>
+                      </ActionRow>
                     )}
                   </div>
                 )}
@@ -281,7 +291,7 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                           {latestRx.doctor_name ? ` · ${latestRx.doctor_name}` : ''}
                           {latestRx.eye_prescription?.prescription_type ? ` · ${latestRx.eye_prescription.prescription_type.replace(/-/g, ' ')}` : ''}
                         </span>
-                        <span className={cn('font-medium', rxExpired ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                        <span className={cn('font-medium', rxExpired ? 'text-warning' : 'text-success')}>
                           {rxExpired ? 'Expired' : `Valid until ${formatDate(latestRx.valid_until, 'dd MMM yyyy')}`}
                         </span>
                       </div>
@@ -320,10 +330,11 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                         const due = invoice?.balance_due ?? 0
                         return (
                           <li key={order.order_id}>
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
                               onClick={() => goTo(`/sales-orders?detail=${order.order_id}`)}
-                              className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted/50"
+                              className="-mx-2 h-auto w-[calc(100%+1rem)] justify-between gap-3 whitespace-normal px-2 py-2 text-left font-normal hover:bg-muted/50"
                             >
                               <div className="min-w-0">
                                 <p className="flex items-center gap-2 text-sm font-medium">
@@ -334,9 +345,9 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                               </div>
                               <div className="shrink-0 text-right">
                                 <p className="text-sm font-medium tabular-nums">{formatCurrency(order.total_amount)}</p>
-                                {due > 0 && <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">{formatCurrency(due)} due</p>}
+                                {due > 0 && <p className="text-[11px] font-medium text-warning">{formatCurrency(due)} due</p>}
                               </div>
-                            </button>
+                            </Button>
                           </li>
                         )
                       })}
@@ -369,7 +380,7 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
                               {[appt.type?.replace(/-/g, ' '), appt.doctor_name && `Dr. ${appt.doctor_name}`, appt.reason].filter(Boolean).join(' · ')}
                             </p>
                           </div>
-                          <span className={cn('shrink-0 text-xs font-medium capitalize', APPOINTMENT_TONES[appt.status] ?? 'text-muted-foreground', upcoming.includes(appt) && 'rounded-full bg-sky-50 px-2 py-0.5 dark:bg-sky-950/40')}>
+                          <span className={cn('shrink-0 text-xs font-medium capitalize', APPOINTMENT_TONES[appt.status] ?? 'text-muted-foreground', upcoming.includes(appt) && 'rounded-full bg-info/10 px-2 py-0.5 text-info')}>
                             {upcoming.includes(appt) ? 'Upcoming' : appt.status.replace(/-/g, ' ')}
                           </span>
                         </li>

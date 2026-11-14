@@ -27,7 +27,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -50,9 +52,9 @@ interface AlertItem {
 }
 
 const TONES: Record<Tone, string> = {
-  success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+  success: 'bg-success/10 text-success',
   danger: 'bg-destructive/10 text-destructive',
-  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+  warning: 'bg-warning/15 text-warning',
   info: 'bg-primary/10 text-primary',
 }
 
@@ -190,29 +192,37 @@ const Header = () => {
       <div className="flex items-center gap-2 flex-1">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="h-5 hidden md:block" />
-        <div className="relative group w-full max-w-sm hidden sm:block">
-          <RiSearchLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-          <Input
-            type="text"
-            placeholder="Search..."
-            className="h-9 rounded-md border-border bg-card pl-9 text-sm"
-          />
-        </div>
+        <InputGroup className="hidden h-9 w-full max-w-sm bg-card sm:flex">
+          <InputGroupAddon>
+            <RiSearchLine />
+          </InputGroupAddon>
+          <InputGroupInput type="text" placeholder="Search..." aria-label="Search" />
+        </InputGroup>
       </div>
 
       {/* Right */}
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} title="Refresh page">
-          <RiRefreshLine className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} aria-label="Refresh page">
+              <RiRefreshLine className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Refresh page</TooltipContent>
+        </Tooltip>
 
         {/* Theme: explicit Light / Dark / System choices instead of a blind toggle */}
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`Theme: ${THEME_OPTIONS.find((o) => o.value === preference)?.label}`} title="Change theme">
-              {theme === 'dark' ? <RiMoonLine className="h-4 w-4" /> : <RiSunLine className="h-4 w-4" />}
-            </Button>
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={`Theme: ${THEME_OPTIONS.find((o) => o.value === preference)?.label}`}>
+                  {theme === 'dark' ? <RiMoonLine className="h-4 w-4" /> : <RiSunLine className="h-4 w-4" />}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Change theme</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Appearance</DropdownMenuLabel>
             {THEME_OPTIONS.map((option) => (
@@ -260,21 +270,23 @@ const Header = () => {
 
             <div className="max-h-[60vh] overflow-y-auto">
               {alerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
-                    <RiCheckDoubleLine className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">You're all caught up</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Overdue invoices, ready orders and low stock show up here.</p>
-                </div>
+                <Empty className="px-4 py-10">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon" className="rounded-full bg-success/10 text-success">
+                      <RiCheckDoubleLine />
+                    </EmptyMedia>
+                    <EmptyTitle>You're all caught up</EmptyTitle>
+                    <EmptyDescription>Overdue invoices, ready orders and low stock show up here.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : (
                 <ul className="divide-y divide-border">
                   {alerts.map((alert) => (
                     <li key={alert.id}>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
                         onClick={() => openAlert(alert.to)}
-                        className="group flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                        className="group h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-none px-4 py-3 text-left font-normal hover:bg-muted/50"
                       >
                         <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${TONES[alert.tone]}`}>
                           <alert.icon className="h-4 w-4" />
@@ -292,7 +304,7 @@ const Header = () => {
                             <RiArrowRightSLine className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                           </p>
                         </div>
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>

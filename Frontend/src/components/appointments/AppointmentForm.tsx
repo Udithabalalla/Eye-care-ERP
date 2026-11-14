@@ -29,6 +29,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   QUICK_REASONS,
   VISIT_TYPES,
@@ -46,6 +47,10 @@ import {
   visitTypeLabel,
   worksOn,
 } from './appointmentUtils'
+
+// A selectable card in the pickers below (visit type, doctor, day, time)
+const CHOICE =
+  'h-auto whitespace-normal border-border text-sm font-normal hover:border-primary/40 hover:bg-accent data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary'
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, 'Choose a patient'),
@@ -425,43 +430,46 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
             </Step>
 
             <Step n={2} title="Visit">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={type}
+                onValueChange={(value) => value && pickType(value as AppointmentType)}
+                aria-label="Visit type"
+                className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2"
+              >
                 {VISIT_TYPES.map((t) => (
-                  <button
+                  <ToggleGroupItem
                     key={t.value}
-                    type="button"
-                    onClick={() => pickType(t.value)}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                      type === t.value
-                        ? 'border-primary bg-primary/10 font-medium text-primary'
-                        : 'border-border hover:border-primary/40 hover:bg-accent',
-                    )}
+                    value={t.value}
+                    className={cn(CHOICE, 'flex-col items-start gap-0 rounded-lg px-3 py-2 text-left data-[state=on]:font-medium')}
                   >
                     {t.label}
                     <span className="block text-xs font-normal text-muted-foreground">{t.minutes} min</span>
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
 
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  value={form.watch('reason') ?? ''}
+                  onValueChange={(value) => value && form.setValue('reason', value)}
+                  aria-label="Common reasons"
+                  className="flex-wrap justify-start gap-1.5"
+                >
                   {QUICK_REASONS.map((r) => (
-                    <button
+                    <ToggleGroupItem
                       key={r}
-                      type="button"
-                      onClick={() => form.setValue('reason', r)}
-                      className={cn(
-                        'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                        form.watch('reason') === r
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                      )}
+                      value={r}
+                      className={cn(CHOICE, 'rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground')}
                     >
                       {r}
-                    </button>
+                    </ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
                 <FormField
                   control={form.control}
                   name="reason"
@@ -500,19 +508,22 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                         placeholder="Choose a doctor"
                       />
                     ) : (
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        value={field.value ?? ''}
+                        onValueChange={(value) => value && field.onChange(value)}
+                        aria-label="Doctor"
+                        className="grid w-full gap-2 sm:grid-cols-2"
+                      >
                         {practitioners.map((p) => {
                           const selected = field.value === p.id
                           const off = !!p.doctor && !worksOn(p.doctor, date)
                           return (
-                            <button
+                            <ToggleGroupItem
                               key={p.id}
-                              type="button"
-                              onClick={() => field.onChange(p.id)}
-                              className={cn(
-                                'flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors',
-                                selected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40 hover:bg-accent',
-                              )}
+                              value={p.id}
+                              className={cn(CHOICE, 'items-start justify-start gap-2.5 rounded-lg px-3 py-2.5 text-left data-[state=on]:text-foreground')}
                             >
                               <span className={cn('mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border', selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40')}>
                                 {selected && <RiCheckLine className="size-3" />}
@@ -523,12 +534,12 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                                   {p.title}
                                   {p.doctor ? ` · ${summarizeDays(p.doctor.available_days)} ${p.doctor.available_time_start}–${p.doctor.available_time_end}` : ''}
                                 </span>
-                                {off && <span className="mt-0.5 block text-xs text-amber-600 dark:text-amber-400">Off on {dayName(date)}s</span>}
+                                {off && <span className="mt-0.5 block text-xs text-warning">Off on {dayName(date)}s</span>}
                               </span>
-                            </button>
+                            </ToggleGroupItem>
                           )
                         })}
-                      </div>
+                      </ToggleGroup>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -540,19 +551,25 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
           {/* ── Right: when ───────────────────────────────────────────── */}
           <div className="space-y-6">
             <Step n={4} title="Day">
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8 lg:grid-cols-4 xl:grid-cols-8">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={days.includes(date) ? date : ''}
+                onValueChange={(value) => value && form.setValue('appointment_date', value, { shouldValidate: true })}
+                aria-label="Day"
+                className="grid w-full grid-cols-4 gap-2 sm:grid-cols-8 lg:grid-cols-4 xl:grid-cols-8"
+              >
                 {days.map((d, i) => {
                   const selected = date === d
                   const off = !!schedule && !worksOn(schedule, d)
                   const dt = dateFromKey(d)
                   return (
-                    <button
+                    <ToggleGroupItem
                       key={d}
-                      type="button"
-                      onClick={() => form.setValue('appointment_date', d, { shouldValidate: true })}
+                      value={d}
                       className={cn(
-                        'flex flex-col items-center rounded-lg border px-1 py-1.5 text-center transition-colors',
-                        selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:border-primary/40 hover:bg-accent',
+                        CHOICE,
+                        'flex-col gap-0 rounded-lg px-1 py-1.5 text-center data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
                         off && !selected && 'opacity-50',
                       )}
                       title={off ? `${practitioner?.name} is off on ${dayName(d)}s` : undefined}
@@ -560,21 +577,24 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                       <span className="text-[11px] font-medium uppercase">{i === 0 ? 'Today' : i === 1 ? 'Tmrw' : format(dt, 'EEE')}</span>
                       <span className="text-base font-semibold leading-tight">{format(dt, 'd')}</span>
                       <span className={cn('text-[10px]', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{off ? 'Off' : format(dt, 'MMM')}</span>
-                    </button>
+                    </ToggleGroupItem>
                   )
                 })}
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
                       className={cn(
-                        'flex flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center text-xs transition-colors',
-                        date && !days.includes(date) ? 'border-primary bg-primary text-primary-foreground' : 'border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                        'h-auto flex-col gap-0.5 rounded-lg px-1 py-1.5 text-center text-xs font-normal',
+                        date && !days.includes(date)
+                          ? 'border-primary bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground dark:bg-primary'
+                          : 'border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground',
                       )}
                     >
                       <RiCalendarLine className="size-4" />
                       {date && !days.includes(date) ? format(dateFromKey(date), 'd MMM') : 'Later'}
-                    </button>
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="end">
                     <Calendar
@@ -590,9 +610,9 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                     />
                   </PopoverContent>
                 </Popover>
-              </div>
+              </ToggleGroup>
               {schedule && date && !worksOn(schedule, date) && (
-                <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <p className="flex items-center gap-1.5 text-xs text-warning">
                   <RiAlertLine className="size-3.5" />
                   {practitioner?.name} doesn't usually work on {dayName(date)}s. You can still book.
                 </p>
@@ -651,30 +671,34 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                             return (
                               <div key={part}>
                                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">{part}</p>
-                                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6">
-                                  {inPart.map((slot) => {
-                                    const selected = field.value === slot.time && !customTime
-                                    return (
-                                      <button
-                                        key={slot.time}
-                                        type="button"
-                                        disabled={!!slot.takenBy}
-                                        title={slot.takenBy ? `Booked: ${slot.takenBy}` : `${slot.time}–${endTimeOf(slot.time, duration)}`}
-                                        onClick={() => { setCustomTime(false); field.onChange(slot.time) }}
-                                        className={cn(
-                                          'h-9 rounded-md border text-sm tabular-nums transition-colors',
-                                          selected
-                                            ? 'border-primary bg-primary font-semibold text-primary-foreground'
-                                            : slot.takenBy
-                                              ? 'cursor-not-allowed border-transparent bg-muted text-muted-foreground/60 line-through'
-                                              : 'border-border hover:border-primary hover:bg-primary/5',
-                                        )}
-                                      >
-                                        {slot.time}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
+                                <ToggleGroup
+                                  type="single"
+                                  variant="outline"
+                                  value={customTime ? '' : field.value ?? ''}
+                                  onValueChange={(value) => {
+                                    if (!value) return
+                                    setCustomTime(false)
+                                    field.onChange(value)
+                                  }}
+                                  aria-label={`${part} times`}
+                                  className="grid w-full grid-cols-4 gap-1.5 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6"
+                                >
+                                  {inPart.map((slot) => (
+                                    <ToggleGroupItem
+                                      key={slot.time}
+                                      value={slot.time}
+                                      disabled={!!slot.takenBy}
+                                      title={slot.takenBy ? `Booked: ${slot.takenBy}` : `${slot.time}–${endTimeOf(slot.time, duration)}`}
+                                      className={cn(
+                                        CHOICE,
+                                        'h-9 rounded-md tabular-nums hover:border-primary hover:bg-primary/5 data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground',
+                                        slot.takenBy && 'border-transparent bg-muted text-muted-foreground/60 line-through disabled:opacity-100',
+                                      )}
+                                    >
+                                      {slot.time}
+                                    </ToggleGroupItem>
+                                  ))}
+                                </ToggleGroup>
                               </div>
                             )
                           })}
@@ -692,7 +716,7 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                         />
                       </div>
                       {clash && (
-                        <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                        <p className="flex items-center gap-1.5 text-xs text-warning">
                           <RiAlertLine className="size-3.5" />
                           Overlaps {clash.patient_name} at {timeOf(clash)}.
                         </p>

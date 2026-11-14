@@ -45,6 +45,11 @@
     --chart-4: oklch(0.488 0.243 264.376);
     --chart-5: oklch(0.424 0.199 265.638);
     --radius: 0.45rem;
+    /* Tailwind v4 theme radii that the generated shadcn components read (var(--radius-md) …);
+       same steps as borderRadius in tailwind.config.js */
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
 
     /* Height of the app header (h-16). Sheet panels dock below it so they read
        as part of the page layout rather than floating over the whole shell. */

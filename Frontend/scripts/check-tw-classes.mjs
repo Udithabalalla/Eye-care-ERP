@@ -73,7 +73,8 @@ for (const file of files) {
       if (!classLike.test(token)) continue
       // v4-only: trailing important (animate-none!, v3 wants !animate-none) and spacing
       // steps v3 doesn't have (pl-7.5, size-4.5)
-      const v4Only = /-\(--|[\w\])]!$/.test(token) || /^-?[a-z]+(-[a-z]+)*-\d+\.\d+$/.test(token)
+      const v4Only =
+        /-\(--|[\w\])]!$/.test(token) || /^-?[a-z]+(-[a-z]+)*-\d+\.\d+$/.test(token) || token.includes('--spacing(')
       if (!/[:/]/.test(token) && !v4Only) continue
       // Module paths ('react-dom/client') rather than opacity modifiers ('bg-primary/10')
       if (!token.includes(':') && !/\/(\d|\[)/.test(token) && !v4Only) continue
@@ -92,7 +93,9 @@ const css = (
   )
 ).css
 
-const missing = [...found].filter(([token]) => !css.includes('.' + escapeClassName(token)))
+// Compiles, but to CSS a browser drops: v4's --spacing() function inside an arbitrary value
+const invalid = (token) => token.includes('--spacing(')
+const missing = [...found].filter(([token]) => invalid(token) || !css.includes('.' + escapeClassName(token)))
 for (const [token, where] of missing.sort(([a], [b]) => a.localeCompare(b))) {
   console.log(`${token}\n    ${[...where].join(', ')}`)
 }

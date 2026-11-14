@@ -37,6 +37,7 @@ import {
   visitTypeLabel,
 } from '@/components/appointments/appointmentUtils'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { Textarea } from '@/components/ui/textarea'
@@ -181,9 +182,9 @@ const Appointments = () => {
               </Button>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" className="ml-1 text-base font-semibold">
+                  <Button variant="ghost" className="ml-1 min-w-0 shrink text-base font-semibold">
                     <RiCalendarLine />
-                    {format(selectedDate, 'EEEE, d MMMM')}
+                    <span className="truncate">{format(selectedDate, 'EEEE, d MMMM')}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -213,31 +214,33 @@ const Appointments = () => {
             </Select>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <ToggleGroup
+            type="single"
+            value={selectedDay}
+            onValueChange={(value) => value && goToDay(value)}
+            aria-label="Day of the week"
+            className="grid w-full grid-cols-7 gap-1.5"
+          >
             {weekDays.map((key) => {
               const dt = dateFromKey(key)
               const active = (byDay[key] ?? []).filter(isActiveBooking).length
               const selected = key === selectedDay
               const today = isSameDay(dt, new Date())
               return (
-                <button
+                <ToggleGroupItem
                   key={key}
-                  type="button"
-                  onClick={() => goToDay(key)}
-                  className={cn(
-                    'flex flex-col items-center gap-0.5 rounded-lg border py-2 transition-colors',
-                    selected ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-accent',
-                  )}
+                  value={key}
+                  className="h-auto flex-col gap-0.5 rounded-lg border border-transparent py-2 text-sm font-normal hover:bg-accent data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                 >
                   <span className={cn('text-[11px] font-medium uppercase', !selected && 'text-muted-foreground')}>{format(dt, 'EEE')}</span>
                   <span className={cn('text-lg font-semibold leading-tight', today && !selected && 'text-primary')}>{format(dt, 'd')}</span>
                   <span className={cn('h-4 text-[11px]', selected ? 'text-primary-foreground/85' : 'text-muted-foreground')}>
                     {active > 0 ? `${active} booked` : ''}
                   </span>
-                </button>
+                </ToggleGroupItem>
               )
             })}
-          </div>
+          </ToggleGroup>
         </CardContent>
       </Card>
 

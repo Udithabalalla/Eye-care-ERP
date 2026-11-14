@@ -1,5 +1,6 @@
 import { RiArrowDownLine, RiArrowUpLine } from '@remixicon/react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 /** Signed change against a named earlier period, or a plain note when there's nothing to compare with */
 export function Delta({ now, before, against, noneBefore }: { now: number; before: number; against: string; noneBefore: string }) {
@@ -9,7 +10,7 @@ export function Delta({ now, before, against, noneBefore }: { now: number; befor
   const change = ((now - before) / before) * 100
   const up = change >= 0
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', up ? 'text-success' : 'text-destructive')}>
       {up ? <RiArrowUpLine className="size-3.5" aria-hidden /> : <RiArrowDownLine className="size-3.5" aria-hidden />}
       {Math.abs(change).toFixed(0)}%
       <span className="font-normal text-muted-foreground">&nbsp;{against}</span>
@@ -36,13 +37,10 @@ export function KpiTile({
   tone?: 'warn'
   onClick?: () => void
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className="group flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3.5 text-left shadow-xs transition-colors enabled:hover:border-primary/40 disabled:cursor-default"
-    >
+  const tile =
+    'group flex h-auto min-w-0 flex-col items-stretch justify-start gap-2 whitespace-normal rounded-xl border border-border bg-card px-4 py-3.5 text-left font-normal shadow-xs'
+  const body = (
+    <>
       <span className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -51,8 +49,17 @@ export function KpiTile({
           <span className="truncate whitespace-nowrap">{label}</span>
         </span>
       </span>
-      <span className={cn('truncate text-2xl font-semibold tracking-tight', tone === 'warn' && 'text-amber-600 dark:text-amber-400')}>{value}</span>
+      <span className={cn('truncate text-2xl font-semibold tracking-tight', tone === 'warn' && 'text-warning')}>{value}</span>
       {footer && <span className="min-h-4 truncate">{footer}</span>}
-    </button>
+    </>
+  )
+
+  // Clickable tiles are buttons; the rest are plain cards (a disabled button would fade out)
+  return onClick ? (
+    <Button type="button" variant="outline" onClick={onClick} className={cn(tile, 'hover:border-primary/40 hover:bg-card dark:bg-card dark:hover:bg-card')}>
+      {body}
+    </Button>
+  ) : (
+    <div className={tile}>{body}</div>
   )
 }
