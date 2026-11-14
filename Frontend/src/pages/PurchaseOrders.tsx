@@ -101,7 +101,7 @@ const PurchaseOrders = () => {
     placeholderData: keepPreviousData,
   })
 
-  const orders = data?.data || []
+  const orders = useMemo(() => data?.data || [], [data?.data])
 
   const rowStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: PurchaseOrderStatus }) =>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
@@ -55,7 +55,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
-import { getNextAction } from '@/components/sales-orders/SalesOrderWorkflowActions'
+import { getNextAction } from '@/components/sales-orders/salesOrderWorkflow'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 import { FindOrderByReceiptDialog } from '@/components/sales-orders/FindOrderByReceiptDialog'
 
@@ -180,7 +180,7 @@ const SalesOrders = () => {
       }),
   })
 
-  const orders = data?.data || []
+  const orders = useMemo(() => data?.data || [], [data?.data])
 
   const isAllSelected =
     orders.length > 0 && orders.every((o) => selectedOrderIds.includes(o.order_id))
@@ -192,14 +192,14 @@ const SalesOrders = () => {
     [orders, selectedOrderIds],
   )
 
-  const toggleAll = (checked: boolean) => {
+  const toggleAll = useCallback((checked: boolean) => {
     const visibleIds = orders.map((o) => o.order_id)
     if (checked) {
       setSelectedOrderIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
     } else {
       setSelectedOrderIds((prev) => prev.filter((id) => !visibleIds.includes(id)))
     }
-  }
+  }, [orders])
 
   const toggleOne = (orderId: string, checked: boolean) => {
     setSelectedOrderIds((prev) =>
@@ -558,7 +558,7 @@ const SalesOrders = () => {
         },
       },
     ],
-    [isAllSelected, isIndeterminate, selectedOrderIds, pendingRowId, queryClient, navigate, rowStatusMutation],
+    [isAllSelected, isIndeterminate, selectedOrderIds, pendingRowId, navigate, rowStatusMutation, toggleAll],
   )
 
   return (

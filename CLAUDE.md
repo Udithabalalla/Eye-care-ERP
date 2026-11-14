@@ -18,7 +18,7 @@ The shadcn components are generated for Tailwind v4 and React 19. This app runs 
 2. Revert any edits the CLI makes to `src/styles/globals.css` or `tailwind.config.js`.
 3. Never use `--overwrite` on files with local changes: `sheet.tsx` (pin/resize), `dialog.tsx`, `input.tsx`, `textarea.tsx` (forwardRef for react-hook-form), `button.tsx`, `sidebar.tsx`, `alert-dialog.tsx`.
 4. React 18: wrap a generated component in `React.forwardRef` if it receives a react-hook-form ref (`register`, `field.ref`) or sits under a Radix `asChild` / `FormControl` slot. Otherwise the ref is dropped without an error.
-5. Run `npm run check:tw` (from `Frontend/`). It lists classes that compile to no CSS. `tailwind.config.js` already maps shadcn's v4 variants (`data-checked:`, `data-active:`, `data-horizontal:`, `aria-invalid:`, `has-data-[…]:`, `in-data-[…]:` …), opacity on theme colours (`bg-primary/10`) and half spacing steps (`pl-7.5`). Rewrite whatever it still flags:
+5. Run `npm run lint` (from `Frontend/`): ESLint with `--max-warnings 0`, then `npm run check:tw`, which lists classes that compile to no CSS. `tailwind.config.js` already maps shadcn's v4 variants (`data-checked:`, `data-active:`, `data-horizontal:`, `aria-invalid:`, `has-data-[…]:`, `in-data-[…]:` …), opacity on theme colours (`bg-primary/10`) and half spacing steps (`pl-7.5`). Rewrite whatever it still flags:
    - `x-(--var)` → `x-[var(--var)]`
    - `utility!` → `!utility`
    - `**:data-[slot=x]:utility` → `[&_[data-slot=x]]:utility`

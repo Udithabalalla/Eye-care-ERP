@@ -11,14 +11,8 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { FrameVariant } from '@/types/frames.types'
 import { VariantPicker } from './VariantPicker'
+import { makeEmptyRow, type SpreadsheetRow } from './spreadsheetRow'
 import { formatCurrency } from '@/utils/formatters'
-
-export interface SpreadsheetRow {
-  id: string
-  variant: FrameVariant | null
-  qty: number
-  cost_price: number
-}
 
 interface SpreadsheetGridProps {
   rows: SpreadsheetRow[]
@@ -26,15 +20,6 @@ interface SpreadsheetGridProps {
   disabled?: boolean
   showCostPrice?: boolean
   className?: string
-}
-
-function makeEmptyRow(): SpreadsheetRow {
-  return {
-    id: crypto.randomUUID(),
-    variant: null,
-    qty: 1,
-    cost_price: 0,
-  }
 }
 
 export function SpreadsheetGrid({
@@ -232,5 +217,3 @@ function SpreadsheetRowItem({
     </div>
   )
 }
-
-export { makeEmptyRow }

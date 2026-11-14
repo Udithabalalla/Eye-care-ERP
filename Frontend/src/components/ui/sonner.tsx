@@ -1,6 +1,6 @@
 "use client"
 
-import { useTheme } from "@/contexts/ThemeContext"
+import { useTheme } from "@/contexts/theme"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { RiCheckboxCircleLine, RiInformationLine, RiErrorWarningLine, RiCloseCircleLine, RiLoaderLine } from "@remixicon/react"
 

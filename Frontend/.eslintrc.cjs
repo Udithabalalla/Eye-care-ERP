@@ -41,4 +41,12 @@ module.exports = {
     // Confirm with useConfirm() from @/hooks/useConfirm (a shadcn AlertDialog)
     'no-restricted-globals': ['error', { name: 'confirm', message: 'Use useConfirm() from @/hooks/useConfirm.' }],
   },
+  overrides: [
+    {
+      // shadcn/ui files export their cva variants and hooks (buttonVariants, useFormField,
+      // useSidebar …) next to the components by design; keep them as generated
+      files: ['src/components/ui/**'],
+      rules: { 'react-refresh/only-export-components': 'off' },
+    },
+  ],
 }

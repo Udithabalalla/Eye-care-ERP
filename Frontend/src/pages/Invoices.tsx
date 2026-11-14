@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
@@ -74,7 +74,7 @@ const Invoices = () => {
       invoicesApi.getAll({ page, page_size: pageSize, payment_status: statusFilter, search }),
   })
 
-  const invoices = data?.data || []
+  const invoices = useMemo(() => data?.data || [], [data?.data])
   // Default: show invoices in ascending order by invoice_date when no explicit sort applied
   const displayedInvoices = useMemo(() => {
     if (sorting && sorting.length > 0) return invoices
@@ -134,14 +134,14 @@ const Invoices = () => {
     }
   }
 
-  const toggleAll = (checked: boolean) => {
+  const toggleAll = useCallback((checked: boolean) => {
     const visibleIds = invoices.map((inv) => inv.invoice_id)
     if (checked) {
       setSelectedInvoiceIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
     } else {
       setSelectedInvoiceIds((prev) => prev.filter((id) => !visibleIds.includes(id)))
     }
-  }
+  }, [invoices])
 
   const toggleOne = (invoiceId: string, checked: boolean) => {
     setSelectedInvoiceIds((prev) =>
@@ -326,7 +326,7 @@ const Invoices = () => {
         ),
       },
     ],
-    [isAllSelected, isIndeterminate, selectedInvoiceIds],
+    [isAllSelected, isIndeterminate, selectedInvoiceIds, toggleAll],
   )
 
   return (

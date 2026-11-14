@@ -2,65 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesOrdersApi } from '@/api/erp.api'
 import { SalesOrder, SalesOrderStatus } from '@/types/erp.types'
 import { Button } from '@/components/ui/button'
-import {
-  RiBox3Line,
-  RiSettings4Line,
-  RiShieldCheckLine,
-  RiTruckLine,
-  RiLoader4Line,
-} from '@remixicon/react'
+import { RiLoader4Line } from '@remixicon/react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-
-export interface WorkflowAction {
-  fromStatus: SalesOrderStatus
-  toStatus: SalesOrderStatus
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  className: string
-}
-
-export const WORKFLOW_ACTIONS: WorkflowAction[] = [
-  {
-    fromStatus: 'created',
-    toStatus: 'lens_ordered',
-    label: 'Order Lens',
-    icon: RiBox3Line,
-    className: 'bg-warning text-warning-foreground hover:bg-warning/90 border-warning',
-  },
-  {
-    fromStatus: 'lens_ordered',
-    toStatus: 'fitting',
-    label: 'Send for Fitting',
-    icon: RiSettings4Line,
-    className: 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600',
-  },
-  {
-    fromStatus: 'fitting',
-    toStatus: 'ready',
-    label: 'Mark as Ready',
-    icon: RiShieldCheckLine,
-    className: 'bg-success text-success-foreground hover:bg-success/90 border-success',
-  },
-  {
-    fromStatus: 'ready',
-    toStatus: 'delivered',
-    label: 'Complete Delivery',
-    icon: RiTruckLine,
-    className: 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary',
-  },
-]
-
-// Legacy status → lifecycle status mapping for backward compat
-const LEGACY_STATUS_MAP: Partial<Record<SalesOrderStatus, SalesOrderStatus>> = {
-  confirmed: 'created',
-  in_production: 'lens_ordered',
-}
-
-export function getNextAction(status: SalesOrderStatus): WorkflowAction | null {
-  const resolved = LEGACY_STATUS_MAP[status] ?? status
-  return WORKFLOW_ACTIONS.find((a) => a.fromStatus === resolved) ?? null
-}
+import { getNextAction, type WorkflowAction } from './salesOrderWorkflow'
 
 function getCommonAction(orders: SalesOrder[]): WorkflowAction | null {
   if (orders.length === 0) return null

@@ -92,7 +92,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         },
   })
 
-  const { control, watch, setValue } = form
+  const { control, watch, setValue, getValues } = form
   const patientId = watch('patient_id')
   const items = watch('items')
 
@@ -182,8 +182,11 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
     }
   }
 
+  // Recalculate line totals whenever a quantity, price, discount or tax changes.
+  // watch('items') keeps the same array while fields are edited, so the effect keys on the values instead.
+  const itemsKey = items.map((i) => `${i.quantity}-${i.unit_price}-${i.discount}-${i.tax}`).join(',')
   useEffect(() => {
-    items.forEach((item, index) => {
+    getValues('items').forEach((item, index) => {
       if (item.quantity && item.unit_price) {
         const sub = item.quantity * item.unit_price
         const discountAmount = item.discount || 0
@@ -194,7 +197,7 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
         }
       }
     })
-  }, [items.map((i) => `${i.quantity}-${i.unit_price}-${i.discount}-${i.tax}`).join(',')])
+  }, [itemsKey, getValues, setValue])
 
   const createMutation = useMutation({
     mutationFn: (data: InvoiceFormData) => invoicesApi.create(data),

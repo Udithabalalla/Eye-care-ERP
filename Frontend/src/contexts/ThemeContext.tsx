@@ -1,20 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
-
-type Theme = 'light' | 'dark'
-// 'system' follows the operating system's light/dark setting and updates when it changes
-export type ThemePreference = Theme | 'system'
-
-interface ThemeContextType {
-    /** The theme actually on screen */
-    theme: Theme
-    /** What the user picked */
-    preference: ThemePreference
-    setPreference: (preference: ThemePreference) => void
-    toggleTheme: () => void
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+import { ThemeContext, type Theme, type ThemePreference } from './theme'
 
 const darkQuery = () => window.matchMedia('(prefers-color-scheme: dark)')
 
@@ -76,12 +62,4 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             {children}
         </ThemeContext.Provider>
     )
-}
-
-export const useTheme = () => {
-    const context = useContext(ThemeContext)
-    if (context === undefined) {
-        throw new Error('useTheme must be used within a ThemeProvider')
-    }
-    return context
 }

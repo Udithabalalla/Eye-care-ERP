@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef, type SortingState, type Updater } from '@tanstack/react-table'
@@ -68,7 +68,7 @@ const Suppliers = () => {
       suppliersApi.getAll({ page, page_size: pageSize, search, sort_by: sortBy, sort_order: sortOrder }),
   })
 
-  const suppliers = data?.data || []
+  const suppliers = useMemo(() => data?.data || [], [data?.data])
 
   const isAllSelected =
     suppliers.length > 0 && suppliers.every((s) => selectedSupplierIds.includes(s.id))
@@ -104,14 +104,14 @@ const Suppliers = () => {
     })
   }
 
-  const toggleAll = (isSelected: boolean) => {
+  const toggleAll = useCallback((isSelected: boolean) => {
     const visibleIds = suppliers.map((s) => s.id)
     if (isSelected) {
       setSelectedSupplierIds((current) => Array.from(new Set([...current, ...visibleIds])))
     } else {
       setSelectedSupplierIds((current) => current.filter((id) => !visibleIds.includes(id)))
     }
-  }
+  }, [suppliers])
 
   const toggleOne = (id: string, isSelected: boolean) => {
     setSelectedSupplierIds((current) =>
@@ -306,7 +306,7 @@ const Suppliers = () => {
         ),
       },
     ],
-    [isAllSelected, isIndeterminate, selectedSupplierIds],
+    [isAllSelected, isIndeterminate, selectedSupplierIds, navigate, toggleAll],
   )
 
   return (

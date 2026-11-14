@@ -106,7 +106,7 @@ export function RecordPaymentDialog({
         payment_date: new Date().toISOString().split('T')[0],
       })
     }
-  }, [open, balanceDue])
+  }, [open, balanceDue, form])
 
   const amount = form.watch('amount') || 0
 

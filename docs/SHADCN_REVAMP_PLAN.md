@@ -20,8 +20,10 @@ Surveyed on `origin/main` at `3e44167`.
 Follow-up (done): the adjust-stock, receive-stock, product-receive and create-PO drawers, the bulk-variant dialog
 and the Lenses / Other expenses dialogs moved from `useState` to react-hook-form + zod.
 
+Follow-up (done): `npm run lint` passes with 0 problems and now runs `npm run check:tw` too, so the ESLint
+guards and the class check fail the lint step.
+
 Left for later:
-- `npm run lint` still fails on 25 warnings that predate this work (`--max-warnings 0`); 0 errors.
 - Status configs, chart, avatar and category colours keep their categorical palettes on purpose.
 - Dev data: duplicate invoice ids (`INV000001`, …) cause duplicate-key warnings in invoice pickers.
 

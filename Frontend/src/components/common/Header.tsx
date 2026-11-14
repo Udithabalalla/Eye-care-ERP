@@ -18,7 +18,7 @@ import {
   RiComputerLine,
   RiGlassesLine,
 } from '@remixicon/react'
-import { useTheme, type ThemePreference } from '@/contexts/ThemeContext'
+import { useTheme, type ThemePreference } from '@/contexts/theme'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
