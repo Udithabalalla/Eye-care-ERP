@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RiAddLine, RiMore2Line, RiReceiptLine } from '@remixicon/react'
 import { toast } from 'sonner'
@@ -27,10 +30,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Spinner } from '@/components/ui/spinner'
 import Loading from '@/components/common/Loading'
 import { basicDataApi } from '@/api/basic-data.api'
 import { OtherExpenseType, OtherExpenseTypeFormData } from '@/types/basic-data.types'
 import { formatCurrency } from '@/utils/formatters'
+
+const expenseSchema = z.object({
+  name: z.string().trim().min(1, 'Enter a name'),
+  default_cost: z.coerce.number({ invalid_type_error: 'Enter the default cost' }).min(0, 'Enter 0 or more'),
+  is_active: z.boolean(),
+})
 
 const emptyForm: OtherExpenseTypeFormData = {
   name: '',
@@ -43,7 +55,7 @@ const OtherExpenses = () => {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState<OtherExpenseType | null>(null)
-  const [form, setForm] = useState<OtherExpenseTypeFormData>(emptyForm)
+  const form = useForm<OtherExpenseTypeFormData>({ resolver: zodResolver(expenseSchema), defaultValues: emptyForm })
 
   const { data, isLoading } = useQuery({
     queryKey: ['basic-data', 'other-expenses', search],
@@ -51,16 +63,10 @@ const OtherExpenses = () => {
   })
 
   useEffect(() => {
-    if (selectedExpense) {
-      setForm({
-        name: selectedExpense.name,
-        default_cost: selectedExpense.default_cost,
-        is_active: selectedExpense.is_active,
-      })
-    } else {
-      setForm(emptyForm)
-    }
-  }, [selectedExpense])
+    form.reset(selectedExpense
+      ? { name: selectedExpense.name, default_cost: selectedExpense.default_cost, is_active: selectedExpense.is_active }
+      : emptyForm)
+  }, [selectedExpense, form])
 
   const saveMutation = useMutation({
     mutationFn: async (payload: OtherExpenseTypeFormData) => {
@@ -72,7 +78,7 @@ const OtherExpenses = () => {
       toast.success(selectedExpense ? 'Expense updated' : 'Expense created')
       setIsModalOpen(false)
       setSelectedExpense(null)
-      setForm(emptyForm)
+      form.reset(emptyForm)
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || error?.message || 'Failed to save expense'
@@ -90,19 +96,17 @@ const OtherExpenses = () => {
     onError: () => toast.error('Failed to update status'),
   })
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const submit = (values: OtherExpenseTypeFormData) =>
     saveMutation.mutate({
-      name: form.name.trim(),
-      default_cost: Number(form.default_cost || 0),
-      is_active: form.is_active,
+      name: values.name.trim(),
+      default_cost: Number(values.default_cost || 0),
+      is_active: values.is_active,
     })
-  }
 
   const closeModal = () => {
     setIsModalOpen(false)
     setSelectedExpense(null)
-    setForm(emptyForm)
+    form.reset(emptyForm)
   }
 
   return (
@@ -117,7 +121,7 @@ const OtherExpenses = () => {
         <Button
           size="sm"
           className="w-full md:w-auto"
-          onClick={() => { setSelectedExpense(null); setForm(emptyForm); setIsModalOpen(true) }}
+          onClick={() => { setSelectedExpense(null); form.reset(emptyForm); setIsModalOpen(true) }}
         >
           <RiAddLine className="size-4" />
           Add Expense
@@ -135,15 +139,10 @@ const OtherExpenses = () => {
               {data?.total || 0} total
             </Badge>
           </div>
-          <div className="relative w-full sm:w-72">
-            <RiReceiptLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search expenses..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <InputGroup className="w-full sm:w-72">
+            <InputGroupAddon><RiReceiptLine /></InputGroupAddon>
+            <InputGroupInput placeholder="Search expenses..." aria-label="Search expenses" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </InputGroup>
         </CardHeader>
 
         <CardContent className="px-0 pb-0">
@@ -217,42 +216,43 @@ const OtherExpenses = () => {
           <DialogHeader>
             <DialogTitle>{selectedExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Name *</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                placeholder="Soldering"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Default Cost *</label>
-              <Input
-                type="number"
-                value={String(form.default_cost)}
-                onChange={(e) => setForm((c) => ({ ...c, default_cost: Number(e.target.value) }))}
-                required
-              />
-            </div>
-            <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground cursor-pointer">
-              <Checkbox
-                checked={form.is_active}
-                onCheckedChange={(checked) => setForm((c) => ({ ...c, is_active: checked === true }))}
-              />
-              Active
-            </label>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={closeModal}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <span className="mr-2 h-4 w-4 animate-spin">⟳</span>}
-                {selectedExpense ? 'Update Expense' : 'Create Expense'}
-              </Button>
-            </div>
-          </form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
+              <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name *</FormLabel>
+                  <FormControl><Input placeholder="Soldering" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="default_cost" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Cost *</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="is_active" render={({ field }) => (
+                <FormItem>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked === true)} />
+                    </FormControl>
+                    Active
+                  </label>
+                </FormItem>
+              )} />
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saveMutation.isPending}>
+                  {saveMutation.isPending && <Spinner />}
+                  {selectedExpense ? 'Update Expense' : 'Create Expense'}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

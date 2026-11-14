@@ -12,14 +12,15 @@ Surveyed on `origin/main` at `3e44167`.
 | 1 Building blocks | Done: alert, toggle-group, radio-group, input-group, spinner, empty, kbd, input-otp, progress, sonner; status tokens; `useConfirm()` |
 | 2 Front desk | Done |
 | 3 Sales orders, billing, prescriptions | Done (status colours app-wide, all `common/Modal` users on `Dialog`) |
-| 4 Inventory | Done, except the useState forms below |
+| 4 Inventory | Done |
 | 5 Purchasing and suppliers | Done |
 | 6 Finance, settings, admin, auth | Done |
 | 7 Wrap-up | Done: legacy CSS, colour aliases, `common/{Button,Input,Modal}` and `tw-animate-css` removed; ESLint guards |
 
+Follow-up (done): the adjust-stock, receive-stock, product-receive and create-PO drawers, the bulk-variant dialog
+and the Lenses / Other expenses dialogs moved from `useState` to react-hook-form + zod.
+
 Left for later:
-- Forms still on `useState` (already shadcn components, behaviour unchanged): the adjust-stock, receive-stock,
-  product-receive and create-PO drawers, the bulk-variant dialog, the Lenses / Other expenses dialogs.
 - `npm run lint` still fails on 25 warnings that predate this work (`--max-warnings 0`); 0 errors.
 - Status configs, chart, avatar and category colours keep their categorical palettes on purpose.
 - Dev data: duplicate invoice ids (`INV000001`, …) cause duplicate-key warnings in invoice pickers.

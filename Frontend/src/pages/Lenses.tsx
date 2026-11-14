@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RiAddLine, RiMore2Line, RiSparklingLine } from '@remixicon/react'
 import { toast } from 'sonner'
@@ -27,10 +30,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Spinner } from '@/components/ui/spinner'
 import Loading from '@/components/common/Loading'
 import { basicDataApi } from '@/api/basic-data.api'
 import { LensMaster, LensMasterFormData } from '@/types/basic-data.types'
 import { formatCurrency } from '@/utils/formatters'
+
+const required = (message: string) => z.string().trim().min(1, message)
+const lensSchema = z.object({
+  lens_type: required('Enter the lens type'),
+  color: required('Enter the colour'),
+  size: required('Enter the size'),
+  price: z.coerce.number({ invalid_type_error: 'Enter the price' }).min(0, 'Enter 0 or more'),
+  lens_code: required('Enter the lens code'),
+  is_active: z.boolean(),
+})
 
 const emptyForm: LensMasterFormData = {
   lens_type: '',
@@ -46,7 +62,7 @@ const Lenses = () => {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedLens, setSelectedLens] = useState<LensMaster | null>(null)
-  const [form, setForm] = useState<LensMasterFormData>(emptyForm)
+  const form = useForm<LensMasterFormData>({ resolver: zodResolver(lensSchema), defaultValues: emptyForm })
 
   const { data, isLoading } = useQuery({
     queryKey: ['basic-data', 'lenses', search],
@@ -54,19 +70,17 @@ const Lenses = () => {
   })
 
   useEffect(() => {
-    if (selectedLens) {
-      setForm({
-        lens_type: selectedLens.lens_type,
-        color: selectedLens.color,
-        size: selectedLens.size,
-        price: selectedLens.price,
-        lens_code: selectedLens.lens_code,
-        is_active: selectedLens.is_active,
-      })
-    } else {
-      setForm(emptyForm)
-    }
-  }, [selectedLens])
+    form.reset(selectedLens
+      ? {
+          lens_type: selectedLens.lens_type,
+          color: selectedLens.color,
+          size: selectedLens.size,
+          price: selectedLens.price,
+          lens_code: selectedLens.lens_code,
+          is_active: selectedLens.is_active,
+        }
+      : emptyForm)
+  }, [selectedLens, form])
 
   const saveMutation = useMutation({
     mutationFn: async (payload: LensMasterFormData) => {
@@ -78,7 +92,7 @@ const Lenses = () => {
       toast.success(selectedLens ? 'Lens updated' : 'Lens created')
       setIsModalOpen(false)
       setSelectedLens(null)
-      setForm(emptyForm)
+      form.reset(emptyForm)
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || error?.message || 'Failed to save lens'
@@ -96,22 +110,20 @@ const Lenses = () => {
     onError: () => toast.error('Failed to update status'),
   })
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const submit = (values: LensMasterFormData) =>
     saveMutation.mutate({
-      lens_type: form.lens_type.trim(),
-      color: form.color.trim(),
-      size: form.size.trim(),
-      price: Number(form.price || 0),
-      lens_code: form.lens_code.trim(),
-      is_active: form.is_active,
+      lens_type: values.lens_type.trim(),
+      color: values.color.trim(),
+      size: values.size.trim(),
+      price: Number(values.price || 0),
+      lens_code: values.lens_code.trim(),
+      is_active: values.is_active,
     })
-  }
 
   const closeModal = () => {
     setIsModalOpen(false)
     setSelectedLens(null)
-    setForm(emptyForm)
+    form.reset(emptyForm)
   }
 
   return (
@@ -124,7 +136,7 @@ const Lenses = () => {
         <Button
           size="sm"
           className="w-full md:w-auto"
-          onClick={() => { setSelectedLens(null); setForm(emptyForm); setIsModalOpen(true) }}
+          onClick={() => { setSelectedLens(null); form.reset(emptyForm); setIsModalOpen(true) }}
         >
           <RiAddLine className="size-4" />
           Add Lens
@@ -142,15 +154,10 @@ const Lenses = () => {
               {data?.total || 0} total
             </Badge>
           </div>
-          <div className="relative w-full sm:w-72">
-            <RiSparklingLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search lenses..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <InputGroup className="w-full sm:w-72">
+            <InputGroupAddon><RiSparklingLine /></InputGroupAddon>
+            <InputGroupInput placeholder="Search lenses..." aria-label="Search lenses" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </InputGroup>
         </CardHeader>
 
         <CardContent className="px-0 pb-0">
@@ -230,73 +237,68 @@ const Lenses = () => {
           <DialogHeader>
             <DialogTitle>{selectedLens ? 'Edit Lens' : 'Add New Lens'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Lens Type *</label>
-              <Input
-                value={form.lens_type}
-                onChange={(e) => setForm((c) => ({ ...c, lens_type: e.target.value }))}
-                placeholder="Single Vision"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Color *</label>
-                <Input
-                  value={form.color}
-                  onChange={(e) => setForm((c) => ({ ...c, color: e.target.value }))}
-                  placeholder="Clear"
-                  required
-                />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
+              <FormField control={form.control} name="lens_type" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lens Type *</FormLabel>
+                  <FormControl><Input placeholder="Single Vision" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="color" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Color *</FormLabel>
+                  <FormControl><Input placeholder="Clear" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="size" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Size *</FormLabel>
+                  <FormControl><Input placeholder="1.50" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Size *</label>
-                <Input
-                  value={form.size}
-                  onChange={(e) => setForm((c) => ({ ...c, size: e.target.value }))}
-                  placeholder="1.50"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price *</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="lens_code" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lens Code *</FormLabel>
+                  <FormControl><Input placeholder="LN-001" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Price *</label>
-                <Input
-                  type="number"
-                  value={String(form.price)}
-                  onChange={(e) => setForm((c) => ({ ...c, price: Number(e.target.value) }))}
-                  required
-                />
+              <FormField control={form.control} name="is_active" render={({ field }) => (
+                <FormItem>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked === true)} />
+                    </FormControl>
+                    Active
+                  </label>
+                </FormItem>
+              )} />
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saveMutation.isPending}>
+                  {saveMutation.isPending && <Spinner />}
+                  {selectedLens ? 'Update Lens' : 'Create Lens'}
+                </Button>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Lens Code *</label>
-                <Input
-                  value={form.lens_code}
-                  onChange={(e) => setForm((c) => ({ ...c, lens_code: e.target.value }))}
-                  placeholder="LN-001"
-                  required
-                />
-              </div>
-            </div>
-            <label className="flex items-center gap-3 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-foreground cursor-pointer">
-              <Checkbox
-                checked={form.is_active}
-                onCheckedChange={(checked) => setForm((c) => ({ ...c, is_active: checked === true }))}
-              />
-              Active
-            </label>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={closeModal}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <span className="mr-2 h-4 w-4 animate-spin">⟳</span>}
-                {selectedLens ? 'Update Lens' : 'Create Lens'}
-              </Button>
-            </div>
-          </form>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

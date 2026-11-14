@@ -380,7 +380,7 @@ export default function GeneralInventory() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
+                                    <Button aria-label="Receive Stock"
                                       variant="ghost" size="sm"
                                       className="h-7 w-7 p-0 text-success hover:text-success hover:bg-success/10"
                                       onClick={() => openReceive(product)}
@@ -394,7 +394,7 @@ export default function GeneralInventory() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openAdjust(product)}>
+                                    <Button aria-label="Adjust Stock" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openAdjust(product)}>
                                       <RiEqualizer2Line className="size-3.5" />
                                     </Button>
                                   </TooltipTrigger>
@@ -404,7 +404,7 @@ export default function GeneralInventory() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openPrintLabel(product)}>
+                                    <Button aria-label="Print Label" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openPrintLabel(product)}>
                                       <RiPrinterLine className="size-3.5" />
                                     </Button>
                                   </TooltipTrigger>
@@ -415,7 +415,7 @@ export default function GeneralInventory() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(product)}>
+                                    <Button aria-label="Edit" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(product)}>
                                       <RiEditLine className="size-3.5" />
                                     </Button>
                                   </TooltipTrigger>
@@ -425,7 +425,7 @@ export default function GeneralInventory() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
+                                    <Button aria-label="Delete"
                                       variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                       onClick={async () => { if (await askConfirm({ title: 'Delete this product?', destructive: true, confirmLabel: 'Delete' })) deleteMutation.mutate(product.product_id) }}
                                     >
