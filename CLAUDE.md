@@ -158,7 +158,7 @@ Use `SearchableLOV` from `@/components/common/SearchableLOV` — it is built on 
 - Do not `import` from `lucide-react`
 - Do not `import` from `@untitledui/icons`
 - Do not `import` from `@radix-ui/react-icons`
-- Do not use raw `<button>`, `<select>` or `<table>`: use `Button` (any variant, incl. `link`/`ghost` for rows and links), `ToggleGroup` / `Tabs` for choices, `Select` / `SearchableLOV`, `Table` / `DataTable`. Print documents (`InvoicePreview`, `PurchaseOrderPreview`, `AdvanceReceipt`) are the exception.
+- Do not use raw `<button>`, `<select>` or `<table>`: use `Button` (any variant, incl. `link`/`ghost` for rows and links), `ToggleGroup` / `Tabs` for choices, `Select` / `SearchableLOV`, `Table` / `DataTable`. Print documents (`InvoicePreview`, `PurchaseOrderPreview`) are the exception.
 - Do not use raw palette colours (`text-emerald-600`, `bg-amber-50`) for status: use the `success` / `warning` / `info` / `destructive` tokens. Categorical palettes (status configs, chart and avatar colours) are the exception.
 - Do not wrap theme tokens in `hsl(...)`: they are complete oklch colours. Use `var(--primary)`, opacity modifiers (`bg-primary/10`) or `color-mix(in_oklab,var(--primary)_12%,transparent)` in arbitrary values.
 - Do not use `react-aria-components` for UI primitives — Radix/shadcn covers these

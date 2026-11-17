@@ -5,6 +5,7 @@ import {
   RiGiftLine,
   RiHistoryLine,
   RiPriceTag3Line,
+  RiPrinterLine,
   RiShieldCheckLine,
   RiTeamLine,
   RiToolsLine,
@@ -72,6 +73,12 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         path: '/settings/company',
         icon: RiBuilding4Line,
         description: 'Business name, address, logo and purchase order defaults.',
+      },
+      {
+        name: 'Printing',
+        path: '/settings/printing',
+        icon: RiPrinterLine,
+        description: 'One-time printer setup on this device: paper size and printing invoices on save.',
       },
       {
         name: 'Users',

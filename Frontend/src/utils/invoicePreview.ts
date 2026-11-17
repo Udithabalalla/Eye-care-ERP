@@ -20,6 +20,7 @@ export const invoiceToPreviewData = (invoice: Invoice, extraPayment = 0): Invoic
   return {
     invoiceNumber: invoice.invoice_number,
     salesOrderNumber: invoice.sales_order_id,
+    salesOrderId: invoice.sales_order_id || undefined,
     prescriptionRef: invoice.prescription_id && invoice.prescription_id !== 'string' ? invoice.prescription_id : undefined,
     issueDate: invoice.invoice_date,
     dueDate: invoice.due_date,

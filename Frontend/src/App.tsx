@@ -47,6 +47,7 @@ const SupplierPayments = lazy(() => import('./pages/SupplierPayments'))
 const Users = lazy(() => import('./pages/Users'))
 const Sessions = lazy(() => import('./pages/Sessions'))
 const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
+const PrintingSettings = lazy(() => import('./pages/PrintingSettings'))
 const SettingsHub = lazy(() => import('./pages/SettingsHub'))
 
 // Suspense fallback component
@@ -121,6 +122,7 @@ function App() {
               <Route path="/basic-data/other-expenses" element={<OtherExpenses />} />
               <Route path="/basic-data/complimentary-items" element={<ComplimentaryItems />} />
               <Route path="/settings/company" element={<ClinicSettings />} />
+              <Route path="/settings/printing" element={<PrintingSettings />} />
               <Route element={<AdminRoute />}>
                 <Route path="/users" element={<Users />} />
                 <Route path="/roles-permissions" element={<RolesPermissions />} />

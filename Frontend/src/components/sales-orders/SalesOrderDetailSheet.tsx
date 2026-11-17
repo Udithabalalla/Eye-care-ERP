@@ -62,9 +62,7 @@ import { EyeRxTable } from '@/components/prescriptions/EyeRxTable'
 import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemList, MoneyStrip, TotalsBlock, type DrawerLineItem } from '@/components/common/DetailDrawer'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
-import { printPdfBlob } from '@/utils/print'
-import { AdvanceReceiptDialog } from './AdvanceReceiptDialog'
-import { hasBalanceDue, isFullyPaid, receiptSlipLabel } from './AdvanceReceipt'
+import { usePrintInvoice } from '@/hooks/usePrintInvoice'
 
 const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -89,8 +87,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [receiptOpen, setReceiptOpen] = useState(false)
-  const [printing, setPrinting] = useState(false)
+  const { printInvoice, printing } = usePrintInvoice()
   const [view, setView] = useState<'details' | 'invoice'>('details')
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -180,19 +177,6 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     }
   }
 
-  // Once the balance is paid, the invoice itself is the customer's receipt
-  const handlePrintReceipt = async () => {
-    if (!order) return
-    setPrinting(true)
-    try {
-      printPdfBlob(await salesOrdersApi.downloadPDF(order.order_id))
-    } catch {
-      toast.error('Could not open the receipt for printing')
-    } finally {
-      setPrinting(false)
-    }
-  }
-
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: SalesOrderStatus }) =>
       salesOrdersApi.updateStatus(id, status),
@@ -248,9 +232,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const paid = orderInvoice?.paid_amount ?? advancePayment
   const balance = orderInvoice ? orderInvoice.balance_due : Math.max(total - paid, 0)
   const deliveryBlocked = nextAction?.toStatus === 'delivered' && !!orderInvoice && orderInvoice.balance_due > 0
-  // Balance still to pay, with or without an advance: the slip, not the final receipt
-  const advanceOnly = hasBalanceDue(orderInvoice)
-  const settled = isFullyPaid(orderInvoice)
+  const canPrintInvoice = !!orderInvoice && orderInvoice.payment_status !== 'cancelled'
 
   const lineItems: DrawerLineItem[] = (order?.items ?? []).map((item, i) => ({
     key: `${item.product_id}-${i}`,
@@ -418,16 +400,16 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                 </Tooltip>
               </TooltipProvider>
             )}
-            {/* Balance still due → the small slip; paid in full → the invoice is the receipt */}
-            {advanceOnly ? (
-              <Button variant="outline" className="w-full gap-1.5" onClick={() => setReceiptOpen(true)}>
-                <RiPrinterLine className="size-4" />
-                Print {receiptSlipLabel(orderInvoice)}
-              </Button>
-            ) : settled && (
-              <Button variant="outline" className="w-full gap-1.5" onClick={handlePrintReceipt} disabled={printing}>
+            {/* The invoice is the customer's copy, whether part paid or settled */}
+            {order && orderInvoice && canPrintInvoice && (
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => printInvoice(orderInvoice, { orderNumber: order.order_number })}
+                disabled={printing}
+              >
                 {printing ? <RiLoader4Line className="size-4 animate-spin" /> : <RiPrinterLine className="size-4" />}
-                Print receipt
+                Print invoice
               </Button>
             )}
             <div className="flex gap-2">
@@ -524,16 +506,6 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-
-    {order && orderInvoice && advanceOnly && (
-      <AdvanceReceiptDialog
-        open={receiptOpen}
-        onOpenChange={setReceiptOpen}
-        invoice={orderInvoice}
-        orderNumber={order.order_number}
-        readyDate={order.expected_delivery_date}
-      />
-    )}
 
     {/* Payment dialog */}
     {order && invoice && (

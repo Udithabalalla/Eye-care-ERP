@@ -28,7 +28,8 @@ interface Props {
 }
 
 /**
- * Finds an order from the barcode on its advance receipt. A USB scanner types
+ * Finds an order from the barcode on its printed invoice (or an older advance
+ * receipt, which carries the same code). A USB scanner types
  * the code into the field and presses Enter; the camera button covers phones
  * and tablets.
  */
@@ -60,9 +61,9 @@ export function FindOrderByReceiptDialog({ open, onOpenChange, onFound }: Props)
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RiBarcodeLine className="size-5 text-primary" />
-              Find order from receipt
+              Find order from invoice
             </DialogTitle>
-            <DialogDescription>Scan the barcode on the advance receipt to open its sales order.</DialogDescription>
+            <DialogDescription>Scan the barcode on a printed invoice or advance receipt to open its sales order.</DialogDescription>
           </DialogHeader>
 
           <Form {...form}>

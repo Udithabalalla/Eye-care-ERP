@@ -1,4 +1,5 @@
 import BrandLogo from '@/components/common/BrandLogo'
+import OrderBarcode from '@/components/common/OrderBarcode'
 import { CompanyProfile } from '@/types/company-profile.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
@@ -20,6 +21,8 @@ export interface InvoicePreviewLine {
 export interface InvoicePreviewData {
   invoiceNumber?: string
   salesOrderNumber?: string
+  /** The order's ID, printed as a barcode so scanning the invoice opens the order */
+  salesOrderId?: string
   issueDate: string
   dueDate?: string
   billTo: { name: string; phone?: string; email?: string; address?: string }
@@ -67,15 +70,18 @@ export const InvoicePreviewStatus = ({ data }: { data: InvoicePreviewData }) => 
 /**
  * Paper-style preview of the printed invoice. It mirrors the PDF layout in
  * backend invoice_service._build_invoice_pdf and always renders on white,
- * like the printout, whatever the app theme.
+ * like the printout, whatever the app theme. `printable` is the copy that goes
+ * to the printer (utils/printInvoice): no card frame, no on-screen placeholders,
+ * and the order's barcode at the foot.
  */
-const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?: CompanyProfile }) => {
+const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePreviewData; company?: CompanyProfile; printable?: boolean }) => {
   const companyName = company?.company_name || 'Vision Opticals'
   // Free items stay on the order for stock, but the customer's invoice doesn't list them (same as the PDF)
   const lines = data.lines.filter((line) => line.type !== 'Free')
+  const pending = printable ? '—' : 'Assigned on save'
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+    <div className={printable ? 'bg-white text-slate-900' : 'overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm'}>
       {data.isHistorical && (
         <div className="bg-amber-50 px-4 py-2 sm:px-6 text-xs font-medium text-amber-800">
           Past order from paper records — no invoice will be created
@@ -89,7 +95,7 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
           <p className="mt-1 text-xs text-slate-500">
             Invoice number{' '}
             <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
-              {data.invoiceNumber ? `#${data.invoiceNumber}` : 'Assigned on save'}
+              {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
             </span>
           </p>
         </div>
@@ -128,11 +134,11 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
           </div>
           <div>
             <p className="text-slate-500">Sales order</p>
-            <p className="font-semibold">{data.salesOrderNumber || 'Assigned on save'}</p>
+            <p className="font-semibold">{data.salesOrderNumber || pending}</p>
           </div>
           <div>
             <p className="text-slate-500">Prescription</p>
-            <p className="font-semibold">{data.prescriptionRef || 'Assigned on save'}</p>
+            <p className="font-semibold">{data.prescriptionRef || pending}</p>
           </div>
         </div>
 
@@ -224,6 +230,8 @@ const InvoicePreview = ({ data, company }: { data: InvoicePreviewData; company?:
         <p className="border-t border-slate-100 pt-4 text-[11px] text-slate-500">
           Thank you for your trust. For any questions regarding this invoice, please contact us using the details above.
         </p>
+
+        {printable && data.salesOrderId && <OrderBarcode value={data.salesOrderId} className="mx-auto w-56" />}
       </div>
     </div>
   )

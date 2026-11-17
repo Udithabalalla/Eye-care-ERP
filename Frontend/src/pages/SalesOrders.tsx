@@ -642,7 +642,7 @@ const SalesOrders = () => {
         <div className="flex w-full gap-2 md:w-auto">
         <Button size="sm" variant="outline" className="flex-1 md:flex-none" onClick={() => setFindByReceiptOpen(true)}>
           <RiBarcodeLine className="size-4" />
-          Scan receipt
+          Scan invoice
         </Button>
         <Button
           size="sm"

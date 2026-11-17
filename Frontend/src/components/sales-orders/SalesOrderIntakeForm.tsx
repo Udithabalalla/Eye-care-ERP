@@ -82,8 +82,8 @@ import { extractApiErrorMessage } from '@/api/axios'
 import InvoicePreview, { InvoicePreviewData, InvoicePreviewLine, InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import OrderSummaryPanel, { OrderSummaryExtras } from '@/components/sales-orders/OrderSummaryPanel'
 import PaymentPanel from '@/components/sales-orders/PaymentPanel'
-import { AdvanceReceiptDialog } from '@/components/sales-orders/AdvanceReceiptDialog'
-import { hasBalanceDue, receiptSlipLabel } from '@/components/sales-orders/AdvanceReceipt'
+import { usePrintInvoice } from '@/hooks/usePrintInvoice'
+import { loadPrintSettings } from '@/utils/printSettings'
 import { useOtherExpenses } from '@/hooks/useOtherExpenses'
 import { useLensMaster } from '@/hooks/useLensMaster'
 import { basicDataApi } from '@/api/basic-data.api'
@@ -743,7 +743,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const [rightPanel, setRightPanel] = useState<'preview' | 'summary' | null>(null)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
-  const [showAdvanceReceipt, setShowAdvanceReceipt] = useState(false)
+  const { printInvoice, printing: isPrintingInvoice } = usePrintInvoice()
 
   // Form
   const { register, control, handleSubmit, setValue, getValues, reset, clearErrors, trigger, formState: { errors, isDirty } } =
@@ -1645,7 +1645,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         setSavedInvoice(invoice)
         setValue('totals.invoiceNumber', invoice.invoice_number, { shouldDirty: false, shouldValidate: false })
         queryClient.invalidateQueries({ queryKey: ['invoices'] })
-        toast.success(`Invoice ${invoice.invoice_number} generated`)
+        // Straight to the print screen if this device is set up for it, otherwise one tap away on the toast
+        const printNow = () => void printInvoice(invoice, { orderNumber: savedOrder.order_number })
+        const printOnSave = loadPrintSettings().printOnSave
+        toast.success(`Invoice ${invoice.invoice_number} generated`, printOnSave ? undefined : { action: { label: 'Print', onClick: printNow } })
+        if (printOnSave) printNow()
       } else {
         setSavedInvoice(null)
         toast.success(`Historical SO saved as ${savedOrder.order_number}`)
@@ -1832,16 +1836,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
           )}
         </DialogContent>
       </Dialog>
-
-      {savedInvoice && (
-        <AdvanceReceiptDialog
-          open={showAdvanceReceipt}
-          onOpenChange={setShowAdvanceReceipt}
-          invoice={savedInvoice}
-          orderNumber={savedOrderNumber || undefined}
-          readyDate={salesOrder.deliveryDate || undefined}
-        />
-      )}
 
       <div className="mx-auto max-w-3xl space-y-4 xl:max-w-6xl">
         {/* Draft edit banner */}
@@ -3187,12 +3181,16 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                 invoiceNumber={savedInvoice?.invoice_number || totals.invoiceNumber || undefined}
               />
 
-              {/* Balance still to pay (with or without an advance today): hand the customer a slip now;
-                  the full receipt prints when they pay the rest */}
-              {savedInvoice && !salesOrder.isOld && hasBalanceDue(savedInvoice) && (
-                <Button type="button" className="w-full gap-2" onClick={() => setShowAdvanceReceipt(true)}>
-                  <RiPrinterLine className="h-4 w-4" />
-                  Print {receiptSlipLabel(savedInvoice)}
+              {/* The invoice is the customer's copy: one tap opens the print screen (set up under Settings → Printing) */}
+              {savedInvoice && !salesOrder.isOld && (
+                <Button
+                  type="button"
+                  className="w-full gap-2"
+                  onClick={() => printInvoice(savedInvoice, { orderNumber: savedOrderNumber || undefined })}
+                  disabled={isPrintingInvoice}
+                >
+                  {isPrintingInvoice ? <RiLoader4Line className="h-4 w-4 animate-spin" /> : <RiPrinterLine className="h-4 w-4" />}
+                  Print invoice
                 </Button>
               )}
 
