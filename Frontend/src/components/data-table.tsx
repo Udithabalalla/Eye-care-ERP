@@ -35,7 +35,9 @@ declare module '@tanstack/react-table' {
 // A pinned cell sits over the scrolling ones, so it needs an opaque background that
 // follows the row's hover / selected / open-in-drawer colours
 const STICKY_RIGHT =
-  'sticky right-0 z-[1] bg-card shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.2)] group-hover/row:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))] group-data-[state=selected]/row:bg-muted'
+  'sticky right-0 z-[1] bg-card group-hover/row:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))] group-data-[state=selected]/row:bg-muted'
+// Edge shadow, only while columns are scrolled out of sight under the pinned one
+const STICKY_EDGE = 'shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.2)]'
 const STICKY_ACTIVE = 'bg-[color-mix(in_oklab,var(--primary)_5%,var(--card))]'
 
 export type RowAction<TData> = {
@@ -98,6 +100,25 @@ export function DataTable<TData, TValue>({
   isRowActive,
 }: DataTableProps<TData, TValue>) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const tableWrapRef = React.useRef<HTMLDivElement>(null)
+  const [columnsHidden, setColumnsHidden] = React.useState(false)
+
+  // Is part of the table scrolled out of view to the right (under a pinned column)?
+  React.useEffect(() => {
+    const scroller = tableWrapRef.current?.querySelector<HTMLElement>('[data-slot="table-container"]')
+    if (!scroller) return
+    const update = () => setColumnsHidden(scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1)
+    update()
+    scroller.addEventListener('scroll', update, { passive: true })
+    const resize = new ResizeObserver(update)
+    resize.observe(scroller)
+    const table = scroller.querySelector('table')
+    if (table) resize.observe(table)
+    return () => {
+      scroller.removeEventListener('scroll', update)
+      resize.disconnect()
+    }
+  }, [])
 
   const table = useReactTable({
     data,
@@ -222,13 +243,16 @@ export function DataTable<TData, TValue>({
         </DropdownMenu>
       </div>
 
-      <div className="mb-4 rounded-md border">
+      <div ref={tableWrapRef} className="mb-4 rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="z-0">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className={cn('z-0', header.column.columnDef.meta?.sticky === 'right' && 'sticky right-0 z-[1] bg-card')}>
+                  <TableHead
+                    key={header.id}
+                    className={cn('z-0', header.column.columnDef.meta?.sticky === 'right' && ['sticky right-0 z-[1] bg-card', columnsHidden && STICKY_EDGE])}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -272,7 +296,7 @@ export function DataTable<TData, TValue>({
                       key={cell.id}
                       className={cn(
                         'z-0',
-                        cell.column.columnDef.meta?.sticky === 'right' && STICKY_RIGHT,
+                        cell.column.columnDef.meta?.sticky === 'right' && [STICKY_RIGHT, columnsHidden && STICKY_EDGE],
                         cell.column.columnDef.meta?.sticky === 'right' && isRowActive?.(row.original) && STICKY_ACTIVE,
                       )}
                     >

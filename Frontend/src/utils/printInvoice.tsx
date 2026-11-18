@@ -2,11 +2,16 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import InvoicePreview, { type InvoicePreviewData } from '@/components/sales-orders/InvoicePreview'
 import type { CompanyProfile } from '@/types/company-profile.types'
-import { loadPrintSettings, type PaperSize } from '@/utils/printSettings'
+import { PAPER_SIZES, loadPrintSettings, type PaperSize } from '@/utils/printSettings'
 
 const HOST_ID = 'invoice-print-host'
 const STYLE_ID = 'invoice-print-style'
 const LOGO = '/brand/logo-full.png'
+const PAGE_MARGIN_MM = 10
+const PX_PER_MM = 96 / 25.4
+// Shrink a long invoice to fit one page, but no further than this: past it the text
+// gets too small to read, and the rest goes onto a second page instead
+const MIN_SCALE = 0.7
 
 let current: { root: Root; host: HTMLElement; style: HTMLStyleElement; timer?: number } | null = null
 
@@ -33,6 +38,40 @@ const logoReady = () =>
     window.setTimeout(done, 1500)
     img.src = LOGO
   })
+
+/**
+ * Scale the invoice so it fits on one page of this paper. It is laid out off screen at
+ * the page's content width, and if it comes out taller than the page it is zoomed down
+ * (zoom, unlike transform, also shrinks the space it takes, so the browser paginates the
+ * smaller size). The width is widened by the same factor, so the zoomed copy still spans
+ * the full page width.
+ */
+const fitToPage = (host: HTMLElement, body: HTMLElement, paper: PaperSize) => {
+  const { widthMm, heightMm } = PAPER_SIZES[paper]
+  const contentWidth = widthMm - PAGE_MARGIN_MM * 2
+  // A little slack: browsers round page heights, and a 1 px overflow is a blank second page
+  const contentHeight = heightMm - PAGE_MARGIN_MM * 2 - 2
+
+  // Visible to layout but not on screen, for the measurement only
+  host.style.cssText = 'display:block;position:fixed;left:-10000px;top:0;visibility:hidden'
+  const heightAt = (widthMmNow: number) => {
+    body.style.width = `${widthMmNow}mm`
+    return body.getBoundingClientRect().height / PX_PER_MM
+  }
+
+  let scale = 1
+  // Narrower text wraps more, so the height depends on the width; a few passes settle it
+  for (let pass = 0; pass < 3; pass++) {
+    const scaledHeight = heightAt(contentWidth / scale) * scale
+    if (scaledHeight <= contentHeight) break
+    scale = Math.max(MIN_SCALE, scale * (contentHeight / scaledHeight))
+    if (scale === MIN_SCALE) break
+  }
+
+  host.style.cssText = ''
+  body.style.width = `${contentWidth / scale}mm`
+  body.style.setProperty('zoom', String(scale))
+}
 
 /**
  * Print the invoice on this page rather than as a PDF: Android Chrome can't
@@ -65,11 +104,15 @@ export const printInvoice = async (
   document.head.appendChild(style)
   document.body.appendChild(host)
 
-  const root = createRoot(host)
+  const body = document.createElement('div')
+  host.appendChild(body)
+  const root = createRoot(body)
   flushSync(() => root.render(<InvoicePreview data={data} company={company} printable />))
   current = { root, host, style }
 
-  await logoReady()
+  // Measure with the real fonts and logo in place
+  await Promise.all([logoReady(), document.fonts?.ready])
+  fitToPage(host, body, paper)
   window.print()
 
   // Android opens its print screen without waiting, so keep the copy in place for a

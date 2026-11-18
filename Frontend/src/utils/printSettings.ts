@@ -3,11 +3,11 @@
 
 export type PaperSize = 'B5' | 'JIS-B5' | 'A4' | 'A5'
 
-export const PAPER_SIZES: Record<PaperSize, { label: string; detail: string }> = {
-  B5: { label: 'B5', detail: '176 × 250 mm' },
-  'JIS-B5': { label: 'B5 (JIS)', detail: '182 × 257 mm' },
-  A4: { label: 'A4', detail: '210 × 297 mm' },
-  A5: { label: 'A5', detail: '148 × 210 mm' },
+export const PAPER_SIZES: Record<PaperSize, { label: string; detail: string; widthMm: number; heightMm: number }> = {
+  B5: { label: 'B5', detail: '176 × 250 mm', widthMm: 176, heightMm: 250 },
+  'JIS-B5': { label: 'B5 (JIS)', detail: '182 × 257 mm', widthMm: 182, heightMm: 257 },
+  A4: { label: 'A4', detail: '210 × 297 mm', widthMm: 210, heightMm: 297 },
+  A5: { label: 'A5', detail: '148 × 210 mm', widthMm: 148, heightMm: 210 },
 }
 
 export interface PrintSettings {
