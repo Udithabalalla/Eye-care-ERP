@@ -127,7 +127,7 @@ const PrintingSettings = () => {
                 control={form.control}
                 name="printOnSave"
                 render={({ field }) => (
-                  <FormItem className="flex items-start justify-between gap-4 rounded-lg border border-border p-3">
+                  <FormItem className="flex-row items-center justify-between gap-4 rounded-lg border border-border p-3">
                     <div className="space-y-1">
                       <FormLabel>Print as soon as an order is saved</FormLabel>
                       <FormDescription>

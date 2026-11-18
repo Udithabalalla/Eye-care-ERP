@@ -1,5 +1,5 @@
 import BrandLogo from '@/components/common/BrandLogo'
-import OrderBarcode from '@/components/common/OrderBarcode'
+import OrderQrCode from '@/components/common/OrderQrCode'
 import { CompanyProfile } from '@/types/company-profile.types'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
@@ -79,17 +79,22 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
   // Free items stay on the order for stock, but the customer's invoice doesn't list them (same as the PDF)
   const lines = data.lines.filter((line) => line.type !== 'Free')
   const pending = printable ? '—' : 'Assigned on save'
+  // Print media queries follow the paper, and B5/A5 are narrower than the sm breakpoint,
+  // so the printed copy uses the wide layout outright instead of sm: variants. It has no
+  // side padding of its own: the page margin (utils/printInvoice) is the only inset.
+  const padX = printable ? 'px-0' : 'px-4 sm:px-6'
+  const priceCol = printable ? '' : 'hidden sm:table-cell'
 
   return (
     <div className={printable ? 'bg-white text-slate-900' : 'overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm'}>
       {data.isHistorical && (
-        <div className="bg-amber-50 px-4 py-2 sm:px-6 text-xs font-medium text-amber-800">
+        <div className={`bg-amber-50 py-2 text-xs font-medium text-amber-800 ${padX}`}>
           Past order from paper records — no invoice will be created
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 px-4 pb-5 pt-6 sm:px-6">
+      <div className={`flex items-start justify-between gap-4 pb-5 pt-6 ${padX}`}>
         <div className="min-w-0">
           <p className="text-2xl font-bold tracking-tight">INVOICE</p>
           <p className="mt-1 text-xs text-slate-500">
@@ -102,7 +107,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
         <BrandLogo variant="full" className="h-16 w-20 text-[#007595]" title={companyName} />
       </div>
 
-      <div className="space-y-5 border-t border-slate-100 px-4 py-5 sm:px-6">
+      <div className={`space-y-5 border-t border-slate-100 py-5 ${padX}`}>
         {/* Parties */}
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div className="min-w-0 space-y-0.5">
@@ -150,7 +155,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
               <tr className="bg-slate-50 text-slate-500">
                 <th className="rounded-l-md px-2.5 py-2 text-left font-medium">Item</th>
                 <th className="px-2 py-2 text-right font-medium">Qty</th>
-                <th className="hidden px-2 py-2 text-right font-medium sm:table-cell">Price</th>
+                <th className={`px-2 py-2 text-right font-medium ${priceCol}`}>Price</th>
                 <th className="rounded-r-md px-2.5 py-2 text-right font-medium">Amount</th>
               </tr>
             </thead>
@@ -170,7 +175,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
                       </p>
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{line.qty}</td>
-                    <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{money(line.unitPrice)}</td>
+                    <td className={`px-2 py-2 text-right tabular-nums ${priceCol}`}>{money(line.unitPrice)}</td>
                     <td className="px-2.5 py-2 text-right font-medium tabular-nums">
                       {money(line.total)}
                     </td>
@@ -192,28 +197,28 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
           </div>
         ) : <span />}
         <div className="w-full max-w-[16rem] space-y-1.5 text-xs">
-          <div className="flex justify-between">
+          <div className="flex justify-between px-2.5">
             <span className="text-slate-500">Subtotal</span>
             <span className="tabular-nums">{money(data.subtotal)}</span>
           </div>
           {data.discount > 0 && (
-            <div className="flex justify-between">
+            <div className="flex justify-between px-2.5">
               <span className="text-slate-500">Discount</span>
               <span className="tabular-nums">−{money(data.discount)}</span>
             </div>
           )}
-          <div className="flex justify-between border-t border-slate-200 pt-1.5 text-sm font-bold">
+          <div className="flex justify-between px-2.5 border-t border-slate-200 pt-1.5 text-sm font-bold">
             <span>Grand total</span>
             <span className="tabular-nums">{money(data.total)}</span>
           </div>
           {!data.isHistorical && data.paid > 0 && (
-            <div className="flex justify-between">
+            <div className="flex justify-between px-2.5">
               <span className="text-slate-500">Paid</span>
               <span className="tabular-nums">{money(data.paid)}</span>
             </div>
           )}
           {!data.isHistorical && (
-            <div className="flex justify-between rounded-md bg-[#007595]/10 px-2 py-1.5 font-semibold text-[#007595]">
+            <div className="flex justify-between rounded-md bg-[#007595]/10 px-2.5 py-1.5 font-semibold text-[#007595]">
               <span>Balance due</span>
               <span className="tabular-nums">{money(data.balance)}</span>
             </div>
@@ -227,11 +232,13 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
           </p>
         )}
 
-        <p className="border-t border-slate-100 pt-4 text-[11px] text-slate-500">
-          Thank you for your trust. For any questions regarding this invoice, please contact us using the details above.
-        </p>
-
-        {printable && data.salesOrderId && <OrderBarcode value={data.salesOrderId} className="mx-auto w-56" />}
+        {/* The QR sits beside the closing note so the order can be found again by scanning the invoice */}
+        <div className="flex items-end justify-between gap-6 border-t border-slate-100 pt-4">
+          <p className="text-[11px] text-slate-500">
+            Thank you for your trust. For any questions regarding this invoice, please contact us using the details above.
+          </p>
+          {printable && data.salesOrderId && <OrderQrCode value={data.salesOrderId} className="shrink-0" />}
+        </div>
       </div>
     </div>
   )

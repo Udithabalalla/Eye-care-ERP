@@ -14,7 +14,7 @@ const schema = z.object({
   code: z
     .string()
     .trim()
-    .min(1, 'Scan the barcode or type the code printed under it')
+    .min(1, 'Scan the code or type the order number printed under it')
     .regex(/^[A-Za-z0-9-]+$/, "That doesn't look like an order code"),
 })
 
@@ -28,7 +28,7 @@ interface Props {
 }
 
 /**
- * Finds an order from the barcode on its printed invoice (or an older advance
+ * Finds an order from the QR code on its printed invoice (or the barcode on an older advance
  * receipt, which carries the same code). A USB scanner types
  * the code into the field and presses Enter; the camera button covers phones
  * and tablets.
@@ -63,7 +63,7 @@ export function FindOrderByReceiptDialog({ open, onOpenChange, onFound }: Props)
               <RiBarcodeLine className="size-5 text-primary" />
               Find order from invoice
             </DialogTitle>
-            <DialogDescription>Scan the barcode on a printed invoice or advance receipt to open its sales order.</DialogDescription>
+            <DialogDescription>Scan the QR code on a printed invoice, or the barcode on an older receipt, to open its sales order.</DialogDescription>
           </DialogHeader>
 
           <Form {...form}>

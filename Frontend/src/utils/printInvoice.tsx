@@ -5,17 +5,22 @@ import type { CompanyProfile } from '@/types/company-profile.types'
 import { loadPrintSettings, type PaperSize } from '@/utils/printSettings'
 
 const HOST_ID = 'invoice-print-host'
+const STYLE_ID = 'invoice-print-style'
 const LOGO = '/brand/logo-full.png'
 
 let current: { root: Root; host: HTMLElement; style: HTMLStyleElement; timer?: number } | null = null
 
 const cleanUp = () => {
-  if (!current) return
-  window.clearTimeout(current.timer)
-  current.root.unmount()
-  current.host.remove()
-  current.style.remove()
-  current = null
+  if (current) {
+    window.clearTimeout(current.timer)
+    current.root.unmount()
+    current.host.remove()
+    current.style.remove()
+    current = null
+  }
+  // A copy left by an earlier instance of this module (a dev hot reload) would print twice
+  document.getElementById(HOST_ID)?.remove()
+  document.getElementById(STYLE_ID)?.remove()
 }
 
 // The logo is a CSS mask; make sure it has loaded, or the first print comes out without it
@@ -43,13 +48,17 @@ export const printInvoice = async (
   cleanUp()
 
   const style = document.createElement('style')
+  style.id = STYLE_ID
   style.textContent = `
 @media screen { #${HOST_ID} { display: none; } }
 @media print {
-  @page { size: ${paper}; margin: 10mm; }
-  html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+  /* No page margin: browsers print the page title, URL, date and page number in it,
+     so without one they print none of that. The invoice brings its own margin. */
+  @page { size: ${paper}; margin: 0; }
+  html, body { background: #fff !important; height: auto !important; overflow: visible !important; margin: 0 !important; }
   body > :not(#${HOST_ID}) { display: none !important; }
-  #${HOST_ID} { display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #${HOST_ID} { display: block; padding: 10mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #${HOST_ID} tr { break-inside: avoid; }
 }`
   const host = document.createElement('div')
   host.id = HOST_ID
