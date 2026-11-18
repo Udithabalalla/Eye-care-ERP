@@ -1,3 +1,4 @@
+import re
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, List, Tuple
 
@@ -17,12 +18,18 @@ class SalesOrderRepository(BaseRepository):
         order = await self.get_one({"order_number": order_number})
         return SalesOrderModel(**order) if order else None
 
-    async def list_sales_orders(self, skip: int = 0, limit: int = 10, patient_id: Optional[str] = None, status: Optional[str] = None) -> Tuple[List[SalesOrderModel], int]:
+    async def list_sales_orders(self, skip: int = 0, limit: int = 10, patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None) -> Tuple[List[SalesOrderModel], int]:
         query = {}
         if patient_id:
             query["patient_id"] = patient_id
         if status:
             query["status"] = status
+        if search and search.strip():
+            # Orders don't store the patient's name, so match names and phones on patients first
+            pattern = {"$regex": re.escape(search.strip()), "$options": "i"}
+            patients = self.db["patients"].find({"$or": [{"name": pattern}, {"phone": pattern}]}, {"patient_id": 1})
+            patient_ids = [p["patient_id"] async for p in patients.limit(500)]
+            query["$or"] = [{"order_number": pattern}, {"order_id": pattern}, {"patient_id": {"$in": patient_ids}}]
         orders = await self.get_many(filter=query, skip=skip, limit=limit, sort=[("created_at", -1)])
         total = await self.count(query)
         return [SalesOrderModel(**order) for order in orders], total

@@ -524,9 +524,9 @@ class SalesOrderService:
         payload["patient_name"] = patient_name
         return SalesOrderResponse(**payload)
 
-    async def list_sales_orders(self, page: int, page_size: int, patient_id: Optional[str] = None, status: Optional[str] = None):
+    async def list_sales_orders(self, page: int, page_size: int, patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None):
         skip = (page - 1) * page_size
-        orders, total = await self.repo.list_sales_orders(skip=skip, limit=page_size, patient_id=patient_id, status=status)
+        orders, total = await self.repo.list_sales_orders(skip=skip, limit=page_size, patient_id=patient_id, status=status, search=search)
         total_pages = math.ceil(total / page_size)
         response_data = []
         for order in orders:

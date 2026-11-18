@@ -99,7 +99,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
           <p className="text-2xl font-bold tracking-tight">INVOICE</p>
           <p className="mt-1 text-xs text-slate-500">
             Invoice number{' '}
-            <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+            <span className="ml-1 whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
               {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
             </span>
           </p>

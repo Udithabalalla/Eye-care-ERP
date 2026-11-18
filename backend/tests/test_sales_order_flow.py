@@ -242,3 +242,23 @@ async def test_advance_a_cent_over_the_total_is_capped_not_dropped(db):
     assert invoice.paid_amount == 220 and invoice.balance_due == 0
     payment = await db["payments"].find_one({"reference_id": invoice.invoice_id})
     assert payment["amount"] == 220 and payment["payment_method"] == "cash"
+
+
+async def test_list_searches_order_number_and_patient(db):
+    await db["patients"].insert_one({
+        "patient_id": "PAT000002", "name": "Nimal Perera", "date_of_birth": datetime(1985, 5, 5),
+        "gender": list(Gender)[0].value, "phone": "0711112222", "is_active": True, "created_at": datetime.now(timezone.utc),
+    })
+    service = SalesOrderService(db)
+    first = await service.create_sales_order(_order(items=_order().items[1:]), USER)
+    second = await service.create_sales_order(_order(patient_id="PAT000002", items=_order().items[1:]), USER)
+
+    async def found(search):
+        return {o.order_id for o in (await service.list_sales_orders(1, 10, search=search)).data}
+
+    assert await found(second.order_number) == {second.order_id}
+    assert await found("nimal") == {second.order_id}  # patient name, any case
+    assert await found("0711112") == {second.order_id}  # patient phone
+    assert await found("Test Patient") == {first.order_id}
+    assert await found("(") == set()  # regex characters are matched literally
+    assert await found("") == {first.order_id, second.order_id}

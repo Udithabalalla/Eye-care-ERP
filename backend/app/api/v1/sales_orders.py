@@ -16,8 +16,8 @@ router = APIRouter()
 
 
 @router.get("", response_model=PaginatedResponse[SalesOrderResponse])
-async def list_sales_orders(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), patient_id: Optional[str] = None, status: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
-    return await SalesOrderService(db).list_sales_orders(page, page_size, patient_id, status)
+async def list_sales_orders(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = Query(None, max_length=100), db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    return await SalesOrderService(db).list_sales_orders(page, page_size, patient_id, status, search)
 
 
 @router.get("/{order_id}/pdf")

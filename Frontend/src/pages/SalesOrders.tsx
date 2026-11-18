@@ -58,6 +58,8 @@ import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatu
 import { getNextAction } from '@/components/sales-orders/salesOrderWorkflow'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 import { FindOrderByReceiptDialog } from '@/components/sales-orders/FindOrderByReceiptDialog'
+import { useConfirm } from '@/hooks/useConfirm'
+import { useDebounce } from '@/hooks/useDebounce'
 
 const STATUS_FILTER_OPTIONS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All Statuses' },
@@ -104,9 +106,11 @@ const SalesOrders = () => {
     if (urlStatus) { setStatusFilter(urlStatus); setPage(1) }
   }, [urlStatus])
   const [search, setSearch] = useState('')
+  // Searched on the server (order number, order ID, patient name or phone), not just this page
+  const debouncedSearch = useDebounce(search.trim(), 300)
+  const { confirm, confirmDialog } = useConfirm()
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
-  const [draftToDelete, setDraftToDelete] = useState<SalesOrder | null>(null)
   const [orderToEdit, setOrderToEdit] = useState<SalesOrder | null>(null)
   const [pendingRowId, setPendingRowId] = useState<string | null>(null)
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
@@ -149,7 +153,6 @@ const SalesOrders = () => {
       toast.success('Draft deleted successfully')
       queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-      setDraftToDelete(null)
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.detail || 'Failed to delete draft')
@@ -171,14 +174,26 @@ const SalesOrders = () => {
   const readyCount = readyCountData?.total ?? 0
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sales-orders', page, pageSize, statusFilter],
+    queryKey: ['sales-orders', page, pageSize, statusFilter, debouncedSearch],
     queryFn: () =>
       salesOrdersApi.getAll({
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
+        search: debouncedSearch || undefined,
       }),
   })
+
+  const { mutate: deleteDraftNow } = deleteDraftMutation
+  const deleteDraft = useCallback(async (order: SalesOrder) => {
+    const ok = await confirm({
+      title: 'Delete draft order?',
+      description: `This permanently removes draft ${order.order_number || 'this order'} and its unsaved progress. This can't be undone.`,
+      confirmLabel: 'Delete draft',
+      destructive: true,
+    })
+    if (ok) deleteDraftNow(order.order_id)
+  }, [confirm, deleteDraftNow])
 
   const orders = useMemo(() => data?.data || [], [data?.data])
 
@@ -308,13 +323,13 @@ const SalesOrders = () => {
         id: 'delete-order',
         label: 'Delete Draft',
         icon: RiDeleteBin6Line,
-        onClick: (rows) => setDraftToDelete(rows[0]),
+        onClick: (rows) => deleteDraft(rows[0]),
         showWhen: 'single',
       })
     }
 
     return actions
-  }, [commonNextAction, selectedRows, queryClient, navigate])
+  }, [commonNextAction, selectedRows, queryClient, navigate, deleteDraft])
 
   const columns = useMemo<ColumnDef<SalesOrder>[]>(
     () => [
@@ -417,11 +432,11 @@ const SalesOrders = () => {
         cell: ({ row }) =>
           row.original.invoice_id ? (
             <Button
-              size="sm"
-              variant="outline"
+              variant="link"
+              className="h-auto p-0 text-xs"
               onClick={() => navigate(`/invoices?detail=${row.original.invoice_id}`)}
             >
-              View Invoice
+              View invoice
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground">Not generated</span>
@@ -432,6 +447,7 @@ const SalesOrders = () => {
         header: '',
         enableSorting: false,
         enableHiding: false,
+        meta: { sticky: 'right' },
         cell: ({ row }) => {
           const order = row.original
           const nextAction = getNextAction(order.status)
@@ -462,11 +478,7 @@ const SalesOrders = () => {
                     nextAction.className,
                   )}
                 >
-                  {isRowPending ? (
-                    <RiLoader4Line className="size-3 animate-spin" />
-                  ) : (
-                    <Icon className="size-3" />
-                  )}
+                  {isRowPending ? <RiLoader4Line className="animate-spin" /> : <Icon />}
                   {nextAction.label}
                 </Button>
               )}
@@ -544,7 +556,7 @@ const SalesOrders = () => {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
-                        onClick={() => setDraftToDelete(order)}
+                        onClick={() => deleteDraft(order)}
                       >
                         <RiDeleteBin6Line className="size-4" />
                         Delete Draft
@@ -558,7 +570,7 @@ const SalesOrders = () => {
         },
       },
     ],
-    [isAllSelected, isIndeterminate, selectedOrderIds, pendingRowId, navigate, rowStatusMutation, toggleAll],
+    [isAllSelected, isIndeterminate, selectedOrderIds, pendingRowId, navigate, rowStatusMutation, toggleAll, deleteDraft],
   )
 
   return (
@@ -588,33 +600,7 @@ const SalesOrders = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete draft dialog */}
-      <AlertDialog
-        open={!!draftToDelete}
-        onOpenChange={(open) => {
-          if (!open) setDraftToDelete(null)
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete draft order?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove draft{' '}
-              {draftToDelete?.order_number || 'this order'} and its unsaved progress. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDraftToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => draftToDelete && deleteDraftMutation.mutate(draftToDelete.order_id)}
-              disabled={deleteDraftMutation.isPending}
-            >
-              {deleteDraftMutation.isPending ? 'Deleting…' : 'Delete Draft'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirmDialog}
 
       <FindOrderByReceiptDialog open={findByReceiptOpen} onOpenChange={setFindByReceiptOpen} onFound={setDetailOrderId} />
 
@@ -665,7 +651,7 @@ const SalesOrders = () => {
           setPage(1)
         }}
         aria-label="Filter by status"
-        className="w-full justify-start gap-1.5 overflow-x-auto pb-1"
+        className="w-full justify-start gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {LIFECYCLE_FILTER_TABS.map((tab) => {
           const isActive = (statusFilter === '' && tab.id === 'all') || statusFilter === tab.id
@@ -732,22 +718,6 @@ const SalesOrders = () => {
                     {s.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => {
-                setPageSize(Number(value))
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-32" aria-label="Rows per page">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 rows</SelectItem>
-                <SelectItem value="25">25 rows</SelectItem>
-                <SelectItem value="50">50 rows</SelectItem>
               </SelectContent>
             </Select>
           </div>

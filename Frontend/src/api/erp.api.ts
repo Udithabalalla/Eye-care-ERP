@@ -15,7 +15,7 @@ import {
 import { Invoice } from '@/types/invoice.types'
 
 export const salesOrdersApi = {
-  getAll: async (params?: { page?: number; page_size?: number; patient_id?: string; status?: SalesOrderStatus }) => {
+  getAll: async (params?: { page?: number; page_size?: number; patient_id?: string; status?: SalesOrderStatus; search?: string }) => {
     const response = await axiosInstance.get<PaginatedResponse<SalesOrder>>('/sales-orders', { params })
     return response.data
   },

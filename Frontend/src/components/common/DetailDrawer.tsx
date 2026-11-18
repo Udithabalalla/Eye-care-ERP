@@ -68,7 +68,7 @@ export function MoneyStrip({
         </div>
         <div className="px-3 py-2.5">
           <p className="text-[11px] text-muted-foreground">Paid</p>
-          <p className="text-sm font-semibold tabular-nums text-success">{formatCurrency(paid)}</p>
+          <p className={cn('text-sm font-semibold tabular-nums', paid > 0 ? 'text-success' : 'text-muted-foreground')}>{formatCurrency(paid)}</p>
         </div>
         <div className="px-3 py-2.5">
           <p className="text-[11px] text-muted-foreground">Balance</p>

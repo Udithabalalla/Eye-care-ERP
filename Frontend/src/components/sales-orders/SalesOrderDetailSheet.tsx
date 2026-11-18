@@ -63,6 +63,7 @@ import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemL
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
 import { usePrintInvoice } from '@/hooks/usePrintInvoice'
+import { useConfirm } from '@/hooks/useConfirm'
 
 const WORKFLOW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -85,9 +86,9 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const queryClient = useQueryClient()
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [editConfirmOpen, setEditConfirmOpen] = useState(false)
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const { printInvoice, printing } = usePrintInvoice()
+  const { confirm, confirmDialog } = useConfirm()
   const [view, setView] = useState<'details' | 'invoice'>('details')
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -136,6 +137,12 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     placeholderData: keepPreviousData,
   })
   const orderInvoice = invoice && order?.invoice_id === invoice.invoice_id ? invoice : undefined
+  const orderHasNoInvoice = !!order && !isSwitching && !order.invoice_id
+
+  // An order without an invoice has nothing to show on the Invoice view
+  useEffect(() => {
+    if (orderHasNoInvoice) setView('details')
+  }, [orderHasNoInvoice])
 
   // Audit trail for this order
   const { data: auditData } = useQuery({
@@ -206,20 +213,24 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   const Icon = nextAction ? (WORKFLOW_ICONS[nextAction.toStatus] ?? RiBox3Line) : null
   const isPending = statusMutation.isPending
 
+  // Through the mutation, so the button stays disabled until the move lands (no double moves)
   const handleAdvance = () => {
-    if (!nextAction || !order) return
-    toast.promise(
-      salesOrdersApi.updateStatus(order.order_id, nextAction.toStatus).then((updated) => {
-        queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-        queryClient.invalidateQueries({ queryKey: ['sales-order', order.order_id] })
-        return updated
-      }),
-      {
-        loading: 'Updating status…',
-        success: `Moved to "${nextAction.label}"`,
-        error: (err: any) => err?.response?.data?.detail || 'Update failed',
-      },
+    if (!nextAction || !order || isPending) return
+    statusMutation.mutate(
+      { id: order.order_id, status: nextAction.toStatus },
+      { onSuccess: () => toast.success(`Moved to "${nextAction.label}"`) },
     )
+  }
+
+  const deleteDraft = async () => {
+    if (!order) return
+    const ok = await confirm({
+      title: 'Delete draft order?',
+      description: `This permanently removes draft ${order.order_number} and all its unsaved progress. This can't be undone.`,
+      confirmLabel: 'Delete draft',
+      destructive: true,
+    })
+    if (ok) deleteMutation.mutate(order.order_id)
   }
 
   const measurements = order?.measurements as Record<string, unknown> | undefined
@@ -364,7 +375,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                         createdAt={order.created_at}
                         createdBy={order.created_by}
                       />
-                      {auditLogs.length > 0 && <AuditTrail logs={auditLogs} />}
+                      {auditLogs.length > 0 && <AuditTrail logs={auditLogs} users={users} />}
                     </CollapsibleContent>
                   </Collapsible>
                 </div>
@@ -445,7 +456,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                     Reorder
                   </DropdownMenuItem>
                   {order.status === 'draft' && !order.invoice_id && (
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={deleteDraft}>
                       <RiDeleteBin6Line className="size-4" />
                       Delete draft
                     </DropdownMenuItem>
@@ -484,31 +495,11 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* Delete draft confirmation */}
-    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete draft order?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This will permanently remove draft <strong>{order?.order_number}</strong> and all its
-            unsaved progress. This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={() => order && deleteMutation.mutate(order.order_id)}
-            disabled={deleteMutation.isPending}
-          >
-            {deleteMutation.isPending ? 'Deleting…' : 'Delete Draft'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    {confirmDialog}
 
     {/* Payment dialog */}
-    {order && invoice && (
+    {/* orderInvoice, not invoice: while the drawer swaps orders, invoice can still be the last order's */}
+    {order && orderInvoice && (
       <RecordPaymentDialog
         open={paymentOpen}
         onClose={() => setPaymentOpen(false)}
@@ -517,12 +508,12 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
           queryClient.invalidateQueries({ queryKey: ['invoice', order.invoice_id] })
         }}
         referenceType="INVOICE"
-        referenceId={invoice.invoice_id}
-        totalAmount={invoice.total_amount}
-        paidAmount={invoice.paid_amount}
-        patientName={invoice.patient_name}
-        invoiceNumber={invoice.invoice_number}
-        invoice={invoice}
+        referenceId={orderInvoice.invoice_id}
+        totalAmount={orderInvoice.total_amount}
+        paidAmount={orderInvoice.paid_amount}
+        patientName={orderInvoice.patient_name}
+        invoiceNumber={orderInvoice.invoice_number}
+        invoice={orderInvoice}
         invalidateKeys={[['sales-orders'], ['sales-order', order.order_id]]}
       />
     )}
@@ -574,19 +565,19 @@ function PrescriptionCard({ prescription }: { prescription: Prescription }) {
 
 // ── Audit Trail ───────────────────────────────────────────────────────────────
 
-function AuditTrail({ logs }: { logs: AuditLog[] }) {
+function AuditTrail({ logs, users }: { logs: AuditLog[]; users: Array<{ user_id: string; name: string }> }) {
   return (
     <div className="space-y-2">
       {logs.map((log) => {
         const action = log.action.replace(/_/g, ' ').toLowerCase()
         return (
           <div key={log.log_id} className="flex items-start gap-2.5 text-xs">
-            <div className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mt-1.5" />
+            <div className="mt-1.5 size-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-medium text-foreground capitalize">{action}</span>
                 {log.user_id && (
-                  <span className="text-muted-foreground">by <span className="font-mono text-[10px]">{log.user_id}</span></span>
+                  <span className="text-muted-foreground">by {users.find((u) => u.user_id === log.user_id)?.name ?? <span className="font-mono text-[10px]">{log.user_id}</span>}</span>
                 )}
               </div>
               <p className="text-muted-foreground/70 mt-0.5">
