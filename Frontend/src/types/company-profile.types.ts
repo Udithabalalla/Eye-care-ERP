@@ -10,6 +10,8 @@ export interface CompanyProfile {
   default_delivery_address?: string
   default_receiving_department?: string
   default_delivery_instructions?: string
+  /** Printed at the foot of every customer invoice */
+  invoice_terms?: string
   created_at?: string
   updated_at?: string
 }
@@ -25,4 +27,6 @@ export interface CompanyProfileFormData {
   default_delivery_address?: string
   default_receiving_department?: string
   default_delivery_instructions?: string
+  /** Printed at the foot of every customer invoice */
+  invoice_terms?: string
 }

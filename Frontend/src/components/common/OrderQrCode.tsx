@@ -9,7 +9,18 @@ const QUIET_ZONE = 4
  * Scanning it with Scan invoice on the Sales Orders page opens the order; the
  * ID is printed under it for typing in by hand.
  */
-const OrderQrCode = ({ value, className = '' }: { value: string; className?: string }) => {
+const OrderQrCode = ({
+  value,
+  className = 'text-black',
+  codeClassName = 'size-24',
+  labelClassName = 'text-[10px]',
+}: {
+  value: string
+  /** Wrapper classes; the text colour also colours the code */
+  className?: string
+  codeClassName?: string
+  labelClassName?: string
+}) => {
   const { size, path } = useMemo(() => {
     const { modules } = QRCode.create(value, { errorCorrectionLevel: 'M' })
     // One square per dark module, as a single path (far smaller than one rect each)
@@ -24,11 +35,11 @@ const OrderQrCode = ({ value, className = '' }: { value: string; className?: str
 
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <svg viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code ${value}`} className="size-24">
+      <svg viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code ${value}`} className={codeClassName}>
         <rect width={size} height={size} fill="#fff" />
-        <path d={path} fill="#000" />
+        <path d={path} fill="currentColor" />
       </svg>
-      <p className="font-mono text-[10px] font-semibold tracking-[0.12em] text-black">{value}</p>
+      <p className={`font-mono font-semibold tracking-[0.12em] ${labelClassName}`}>{value}</p>
     </div>
   )
 }

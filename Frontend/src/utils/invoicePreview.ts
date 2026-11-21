@@ -37,6 +37,7 @@ export const invoiceToPreviewData = (invoice: Invoice, extraPayment = 0): Invoic
     })),
     subtotal: invoice.subtotal,
     discount: invoice.total_discount || 0,
+    tax: invoice.total_tax || 0,
     total: invoice.total_amount,
     paid,
     balance: roundCurrency(Math.max(invoice.total_amount - paid, 0)),

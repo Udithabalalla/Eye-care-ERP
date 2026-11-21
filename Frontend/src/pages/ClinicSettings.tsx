@@ -6,9 +6,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { companyProfileApi } from '@/api/company-profile.api'
 import type { CompanyProfile, CompanyProfileFormData } from '@/types/company-profile.types'
 
@@ -22,6 +23,7 @@ const profileSchema = z.object({
   default_delivery_address: z.string().trim().min(1, 'Default delivery address is required'),
   default_receiving_department: z.string().trim().min(1, 'Default receiving department is required'),
   default_delivery_instructions: z.string().optional(),
+  invoice_terms: z.string().max(600, 'Keep it under 600 characters so it fits on the invoice').optional(),
 })
 type ProfileFormValues = z.infer<typeof profileSchema>
 
@@ -35,6 +37,7 @@ const valuesFrom = (data?: CompanyProfile): ProfileFormValues => ({
   default_delivery_address: data?.default_delivery_address || '',
   default_receiving_department: data?.default_receiving_department || '',
   default_delivery_instructions: data?.default_delivery_instructions || '',
+  invoice_terms: data?.invoice_terms || '',
 })
 
 const FIELDS: Array<{ name: keyof ProfileFormValues; label: string; placeholder: string; type?: string }> = [
@@ -98,6 +101,7 @@ const ClinicSettings = () => {
       default_delivery_address: values.default_delivery_address.trim(),
       default_receiving_department: values.default_receiving_department.trim(),
       default_delivery_instructions: values.default_delivery_instructions?.trim(),
+      invoice_terms: values.invoice_terms?.trim(),
     })
 
   const preview = form.watch()
@@ -133,6 +137,21 @@ const ClinicSettings = () => {
                   />
                 ))}
               </div>
+
+              <FormField
+                control={form.control}
+                name="invoice_terms"
+                render={({ field }) => (
+                  <FormItem className="mt-4">
+                    <FormLabel>Invoice Terms & Conditions</FormLabel>
+                    <FormControl>
+                      <Textarea rows={3} placeholder="e.g. Please collect your order within 30 days." {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormDescription>Printed at the foot of every customer invoice. Leave empty to leave it off.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button type="submit" disabled={saveMutation.isPending}>

@@ -17,3 +17,5 @@ class CompanyProfileModel(TimestampModel):
     default_delivery_address: Optional[str] = None
     default_receiving_department: Optional[str] = None
     default_delivery_instructions: Optional[str] = None
+    # Printed at the foot of every customer invoice
+    invoice_terms: Optional[str] = None

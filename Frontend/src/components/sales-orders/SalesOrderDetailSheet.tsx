@@ -320,7 +320,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
 
               {view === 'invoice' && orderInvoice ? (
                 <div className="space-y-2 px-5 py-4">
-                  <InvoicePreview data={invoiceToPreviewData(orderInvoice)} company={companyProfile} />
+                  <InvoicePreview data={{ ...invoiceToPreviewData(orderInvoice), salesOrderNumber: order.order_number }} company={companyProfile} />
                   <InvoicePreviewStatus data={invoiceToPreviewData(orderInvoice)} />
                 </div>
               ) : (

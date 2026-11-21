@@ -21,7 +21,7 @@ export interface InvoicePreviewLine {
 export interface InvoicePreviewData {
   invoiceNumber?: string
   salesOrderNumber?: string
-  /** The order's ID, printed as a barcode so scanning the invoice opens the order */
+  /** The order's ID, printed as a QR code so scanning the invoice opens the order */
   salesOrderId?: string
   issueDate: string
   dueDate?: string
@@ -29,6 +29,8 @@ export interface InvoicePreviewData {
   lines: InvoicePreviewLine[]
   subtotal: number
   discount: number
+  /** Tax on the invoice, if any; shown as its own line */
+  tax?: number
   total: number
   paid: number
   balance: number
@@ -67,177 +69,193 @@ export const InvoicePreviewStatus = ({ data }: { data: InvoicePreviewData }) => 
   )
 }
 
+// Colours from the Vision Opticals invoice design; the invoice looks the same whatever the app theme
+const TEAL = 'text-[#1f6378]'
+const NAVY = 'text-[#14324a]'
+const SLOGAN = 'You Protect Eye, Eye Protects You'
+
+/** The brand wordmark from the invoice design: "Vision" over "Opticals." */
+const Wordmark = () => (
+  <p className="text-[19px] font-bold leading-[1.05] tracking-tight">
+    <span className={NAVY}>Vision</span>
+    <br />
+    <span className={TEAL}>Opticals.</span>
+  </p>
+)
+
+const TotalRow = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
+  <div className={`flex justify-between gap-3 px-2 ${strong ? 'py-1.5 text-[10.5px] font-bold text-slate-900' : 'py-1 text-[8px] text-slate-600'}`}>
+    <span>{label}</span>
+    <span className="tabular-nums">{value}</span>
+  </div>
+)
+
 /**
- * Paper-style preview of the printed invoice. It mirrors the PDF layout in
- * backend invoice_service._build_invoice_pdf and always renders on white,
- * like the printout, whatever the app theme. `printable` is the copy that goes
- * to the printer (utils/printInvoice): no card frame, no on-screen placeholders,
- * and the order's barcode at the foot.
+ * The customer invoice, laid out for A5 paper (128 mm of printable width) and the same
+ * on screen, so the preview is what prints. `printable` is the copy sent to the printer
+ * (utils/printInvoice scales it to the chosen paper): no card frame, no on-screen
+ * placeholders, and the order's QR code in the footer.
  */
 const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePreviewData; company?: CompanyProfile; printable?: boolean }) => {
-  const companyName = company?.company_name || 'Vision Opticals'
   // Free items stay on the order for stock, but the customer's invoice doesn't list them (same as the PDF)
   const lines = data.lines.filter((line) => line.type !== 'Free')
   const pending = printable ? '—' : 'Assigned on save'
-  // Print media queries follow the paper, and B5/A5 are narrower than the sm breakpoint,
-  // so the printed copy uses the wide layout outright instead of sm: variants. It has no
-  // side padding of its own: the page margin (utils/printInvoice) is the only inset.
-  const padX = printable ? 'px-0' : 'px-4 sm:px-6'
-  const priceCol = printable ? '' : 'hidden sm:table-cell'
+  const tax = data.tax ?? 0
+  const refs = [
+    data.salesOrderNumber && `Order ${data.salesOrderNumber}`,
+    data.dueDate && `Due ${date(data.dueDate)}`,
+    data.prescriptionRef && `Rx ${data.prescriptionRef}`,
+  ].filter(Boolean)
 
   return (
-    <div className={printable ? 'bg-white text-slate-900' : 'overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm'}>
+    <div
+      // Printed, it fills the page (utils/printInvoice sets the height) so the footer sits at the foot
+      className={`flex flex-col bg-white text-[9px] leading-snug text-slate-700 ${printable ? 'min-h-[inherit]' : 'overflow-hidden rounded-xl border border-slate-200 px-5 py-5 shadow-sm'}`}
+    >
       {data.isHistorical && (
-        <div className={`bg-amber-50 py-2 text-xs font-medium text-amber-800 ${padX}`}>
+        <p className="-mx-5 -mt-5 mb-4 bg-amber-50 px-5 py-2 text-[10px] font-medium text-amber-800">
           Past order from paper records — no invoice will be created
-        </div>
+        </p>
       )}
 
-      {/* Header */}
-      <div className={`flex items-start justify-between gap-4 pb-5 pt-6 ${padX}`}>
-        <div className="min-w-0">
-          <p className="text-2xl font-bold tracking-tight">INVOICE</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Invoice number{' '}
-            <span className="ml-1 whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
-              {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
-            </span>
-          </p>
+      {/* Brand and title */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="shrink-0">
+          <BrandLogo variant="mark" className={`mb-1 h-8 w-14 ${TEAL}`} title="Vision Opticals" />
+          <Wordmark />
         </div>
-        <BrandLogo variant="full" className="h-16 w-20 text-[#007595]" title={companyName} />
+        <div className="min-w-0 text-right">
+          <p className={`text-[28px] font-bold leading-none tracking-tight ${TEAL}`}>INVOICE</p>
+          <p className={`mt-2 whitespace-nowrap text-[10px] font-bold ${NAVY}`}>
+            Invoice No - {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
+          </p>
+          <p className={`text-[10px] font-bold ${NAVY}`}>{date(data.issueDate)}</p>
+          {refs.length > 0 && <p className="mt-0.5 text-[8px] text-slate-500">{refs.join(' · ')}</p>}
+        </div>
       </div>
 
-      <div className={`space-y-5 border-t border-slate-100 py-5 ${padX}`}>
-        {/* Parties */}
-        <div className="grid grid-cols-2 gap-4 text-xs">
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-slate-500">Billed by</p>
-            <p className="font-semibold">{companyName}</p>
-            {company?.email && <p className="truncate text-slate-500">{company.email}</p>}
-            {company?.address && <p className="text-slate-500">{company.address}</p>}
-            {company?.phone && <p className="text-slate-500">{company.phone}</p>}
-            {company?.tax_number && <p className="text-slate-500">Tax no. {company.tax_number}</p>}
-          </div>
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-slate-500">Billed to</p>
-            <p className={`font-semibold ${data.billTo.name ? '' : 'italic text-slate-400'}`}>{data.billTo.name || 'Patient name'}</p>
-            {data.billTo.phone && <p className="text-slate-500">{data.billTo.phone}</p>}
-            {data.billTo.email && <p className="truncate text-slate-500">{data.billTo.email}</p>}
-            {data.billTo.address && <p className="text-slate-500">{data.billTo.address}</p>}
-          </div>
+      {/* From / to */}
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="min-w-0 space-y-0.5">
+          <p className="font-bold text-slate-900">Office Address</p>
+          {company?.address && <p>{company.address}</p>}
+          {company?.phone && <p className="pt-1 font-bold text-slate-900">{company.phone}</p>}
+          {company?.tax_number && <p className="text-slate-500">Tax no. {company.tax_number}</p>}
         </div>
-
-        {/* Dates and references */}
-        <div className="grid grid-cols-2 gap-4 text-xs">
-          <div>
-            <p className="text-slate-500">Date issued</p>
-            <p className="font-semibold">{date(data.issueDate)}</p>
-          </div>
-          <div>
-            <p className="text-slate-500">Due date</p>
-            <p className="font-semibold">{date(data.dueDate)}</p>
-          </div>
-          <div>
-            <p className="text-slate-500">Sales order</p>
-            <p className="font-semibold">{data.salesOrderNumber || pending}</p>
-          </div>
-          <div>
-            <p className="text-slate-500">Prescription</p>
-            <p className="font-semibold">{data.prescriptionRef || pending}</p>
-          </div>
+        <div className="min-w-0 space-y-0.5 pl-4">
+          <p className="font-bold text-slate-900">To :</p>
+          <p className={`font-bold ${data.billTo.name ? 'text-slate-900' : 'italic text-slate-400'}`}>{data.billTo.name || 'Patient name'}</p>
+          {data.billTo.phone && <p>{data.billTo.phone}</p>}
+          {data.billTo.email && <p className="truncate">{data.billTo.email}</p>}
+          {data.billTo.address && <p>{data.billTo.address}</p>}
         </div>
+      </div>
 
-        {/* Items */}
-        <div>
-          <p className="mb-2 text-xs text-slate-500">Items & services</p>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500">
-                <th className="rounded-l-md px-2.5 py-2 text-left font-medium">Item</th>
-                <th className="px-2 py-2 text-right font-medium">Qty</th>
-                <th className={`px-2 py-2 text-right font-medium ${priceCol}`}>Price</th>
-                <th className="rounded-r-md px-2.5 py-2 text-right font-medium">Amount</th>
+      {/* Items */}
+      <table className="mt-4 w-full border-collapse">
+        <thead>
+          <tr className="bg-[#1f6378] text-left text-[9px] text-white">
+            <th className="py-2 pl-2.5 font-medium">Items</th>
+            <th className="py-2 text-right font-medium">Unit Price</th>
+            <th className="w-10 py-2 text-center font-medium">Qnt</th>
+            <th className="py-2 pr-2.5 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="py-6 text-center italic text-slate-400">Items appear here as you add them</td>
+            </tr>
+          ) : (
+            lines.map((line) => (
+              <tr key={line.key} className="border-b border-[#1f6378]/25 align-top">
+                <td className="py-2 pl-2.5 pr-2">
+                  <p className="text-[10px] font-bold text-slate-900">{line.name}</p>
+                  <p className="text-[7.5px] text-slate-500">
+                    {line.type}{line.detail ? ` · ${line.detail}` : ''}
+                    {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
+                  </p>
+                </td>
+                <td className="whitespace-nowrap py-2 text-right font-semibold tabular-nums text-slate-900">{money(line.unitPrice)}</td>
+                <td className="py-2 text-center tabular-nums">{line.qty}</td>
+                <td className="whitespace-nowrap py-2 pr-2.5 text-right font-semibold tabular-nums text-slate-900">{money(line.total)}</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {lines.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-2.5 py-6 text-center italic text-slate-400">Items appear here as you add them</td>
-                </tr>
-              ) : (
-                lines.map((line) => (
-                  <tr key={line.key} className="align-top">
-                    <td className="px-2.5 py-2">
-                      <p className="font-medium">{line.name}</p>
-                      <p className="text-[11px] text-slate-500">
-                        {line.type}{line.detail ? ` · ${line.detail}` : ''}
-                        {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
-                      </p>
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{line.qty}</td>
-                    <td className={`px-2 py-2 text-right tabular-nums ${priceCol}`}>{money(line.unitPrice)}</td>
-                    <td className="px-2.5 py-2 text-right font-medium tabular-nums">
-                      {money(line.total)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))
+          )}
+        </tbody>
+      </table>
 
-        {/* Totals, with the PAID seal beside them once settled (same place as the PDF) */}
-        <div className="flex items-start justify-between gap-3">
+      {/* Totals, with the PAID seal beside them once settled */}
+      <div className="mt-3 flex items-start justify-between gap-3">
         {isFullyPaid(data) ? (
-          <div className="pointer-events-none mt-3 -rotate-12 rounded-lg border-2 border-emerald-600/80 p-0.5 text-emerald-600/85" aria-label="Paid">
+          <div className="pointer-events-none mt-4 -rotate-12 rounded-lg border-2 border-emerald-600/80 p-0.5 text-emerald-600/85" aria-label="Paid">
             <div className="rounded-md border border-emerald-600/80 px-3 py-0.5 text-center">
-              <p className="text-lg font-extrabold leading-tight tracking-[0.2em]">PAID</p>
-              <p className="text-[8px] font-bold uppercase tracking-wider">{formatDate(new Date(), 'dd MMM yyyy')}</p>
+              <p className="text-base font-extrabold leading-tight tracking-[0.2em]">PAID</p>
+              <p className="text-[7px] font-bold uppercase tracking-wider">{formatDate(new Date(), 'dd MMM yyyy')}</p>
             </div>
           </div>
         ) : <span />}
-        <div className="w-full max-w-[16rem] space-y-1.5 text-xs">
-          <div className="flex justify-between px-2.5">
-            <span className="text-slate-500">Subtotal</span>
+        <div className="w-[52%] shrink-0">
+          <div className={`flex justify-between gap-3 border-b border-[#1f6378]/25 px-2 py-1.5 text-[10px] font-bold ${TEAL}`}>
+            <span>SUBTOTAL :</span>
             <span className="tabular-nums">{money(data.subtotal)}</span>
           </div>
-          {data.discount > 0 && (
-            <div className="flex justify-between px-2.5">
-              <span className="text-slate-500">Discount</span>
-              <span className="tabular-nums">−{money(data.discount)}</span>
-            </div>
-          )}
-          <div className="flex justify-between px-2.5 border-t border-slate-200 pt-1.5 text-sm font-bold">
-            <span>Grand total</span>
-            <span className="tabular-nums">{money(data.total)}</span>
-          </div>
-          {!data.isHistorical && data.paid > 0 && (
-            <div className="flex justify-between px-2.5">
-              <span className="text-slate-500">Paid</span>
-              <span className="tabular-nums">{money(data.paid)}</span>
-            </div>
-          )}
+          {tax > 0 && <TotalRow label="Tax :" value={money(tax)} />}
+          {data.discount > 0 && <TotalRow label="Discount :" value={`−${money(data.discount)}`} />}
+          <TotalRow strong label="Grand Total :" value={money(data.total)} />
+          {!data.isHistorical && data.paid > 0 && <TotalRow label="Paid :" value={money(data.paid)} />}
           {!data.isHistorical && (
-            <div className="flex justify-between rounded-md bg-[#007595]/10 px-2.5 py-1.5 font-semibold text-[#007595]">
-              <span>Balance due</span>
+            <div className="mt-1 flex justify-between gap-3 rounded-md bg-[#c8e2ea] px-2 py-2 text-[10.5px] font-bold text-slate-900">
+              <span>Balance Due :</span>
               <span className="tabular-nums">{money(data.balance)}</span>
             </div>
           )}
         </div>
+      </div>
+
+      {data.notes && (
+        <p className="mt-3 rounded-md border border-slate-200 px-2.5 py-1.5 text-slate-600">
+          <span className="font-semibold text-slate-800">Note:</span> {data.notes}
+        </p>
+      )}
+
+      {/* Slogan and thanks */}
+      <div className={`mt-auto flex items-baseline justify-between gap-3 pt-4 text-[9.5px] font-bold ${TEAL}`}>
+        <p className="italic">{SLOGAN}</p>
+        <p>Thank You For Your Trust</p>
+      </div>
+
+      {/* Footer: contacts, the order's QR code, terms */}
+      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-start gap-4 border-t border-[#1f6378] pt-2.5">
+        <div className="min-w-0">
+          <p className={`mb-1 text-[10px] font-bold ${TEAL}`}>Contacts</p>
+          {company?.email && (
+            <p className="grid grid-cols-[3.2rem_1fr] text-[7.5px]">
+              <span>Email us</span>
+              <span className="truncate">: {company.email}</span>
+            </p>
+          )}
+          {company?.phone && (
+            <p className="grid grid-cols-[3.2rem_1fr] text-[7.5px]">
+              <span>Call us</span>
+              <span>: {company.phone}</span>
+            </p>
+          )}
         </div>
-
-        {data.notes && (
-          <p className="rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-600">
-            <span className="font-medium text-slate-700">Note:</span> {data.notes}
-          </p>
-        )}
-
-        {/* The QR sits beside the closing note so the order can be found again by scanning the invoice */}
-        <div className="flex items-end justify-between gap-6 border-t border-slate-100 pt-4">
-          <p className="text-[11px] text-slate-500">
-            Thank you for your trust. For any questions regarding this invoice, please contact us using the details above.
-          </p>
-          {printable && data.salesOrderId && <OrderQrCode value={data.salesOrderId} className="shrink-0" />}
+        <div className="flex justify-center">
+          {printable && data.salesOrderId ? (
+            <OrderQrCode value={data.salesOrderId} className={`font-bold ${TEAL}`} codeClassName="size-16" labelClassName="-mt-0.5 text-[7.5px]" />
+          ) : (
+            <span className="w-16" />
+          )}
+        </div>
+        <div className="min-w-0">
+          {company?.invoice_terms && (
+            <>
+              <p className={`mb-1 text-[10px] font-bold ${TEAL}`}>Terms & Conditions</p>
+              <p className="whitespace-pre-line text-[7.5px]">{company.invoice_terms}</p>
+            </>
+          )}
         </div>
       </div>
     </div>

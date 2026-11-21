@@ -9,6 +9,8 @@ const STYLE_ID = 'invoice-print-style'
 const LOGO = '/brand/logo-full.png'
 const PAGE_MARGIN_MM = 10
 const PX_PER_MM = 96 / 25.4
+// The invoice is designed for A5's printable width; other papers scale the whole page
+const DESIGN_WIDTH_MM = 148 - PAGE_MARGIN_MM * 2
 // Shrink a long invoice to fit one page, but no further than this: past it the text
 // gets too small to read, and the rest goes onto a second page instead
 const MIN_SCALE = 0.7
@@ -40,11 +42,11 @@ const logoReady = () =>
   })
 
 /**
- * Scale the invoice so it fits on one page of this paper. It is laid out off screen at
- * the page's content width, and if it comes out taller than the page it is zoomed down
- * (zoom, unlike transform, also shrinks the space it takes, so the browser paginates the
- * smaller size). The width is widened by the same factor, so the zoomed copy still spans
- * the full page width.
+ * Scale the invoice to the paper. It is designed for A5, so on wider paper (B5, A4) the
+ * whole page is zoomed up to fill the width, keeping its proportions. If it then comes out
+ * taller than the page, it is zoomed down just enough to fit (zoom, unlike transform, also
+ * changes the space it takes, so the browser paginates the scaled size). The layout width
+ * is adjusted by the same factor, so the zoomed copy always spans the page width.
  */
 const fitToPage = (host: HTMLElement, body: HTMLElement, paper: PaperSize) => {
   const { widthMm, heightMm } = PAPER_SIZES[paper]
@@ -59,7 +61,7 @@ const fitToPage = (host: HTMLElement, body: HTMLElement, paper: PaperSize) => {
     return body.getBoundingClientRect().height / PX_PER_MM
   }
 
-  let scale = 1
+  let scale = contentWidth / DESIGN_WIDTH_MM
   // Narrower text wraps more, so the height depends on the width; a few passes settle it
   for (let pass = 0; pass < 3; pass++) {
     const scaledHeight = heightAt(contentWidth / scale) * scale
@@ -70,6 +72,8 @@ const fitToPage = (host: HTMLElement, body: HTMLElement, paper: PaperSize) => {
 
   host.style.cssText = ''
   body.style.width = `${contentWidth / scale}mm`
+  // A short invoice still fills the page, so its footer sits at the foot like the design
+  body.style.minHeight = `${contentHeight / scale}mm`
   body.style.setProperty('zoom', String(scale))
 }
 
