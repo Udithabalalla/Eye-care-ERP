@@ -339,6 +339,37 @@ class InvoiceService:
         drawing.add(seal)
         return drawing
 
+    @staticmethod
+    def _customer_lines(items) -> list:
+        """
+        The lines the customer sees (same rules as customerInvoiceLines in the frontend's
+        utils/invoicePreview.ts). The glasses are one priced line: new frame and new lenses
+        are a "Pair of spectacles", the patient's own frame with new lenses a "Pair of lenses",
+        a new frame without new lenses "Frame (lenses OG)". Services go into that line;
+        inventory items are listed on their own; free items are left off.
+        """
+        kind = lambda item: getattr(item, "line_type", "product") or "product"
+        frames = [i for i in items if kind(i) == "frame"]
+        lenses = [i for i in items if kind(i) == "lens"]
+        services = [i for i in items if kind(i) == "expense"]
+        products = [i for i in items if kind(i) == "product"]
+        row = lambda i, grouped=False: {
+            "name": i.product_name, "kind": kind(i), "sku": i.sku, "quantity": i.quantity,
+            "unit_price": i.unit_price, "discount": getattr(i, "discount", 0) or 0, "total": i.total, "grouped": grouped,
+        }
+        new_frame = any(i.total > 0 for i in frames)
+        new_lenses = any(i.total > 0 for i in lenses)
+        name = ("Pair of spectacles" if new_frame and new_lenses else "Pair of lenses" if new_lenses
+                else "Frame (lenses OG)" if new_frame else None)
+        if not name:
+            return [row(i) for i in services + products]
+        grouped = frames + lenses + services
+        total = round(sum(i.total for i in grouped), 2)
+        discount = round(sum(getattr(i, "discount", 0) or 0 for i in grouped), 2)
+        glasses = {"name": name, "kind": "lens" if new_lenses else "frame", "sku": None, "quantity": 1,
+                   "unit_price": round(total + discount, 2), "discount": discount, "total": total, "grouped": True}
+        return [glasses] + [row(i) for i in products]
+
     def _build_invoice_pdf(
         self,
         invoice: InvoiceModel,
@@ -347,6 +378,7 @@ class InvoiceService:
         title: str = "INVOICE",
         number_label: str = "Invoice number",
         banner: Optional[str] = None,
+        group_glasses: bool = True,
     ) -> bytes:
         """
         The printed invoice, laid out like the on-screen preview (InvoicePreview.tsx).
@@ -459,15 +491,25 @@ class InvoiceService:
             Paragraph("Price", head_cell_right),
             Paragraph("Amount", head_cell_right),
         ]]
-        # Free (complimentary) items stay on the order for stock but aren't listed for the customer
-        for item in (i for i in invoice.items if i.line_type != "complimentary"):
-            kind = line_type_labels.get(item.line_type, "Product")
-            detail = " · ".join(part for part in [kind, item.sku, f"{self._money(item.discount)} off" if item.discount else ""] if part)
+        # A customer invoice shows the glasses as one line (see _customer_lines); a sales order
+        # copy keeps every line. Free (complimentary) items aren't listed either way.
+        if group_glasses:
+            lines = self._customer_lines(invoice.items)
+        else:
+            lines = [{"name": i.product_name, "kind": i.line_type, "sku": i.sku, "quantity": i.quantity, "unit_price": i.unit_price,
+                      "discount": getattr(i, "discount", 0) or 0, "total": i.total, "grouped": False}
+                     for i in invoice.items if i.line_type != "complimentary"]
+        for line in lines:
+            parts = [] if line["grouped"] else [line_type_labels.get(line["kind"], "Product"), line["sku"]]
+            if line["discount"]:
+                parts.append(f"{self._money(line['discount'])} off")
+            detail = " · ".join(part for part in parts if part)
+            detail_html = f"<br/><font size=7.5 color='#64748B'>{detail}</font>" if detail else ""
             item_rows.append([
-                Paragraph(f"<b>{item.product_name}</b><br/><font size=7.5 color='#64748B'>{detail}</font>", small),
-                Paragraph(str(item.quantity), right_small),
-                Paragraph(self._money(item.unit_price), right_small),
-                Paragraph(f"<b>{self._money(item.total)}</b>", right_small),
+                Paragraph(f"<b>{line['name']}</b>{detail_html}", small),
+                Paragraph(str(line["quantity"]), right_small),
+                Paragraph(self._money(line["unit_price"]), right_small),
+                Paragraph(f"<b>{self._money(line['total'])}</b>", right_small),
             ])
 
         items_table = Table(item_rows, colWidths=[92 * mm, 16 * mm, 35 * mm, 35 * mm], repeatRows=1)

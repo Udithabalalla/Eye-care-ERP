@@ -879,6 +879,7 @@ class SalesOrderService:
                 company_profile,
                 title="SALES ORDER",
                 number_label="Order number",
+                group_glasses=False,
                 banner="DRAFT — not confirmed yet" if status == "draft" else None,
             )
         return pdf_bytes, f"{order.order_number}.pdf"

@@ -2,6 +2,7 @@ import BrandLogo from '@/components/common/BrandLogo'
 import OrderQrCode from '@/components/common/OrderQrCode'
 import { CompanyProfile } from '@/types/company-profile.types'
 import { formatCurrency, formatDate, withoutInternalIds } from '@/utils/formatters'
+import { customerInvoiceLines } from '@/utils/invoicePreview'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
 
 // Matches the line labels printed on the PDF
@@ -16,6 +17,8 @@ export interface InvoicePreviewLine {
   unitPrice: number
   discount: number
   total: number
+  /** Several order lines shown as one (see customerInvoiceLines): no type or code under the name */
+  grouped?: boolean
 }
 
 export interface InvoicePreviewData {
@@ -98,8 +101,8 @@ const TotalRow = ({ label, value, strong }: { label: string; value: string; stro
  * placeholders, and the order's QR code in the footer.
  */
 const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePreviewData; company?: CompanyProfile; printable?: boolean }) => {
-  // Free items stay on the order for stock, but the customer's invoice doesn't list them (same as the PDF)
-  const lines = data.lines.filter((line) => line.type !== 'Free')
+  // The glasses as one line, extra inventory items on their own, free items left off
+  const lines = customerInvoiceLines(data.lines)
   const pending = printable ? '—' : 'Assigned on save'
   const tax = data.tax ?? 0
 
@@ -166,10 +169,13 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
               <tr key={line.key} className="border-b border-[#1f6378]/25 align-top">
                 <td className="py-2 pl-2.5 pr-2">
                   <p className="text-[12px] text-slate-900">{line.name}</p>
-                  <p className="text-[9px] text-slate-500">
-                    {[line.type, withoutInternalIds(line.detail)].filter(Boolean).join(' · ')}
-                    {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
-                  </p>
+                  {(!line.grouped || line.discount > 0) && (
+                    <p className="text-[9px] text-slate-500">
+                      {[!line.grouped && line.type, !line.grouped && withoutInternalIds(line.detail), line.discount > 0 && `${money(line.discount)} off`]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
                 </td>
                 <td className="whitespace-nowrap py-2 text-right tabular-nums text-slate-900">{money(line.unitPrice)}</td>
                 <td className="py-2 text-center tabular-nums">{line.qty}</td>

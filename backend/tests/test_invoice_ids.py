@@ -130,3 +130,35 @@ def test_business_today_is_the_shops_date_not_the_servers(monkeypatch):
 
     monkeypatch.setattr(helpers, "datetime", _Clock)
     assert helpers.business_today() == date(2027, 1, 2)
+
+
+def _line(name, line_type, total, discount=0):
+    from types import SimpleNamespace
+    return SimpleNamespace(product_name=name, line_type=line_type, sku="SKU", quantity=1, unit_price=total + discount, discount=discount, total=total)
+
+
+def test_customer_invoice_groups_the_glasses_into_one_line():
+    lines = InvoiceService._customer_lines([
+        _line("Ray-Ban RB5154", "frame", 38500),
+        _line("Blue cut", "lens", 10000),
+        _line("Fitting", "expense", 1000, discount=500),
+        _line("Lens cleaner", "product", 900),
+        _line("Free case", "complimentary", 0),
+    ])
+    assert [(l["name"], l["total"]) for l in lines] == [("Pair of spectacles", 49500), ("Lens cleaner", 900)]
+    assert lines[0]["discount"] == 500 and lines[0]["unit_price"] == 50000
+
+
+def test_own_frame_with_new_lenses_is_a_pair_of_lenses():
+    lines = InvoiceService._customer_lines([_line("OG", "frame", 0), _line("Blue cut", "lens", 10000), _line("Nose pads", "expense", 200)])
+    assert [(l["name"], l["total"]) for l in lines] == [("Pair of lenses", 10200)]
+
+
+def test_new_frame_without_new_lenses_is_frame_lenses_og():
+    lines = InvoiceService._customer_lines([_line("2 Star 2236", "frame", 4000), _line("Own lenses", "lens", 0)])
+    assert [(l["name"], l["total"]) for l in lines] == [("Frame (lenses OG)", 4000)]
+
+
+def test_services_only_order_lists_its_services():
+    lines = InvoiceService._customer_lines([_line("Soldering", "expense", 750)])
+    assert [(l["name"], l["grouped"]) for l in lines] == [("Soldering", False)]

@@ -135,6 +135,11 @@ const eyeMeasurementSchema = z.object({
   pd: requiredMoney,
 })
 
+// When the patient keeps their own frame and buys new lenses, nose pads are always fitted
+// and charged with the lenses. The row is added (and removed) automatically.
+const NOSE_PADS_ID = 'NOSE_PADS'
+const NOSE_PADS_PRICE = 200
+
 const expenseRowSchema = z.object({
   expenseTypeId: z.string().optional().default(''),
   expenseTypeName: z.string().optional().default(''),
@@ -839,9 +844,24 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     (lensMasterData?.data || []).map((l) => ({ value: l.id, label: l.lens_type, subtitle: `${l.color} • ${l.size} • ${l.lens_code} • ${formatCurrency(l.price)}` }))
   , [lensMasterData])
 
-  const expenseOptions = useMemo<LookupOption[]>(() =>
-    (expenseMasterData?.data || []).map((e) => ({ value: e.id, label: e.name, subtitle: formatCurrency(e.default_cost) }))
-  , [expenseMasterData])
+  const expenseOptions = useMemo<LookupOption[]>(() => [
+    ...(expenseMasterData?.data || []).map((e) => ({ value: e.id, label: e.name, subtitle: formatCurrency(e.default_cost) })),
+    // The automatic nose pads row (see NOSE_PADS_ID) isn't a saved charge type; list it so the row shows its name
+    { value: NOSE_PADS_ID, label: 'Nose pads', subtitle: `${formatCurrency(NOSE_PADS_PRICE)} · added with lenses for the patient's own frame` },
+  ], [expenseMasterData])
+
+  // Patient's own frame (marked reference-only, or entered by hand at no charge) with new, priced lenses
+  const ownFrame = frame.isReference || (frame.isOld && Number(frame.total || 0) === 0 && !!(frame.model || frame.frameNo || frame.frameId || frame.barcode))
+  const needsNosePads = !salesOrder.isOld && ownFrame && !lens.isReference && Number(lens.total || 0) > 0
+  useEffect(() => {
+    const rows = getValues('expenses') || []
+    const index = rows.findIndex((row) => row.expenseTypeId === NOSE_PADS_ID)
+    if (needsNosePads && index < 0) {
+      append({ expenseTypeId: NOSE_PADS_ID, expenseTypeName: 'Nose pads', qty: 1, unitCost: NOSE_PADS_PRICE, discount: 0, total: NOSE_PADS_PRICE }, { shouldFocus: false })
+    } else if (!needsNosePads && index >= 0) {
+      remove(index)
+    }
+  }, [needsNosePads, append, remove, getValues])
 
   const testedByOptions = useMemo(() => {
     const list: any[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
