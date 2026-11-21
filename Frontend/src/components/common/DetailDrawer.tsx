@@ -2,7 +2,7 @@ import { RiMoneyDollarCircleLine } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/utils/formatters'
+import { formatCurrency, withoutInternalIds } from '@/utils/formatters'
 
 /*
  * Building blocks shared by the record detail drawers (sales orders, invoices)
@@ -152,7 +152,7 @@ export function LineItemList({ items }: { items: DrawerLineItem[] }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{item.name}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {[item.detail, item.isFree ? 'Free' : `${item.qty} × ${formatCurrency(item.unitPrice)}`].filter(Boolean).join(' · ')}
+              {[withoutInternalIds(item.detail), item.isFree ? 'Free' : `${item.qty} × ${formatCurrency(item.unitPrice)}`].filter(Boolean).join(' · ')}
             </p>
             {item.note && (
               <p className={cn('text-xs font-medium', item.noteTone === 'success' ? 'text-success' : 'text-warning')}>

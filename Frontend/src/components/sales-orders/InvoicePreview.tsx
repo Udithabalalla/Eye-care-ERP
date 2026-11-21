@@ -1,7 +1,7 @@
 import BrandLogo from '@/components/common/BrandLogo'
 import OrderQrCode from '@/components/common/OrderQrCode'
 import { CompanyProfile } from '@/types/company-profile.types'
-import { formatCurrency, formatDate } from '@/utils/formatters'
+import { formatCurrency, formatDate, withoutInternalIds } from '@/utils/formatters'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
 
 // Matches the line labels printed on the PDF
@@ -167,7 +167,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
                 <td className="py-2 pl-2.5 pr-2">
                   <p className="text-[12px] text-slate-900">{line.name}</p>
                   <p className="text-[9px] text-slate-500">
-                    {line.type}{line.detail ? ` · ${line.detail}` : ''}
+                    {[line.type, withoutInternalIds(line.detail)].filter(Boolean).join(' · ')}
                     {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
                   </p>
                 </td>

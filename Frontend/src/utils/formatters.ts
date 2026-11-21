@@ -9,6 +9,17 @@ export const formatDate = (date: string | Date, formatStr: string = 'MMM dd, yyy
   }
 }
 
+// Database IDs (24 hex characters, e.g. a service's charge type) mean nothing to a customer
+const INTERNAL_ID = /^[0-9a-f]{24}$/i
+
+/** A line's detail ("Frame · RB5154 · 6addb107…") without any database IDs in it */
+export const withoutInternalIds = (detail?: string): string | undefined =>
+  detail
+    ?.split('·')
+    .map((part) => part.trim())
+    .filter((part) => part && !INTERNAL_ID.test(part))
+    .join(' · ') || undefined
+
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
