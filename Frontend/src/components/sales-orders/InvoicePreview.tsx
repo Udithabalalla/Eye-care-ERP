@@ -133,7 +133,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       </div>
 
       {/* From / to */}
-      <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="mt-8 grid grid-cols-2 gap-4">
         <div className="min-w-0 space-y-0.5">
           <p className="text-slate-900">Office Address</p>
           {company?.address && <p>{company.address}</p>}
@@ -150,11 +150,12 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       </div>
 
       {/* Items */}
-      <table className="mt-4 w-full border-collapse">
+      <table className="mt-7 w-full border-collapse">
         <thead>
-          <tr className="bg-[#1f6378] text-left text-[11px] text-white">
+          {/* Colour on the cells too: a row background alone leaves light seams between the cells in print */}
+          <tr className="bg-[#1f6378] text-left text-[11px] text-white [&>th]:bg-[#1f6378]">
             <th className="py-2 pl-2.5 font-normal">Items</th>
-            <th className="py-2 text-right font-normal">Unit Price</th>
+            <th className="py-2 pr-4 text-right font-normal">Unit Price</th>
             <th className="w-12 py-2 text-center font-normal">Qnt</th>
             <th className="py-2 pr-2.5 text-right font-normal">Total</th>
           </tr>
@@ -177,7 +178,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
                     </p>
                   )}
                 </td>
-                <td className="whitespace-nowrap py-2 text-right tabular-nums text-slate-900">{money(line.unitPrice)}</td>
+                <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-slate-900">{money(line.unitPrice)}</td>
                 <td className="py-2 text-center tabular-nums">{line.qty}</td>
                 <td className="whitespace-nowrap py-2 pr-2.5 text-right tabular-nums text-slate-900">{money(line.total)}</td>
               </tr>

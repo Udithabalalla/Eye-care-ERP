@@ -274,7 +274,7 @@ class InvoiceService:
         )
 
     async def generate_invoice_pdf(self, invoice_id: str) -> tuple[bytes, str]:
-        """Render a professional A4 invoice PDF for download / handing to the customer."""
+        """The customer invoice as an A5 PDF, in the same design as the printed invoice."""
         invoice = await self.invoice_repo.get_by_invoice_id(invoice_id)
         if not invoice:
             raise NotFoundException(f"Invoice with ID {invoice_id} not found")
@@ -370,237 +370,255 @@ class InvoiceService:
                    "unit_price": round(total + discount, 2), "discount": discount, "total": total, "grouped": True}
         return [glasses] + [row(i) for i in products]
 
+    # The invoice design (Frontend InvoicePreview.tsx): teal accents, navy wordmark
+    TEAL = "#1F6378"
+    NAVY = "#14324A"
+    BALANCE_BG = "#C8E2EA"
+    SLOGAN = "You Protect Eye, Eye Protects You"
+
+    @classmethod
+    def _brand_mark(cls, width, height):
+        """The eye mark tinted teal (the asset is black on transparent), or None if missing."""
+        path = cls._resolve_asset_path("brand/logo-mark.png")
+        if not path:
+            return None
+        from PIL import Image as PILImage, ImageColor
+        mark = PILImage.open(path).convert("RGBA")
+        tinted = PILImage.new("RGBA", mark.size, ImageColor.getrgb(cls.TEAL) + (255,))
+        tinted.putalpha(mark.getchannel("A"))
+        buf = io.BytesIO()
+        tinted.save(buf, "PNG")
+        buf.seek(0)
+        return Image(buf, width=width, height=height, kind="proportional")
+
+    @classmethod
+    def _order_qr(cls, value: str, size):
+        """The order's ID as a teal QR code, so scanning the invoice opens the order."""
+        from reportlab.graphics.barcode import qr
+        widget = qr.QrCodeWidget(value, barLevel="M")
+        widget.barFillColor = colors.HexColor(cls.TEAL)
+        widget.barStrokeColor = colors.HexColor(cls.TEAL)
+        x1, y1, x2, y2 = widget.getBounds()
+        drawing = Drawing(size, size, transform=[size / (x2 - x1), 0, 0, size / (y2 - y1), 0, 0])
+        drawing.add(widget)
+        return drawing
+
+    @staticmethod
+    def _fmt_long_date(value) -> str:
+        """Dates as on the printed invoice, e.g. November 22, 2026"""
+        if not value:
+            return "-"
+        return f"{value.strftime('%B')} {value.day}, {value.year}"
+
+    @staticmethod
+    def _customer_code(sku: Optional[str]) -> Optional[str]:
+        """A line's code without database IDs (24 hex characters), as on the printed invoice"""
+        import re
+        return None if not sku or re.fullmatch(r"[0-9a-fA-F]{24}", sku) else sku
+
     def _build_invoice_pdf(
         self,
         invoice: InvoiceModel,
         patient,
         company_profile,
         title: str = "INVOICE",
-        number_label: str = "Invoice number",
+        number_label: str = "Invoice No",
         banner: Optional[str] = None,
         group_glasses: bool = True,
     ) -> bytes:
         """
-        The printed invoice, laid out like the on-screen preview (InvoicePreview.tsx).
-        Sales orders without an invoice print through here too, under their own title.
+        The customer invoice as an A5 PDF, in the same design as the printed invoice
+        (Frontend InvoicePreview.tsx). Sales orders without an invoice print through
+        here too, under their own title and with every line (group_glasses=False).
         """
+        from reportlab.lib.pagesizes import A5
+        from reportlab.platypus.flowables import TopPadder
+
         buffer = io.BytesIO()
+        margin = 10 * mm
         doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            leftMargin=16 * mm,
-            rightMargin=16 * mm,
-            topMargin=16 * mm,
-            bottomMargin=16 * mm,
+            buffer, pagesize=A5, leftMargin=margin, rightMargin=margin, topMargin=margin, bottomMargin=margin,
             title=f"{title.title()} {invoice.invoice_number}",
         )
-        ink = colors.HexColor("#0F172A")
-        slate = colors.HexColor("#64748B")
-        hairline = colors.HexColor("#E2E8F0")
-        accent = colors.HexColor(self.ACCENT)
-        content_width = 178 * mm
+        width = A5[0] - 2 * margin  # 128 mm, as in the printed design
+        teal, navy = colors.HexColor(self.TEAL), colors.HexColor(self.NAVY)
+        body_ink, ink, muted_ink = colors.HexColor("#334155"), colors.HexColor("#0F172A"), colors.HexColor("#64748B")
+        rule = colors.HexColor("#C7D8DD")
 
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle("InvoiceTitle", parent=styles["Heading1"], fontSize=24, leading=28, textColor=ink, spaceAfter=0)
-        label = ParagraphStyle("Label", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=slate)
-        small = ParagraphStyle("Small", parent=styles["Normal"], fontSize=9, leading=13, textColor=ink)
-        normal = ParagraphStyle("NormalText", parent=styles["Normal"], fontSize=10, leading=14, textColor=ink)
-        muted = ParagraphStyle("Muted", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=slate)
-        right_small = ParagraphStyle("RightSmall", parent=small, alignment=2)
-        head_cell = ParagraphStyle("HeadCell", parent=label, fontName="Helvetica")
-        head_cell_right = ParagraphStyle("HeadCellRight", parent=head_cell, alignment=2)
+        def style(name, size, color=body_ink, bold=False, italic=False, align=0, leading=None):
+            font = ("Helvetica-BoldOblique" if bold and italic else "Helvetica-Bold" if bold
+                    else "Helvetica-Oblique" if italic else "Helvetica")
+            return ParagraphStyle(name, fontName=font, fontSize=size, leading=leading or size * 1.3, textColor=color, alignment=align)
 
-        # Printed invoices carry no status badge; a fully paid invoice gets a PAID seal instead
+        body = style("Body", 8.25)
+        body_ink_style = style("BodyInk", 8.25, ink)
+        small = style("Small", 6.75, muted_ink)
+        item_name = style("ItemName", 9, ink)
+        cell_right = style("CellRight", 8.25, ink, align=2)
+        cell_center = style("CellCenter", 8.25, body_ink, align=1)
+        head = style("Head", 8.25, colors.white)
+        head_right = style("HeadRight", 8.25, colors.white, align=2)
+        head_center = style("HeadCenter", 8.25, colors.white, align=1)
+        heading = style("Heading", 9, teal, bold=True)
 
-        story = []
-
-        # ── Header: title, number, status | logo ─────────────────────────
-        logo_name = company_profile.company_logo if company_profile.company_logo not in (None, "", "Logo.png") else self.DEFAULT_LOGO
-        logo_path = self._resolve_asset_path(logo_name) or self._resolve_asset_path("Logo.png")
-        logo = Image(str(logo_path), width=24 * mm, height=18.4 * mm, kind="proportional") if logo_path else Paragraph("", normal)
-
-        header_left = [
-            Paragraph(title, title_style),
-            Paragraph(f"{number_label} &nbsp;<font color='#0F172A'>#{invoice.invoice_number}</font>", muted),
-        ]
-        if banner:
-            header_left.append(Spacer(1, 1.5 * mm))
-            header_left.append(Paragraph(f"<font color='#B45309'>{banner}</font>", muted))
-        header_tbl = Table([[header_left, logo]], colWidths=[content_width - 30 * mm, 30 * mm])
-        header_tbl.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6 * mm),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.75, hairline),
-        ]))
-        story.append(header_tbl)
-        story.append(Spacer(1, 6 * mm))
-
-        def stack(title: str, lines: list[str]) -> list:
-            return [Paragraph(title, label)] + [Paragraph(line, small) for line in lines if line]
-
-        def two_columns(left: list, right: list) -> Table:
-            table = Table([[left, right]], colWidths=[content_width / 2, content_width / 2])
+        def plain_table(rows, col_widths, extra=()):
+            table = Table(rows, colWidths=col_widths)
             table.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                *extra,
             ]))
             return table
 
-        # ── Billed by | billed to ─────────────────────────────────────────
+        story = []
+
+        # ── Brand and title ─────────────────────────────────────────────────
+        mark = self._brand_mark(15 * mm, 10 * mm)
+        brand = ([mark, Spacer(1, 1 * mm)] if mark else []) + [
+            Paragraph(f"<font color='{self.NAVY}'>Vision</font><br/><font color='{self.TEAL}'>Opticals.</font>",
+                      style("Wordmark", 17, bold=True, leading=18)),
+        ]
+        title_block = [
+            Paragraph(title, style("Title", 25.5, teal, bold=True, align=2, leading=27)),
+            Spacer(1, 1.5 * mm),
+            Paragraph(f"{number_label} - #{invoice.invoice_number}", style("Number", 9, navy, align=2)),
+            Paragraph(self._fmt_long_date(invoice.invoice_date), style("Date", 9, navy, align=2)),
+        ]
+        if banner:
+            title_block.append(Paragraph(banner, style("Banner", 7, colors.HexColor("#B45309"), align=2)))
+        story.append(plain_table([[brand, title_block]], [width * 0.45, width * 0.55]))
+        story.append(Spacer(1, 8.5 * mm))
+
+        # ── Office address | customer ──────────────────────────────────────
         patient_address = ""
-        if patient and patient.address:
+        if patient and getattr(patient, "address", None):
             parts = [patient.address.street, patient.address.city, patient.address.state, patient.address.zip_code]
             patient_address = ", ".join(p for p in parts if p)
+        office = [Paragraph("Office Address", body_ink_style)]
+        if company_profile.address:
+            office.append(Paragraph(company_profile.address, body))
+        if company_profile.phone:
+            office += [Spacer(1, 1 * mm), Paragraph(company_profile.phone, body_ink_style)]
+        if company_profile.tax_number:
+            office.append(Paragraph(f"Tax no. {company_profile.tax_number}", style("Tax", 8.25, muted_ink)))
+        customer = [Paragraph("To :", body_ink_style), Paragraph(invoice.patient_name or "", body_ink_style)]
+        customer += [Paragraph(text, body) for text in (invoice.patient_phone, invoice.patient_email, patient_address) if text]
+        story.append(plain_table([[office, customer]], [width / 2, width / 2], [("LEFTPADDING", (1, 0), (1, 0), 4 * mm)]))
+        story.append(Spacer(1, 7.4 * mm))
 
-        billed_by = stack("Billed by", [
-            f"<b>{company_profile.company_name or settings.APP_NAME}</b>",
-            company_profile.email or "",
-            company_profile.address or "",
-            company_profile.phone or "",
-            f"Tax no. {company_profile.tax_number}" if company_profile.tax_number else "",
-        ])
-        billed_to = stack("Billed to", [
-            f"<b>{invoice.patient_name}</b>",
-            invoice.patient_phone or "",
-            invoice.patient_email or "",
-            patient_address,
-        ])
-        story.append(two_columns(billed_by, billed_to))
-        story.append(Spacer(1, 5 * mm))
-
-        # ── Dates and references ──────────────────────────────────────────
-        story.append(two_columns(
-            stack("Date issued", [f"<b>{self._fmt_dt(invoice.invoice_date)}</b>"]) + [Spacer(1, 2 * mm)]
-            + stack("Sales order", [f"<b>{invoice.sales_order_id or '-'}</b>"]),
-            stack("Due date", [f"<b>{self._fmt_dt(invoice.due_date)}</b>"]) + [Spacer(1, 2 * mm)]
-            + stack("Prescription", [f"<b>{invoice.prescription_id or '-'}</b>"]),
-        ))
-        story.append(Spacer(1, 7 * mm))
-
-        # ── Line items ─────────────────────────────────────────────────
+        # ── Items ─────────────────────────────────────────────────────────
         line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service"}
-        story.append(Paragraph("Items &amp; services", label))
-        story.append(Spacer(1, 1.5 * mm))
-        item_rows = [[
-            Paragraph("Item", head_cell),
-            Paragraph("Qty", head_cell_right),
-            Paragraph("Price", head_cell_right),
-            Paragraph("Amount", head_cell_right),
-        ]]
-        # A customer invoice shows the glasses as one line (see _customer_lines); a sales order
-        # copy keeps every line. Free (complimentary) items aren't listed either way.
         if group_glasses:
             lines = self._customer_lines(invoice.items)
         else:
             lines = [{"name": i.product_name, "kind": i.line_type, "sku": i.sku, "quantity": i.quantity, "unit_price": i.unit_price,
                       "discount": getattr(i, "discount", 0) or 0, "total": i.total, "grouped": False}
                      for i in invoice.items if i.line_type != "complimentary"]
+        rows = [[Paragraph("Items", head), Paragraph("Unit Price", head_right), Paragraph("Qnt", head_center), Paragraph("Total", head_right)]]
         for line in lines:
-            parts = [] if line["grouped"] else [line_type_labels.get(line["kind"], "Product"), line["sku"]]
+            parts = [] if line["grouped"] else [line_type_labels.get(line["kind"], "Product"), self._customer_code(line["sku"])]
             if line["discount"]:
                 parts.append(f"{self._money(line['discount'])} off")
             detail = " · ".join(part for part in parts if part)
-            detail_html = f"<br/><font size=7.5 color='#64748B'>{detail}</font>" if detail else ""
-            item_rows.append([
-                Paragraph(f"<b>{line['name']}</b>{detail_html}", small),
-                Paragraph(str(line["quantity"]), right_small),
-                Paragraph(self._money(line["unit_price"]), right_small),
-                Paragraph(f"<b>{self._money(line['total'])}</b>", right_small),
-            ])
-
-        items_table = Table(item_rows, colWidths=[92 * mm, 16 * mm, 35 * mm, 35 * mm], repeatRows=1)
-        items_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
+            name = [Paragraph(line["name"] or "", item_name)] + ([Paragraph(detail, small)] if detail else [])
+            rows.append([name, Paragraph(self._money(line["unit_price"]), cell_right),
+                         Paragraph(str(line["quantity"]), cell_center), Paragraph(self._money(line["total"]), cell_right)])
+        items = Table(rows, colWidths=[56 * mm, 30 * mm, 12 * mm, 30 * mm], repeatRows=1)
+        items.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), teal),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LINEBELOW", (0, 1), (-1, -1), 0.5, colors.HexColor("#F1F5F9")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2.6 * mm),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2.6 * mm),
+            ("RIGHTPADDING", (1, 0), (1, -1), 4.2 * mm),  # Unit Price doesn't hug the next column
+            ("LEFTPADDING", (2, 0), (2, -1), 0),
+            ("RIGHTPADDING", (2, 0), (2, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("LINEBELOW", (0, 1), (-1, -1), 0.5, rule),
         ]))
-        story.append(items_table)
-        story.append(Spacer(1, 5 * mm))
+        story.append(items)
+        story.append(Spacer(1, 3 * mm))
 
-        # ── Totals ─────────────────────────────────────────────────────
-        totals_rows = [[Paragraph("Subtotal", muted), Paragraph(self._money(invoice.subtotal), right_small)]]
-        if invoice.total_discount:
-            totals_rows.append([Paragraph("Discount", muted), Paragraph(f"-{self._money(invoice.total_discount)}", right_small)])
+        # ── Totals ─────────────────────────────────────────────────────────
+        totals_width = width * 0.52
+        grey = colors.HexColor("#475569")
+
+        def small_row(label, value):
+            return [Paragraph(label, style("SmallL", 7.1, grey)), Paragraph(value, style("SmallR", 7.1, grey, align=2))]
+
+        totals = [[Paragraph("SUBTOTAL :", heading), Paragraph(self._money(invoice.subtotal), style("SubR", 9, teal, bold=True, align=2))]]
         if invoice.total_tax:
-            totals_rows.append([Paragraph("Tax", muted), Paragraph(self._money(invoice.total_tax), right_small)])
-        grand_index = len(totals_rows)
-        totals_rows.append([
-            Paragraph("<b>Grand total</b>", normal),
-            Paragraph(f"<b>{self._money(invoice.total_amount)}</b>", ParagraphStyle("GrandRight", parent=normal, alignment=2)),
-        ])
+            totals.append(small_row("Tax :", self._money(invoice.total_tax)))
+        if invoice.total_discount:
+            totals.append(small_row("Discount :", f"-{self._money(invoice.total_discount)}"))
+        totals.append([Paragraph("Grand Total :", style("Grand", 9.4, ink, bold=True)),
+                       Paragraph(self._money(invoice.total_amount), style("GrandR", 9.4, ink, bold=True, align=2))])
         if invoice.paid_amount:
-            totals_rows.append([Paragraph("Paid", muted), Paragraph(self._money(invoice.paid_amount), right_small)])
-        balance_style = [
-            ("BACKGROUND", (0, len(totals_rows)), (-1, len(totals_rows)), colors.HexColor("#E6F1F4")),
-        ]
-        totals_rows.append([
-            Paragraph(f"<font color='{self.ACCENT}'><b>Balance due</b></font>", small),
-            Paragraph(f"<font color='{self.ACCENT}'><b>{self._money(invoice.balance_due)}</b></font>", right_small),
-        ])
-
-        totals_table = Table(totals_rows, colWidths=[38 * mm, 42 * mm])
+            totals.append(small_row("Paid :", self._money(invoice.paid_amount)))
+        totals_table = Table(totals, colWidths=[totals_width * 0.5, totals_width * 0.5])
         totals_table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("LINEABOVE", (0, grand_index), (-1, grand_index), 0.75, hairline),
-            ("TOPPADDING", (0, grand_index), (-1, grand_index), 6),
-            *balance_style,
+            ("LEFTPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("TOPPADDING", (0, 0), (-1, -1), 1.2 * mm),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.2 * mm),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, rule),
         ]))
-        # No PAID seal: staff stamp settled invoices by hand
-        totals_wrap = Table([[Paragraph("", normal), totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
-        totals_wrap.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        balance = Table([[Paragraph("Balance Due :", style("Bal", 9.4, ink, bold=True)),
+                          Paragraph(self._money(invoice.balance_due), style("BalR", 9.4, ink, bold=True, align=2))]],
+                        colWidths=[totals_width * 0.5, totals_width * 0.5])
+        balance.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(self.BALANCE_BG)),
+            ("ROUNDEDCORNERS", [3, 3, 3, 3]),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
         ]))
-        story.append(totals_wrap)
-        story.append(Spacer(1, 6 * mm))
+        story.append(plain_table([["", [totals_table, Spacer(1, 1 * mm), balance]]], [width - totals_width, totals_width]))
 
-        # ── Payment info ───────────────────────────────────────────────
-        if invoice.payment_method or invoice.payment_date or invoice.transaction_id:
-            payment_method = invoice.payment_method.value if hasattr(invoice.payment_method, "value") else invoice.payment_method
-            story.append(KeepTogether(stack("Payment information", [
-                f"Method: {payment_method or '-'}",
-                f"Paid on: {self._fmt_dt(invoice.payment_date)}",
-                f"Transaction ID: {invoice.transaction_id or '-'}",
-            ])))
-            story.append(Spacer(1, 5 * mm))
-
-        # ── Notes ──────────────────────────────────────────────────────
         if invoice.notes:
-            note = Table([[Paragraph(f"<b>Note:</b> {invoice.notes}", small)]], colWidths=[content_width])
+            story.append(Spacer(1, 3 * mm))
+            note = Table([[Paragraph(f"<font color='#0F172A'>Note:</font> {invoice.notes}", body)]], colWidths=[width])
             note.setStyle(TableStyle([
-                ("BOX", (0, 0), (-1, -1), 0.5, hairline),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("ROUNDEDCORNERS", [3, 3, 3, 3]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5 * mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5 * mm),
             ]))
             story.append(note)
-            story.append(Spacer(1, 6 * mm))
 
-        footer = Table([[Paragraph(
-            "Thank you for your trust. For any questions regarding this invoice, please contact us using the details above.",
-            muted,
-        )]], colWidths=[content_width])
-        footer.setStyle(TableStyle([
-            ("LINEABOVE", (0, 0), (-1, 0), 0.5, hairline),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ]))
-        story.append(footer)
+        # ── Footer at the foot of the page: slogan, contacts, QR, terms ─────────
+        slogan = plain_table(
+            [[Paragraph(self.SLOGAN, style("Slogan", 8.25, teal, bold=True, italic=True)),
+              Paragraph("Thank You For Your Trust", style("Thanks", 8.25, teal, bold=True, align=2))]],
+            [width / 2, width / 2],
+            [("BOTTOMPADDING", (0, 0), (-1, -1), 1.5 * mm), ("LINEBELOW", (0, 0), (-1, 0), 0.75, teal)],
+        )
+        contact_text = style("Contact", 6.75, body_ink)
+        contacts = [Paragraph("Contacts", heading), Spacer(1, 1 * mm)]
+        for label, value in (("Email us", company_profile.email), ("Call us", company_profile.phone)):
+            if value:
+                contacts.append(plain_table([[Paragraph(label, contact_text), Paragraph(f": {value}", contact_text)]], [11 * mm, 34 * mm]))
+        qr_cell = ""
+        if invoice.sales_order_id:
+            qr_cell = [self._order_qr(invoice.sales_order_id, 18 * mm),
+                       Paragraph(invoice.sales_order_id, style("QrLabel", 6.75, teal, bold=True, align=1))]
+        terms = []
+        if getattr(company_profile, "invoice_terms", None):
+            terms = [Paragraph("Terms &amp; Conditions", heading), Spacer(1, 1 * mm),
+                     Paragraph(company_profile.invoice_terms.replace("\n", "<br/>"), style("Terms", 6.75, body_ink))]
+        footer_row = plain_table([[contacts, qr_cell, terms]], [width * 0.36, width * 0.28, width * 0.36],
+                                 [("ALIGN", (1, 0), (1, 0), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2.5 * mm)])
+        # One flowable, so TopPadder moves the whole footer to the foot of the page together
+        footer = plain_table([[slogan], [footer_row]], [width])
+        story.append(Spacer(1, 4 * mm))
+        story.append(TopPadder(footer))
 
         doc.build(story)
         return buffer.getvalue()

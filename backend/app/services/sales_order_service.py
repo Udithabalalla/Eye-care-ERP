@@ -878,7 +878,7 @@ class SalesOrderService:
                 patient,
                 company_profile,
                 title="SALES ORDER",
-                number_label="Order number",
+                number_label="Order No",
                 group_glasses=False,
                 banner="DRAFT — not confirmed yet" if status == "draft" else None,
             )
