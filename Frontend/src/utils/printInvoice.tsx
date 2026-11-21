@@ -11,9 +11,10 @@ const PAGE_MARGIN_MM = 10
 const PX_PER_MM = 96 / 25.4
 // The invoice is designed for A5's printable width; other papers scale the whole page
 const DESIGN_WIDTH_MM = 148 - PAGE_MARGIN_MM * 2
-// Shrink a long invoice to fit one page, but no further than this: past it the text
-// gets too small to read, and the rest goes onto a second page instead
-const MIN_SCALE = 0.7
+// Shrink a long invoice to fit one page, but no further than this: below it the smallest
+// text drops under ~5.4 pt and the QR code under ~15 mm, so the rest goes onto a second
+// page instead. A typical order (frame, two lenses, a service) fits A5 at about 97%.
+const MIN_SCALE = 0.8
 
 let current: { root: Root; host: HTMLElement; style: HTMLStyleElement; timer?: number } | null = null
 

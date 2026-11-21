@@ -76,7 +76,7 @@ const SLOGAN = 'You Protect Eye, Eye Protects You'
 
 /** The brand wordmark from the invoice design: "Vision" over "Opticals." */
 const Wordmark = () => (
-  <p className="text-[19px] font-bold leading-[1.05] tracking-tight">
+  <p className="text-[23px] font-bold leading-[1.05] tracking-tight">
     <span className={NAVY}>Vision</span>
     <br />
     <span className={TEAL}>Opticals.</span>
@@ -84,14 +84,15 @@ const Wordmark = () => (
 )
 
 const TotalRow = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
-  <div className={`flex justify-between gap-3 px-2 ${strong ? 'py-1.5 text-[10.5px] font-bold text-slate-900' : 'py-1 text-[8px] text-slate-600'}`}>
+  <div className={`flex justify-between gap-3 px-2 ${strong ? 'py-1.5 text-[12.5px] font-bold text-slate-900' : 'py-1 text-[9.5px] text-slate-600'}`}>
     <span>{label}</span>
     <span className="tabular-nums">{value}</span>
   </div>
 )
 
 /**
- * The customer invoice, laid out for A5 paper (128 mm of printable width) and the same
+ * The customer invoice, laid out for A5 paper (128 mm of printable width; body text
+ * prints at about 8 pt, the smallest at about 6.8 pt) and the same
  * on screen, so the preview is what prints. `printable` is the copy sent to the printer
  * (utils/printInvoice scales it to the chosen paper): no card frame, no on-screen
  * placeholders, and the order's QR code in the footer.
@@ -110,10 +111,10 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
   return (
     <div
       // Printed, it fills the page (utils/printInvoice sets the height) so the footer sits at the foot
-      className={`flex flex-col bg-white text-[9px] leading-snug text-slate-700 ${printable ? 'min-h-[inherit]' : 'overflow-hidden rounded-xl border border-slate-200 px-5 py-5 shadow-sm'}`}
+      className={`flex flex-col bg-white text-[11px] leading-snug text-slate-700 ${printable ? 'min-h-[inherit]' : 'overflow-hidden rounded-xl border border-slate-200 px-5 py-5 shadow-sm'}`}
     >
       {data.isHistorical && (
-        <p className="-mx-5 -mt-5 mb-4 bg-amber-50 px-5 py-2 text-[10px] font-medium text-amber-800">
+        <p className="-mx-5 -mt-5 mb-4 bg-amber-50 px-5 py-2 text-[12px] font-medium text-amber-800">
           Past order from paper records — no invoice will be created
         </p>
       )}
@@ -121,16 +122,16 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       {/* Brand and title */}
       <div className="flex items-start justify-between gap-4">
         <div className="shrink-0">
-          <BrandLogo variant="mark" className={`mb-1 h-8 w-14 ${TEAL}`} title="Vision Opticals" />
+          <BrandLogo variant="mark" className={`mb-1 h-10 w-[4.5rem] ${TEAL}`} title="Vision Opticals" />
           <Wordmark />
         </div>
         <div className="min-w-0 text-right">
-          <p className={`text-[28px] font-bold leading-none tracking-tight ${TEAL}`}>INVOICE</p>
-          <p className={`mt-2 whitespace-nowrap text-[10px] font-bold ${NAVY}`}>
+          <p className={`text-[34px] font-bold leading-none tracking-tight ${TEAL}`}>INVOICE</p>
+          <p className={`mt-2 whitespace-nowrap text-[12px] font-bold ${NAVY}`}>
             Invoice No - {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
           </p>
-          <p className={`text-[10px] font-bold ${NAVY}`}>{date(data.issueDate)}</p>
-          {refs.length > 0 && <p className="mt-0.5 text-[8px] text-slate-500">{refs.join(' · ')}</p>}
+          <p className={`text-[12px] font-bold ${NAVY}`}>{date(data.issueDate)}</p>
+          {refs.length > 0 && <p className="mt-0.5 text-[9.5px] text-slate-500">{refs.join(' · ')}</p>}
         </div>
       </div>
 
@@ -154,10 +155,10 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       {/* Items */}
       <table className="mt-4 w-full border-collapse">
         <thead>
-          <tr className="bg-[#1f6378] text-left text-[9px] text-white">
+          <tr className="bg-[#1f6378] text-left text-[11px] text-white">
             <th className="py-2 pl-2.5 font-medium">Items</th>
             <th className="py-2 text-right font-medium">Unit Price</th>
-            <th className="w-10 py-2 text-center font-medium">Qnt</th>
+            <th className="w-12 py-2 text-center font-medium">Qnt</th>
             <th className="py-2 pr-2.5 text-right font-medium">Total</th>
           </tr>
         </thead>
@@ -170,8 +171,8 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
             lines.map((line) => (
               <tr key={line.key} className="border-b border-[#1f6378]/25 align-top">
                 <td className="py-2 pl-2.5 pr-2">
-                  <p className="text-[10px] font-bold text-slate-900">{line.name}</p>
-                  <p className="text-[7.5px] text-slate-500">
+                  <p className="text-[12px] font-bold text-slate-900">{line.name}</p>
+                  <p className="text-[9px] text-slate-500">
                     {line.type}{line.detail ? ` · ${line.detail}` : ''}
                     {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
                   </p>
@@ -188,7 +189,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       {/* Totals. No PAID seal: staff stamp settled invoices by hand */}
       <div className="mt-3 flex justify-end">
         <div className="w-[52%] shrink-0">
-          <div className={`flex justify-between gap-3 border-b border-[#1f6378]/25 px-2 py-1.5 text-[10px] font-bold ${TEAL}`}>
+          <div className={`flex justify-between gap-3 border-b border-[#1f6378]/25 px-2 py-1.5 text-[12px] font-bold ${TEAL}`}>
             <span>SUBTOTAL :</span>
             <span className="tabular-nums">{money(data.subtotal)}</span>
           </div>
@@ -197,7 +198,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
           <TotalRow strong label="Grand Total :" value={money(data.total)} />
           {!data.isHistorical && data.paid > 0 && <TotalRow label="Paid :" value={money(data.paid)} />}
           {!data.isHistorical && (
-            <div className="mt-1 flex justify-between gap-3 rounded-md bg-[#c8e2ea] px-2 py-2 text-[10.5px] font-bold text-slate-900">
+            <div className="mt-1 flex justify-between gap-3 rounded-md bg-[#c8e2ea] px-2 py-2 text-[12.5px] font-bold text-slate-900">
               <span>Balance Due :</span>
               <span className="tabular-nums">{money(data.balance)}</span>
             </div>
@@ -212,7 +213,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       )}
 
       {/* Slogan and thanks */}
-      <div className={`mt-auto flex items-baseline justify-between gap-3 pt-4 text-[9.5px] font-bold ${TEAL}`}>
+      <div className={`mt-auto flex items-baseline justify-between gap-3 pt-4 text-[11px] font-bold ${TEAL}`}>
         <p className="italic">{SLOGAN}</p>
         <p>Thank You For Your Trust</p>
       </div>
@@ -220,15 +221,15 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       {/* Footer: contacts, the order's QR code, terms */}
       <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-start gap-4 border-t border-[#1f6378] pt-2.5">
         <div className="min-w-0">
-          <p className={`mb-1 text-[10px] font-bold ${TEAL}`}>Contacts</p>
+          <p className={`mb-1 text-[12px] font-bold ${TEAL}`}>Contacts</p>
           {company?.email && (
-            <p className="grid grid-cols-[3.2rem_1fr] text-[7.5px]">
+            <p className="grid grid-cols-[3.9rem_1fr] text-[9px]">
               <span>Email us</span>
               <span className="truncate">: {company.email}</span>
             </p>
           )}
           {company?.phone && (
-            <p className="grid grid-cols-[3.2rem_1fr] text-[7.5px]">
+            <p className="grid grid-cols-[3.9rem_1fr] text-[9px]">
               <span>Call us</span>
               <span>: {company.phone}</span>
             </p>
@@ -236,7 +237,7 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
         </div>
         <div className="flex justify-center">
           {printable && data.salesOrderId ? (
-            <OrderQrCode value={data.salesOrderId} className={`font-bold ${TEAL}`} codeClassName="size-16" labelClassName="-mt-0.5 text-[7.5px]" />
+            <OrderQrCode value={data.salesOrderId} className={`font-bold ${TEAL}`} codeClassName="size-[4.5rem]" labelClassName="-mt-0.5 text-[9px]" />
           ) : (
             <span className="w-16" />
           )}
@@ -244,8 +245,8 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
         <div className="min-w-0">
           {company?.invoice_terms && (
             <>
-              <p className={`mb-1 text-[10px] font-bold ${TEAL}`}>Terms & Conditions</p>
-              <p className="whitespace-pre-line text-[7.5px]">{company.invoice_terms}</p>
+              <p className={`mb-1 text-[12px] font-bold ${TEAL}`}>Terms & Conditions</p>
+              <p className="whitespace-pre-line text-[9px]">{company.invoice_terms}</p>
             </>
           )}
         </div>
