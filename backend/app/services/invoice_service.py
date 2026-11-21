@@ -323,7 +323,8 @@ class InvoiceService:
 
     @staticmethod
     def _paid_seal(paid_on) -> Drawing:
-        """Rubber-stamp style PAID seal, drawn as a flowable."""
+        """Rubber-stamp style PAID seal, drawn as a flowable. Used on purchase records
+        (purchase_order_service); customer invoices are stamped by hand instead."""
         green = colors.HexColor("#059669")
         drawing = Drawing(60 * mm, 30 * mm)
         seal = Group(
@@ -378,8 +379,6 @@ class InvoiceService:
         head_cell_right = ParagraphStyle("HeadCellRight", parent=head_cell, alignment=2)
 
         # Printed invoices carry no status badge; a fully paid invoice gets a PAID seal instead
-        status_value = invoice.payment_status.value if hasattr(invoice.payment_status, "value") else str(invoice.payment_status)
-        is_paid = status_value == "paid" or (invoice.total_amount > 0 and invoice.balance_due <= 0 and status_value != "cancelled")
 
         story = []
 
@@ -516,9 +515,8 @@ class InvoiceService:
             ("TOPPADDING", (0, grand_index), (-1, grand_index), 6),
             *balance_style,
         ]))
-        # A fully paid invoice gets a PAID seal beside the totals (same place as the on-screen preview)
-        seal = self._paid_seal(invoice.payment_date or invoice.updated_at) if is_paid else Paragraph("", normal)
-        totals_wrap = Table([[seal, totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
+        # No PAID seal: staff stamp settled invoices by hand
+        totals_wrap = Table([[Paragraph("", normal), totals_table]], colWidths=[content_width - 80 * mm, 80 * mm])
         totals_wrap.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),

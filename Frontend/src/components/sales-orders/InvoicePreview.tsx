@@ -48,13 +48,13 @@ const isFullyPaid = (data: InvoicePreviewData) => !data.isHistorical && data.tot
 
 /**
  * Payment status shown under the preview. The printout itself carries no
- * status — only the PAID seal once the invoice is settled.
+ * status; staff stamp settled invoices with a PAID seal by hand.
  */
 export const InvoicePreviewStatus = ({ data }: { data: InvoicePreviewData }) => {
   const status = data.isHistorical
     ? { label: 'Past order', detail: 'No invoice is created', dot: 'bg-slate-400' }
     : isFullyPaid(data)
-      ? { label: 'Fully paid', detail: 'Prints with a PAID seal', dot: 'bg-emerald-500' }
+      ? { label: 'Fully paid', detail: 'Balance settled', dot: 'bg-emerald-500' }
       : data.paid > 0
         ? { label: 'Partially paid', detail: `${money(data.balance)} still to collect`, dot: 'bg-amber-500' }
         : { label: 'Not paid yet', detail: `${money(data.balance)} to collect`, dot: 'bg-slate-400' }
@@ -185,16 +185,8 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
         </tbody>
       </table>
 
-      {/* Totals, with the PAID seal beside them once settled */}
-      <div className="mt-3 flex items-start justify-between gap-3">
-        {isFullyPaid(data) ? (
-          <div className="pointer-events-none mt-4 -rotate-12 rounded-lg border-2 border-emerald-600/80 p-0.5 text-emerald-600/85" aria-label="Paid">
-            <div className="rounded-md border border-emerald-600/80 px-3 py-0.5 text-center">
-              <p className="text-base font-extrabold leading-tight tracking-[0.2em]">PAID</p>
-              <p className="text-[7px] font-bold uppercase tracking-wider">{formatDate(new Date(), 'dd MMM yyyy')}</p>
-            </div>
-          </div>
-        ) : <span />}
+      {/* Totals. No PAID seal: staff stamp settled invoices by hand */}
+      <div className="mt-3 flex justify-end">
         <div className="w-[52%] shrink-0">
           <div className={`flex justify-between gap-3 border-b border-[#1f6378]/25 px-2 py-1.5 text-[10px] font-bold ${TEAL}`}>
             <span>SUBTOTAL :</span>
