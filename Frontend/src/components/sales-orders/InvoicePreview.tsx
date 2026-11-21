@@ -102,11 +102,6 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
   const lines = data.lines.filter((line) => line.type !== 'Free')
   const pending = printable ? '—' : 'Assigned on save'
   const tax = data.tax ?? 0
-  const refs = [
-    data.salesOrderNumber && `Order ${data.salesOrderNumber}`,
-    data.dueDate && `Due ${date(data.dueDate)}`,
-    data.prescriptionRef && `Rx ${data.prescriptionRef}`,
-  ].filter(Boolean)
 
   return (
     <div
@@ -127,25 +122,24 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
         </div>
         <div className="min-w-0 text-right">
           <p className={`text-[34px] font-bold leading-none tracking-tight ${TEAL}`}>INVOICE</p>
-          <p className={`mt-2 whitespace-nowrap text-[12px] font-bold ${NAVY}`}>
+          <p className={`mt-2 whitespace-nowrap text-[12px] ${NAVY}`}>
             Invoice No - {data.invoiceNumber ? `#${data.invoiceNumber}` : pending}
           </p>
-          <p className={`text-[12px] font-bold ${NAVY}`}>{date(data.issueDate)}</p>
-          {refs.length > 0 && <p className="mt-0.5 text-[9.5px] text-slate-500">{refs.join(' · ')}</p>}
+          <p className={`text-[12px] ${NAVY}`}>{date(data.issueDate)}</p>
         </div>
       </div>
 
       {/* From / to */}
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div className="min-w-0 space-y-0.5">
-          <p className="font-bold text-slate-900">Office Address</p>
+          <p className="text-slate-900">Office Address</p>
           {company?.address && <p>{company.address}</p>}
-          {company?.phone && <p className="pt-1 font-bold text-slate-900">{company.phone}</p>}
+          {company?.phone && <p className="pt-1 text-slate-900">{company.phone}</p>}
           {company?.tax_number && <p className="text-slate-500">Tax no. {company.tax_number}</p>}
         </div>
         <div className="min-w-0 space-y-0.5 pl-4">
-          <p className="font-bold text-slate-900">To :</p>
-          <p className={`font-bold ${data.billTo.name ? 'text-slate-900' : 'italic text-slate-400'}`}>{data.billTo.name || 'Patient name'}</p>
+          <p className="text-slate-900">To :</p>
+          <p className={data.billTo.name ? 'text-slate-900' : 'italic text-slate-400'}>{data.billTo.name || 'Patient name'}</p>
           {data.billTo.phone && <p>{data.billTo.phone}</p>}
           {data.billTo.email && <p className="truncate">{data.billTo.email}</p>}
           {data.billTo.address && <p>{data.billTo.address}</p>}
@@ -156,10 +150,10 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
       <table className="mt-4 w-full border-collapse">
         <thead>
           <tr className="bg-[#1f6378] text-left text-[11px] text-white">
-            <th className="py-2 pl-2.5 font-medium">Items</th>
-            <th className="py-2 text-right font-medium">Unit Price</th>
-            <th className="w-12 py-2 text-center font-medium">Qnt</th>
-            <th className="py-2 pr-2.5 text-right font-medium">Total</th>
+            <th className="py-2 pl-2.5 font-normal">Items</th>
+            <th className="py-2 text-right font-normal">Unit Price</th>
+            <th className="w-12 py-2 text-center font-normal">Qnt</th>
+            <th className="py-2 pr-2.5 text-right font-normal">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -171,15 +165,15 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
             lines.map((line) => (
               <tr key={line.key} className="border-b border-[#1f6378]/25 align-top">
                 <td className="py-2 pl-2.5 pr-2">
-                  <p className="text-[12px] font-bold text-slate-900">{line.name}</p>
+                  <p className="text-[12px] text-slate-900">{line.name}</p>
                   <p className="text-[9px] text-slate-500">
                     {line.type}{line.detail ? ` · ${line.detail}` : ''}
                     {line.discount > 0 ? ` · ${money(line.discount)} off` : ''}
                   </p>
                 </td>
-                <td className="whitespace-nowrap py-2 text-right font-semibold tabular-nums text-slate-900">{money(line.unitPrice)}</td>
+                <td className="whitespace-nowrap py-2 text-right tabular-nums text-slate-900">{money(line.unitPrice)}</td>
                 <td className="py-2 text-center tabular-nums">{line.qty}</td>
-                <td className="whitespace-nowrap py-2 pr-2.5 text-right font-semibold tabular-nums text-slate-900">{money(line.total)}</td>
+                <td className="whitespace-nowrap py-2 pr-2.5 text-right tabular-nums text-slate-900">{money(line.total)}</td>
               </tr>
             ))
           )}
