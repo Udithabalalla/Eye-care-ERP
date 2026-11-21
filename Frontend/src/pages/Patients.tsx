@@ -44,9 +44,9 @@ import { PatientDetailSheet, type PatientDrawerActions } from '@/components/pati
 import AppointmentModal from '@/components/appointments/AppointmentModal'
 import PrescriptionModal from '@/components/prescriptions/PrescriptionModal'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate } from '@/utils/formatters'
+import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => localDateString()
 
 /** Small clickable figure in the strip above the directory */
 function StatTile({

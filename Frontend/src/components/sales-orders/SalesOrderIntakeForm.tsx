@@ -96,7 +96,7 @@ import { Product } from '@/types/product.types'
 import { SalesOrder, SalesOrderItem } from '@/types/erp.types'
 import { FrameVariant } from '@/types/frames.types'
 import { VariantPicker } from '@/components/frames/VariantPicker'
-import { formatCurrency, formatDate } from '@/utils/formatters'
+import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils/salesOrderCalculations'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { usePatientSearch } from '@/hooks/usePatientSearch'
@@ -480,7 +480,7 @@ const StepIndicator = ({
 
 // ─── Static defaults ──────────────────────────────────────────────────────────
 
-const today = new Date().toISOString().split('T')[0]
+const today = localDateString()
 
 const defaultValues: SalesOrderIntakeValues = {
   patient: { existingId: '', newData: { fullName: '', email: '', phone: '', age: undefined, gender: undefined, address: '' } },
@@ -535,7 +535,7 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
 const buildPatientPayload = (values: SalesOrderIntakeValues['patient']) => ({
   name: values.newData.fullName,
   date_of_birth: values.newData.age
-    ? new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)).toISOString().split('T')[0]
+    ? localDateString(new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)))
     : today,
   gender: values.newData.gender || Gender.OTHER,
   phone: values.newData.phone,

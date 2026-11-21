@@ -36,10 +36,10 @@ import { paymentsApi } from '@/api/payments.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { PaymentMethod } from '@/types/common.types'
 import { LedgerReferenceType, Payment } from '@/types/erp.types'
-import { formatDate, formatCurrency } from '@/utils/formatters'
+import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 import { toast } from 'sonner'
 
-const today = () => new Date().toISOString().split('T')[0]
+const today = () => localDateString()
 
 const paymentSchema = z.object({
   reference_id: z.string().min(1, 'Choose the invoice being paid'),

@@ -50,13 +50,8 @@ def _invoice() -> InvoiceCreate:
 
 
 def _set_year(monkeypatch, year: int):
-    """Make invoice numbering think it is the given year."""
-    class _Clock(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(year, 1, 2, tzinfo=tz)
-
-    monkeypatch.setattr(invoice_service_module, "datetime", _Clock)
+    """Make invoice numbering think it is the given year at the shop."""
+    monkeypatch.setattr(invoice_service_module, "business_today", lambda: date(year, 1, 2))
 
 
 async def test_invoices_in_different_years_get_different_ids(db, monkeypatch):
@@ -120,3 +115,18 @@ async def test_unique_invoice_id_index_waits_while_ids_repeat(db):
 
     assert await ensure_unique_invoice_id_index(invoices) is False
     assert not (await invoices.index_information())["invoice_id_1"].get("unique")
+
+
+def test_business_today_is_the_shops_date_not_the_servers(monkeypatch):
+    from datetime import datetime as real_datetime
+    from app.utils import helpers
+
+    # 23:30 UTC on 1 Jan is already 05:00 on 2 Jan in Sri Lanka
+    class _Clock(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            moment = real_datetime(2027, 1, 1, 23, 30, tzinfo=timezone.utc)
+            return moment.astimezone(tz) if tz else moment.replace(tzinfo=None)
+
+    monkeypatch.setattr(helpers, "datetime", _Clock)
+    assert helpers.business_today() == date(2027, 1, 2)

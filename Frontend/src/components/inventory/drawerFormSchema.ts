@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { localDateString } from '@/utils/formatters'
 
 /* Rules and helpers shared by the stock drawers (receive, adjust, create PO) */
 
-export const today = () => new Date().toISOString().slice(0, 10)
+export const today = () => localDateString()
 
 /** A whole number of at least `min`, kept as the text the user typed */
 export const wholeNumber = (min: number, message: string) =>

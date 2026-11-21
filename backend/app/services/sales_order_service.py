@@ -14,7 +14,7 @@ from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrd
 from app.schemas.responses import PaginatedResponse
 from app.models.sales_order import SalesOrderModel, SalesOrderItemModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import generate_id
+from app.utils.helpers import generate_id, business_today
 from app.services.audit_service import AuditService
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.transaction_service import TransactionService
@@ -639,7 +639,7 @@ class SalesOrderService:
 
         next_number = await self._next_sales_order_sequence()
         order_id = generate_id("SO", next_number)
-        order_number = f"SO-{datetime.utcnow().year}-{str(next_number).zfill(6)}"
+        order_number = f"SO-{business_today().year}-{str(next_number).zfill(6)}"
         item_models, subtotal = await self._build_validated_items(data.items)
         discount_amount = self._resolve_discount_amount(data.discount_amount, data.measurements)
         total_amount = self._apply_order_discount(subtotal, discount_amount)
@@ -793,12 +793,12 @@ class SalesOrderService:
 
         invoice_items = self._invoice_items_for(order)
 
-        due_date = order.date_of_full_payment.date() if order.date_of_full_payment else date.today()
+        due_date = order.date_of_full_payment.date() if order.date_of_full_payment else business_today()
 
         invoice = await self.invoice_service.create_invoice(
             InvoiceCreate(
                 patient_id=order.patient_id,
-                invoice_date=date.today(),
+                invoice_date=business_today(),
                 due_date=due_date,
                 items=invoice_items,
                 prescription_id=order.prescription_id,

@@ -26,3 +26,5 @@ qrcode[pil]==7.4.2
 python-barcode==0.15.1
 
 gunicorn==21.2.0
+# Timezone data for BUSINESS_TIMEZONE on images without a system zoneinfo database
+tzdata==2026.6

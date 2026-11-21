@@ -21,7 +21,7 @@ from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, P
 from app.schemas.responses import PaginatedResponse
 from app.models.invoice import InvoiceModel
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.utils.helpers import date_to_datetime, is_prescription_valid
+from app.utils.helpers import business_today, date_to_datetime, is_prescription_valid
 from app.services.inventory_movement_service import InventoryMovementService
 from app.services.audit_service import AuditService
 from app.services.payment_service import PaymentService
@@ -131,7 +131,7 @@ class InvoiceService:
         
         # Generate invoice ID and number. The number restarts each year; the ID comes from
         # a global counter so it never repeats.
-        next_number = await self.invoice_repo.get_next_invoice_number(datetime.now().year)
+        next_number = await self.invoice_repo.get_next_invoice_number(business_today().year)
         invoice_id = await self.invoice_repo.next_invoice_id()
         
         # Calculate totals

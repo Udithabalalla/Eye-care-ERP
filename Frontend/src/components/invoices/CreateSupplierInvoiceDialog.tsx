@@ -18,7 +18,7 @@ import {
 import { productsApi } from '@/api/products.api'
 import { suppliersApi } from '@/api/suppliers.api'
 import { PurchaseOrder, SupplierInvoice, SupplierInvoiceFormData, SupplierInvoiceItem } from '@/types/supplier.types'
-import { formatCurrency } from '@/utils/formatters'
+import { formatCurrency, localDateTimeInputValue } from '@/utils/formatters'
 
 interface CreateSupplierInvoiceDialogProps {
   isOpen: boolean
@@ -42,7 +42,7 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
     queryFn: () => productsApi.getAll({ page: 1, page_size: 100 }),
   })
   const [invoiceNumber, setInvoiceNumber] = useState('')
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 16))
+  const [invoiceDate, setInvoiceDate] = useState(localDateTimeInputValue())
   const [dueDate, setDueDate] = useState('')
   const [items, setItems] = useState<SupplierInvoiceItem[]>([])
 
@@ -73,8 +73,8 @@ const CreateSupplierInvoiceDialog = ({ isOpen, order, onClose, onSuccess }: Crea
 
     setItems(nextItems)
     setInvoiceNumber('')
-    setInvoiceDate(new Date().toISOString().slice(0, 16))
-    setDueDate(order.expected_delivery_date ? new Date(order.expected_delivery_date).toISOString().slice(0, 16) : '')
+    setInvoiceDate(localDateTimeInputValue())
+    setDueDate(order.expected_delivery_date ? localDateTimeInputValue(new Date(order.expected_delivery_date)) : '')
   }, [order, products?.data, isOpen])
 
   const matchingIssues = useMemo(() => {

@@ -8,6 +8,7 @@ from app.services.dashboard_service import DashboardService
 from app.services.dashboard_overview_service import DashboardOverviewService
 from app.api.deps import get_current_user
 from app.models.user import UserModel
+from app.utils.helpers import business_today
 
 router = APIRouter()
 
@@ -43,9 +44,9 @@ async def get_revenue_data(
     """Get revenue data for date range"""
     # Default to last 30 days if not provided
     if not start_date:
-        start_date = date.today() - timedelta(days=30)
+        start_date = business_today() - timedelta(days=30)
     if not end_date:
-        end_date = date.today()
+        end_date = business_today()
     
     dashboard_service = DashboardService(db)
     revenue_data = await dashboard_service.get_revenue_data(start_date, end_date)

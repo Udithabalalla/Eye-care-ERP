@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatCurrency, safeDate } from '@/utils/formatters'
+import { formatCurrency, localDateString, safeDate } from '@/utils/formatters'
 import PrescriptionSelectionModal from './PrescriptionSelectionModal'
 import QRScanner from '@/components/common/QRScanner'
 
@@ -86,8 +86,8 @@ const InvoiceForm = ({ invoice, onSuccess, onCancel }: InvoiceFormProps) => {
           notes: invoice.notes || '',
         }
       : {
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          invoice_date: localDateString(),
+          due_date: localDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
           items: [],
         },
   })

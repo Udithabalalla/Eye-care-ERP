@@ -1,5 +1,24 @@
 from datetime import datetime, date, time, timezone
+from functools import lru_cache
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+from app.config.settings import settings
+
+
+@lru_cache(maxsize=1)
+def business_tz() -> ZoneInfo:
+    """The shop's timezone (settings.BUSINESS_TIMEZONE)"""
+    return ZoneInfo(settings.BUSINESS_TIMEZONE)
+
+def business_now() -> datetime:
+    """Current time in the shop's timezone"""
+    return datetime.now(business_tz())
+
+def business_today() -> date:
+    """Today's date at the shop. date.today() is the server's (UTC) date, which is still
+    yesterday in Sri Lanka until 05:30."""
+    return business_now().date()
 
 def generate_id(prefix: str, number: int, length: int = 6) -> str:
     """Generate ID with prefix (e.g., PAT000001)"""
@@ -7,7 +26,7 @@ def generate_id(prefix: str, number: int, length: int = 6) -> str:
 
 def calculate_age(birth_date: datetime) -> int:
     """Calculate age from birth date (accepts datetime)"""
-    today = date.today()
+    today = business_today()
     birth_date_only = birth_date.date() if isinstance(birth_date, datetime) else birth_date
     age = today.year - birth_date_only.year - ((today.month, today.day) < (birth_date_only.month, birth_date_only.day))
     return age

@@ -34,7 +34,7 @@ import { DrawerLoadingBar, DrawerRow, DrawerSection } from '@/components/common/
 import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
 import { EyeRxTable } from '@/components/prescriptions/EyeRxTable'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate } from '@/utils/formatters'
+import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 import { PatientAvatar } from './PatientAvatar'
 
 export interface PatientDrawerActions {
@@ -149,7 +149,7 @@ export function PatientDetailSheet({ patientId, open, onOpenChange, actions }: P
   const balanceDue = owing.reduce((sum, inv) => sum + inv.balance_due, 0)
   const readyOrders = orders.filter((o) => o.status === 'ready')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateString()
   const appointments = byNewest(appointmentsData?.data ?? [], (a) => `${a.appointment_date}T${a.appointment_time || '00:00'}`)
   const upcoming = appointments.filter((a) => a.appointment_date >= today && !['cancelled', 'completed', 'no-show'].includes(a.status)).reverse()
   const past = appointments.filter((a) => !upcoming.includes(a)).slice(0, 5)

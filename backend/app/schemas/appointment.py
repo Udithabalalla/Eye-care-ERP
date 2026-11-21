@@ -1,3 +1,4 @@
+from app.utils.helpers import business_today
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import date, time, datetime
@@ -17,7 +18,7 @@ class AppointmentCreate(BaseModel):
     @field_validator("appointment_date")
     @classmethod
     def date_must_be_future(cls, v: date) -> date:
-        if v < date.today():
+        if v < business_today():
             raise ValueError("appointment_date must be today or a future date")
         return v
 

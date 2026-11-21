@@ -31,7 +31,7 @@ import {
 import { paymentsApi } from '@/api/payments.api'
 import { PaymentMethod } from '@/types/common.types'
 import { LedgerReferenceType } from '@/types/erp.types'
-import { formatCurrency } from '@/utils/formatters'
+import { formatCurrency, localDateString } from '@/utils/formatters'
 import { companyProfileApi } from '@/api/company-profile.api'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
@@ -94,7 +94,7 @@ export function RecordPaymentDialog({
     defaultValues: {
       amount: balanceDue,
       payment_method: PaymentMethod.CASH,
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: localDateString(),
     },
   })
 
@@ -103,7 +103,7 @@ export function RecordPaymentDialog({
       form.reset({
         amount: balanceDue,
         payment_method: PaymentMethod.CASH,
-        payment_date: new Date().toISOString().split('T')[0],
+        payment_date: localDateString(),
       })
     }
   }, [open, balanceDue, form])

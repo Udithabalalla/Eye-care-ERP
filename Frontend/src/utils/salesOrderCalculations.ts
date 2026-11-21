@@ -1,3 +1,4 @@
+import { localDateString } from '@/utils/formatters'
 export interface ExpenseLineInput {
   qty: number
   unitCost: number
@@ -63,6 +64,6 @@ export const calculateOrderTotals = ({
     subtotal,
     advancedPayment: isOldOrder ? subtotal : payment,
     balancePayment,
-    fullPaymentDate: isOldOrder || balancePayment === 0 ? new Date().toISOString().split('T')[0] : '',
+    fullPaymentDate: isOldOrder || balancePayment === 0 ? localDateString() : '',
   }
 }

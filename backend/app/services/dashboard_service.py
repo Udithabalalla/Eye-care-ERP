@@ -7,6 +7,7 @@ from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.product_repository import ProductRepository
 from app.utils.helpers import date_to_datetime
 from app.core.cache import cache, CacheTTL
+from app.utils.helpers import business_today
 
 class DashboardService:
     """Dashboard statistics and analytics service with caching"""
@@ -30,7 +31,7 @@ class DashboardService:
         if cached_stats is not None:
             return cached_stats
         
-        today = date.today()
+        today = business_today()
         
         # Get counts
         total_patients = await self.db.patients.count_documents({"is_active": True})
@@ -196,7 +197,7 @@ class DashboardService:
     
     async def get_appointments_summary(self) -> Dict[str, Any]:
         """Get appointments summary and statistics"""
-        today = date.today()
+        today = business_today()
         week_start = today - timedelta(days=today.weekday())
         week_end = week_start + timedelta(days=6)
         
@@ -295,11 +296,11 @@ class DashboardService:
         }).to_list(length=None)
         
         # Expiring soon (within 30 days)
-        expiry_threshold = date_to_datetime(date.today() + timedelta(days=30))
+        expiry_threshold = date_to_datetime(business_today() + timedelta(days=30))
         expiring_soon = await self.db.products.find({
             "expiry_date": {
                 "$lte": expiry_threshold,
-                "$gte": date_to_datetime(date.today())
+                "$gte": date_to_datetime(business_today())
             },
             "is_active": True
         }).to_list(length=None)
@@ -381,7 +382,7 @@ class DashboardService:
     
     async def get_patient_growth(self, months: int = 6) -> List[Dict[str, Any]]:
         """Get patient growth over time"""
-        start_date = date.today() - timedelta(days=months * 30)
+        start_date = business_today() - timedelta(days=months * 30)
         
         pipeline = [
             {

@@ -15,6 +15,7 @@ import { companyProfileApi } from '@/api/company-profile.api'
 import type { InvoicePreviewData } from '@/components/sales-orders/InvoicePreview'
 import { printInvoice } from '@/utils/printInvoice'
 import { PAPER_SIZES, loadPrintSettings, savePrintSettings, type PaperSize } from '@/utils/printSettings'
+import { localDateString } from '@/utils/formatters'
 
 const schema = z.object({
   paper: z.enum(Object.keys(PAPER_SIZES) as [PaperSize, ...PaperSize[]]),
@@ -22,7 +23,7 @@ const schema = z.object({
 })
 type Values = z.infer<typeof schema>
 
-const today = new Date().toISOString().slice(0, 10)
+const today = localDateString()
 
 // A made-up invoice for the test print, so the printer can be checked without a real order
 const SAMPLE: InvoicePreviewData = {

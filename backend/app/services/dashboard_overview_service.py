@@ -20,6 +20,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.supplier_payment_repository import SupplierPaymentRepository
 from app.services.inventory_service import InventoryService
+from app.utils.helpers import business_today, business_tz
 
 # Workshop stages in order; older statuses fold into the nearest one
 STAGES = [
@@ -47,8 +48,10 @@ def _utc(value) -> Optional[datetime]:
 
 
 def _day(value) -> Optional[date]:
+    """The shop's calendar day for a stored value. Timestamps are converted to the shop's
+    timezone; dates stored as midnight UTC stay on their day (UTC+5:30 is ahead)."""
     moment = _utc(value)
-    return moment.date() if moment else None
+    return moment.astimezone(business_tz()).date() if moment else None
 
 
 def _start(d: date) -> datetime:
@@ -62,7 +65,7 @@ class DashboardOverviewService:
         self.db = db
 
     async def get_overview(self, today: Optional[date] = None) -> Dict[str, Any]:
-        today = today or datetime.now(timezone.utc).date()
+        today = today or business_today()
         days = [today - timedelta(days=n) for n in range(self.DAYS - 1, -1, -1)]
         month_start = today.replace(day=1)
         last_month_end = month_start - timedelta(days=1)

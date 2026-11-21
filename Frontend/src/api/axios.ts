@@ -2,6 +2,7 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import axiosRetry, { isNetworkOrIdempotentRequestError, exponentialDelay } from 'axios-retry'
 import { toast } from 'sonner'
+import { markUtcTimestamps } from '@/utils/formatters'
 
 const HOSTED_API_BASE_URL = 'https://eye-care-api-g01u.onrender.com/api/v1'
 const AUTH_RECOVERY_KEY = 'auth-network-recovery-attempted'
@@ -169,6 +170,8 @@ axiosInstance.interceptors.response.use(
     // Remove from pending requests
     const requestKey = getRequestKey(response.config)
     pendingRequests.delete(requestKey)
+    // Server timestamps are UTC without a zone marker; mark them so they show in local time
+    response.data = markUtcTimestamps(response.data)
     return response
   },
   (error: AxiosError) => {

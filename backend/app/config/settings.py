@@ -9,6 +9,9 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Vision Optical"
+    # The shop's timezone. The server runs in UTC, but "today" (invoice dates, the
+    # dashboard's day totals, the year in document numbers) is the shop's local day.
+    BUSINESS_TIMEZONE: str = "Asia/Colombo"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     
