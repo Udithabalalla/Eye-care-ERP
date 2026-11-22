@@ -33,7 +33,7 @@ import {
 const patientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  gender: z.nativeEnum(Gender),
+  gender: z.nativeEnum(Gender).optional(),
   phone: z.string().min(10, 'Phone must be at least 10 digits'),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.object({
@@ -69,7 +69,7 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
       ? {
           name: patient.name,
           date_of_birth: safeDate(patient.date_of_birth),
-          gender: patient.gender,
+          gender: patient.gender ?? undefined,
           phone: patient.phone,
           email: patient.email || '',
           address: patient.address,
@@ -194,7 +194,7 @@ const PatientForm = ({ patient, onSuccess, onCancel }: PatientFormProps) => {
               name="gender"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Gender <span className="text-destructive">*</span></FormLabel>
+                  <FormLabel>Gender <span className="font-normal text-muted-foreground">(optional)</span></FormLabel>
                   <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl>
                       <SelectTrigger className="w-full h-9 text-sm">

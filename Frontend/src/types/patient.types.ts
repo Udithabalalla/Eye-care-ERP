@@ -24,7 +24,7 @@ export interface Patient {
   name: string
   date_of_birth: string
   age: number
-  gender: Gender
+  gender?: Gender | null
   phone: string
   email?: string
   address?: Address
@@ -43,7 +43,7 @@ export interface Patient {
 export interface PatientFormData {
   name: string
   date_of_birth: string
-  gender: Gender
+  gender?: Gender | null
   phone: string
   email?: string
   address?: Address

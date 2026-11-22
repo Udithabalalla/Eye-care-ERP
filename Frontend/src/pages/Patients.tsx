@@ -250,7 +250,7 @@ const Patients = () => {
         header: 'Age',
         cell: ({ row }) => (
           <span className="text-sm">
-            {row.original.age} <span className="capitalize text-muted-foreground">· {row.original.gender}</span>
+            {row.original.age}{row.original.gender && <span className="capitalize text-muted-foreground"> · {row.original.gender}</span>}
           </span>
         ),
         enableSorting: false,

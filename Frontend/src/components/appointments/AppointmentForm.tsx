@@ -68,7 +68,7 @@ type AppointmentFormValues = z.infer<typeof appointmentSchema>
 const newPatientSchema = z.object({
   name: z.string().trim().min(2, 'Enter the full name'),
   phone: z.string().trim().min(10, 'Phone needs at least 10 digits'),
-  gender: z.nativeEnum(Gender, { errorMap: () => ({ message: 'Choose one' }) }),
+  gender: z.nativeEnum(Gender).optional(),
   date_of_birth: z.string().min(1, 'Enter date of birth'),
 })
 
@@ -370,7 +370,7 @@ const AppointmentForm = ({ appointment, initialPatientId, initialDate, initialDo
                         name="gender"
                         render={({ field }) => (
                           <FormItem className="sm:col-span-2">
-                            <FormLabel>Gender</FormLabel>
+                            <FormLabel>Gender <span className="font-normal text-muted-foreground">(optional)</span></FormLabel>
                             <div className="flex gap-2">
                               {[Gender.FEMALE, Gender.MALE, Gender.OTHER].map((g) => (
                                 <Button

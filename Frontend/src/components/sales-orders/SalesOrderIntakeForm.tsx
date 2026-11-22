@@ -217,19 +217,8 @@ const salesOrderIntakeSchema = z
     remarks: z.string().optional().default(''),
     saleLocation: z.enum(['institute', 'clinic']).optional(),
   })
-  .superRefine((value, ctx) => {
-    if (!value.patient.existingId && !value.patient.newData.gender) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Gender is required for new patients',
-        path: ['patient', 'newData', 'gender'],
-      })
-    }
-    if (!value.salesOrder.isOld) {
-      // Frame validation is handled in onSubmit (variant or catalog)
-      // Lens is optional — frame only = half order, frame + lens = full order
-    }
-  })
+  // Frame validation is handled in onSubmit (variant or catalog). Lens is optional:
+  // frame only = half order, frame + lens = full order. Gender is optional.
 
 type SalesOrderIntakeValues = z.infer<typeof salesOrderIntakeSchema>
 
@@ -546,7 +535,7 @@ const buildPatientPayload = (values: SalesOrderIntakeValues['patient']) => ({
   date_of_birth: values.newData.age
     ? localDateString(new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)))
     : today,
-  gender: values.newData.gender || Gender.OTHER,
+  gender: values.newData.gender || undefined,
   phone: values.newData.phone,
   email: values.newData.email || undefined,
   address: values.newData.address ? { street: values.newData.address } : undefined,
@@ -1080,7 +1069,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     setValue('patient.newData.phone', initialPatient.phone, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.email', initialPatient.email || '', { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.age', initialPatient.age, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.gender', initialPatient.gender, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.gender', initialPatient.gender ?? undefined, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.address', formatAddress(initialPatient), { shouldDirty: true, shouldValidate: true })
     setCurrentStep(1)
     setMaxStepReached(1)
@@ -1300,7 +1289,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     setValue('patient.newData.phone', rec.phone, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.email', rec.email || '', { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.age', rec.age, { shouldDirty: true, shouldValidate: true })
-    setValue('patient.newData.gender', rec.gender, { shouldDirty: true, shouldValidate: true })
+    setValue('patient.newData.gender', rec.gender ?? undefined, { shouldDirty: true, shouldValidate: true })
     setValue('patient.newData.address', formatAddress(rec), { shouldDirty: true, shouldValidate: true })
     toast.success(`Linked to ${rec.name}`)
   }
@@ -2034,7 +2023,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   <Field label="Age" error={errors.patient?.newData?.age?.message as string | undefined}>
                     <Input type="number" min={0} placeholder="Years" {...register('patient.newData.age')} disabled={patientIsLinked} />
                   </Field>
-                  <Field label="Gender" required={!patientIsLinked} error={errors.patient?.newData?.gender?.message}>
+                  <Field label="Gender (optional)" error={errors.patient?.newData?.gender?.message}>
                     <Select
                       value={patient.newData.gender || ''}
                       onValueChange={(val) => setValue('patient.newData.gender', val as Gender, { shouldDirty: true, shouldValidate: true })}

@@ -29,7 +29,7 @@ class PatientModel(TimestampModel):
     name: str = Field(..., description="Patient full name")
     date_of_birth: datetime = Field(..., description="Date of birth")  # Changed from date to datetime
     age: Optional[int] = Field(None, description="Deprecated: computed from date_of_birth at read time")
-    gender: Gender = Field(..., description="Gender")
+    gender: Optional[Gender] = Field(None, description="Gender (optional)")
     phone: str = Field(..., description="Contact phone")
     email: Optional[EmailStr] = None
     address: Optional[Address] = None
