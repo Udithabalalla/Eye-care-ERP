@@ -12,6 +12,7 @@ function EyeRow({ label, eye, last, size }: { label: string; eye?: EyeMeasuremen
       <TableCell className={cn(cell, 'tabular-nums')}>{eye ? signed(eye.cylinder) : '—'}</TableCell>
       <TableCell className={cn(cell, 'tabular-nums')}>{eye ? plain(eye.axis, '°') : '—'}</TableCell>
       <TableCell className={cn(cell, 'tabular-nums')}>{eye ? (Number(eye.add) ? signed(eye.add) : '—') : '—'}</TableCell>
+      <TableCell className={cn(cell, 'tabular-nums')}>{eye?.visual_acuity || '—'}</TableCell>
       <TableCell className={cn(cell, 'tabular-nums')}>{eye ? plain(eye.pupillary_distance) : '—'}</TableCell>
     </TableRow>
   )
@@ -30,6 +31,7 @@ export function EyeRxTable({ rx, size = 'sm' }: { rx: EyePrescription; size?: 's
             <TableHead className={cn(head, 'text-center')}>CYL</TableHead>
             <TableHead className={cn(head, 'text-center')}>AXIS</TableHead>
             <TableHead className={cn(head, 'text-center')}>ADD</TableHead>
+            <TableHead className={cn(head, 'text-center')}>VA</TableHead>
             <TableHead className={cn(head, 'text-center')}>PD</TableHead>
           </TableRow>
         </TableHeader>

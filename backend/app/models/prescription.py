@@ -10,6 +10,8 @@ class EyeMeasurement(BaseModel):
     cylinder: Optional[float] = None  # CYL
     axis: Optional[int] = Field(None, ge=0, le=180)  # Axis in degrees
     add: Optional[float] = None  # Addition for reading
+    # Visual acuity as the optician writes it: 6/6, 6/9, CF, HM, PL …
+    visual_acuity: Optional[str] = Field(None, max_length=12)  # VA
     prism: Optional[float] = None
     base: Optional[str] = None
     pupillary_distance: Optional[float] = None  # PD

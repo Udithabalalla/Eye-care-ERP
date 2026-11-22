@@ -14,12 +14,13 @@ export const signed = (value: Value) => {
 
 export const plain = (value: Value, suffix = '') => (isBlank(value) || Number(value) === 0 ? '—' : `${value}${suffix}`)
 
-/** One eye on one line, e.g. "-2.50 / -0.75 × 180 add +1.50" */
+/** One eye on one line, e.g. "-2.50 / -0.75 × 180 add +1.50 · VA 6/6" */
 export const eyeSummary = (eye?: EyeMeasurement) => {
   if (!eye || isBlank(eye.sphere)) return '—'
   let text = signed(eye.sphere)
   if (!isBlank(eye.cylinder) && Number(eye.cylinder) !== 0) text += ` / ${signed(eye.cylinder)} × ${plain(eye.axis)}`
   if (!isBlank(eye.add) && Number(eye.add) !== 0) text += ` add ${signed(eye.add)}`
+  if (eye.visual_acuity) text += ` · VA ${eye.visual_acuity}`
   return text
 }
 

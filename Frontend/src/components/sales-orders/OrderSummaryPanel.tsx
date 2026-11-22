@@ -21,6 +21,8 @@ export interface EyeMeasurement {
   cylinder: number
   axis: number
   add: number
+  /** Visual acuity as written, e.g. 6/6 */
+  va?: string
 }
 
 export interface OrderSummaryExtras {
@@ -105,7 +107,7 @@ const PrescriptionGrid = ({ od, os }: { od?: EyeMeasurement; os?: EyeMeasurement
       <TableHeader className="bg-muted/40">
         <TableRow className="hover:bg-transparent">
           <TableHead className="h-7 px-2"><span className="sr-only">Eye</span></TableHead>
-          {['SPH', 'CYL', 'AXIS', 'ADD'].map((label) => (
+          {['SPH', 'CYL', 'AXIS', 'ADD', 'VA'].map((label) => (
             <TableHead key={label} className="h-7 px-2 text-right text-[10px] text-muted-foreground">{label}</TableHead>
           ))}
         </TableRow>
@@ -118,6 +120,7 @@ const PrescriptionGrid = ({ od, os }: { od?: EyeMeasurement; os?: EyeMeasurement
             <TableCell className="px-2 py-1.5 text-right">{signed(m.cylinder)}</TableCell>
             <TableCell className="px-2 py-1.5 text-right">{m.axis ? `${m.axis}°` : '—'}</TableCell>
             <TableCell className="px-2 py-1.5 text-right">{m.add ? signed(m.add) : '—'}</TableCell>
+            <TableCell className="px-2 py-1.5 text-right">{m.va || '—'}</TableCell>
           </TableRow>
         ))}
       </TableBody>

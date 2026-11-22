@@ -37,6 +37,7 @@ const eyeSchema = z
     cylinder: numberText,
     axis: z.string().refine((v) => v.trim() === '' || (/^\d{1,3}$/.test(v.trim()) && Number(v) <= 180), '0–180'),
     add: numberText,
+    visual_acuity: z.string().max(12, 'Too long'),
     pupillary_distance: numberText,
   })
   .superRefine((eye, ctx) => {
@@ -83,6 +84,7 @@ const eyeToText = (eye?: EyeMeasurement): EyeText => ({
   cylinder: toText(eye?.cylinder),
   axis: toText(eye?.axis),
   add: toText(eye?.add),
+  visual_acuity: eye?.visual_acuity ?? '',
   pupillary_distance: toText(eye?.pupillary_distance),
 })
 const toNumber = (v: string) => (v.trim() === '' ? null : Number(v))
@@ -91,6 +93,7 @@ const eyeToNumbers = (eye: EyeText): EyeMeasurement => ({
   cylinder: toNumber(eye.cylinder),
   axis: toNumber(eye.axis),
   add: toNumber(eye.add),
+  visual_acuity: eye.visual_acuity.trim() || null,
   pupillary_distance: toNumber(eye.pupillary_distance),
 })
 
@@ -105,6 +108,8 @@ const EYE_FIELDS = [
   { key: 'cylinder', label: 'CYL', step: '0.25', placeholder: '0.00' },
   { key: 'axis', label: 'AXIS', step: '1', placeholder: '0–180' },
   { key: 'add', label: 'ADD', step: '0.25', placeholder: '+0.00' },
+  // Visual acuity is written, not a number (6/6, 6/9, CF …)
+  { key: 'visual_acuity', label: 'VA', step: undefined, placeholder: '6/6' },
   { key: 'pupillary_distance', label: 'PD', step: '0.5', placeholder: 'mm' },
 ] as const
 
@@ -433,7 +438,7 @@ const PrescriptionForm = ({
                 ))}
               </div>
 
-              <Table className="min-w-[480px] border-separate border-spacing-x-2 border-spacing-y-1.5">
+              <Table className="min-w-[540px] border-separate border-spacing-x-2 border-spacing-y-1.5">
                   <TableHeader className="[&_tr]:border-0">
                     <TableRow className="text-xs hover:bg-transparent">
                       <TableHead className="h-auto w-16 p-0" />
@@ -458,8 +463,8 @@ const PrescriptionForm = ({
                                 <FormItem className="gap-1">
                                   <FormControl>
                                     <Input
-                                      type="number"
-                                      inputMode="decimal"
+                                      type={f.step ? 'number' : 'text'}
+                                      inputMode={f.step ? 'decimal' : 'text'}
                                       step={f.step}
                                       placeholder={f.placeholder}
                                       aria-label={`${eye === 'right_eye' ? 'Right' : 'Left'} ${f.label}`}

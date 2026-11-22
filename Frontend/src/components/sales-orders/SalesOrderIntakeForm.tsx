@@ -132,6 +132,8 @@ const eyeMeasurementSchema = z.object({
   cylinder: signedNumber,
   axis: requiredMoney,
   add: requiredMoney,
+  // Visual acuity as written, e.g. 6/6
+  va: z.string().max(12, 'Too long').optional().default(''),
   pd: requiredMoney,
 })
 
@@ -493,8 +495,8 @@ const defaultValues: SalesOrderIntakeValues = {
     existingId: '',
     newData: {
       prescriptionDate: today, validUntil: today, diagnosis: '', notes: '',
-      rightEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, pd: 0 },
-      leftEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, pd: 0 },
+      rightEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, va: '', pd: 0 },
+      leftEye: { sphere: 0, cylinder: 0, axis: 0, add: 0, va: '', pd: 0 },
     },
   },
   salesOrder: { isOld: false, deliveryDate: today, dateOfFullPayment: today, orderNumber: '', testedBy: '', orderDate: today },
@@ -526,6 +528,7 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
     cylinder: Number(rx.eye_prescription?.right_eye?.cylinder ?? 0),
     axis: Number(rx.eye_prescription?.right_eye?.axis ?? 0),
     add: Number(rx.eye_prescription?.right_eye?.add ?? 0),
+    va: rx.eye_prescription?.right_eye?.visual_acuity ?? '',
     pd: Number(rx.eye_prescription?.right_eye?.pupillary_distance ?? 0),
   },
   leftEye: {
@@ -533,6 +536,7 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
     cylinder: Number(rx.eye_prescription?.left_eye?.cylinder ?? 0),
     axis: Number(rx.eye_prescription?.left_eye?.axis ?? 0),
     add: Number(rx.eye_prescription?.left_eye?.add ?? 0),
+    va: rx.eye_prescription?.left_eye?.visual_acuity ?? '',
     pd: Number(rx.eye_prescription?.left_eye?.pupillary_distance ?? 0),
   },
 })
@@ -560,6 +564,7 @@ const buildPrescriptionPayload = (patientId: string, values: SalesOrderIntakeVal
       cylinder: values.newData.rightEye.cylinder,
       axis: values.newData.rightEye.axis,
       add: values.newData.rightEye.add,
+      visual_acuity: values.newData.rightEye.va?.trim() || null,
       pupillary_distance: values.newData.rightEye.pd,
     },
     left_eye: {
@@ -567,6 +572,7 @@ const buildPrescriptionPayload = (patientId: string, values: SalesOrderIntakeVal
       cylinder: values.newData.leftEye.cylinder,
       axis: values.newData.leftEye.axis,
       add: values.newData.leftEye.add,
+      visual_acuity: values.newData.leftEye.va?.trim() || null,
       pupillary_distance: values.newData.leftEye.pd,
     },
     prescription_type: 'single-vision' as const,
@@ -995,8 +1001,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   }, [alreadyPaid, balanceDue, derivedTotals, expenseMasterData, expenses, frame, freeItemIds, generalItems, lens, patient.newData, prescription.existingId, productData, remarks, salesOrder, savedInvoice, savedOrderNumber, testedByName])
 
   const summaryExtras = useMemo<OrderSummaryExtras>(() => {
-    const eye = (e: { sphere: number; cylinder: number; axis: number; add: number }) =>
-      ({ sphere: Number(e.sphere || 0), cylinder: Number(e.cylinder || 0), axis: Number(e.axis || 0), add: Number(e.add || 0) })
+    const eye = (e: { sphere: number; cylinder: number; axis: number; add: number; va?: string }) =>
+      ({ sphere: Number(e.sphere || 0), cylinder: Number(e.cylinder || 0), axis: Number(e.axis || 0), add: Number(e.add || 0), va: e.va?.trim() || undefined })
     const rx = prescription.newData
     return {
       patientMeta: [patient.newData.age ? `${patient.newData.age} yrs` : '', patient.newData.gender || ''].filter(Boolean).join(', ') || undefined,
@@ -2148,7 +2154,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                       <TableHeader>
                                         <TableRow className="bg-muted/50 border-b border-border/60 hover:bg-transparent">
                                           <TableHead className="h-auto py-2.5 px-4 text-left font-semibold text-muted-foreground w-20"></TableHead>
-                                          {['Sphere', 'Cylinder', 'Axis', 'Add', 'PD'].map((col) => (
+                                          {['Sphere', 'Cylinder', 'Axis', 'Add', 'VA', 'PD'].map((col) => (
                                             <TableHead key={col} className="h-auto py-2.5 px-3 text-center font-semibold text-muted-foreground uppercase tracking-wide text-xs">{col}</TableHead>
                                           ))}
                                         </TableRow>
@@ -2161,7 +2167,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                               <span className="text-xs text-muted-foreground hidden sm:inline">Right</span>
                                             </div>
                                           </TableCell>
-                                          {[form.rightEye.sphere, form.rightEye.cylinder, form.rightEye.axis, form.rightEye.add, form.rightEye.pd].map((val, i) => (
+                                          {[form.rightEye.sphere, form.rightEye.cylinder, form.rightEye.axis, form.rightEye.add, form.rightEye.va || '—', form.rightEye.pd].map((val, i) => (
                                             <TableCell key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</TableCell>
                                           ))}
                                         </TableRow>
@@ -2172,7 +2178,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                               <span className="text-xs text-muted-foreground hidden sm:inline">Left</span>
                                             </div>
                                           </TableCell>
-                                          {[form.leftEye.sphere, form.leftEye.cylinder, form.leftEye.axis, form.leftEye.add, form.leftEye.pd].map((val, i) => (
+                                          {[form.leftEye.sphere, form.leftEye.cylinder, form.leftEye.axis, form.leftEye.add, form.leftEye.va || '—', form.leftEye.pd].map((val, i) => (
                                             <TableCell key={i} className="py-3 px-3 text-center font-medium tabular-nums">{String(val) || '—'}</TableCell>
                                           ))}
                                         </TableRow>
@@ -2223,6 +2229,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                               { label: 'Cylinder', hint: '±0.25' },
                               { label: 'Axis', hint: '1–180' },
                               { label: 'Add', hint: '0–4' },
+                              { label: 'VA', hint: 'e.g. 6/6' },
                               { label: 'PD', hint: 'mm' },
                             ].map(({ label, hint }) => (
                               <TableHead key={label} className="h-auto py-2.5 px-2 text-center font-semibold text-muted-foreground">
@@ -2287,6 +2294,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                   if (e.key === 'ArrowUp') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.min(v + 0.25, 4)) }
                                   if (e.key === 'ArrowDown') { e.preventDefault(); const v = Number(getValues('prescription.newData.rightEye.add')) || 0; setValue('prescription.newData.rightEye.add', Math.max(v - 0.25, 0)) }
                                 }} />
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
+                              <Input type="text" placeholder="6/6" maxLength={12} aria-label="Right eye VA" className="text-center h-9 font-medium tabular-nums min-w-[64px]"
+                                {...register('prescription.newData.rightEye.va')} disabled={prescriptionIsLinked}
+                                onFocus={(e) => e.target.select()} />
                             </TableCell>
                             <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
@@ -2355,6 +2367,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                                 }} />
                             </TableCell>
                             <TableCell className="px-2 py-3 align-top">
+                              <Input type="text" placeholder="6/6" maxLength={12} aria-label="Left eye VA" className="text-center h-9 font-medium tabular-nums min-w-[64px]"
+                                {...register('prescription.newData.leftEye.va')} disabled={prescriptionIsLinked}
+                                onFocus={(e) => e.target.select()} />
+                            </TableCell>
+                            <TableCell className="px-2 py-3 align-top">
                               <Input type="number" step="0.5" placeholder="0.0" className="text-center h-9 font-medium tabular-nums min-w-[72px]"
                                 {...register('prescription.newData.leftEye.pd', { valueAsNumber: true })} disabled={prescriptionIsLinked}
                                 onFocus={(e) => e.target.select()}
@@ -2384,6 +2401,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                           setValue('prescription.newData.leftEye.cylinder', od.cylinder, { shouldDirty: true })
                           setValue('prescription.newData.leftEye.axis', od.axis, { shouldDirty: true })
                           setValue('prescription.newData.leftEye.add', od.add, { shouldDirty: true })
+                          setValue('prescription.newData.leftEye.va', od.va, { shouldDirty: true })
                           setValue('prescription.newData.leftEye.pd', od.pd, { shouldDirty: true })
                           toast.success('OD values copied to OS')
                         }}

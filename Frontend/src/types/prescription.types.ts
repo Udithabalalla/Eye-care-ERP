@@ -4,6 +4,8 @@ export interface EyeMeasurement {
   cylinder: number | '' | null
   axis: number | '' | null
   add: number | '' | null
+  /** Visual acuity as written, e.g. 6/6 */
+  visual_acuity?: string | null
   pupillary_distance: number | '' | null
 }
 
