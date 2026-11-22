@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional
+import io
 
 from app.config.database import get_database
 from app.schemas.prescription import PrescriptionCreate, PrescriptionUpdate, PrescriptionResponse
@@ -23,6 +25,20 @@ async def list_prescriptions(
     """List all prescriptions with filters"""
     prescription_service = PrescriptionService(db)
     return await prescription_service.list_prescriptions(page, page_size, patient_id, doctor_id)
+
+@router.get("/{prescription_id}/pdf")
+async def download_prescription_pdf(
+    prescription_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Download the prescription as an A5 PDF for the patient"""
+    content, filename = await PrescriptionService(db).generate_prescription_pdf(prescription_id)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 @router.get("/{prescription_id}", response_model=ResponseModel[PrescriptionResponse])
 async def get_prescription(

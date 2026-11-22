@@ -49,6 +49,18 @@ class PrescriptionService:
             total_pages=total_pages
         )
     
+    async def generate_prescription_pdf(self, prescription_id: str) -> tuple[bytes, str]:
+        """The prescription as an A5 PDF for the patient, in the invoice's design."""
+        from app.services.company_profile_service import CompanyProfileService
+        from app.services.prescription_pdf import build_prescription_pdf
+
+        prescription = await self.prescription_repo.get_by_prescription_id(prescription_id)
+        if not prescription:
+            raise NotFoundException(f"Prescription with ID {prescription_id} not found")
+        patient = await self.patient_repo.get_by_patient_id(prescription.patient_id)
+        company_profile = await CompanyProfileService(self.prescription_repo.db).get_company_profile()
+        return build_prescription_pdf(prescription, patient, company_profile), f"prescription-{prescription_id}.pdf"
+
     async def get_prescription(self, prescription_id: str) -> PrescriptionResponse:
         """Get prescription by ID"""
         prescription = await self.prescription_repo.get_by_prescription_id(prescription_id)
