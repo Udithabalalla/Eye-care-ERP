@@ -2,7 +2,7 @@ import { RiMoneyDollarCircleLine } from '@remixicon/react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { formatCurrency, withoutInternalIds } from '@/utils/formatters'
+import { formatCurrency, formatDate, withoutInternalIds } from '@/utils/formatters'
 
 /*
  * Building blocks shared by the record detail drawers (sales orders, invoices)
@@ -204,6 +204,50 @@ export function TotalsBlock({
         <span>Total</span>
         <span className="tabular-nums">{formatCurrency(total)}</span>
       </div>
+    </div>
+  )
+}
+
+/**
+ * An invoice's payments for the drawers' Details view: the advance and the full payment
+ * (or part payments) each with its date, method and amount, then what is still due.
+ * `payments` comes from utils/invoicePreview paymentLines.
+ */
+export function PaymentHistory({
+  payments,
+  balance,
+  dueDate,
+}: {
+  payments: Array<{ label: string; date: string; amount: number; method?: string }>
+  balance: number
+  dueDate?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      {payments.length === 0 && <p className="text-sm text-muted-foreground">No payments recorded yet</p>}
+      {payments.map((payment, index) => (
+        <div key={`${payment.date}-${index}`} className="flex items-start justify-between gap-4 text-sm">
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">{payment.label}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(payment.date, 'dd MMM yyyy')}
+              {payment.method ? <span className="capitalize"> · {payment.method.replace(/_/g, ' ')}</span> : null}
+            </p>
+          </div>
+          <span className="shrink-0 font-medium tabular-nums text-success">{formatCurrency(payment.amount)}</span>
+        </div>
+      ))}
+      {balance > 0 ? (
+        <div className="flex items-start justify-between gap-4 border-t border-border pt-2 text-sm">
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">Balance due</p>
+            {dueDate && <p className="text-xs text-muted-foreground">By {formatDate(dueDate, 'dd MMM yyyy')}</p>}
+          </div>
+          <span className="shrink-0 font-semibold tabular-nums text-warning">{formatCurrency(balance)}</span>
+        </div>
+      ) : payments.length > 0 ? (
+        <p className="border-t border-border pt-2 text-xs font-medium text-success">Paid in full</p>
+      ) : null}
     </div>
   )
 }

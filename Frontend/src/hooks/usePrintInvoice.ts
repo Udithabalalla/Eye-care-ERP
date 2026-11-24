@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { companyProfileApi } from '@/api/company-profile.api'
 import type { Invoice } from '@/types/invoice.types'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
+import { invoicePaymentsQuery } from '@/hooks/useInvoicePayments'
 import { printInvoice } from '@/utils/printInvoice'
 
 /** One-tap invoice printing: opens the device's print screen with the invoice, sized to the paper in Settings → Printing */
@@ -18,7 +19,9 @@ export const usePrintInvoice = () => {
         const company = await queryClient
           .fetchQuery({ queryKey: ['company-profile'], queryFn: () => companyProfileApi.get(), staleTime: 10 * 60 * 1000 })
           .catch(() => undefined)
-        const data = invoiceToPreviewData(invoice)
+        // The payments list each payment with its date; without them the invoice still prints the total paid
+        const payments = await queryClient.fetchQuery(invoicePaymentsQuery(invoice.invoice_id)).catch(() => undefined)
+        const data = invoiceToPreviewData(invoice, 0, payments)
         await printInvoice({ ...data, salesOrderNumber: orderNumber || data.salesOrderNumber }, company)
       } catch {
         toast.error('Could not open the invoice for printing')

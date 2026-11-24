@@ -34,10 +34,12 @@ import {
   DrawerViewSwitch,
   LineItemList,
   MoneyStrip,
+  PaymentHistory,
   TotalsBlock,
 } from '@/components/common/DetailDrawer'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
-import { invoiceToPreviewData } from '@/utils/invoicePreview'
+import { invoiceToPreviewData, paymentLines } from '@/utils/invoicePreview'
+import { useInvoicePayments } from '@/hooks/useInvoicePayments'
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   paid: 'default',
@@ -105,7 +107,9 @@ export function InvoiceDetailSheet({ invoiceId, open, onOpenChange }: Props) {
   }
 
   const hasBalance = !!invoice && invoice.balance_due > 0 && invoice.payment_status !== 'cancelled'
-  const preview = invoice ? invoiceToPreviewData(invoice) : null
+  const { data: invoicePayments } = useInvoicePayments(invoice?.invoice_id, open)
+  const preview = invoice ? invoiceToPreviewData(invoice, 0, invoicePayments) : null
+  const payments = invoice && invoicePayments ? paymentLines(invoicePayments, invoice.total_amount) : undefined
 
   return (
     <>
@@ -196,11 +200,10 @@ export function InvoiceDetailSheet({ invoiceId, open, onOpenChange }: Props) {
                       )}
                     </DrawerSection>
 
-                    {(invoice.payment_method || invoice.payment_date || invoice.transaction_id) && (
-                      <DrawerSection icon={RiBankCardLine} title="Last payment">
-                        {invoice.payment_method && <DrawerRow label="Method" value={<span className="capitalize">{invoice.payment_method}</span>} />}
-                        {invoice.payment_date && <DrawerRow label="Paid on" value={formatDate(invoice.payment_date)} />}
-                        {invoice.transaction_id && <DrawerRow label="Reference" value={invoice.transaction_id} mono />}
+                    {/* Each payment with its date: the advance, then the full payment */}
+                    {payments && invoice.payment_status !== 'cancelled' && (
+                      <DrawerSection icon={RiBankCardLine} title="Payments">
+                        <PaymentHistory payments={payments} balance={invoice.balance_due} dueDate={invoice.due_date} />
                       </DrawerSection>
                     )}
 

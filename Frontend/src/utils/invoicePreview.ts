@@ -1,5 +1,6 @@
 import type { Invoice } from '@/types/invoice.types'
-import type { InvoiceLineType, InvoicePreviewData, InvoicePreviewLine } from '@/components/sales-orders/InvoicePreview'
+import type { Payment } from '@/types/erp.types'
+import type { InvoiceLineType, InvoicePaymentLine, InvoicePreviewData, InvoicePreviewLine } from '@/components/sales-orders/InvoicePreview'
 import { roundCurrency } from '@/utils/salesOrderCalculations'
 
 // Same labels the printed PDF uses (backend invoice_service._build_invoice_pdf)
@@ -44,11 +45,36 @@ export const customerInvoiceLines = (lines: InvoicePreviewLine[]): InvoicePrevie
 }
 
 /**
- * Turn a saved invoice into preview data. `extraPayment` previews the invoice
- * as it will look once that amount is recorded.
+ * An invoice's payments, oldest first, named the way the shop talks about them: the first is
+ * the advance, the one that clears the balance is the full payment, any in between are part
+ * payments. A single payment covering the whole total is "Paid in full".
  */
-export const invoiceToPreviewData = (invoice: Invoice, extraPayment = 0): InvoicePreviewData => {
+export const paymentLines = (payments: Pick<Payment, 'amount' | 'payment_date' | 'payment_method'>[], total: number): InvoicePaymentLine[] => {
+  const ordered = [...payments].sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime())
+  let paid = 0
+  return ordered.map((payment, index) => {
+    paid = roundCurrency(paid + payment.amount)
+    const settles = paid >= roundCurrency(total) - 0.005
+    const label = ordered.length === 1 && settles ? 'Paid in full' : index === 0 ? 'Advance payment' : settles ? 'Full payment' : 'Part payment'
+    return { label, date: payment.payment_date, amount: payment.amount, method: payment.payment_method }
+  })
+}
+
+/**
+ * Turn a saved invoice into preview data. `extraPayment` previews the invoice as it will look
+ * once that amount is recorded today; `payments` (the invoice's payment records) lists each
+ * payment with its date.
+ */
+export const invoiceToPreviewData = (
+  invoice: Invoice,
+  extraPayment = 0,
+  payments?: Pick<Payment, 'amount' | 'payment_date' | 'payment_method'>[],
+  extraPaymentDate = new Date().toISOString(),
+): InvoicePreviewData => {
   const paid = roundCurrency((invoice.paid_amount || 0) + Math.max(extraPayment, 0))
+  const withExtra = payments && extraPayment > 0
+    ? [...payments, { amount: extraPayment, payment_date: extraPaymentDate, payment_method: payments[0]?.payment_method }]
+    : payments
   return {
     invoiceNumber: invoice.invoice_number,
     salesOrderNumber: invoice.sales_order_id,
@@ -73,6 +99,7 @@ export const invoiceToPreviewData = (invoice: Invoice, extraPayment = 0): Invoic
     total: invoice.total_amount,
     paid,
     balance: roundCurrency(Math.max(invoice.total_amount - paid, 0)),
+    payments: withExtra ? paymentLines(withExtra as Pick<Payment, 'amount' | 'payment_date' | 'payment_method'>[], invoice.total_amount) : undefined,
     notes: invoice.notes,
   }
 }

@@ -35,6 +35,7 @@ import { formatCurrency, localDateString } from '@/utils/formatters'
 import { companyProfileApi } from '@/api/company-profile.api'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
 import { invoiceToPreviewData } from '@/utils/invoicePreview'
+import { useInvoicePayments } from '@/hooks/useInvoicePayments'
 import type { Invoice } from '@/types/invoice.types'
 import { toast } from 'sonner'
 
@@ -109,6 +110,7 @@ export function RecordPaymentDialog({
   }, [open, balanceDue, form])
 
   const amount = form.watch('amount') || 0
+  const paymentDate = form.watch('payment_date')
 
   const mutation = useMutation({
     mutationFn: (data: FormValues) =>
@@ -142,7 +144,8 @@ export function RecordPaymentDialog({
     staleTime: 10 * 60 * 1000,
     enabled: open && !!invoice,
   })
-  const preview = invoice ? invoiceToPreviewData(invoice, amount > 0 && amount <= balanceDue ? amount : 0) : null
+  const { data: invoicePayments } = useInvoicePayments(invoice?.invoice_id, open)
+  const preview = invoice ? invoiceToPreviewData(invoice, amount > 0 && amount <= balanceDue ? amount : 0, invoicePayments, paymentDate || undefined) : null
   const willBeFullyPaid = remainingAfter <= 0
 
   return (

@@ -282,7 +282,8 @@ class InvoiceService:
         patient = await self.patient_repo.get_by_patient_id(invoice.patient_id)
         company_profile = await self.company_profile_service.get_company_profile()
 
-        pdf_bytes = self._build_invoice_pdf(invoice, patient, company_profile)
+        payments = await self.invoice_payments(invoice.invoice_id)
+        pdf_bytes = self._build_invoice_pdf(invoice, patient, company_profile, payments=payments)
         filename = f"{invoice.invoice_number}.pdf"
         return pdf_bytes, filename
 
@@ -403,6 +404,41 @@ class InvoiceService:
         drawing.add(widget)
         return drawing
 
+    async def invoice_payments(self, invoice_id: str) -> list:
+        """The payments recorded against an invoice (the advance included), oldest first"""
+        payments, _ = await self.payment_service.repo.list_payments(
+            skip=0, limit=100, reference_type=LedgerReferenceType.INVOICE.value, reference_id=invoice_id
+        )
+        return sorted(payments, key=lambda payment: payment.payment_date)
+
+    @staticmethod
+    def _payment_lines(payments: list, total: float) -> list[tuple[str, Optional[datetime], float]]:
+        """
+        The payments as the invoice lists them, oldest first: the first is the advance, the one
+        that clears the balance is the full payment, any in between are part payments, and a
+        single payment covering the total is "Paid in full" (Frontend utils/invoicePreview.ts).
+        """
+        from datetime import timezone
+        from app.utils.helpers import business_tz
+
+        ordered = sorted(payments, key=lambda payment: payment.payment_date)
+        lines, paid = [], 0.0
+        for index, payment in enumerate(ordered):
+            paid = round(paid + payment.amount, 2)
+            settles = paid >= round(total or 0, 2) - 0.005
+            if len(ordered) == 1 and settles:
+                label = "Paid in full"
+            elif index == 0:
+                label = "Advance payment"
+            else:
+                label = "Full payment" if settles else "Part payment"
+            when = payment.payment_date
+            # Stored in UTC; a midnight value is a calendar date picked in the payment form
+            if when and when.tzinfo is None and (when.hour, when.minute, when.second) != (0, 0, 0):
+                when = when.replace(tzinfo=timezone.utc).astimezone(business_tz())
+            lines.append((label, when, payment.amount))
+        return lines
+
     @staticmethod
     def _fmt_long_date(value) -> str:
         """Dates as on the printed invoice, e.g. November 22, 2026"""
@@ -425,6 +461,7 @@ class InvoiceService:
         number_label: str = "Invoice No",
         banner: Optional[str] = None,
         group_glasses: bool = True,
+        payments: Optional[list] = None,
     ) -> bytes:
         """
         The customer invoice as an A5 PDF, in the same design as the printed invoice
@@ -556,7 +593,11 @@ class InvoiceService:
             totals.append(small_row("Discount :", f"-{self._money(invoice.total_discount)}"))
         totals.append([Paragraph("Grand Total :", style("Grand", 9.4, ink, bold=True)),
                        Paragraph(self._money(invoice.total_amount), style("GrandR", 9.4, ink, bold=True, align=2))])
-        if invoice.paid_amount:
+        # Each payment with its date (the advance, then the full payment underneath)
+        if payments:
+            for label, when, amount in self._payment_lines(payments, invoice.total_amount):
+                totals.append(small_row(f"{label} :<br/><font size='6.4' color='#64748B'>{self._fmt_dt(when)}</font>", self._money(amount)))
+        elif invoice.paid_amount:
             totals.append(small_row("Paid :", self._money(invoice.paid_amount)))
         totals_table = Table(totals, colWidths=[totals_width * 0.5, totals_width * 0.5])
         totals_table.setStyle(TableStyle([
@@ -578,7 +619,9 @@ class InvoiceService:
             ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
         ]))
-        story.append(plain_table([["", [totals_table, Spacer(1, 1 * mm), balance]]], [width - totals_width, totals_width]))
+        # Once the invoice is settled there is no balance to show
+        totals_block = [totals_table, Spacer(1, 1 * mm), balance] if (invoice.balance_due or 0) > 0.005 else [totals_table]
+        story.append(plain_table([["", totals_block]], [width - totals_width, totals_width]))
 
         if invoice.notes:
             story.append(Spacer(1, 3 * mm))

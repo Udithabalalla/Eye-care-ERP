@@ -235,6 +235,37 @@ async def test_advance_is_listed_with_payments_once(db):
     assert await db["payments"].count_documents({"reference_id": invoice.invoice_id}) == 1
 
 
+async def test_invoice_pdf_lists_advance_and_full_payment_and_drops_settled_balance(db, monkeypatch):
+    from reportlab import rl_config
+    from app.schemas.payment import PaymentCreate
+
+    monkeypatch.setattr(rl_config, "pageCompression", 0)
+    service = SalesOrderService(db)
+    order = await service.create_sales_order(_order(measurements={"advance_payment": 100}), USER)
+    invoice = await service.generate_invoice(order.order_id, USER)
+
+    # With a balance left: the advance with its date, then the balance due
+    pdf, _ = await service.invoice_service.generate_invoice_pdf(invoice.invoice_id)
+    assert b"Advance payment" in pdf and b"Balance Due" in pdf
+    assert b"Full payment" not in pdf
+
+    await service.invoice_service.payment_service.create_payment(PaymentCreate(
+        amount=120, payment_method="cash", payment_date=datetime(2026, 11, 24, tzinfo=timezone.utc),
+        reference_type="INVOICE", reference_id=invoice.invoice_id,
+    ), USER)
+    settled = await service.invoice_service.invoice_repo.get_by_invoice_id(invoice.invoice_id)
+    assert settled.balance_due == 0
+
+    # Settled: the advance, the full payment underneath with its date, and no balance
+    for pdf in (
+        (await service.invoice_service.generate_invoice_pdf(invoice.invoice_id))[0],
+        (await service.generate_sales_order_pdf(order.order_id))[0],
+    ):
+        assert b"Advance payment" in pdf
+        assert b"Full payment" in pdf and b"24 Nov 2026" in pdf
+        assert b"Balance Due" not in pdf
+
+
 async def test_advance_a_cent_over_the_total_is_capped_not_dropped(db):
     service = SalesOrderService(db)
     order = await service.create_sales_order(_order(measurements={"advance_payment": 220.01}), USER)

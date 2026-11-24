@@ -21,6 +21,14 @@ export interface InvoicePreviewLine {
   grouped?: boolean
 }
 
+/** One payment on the invoice, e.g. the advance or the full payment (see utils/invoicePreview paymentLines) */
+export interface InvoicePaymentLine {
+  label: string
+  date: string
+  amount: number
+  method?: string
+}
+
 export interface InvoicePreviewData {
   invoiceNumber?: string
   salesOrderNumber?: string
@@ -37,6 +45,8 @@ export interface InvoicePreviewData {
   total: number
   paid: number
   balance: number
+  /** Each payment with its date; without them the invoice shows one "Paid" line */
+  payments?: InvoicePaymentLine[]
   notes?: string
   /** Shown in the order summary only — the printed invoice doesn't carry it */
   testedBy?: string
@@ -86,9 +96,12 @@ const Wordmark = () => (
   </p>
 )
 
-const TotalRow = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
+const TotalRow = ({ label, value, strong, note }: { label: string; value: string; strong?: boolean; note?: string }) => (
   <div className={`flex justify-between gap-3 px-2 ${strong ? 'py-1.5 text-[12.5px] font-bold text-slate-900' : 'py-1 text-[9.5px] text-slate-600'}`}>
-    <span>{label}</span>
+    <span>
+      {label}
+      {note && <span className="block text-[9px] text-slate-500">{note}</span>}
+    </span>
     <span className="tabular-nums">{value}</span>
   </div>
 )
@@ -197,8 +210,13 @@ const InvoicePreview = ({ data, company, printable = false }: { data: InvoicePre
           {tax > 0 && <TotalRow label="Tax :" value={money(tax)} />}
           {data.discount > 0 && <TotalRow label="Discount :" value={`−${money(data.discount)}`} />}
           <TotalRow strong label="Grand Total :" value={money(data.total)} />
-          {!data.isHistorical && data.paid > 0 && <TotalRow label="Paid :" value={money(data.paid)} />}
-          {!data.isHistorical && (
+          {/* Each payment with its date (advance, then the full payment); a settled invoice shows no balance */}
+          {!data.isHistorical && data.payments?.length
+            ? data.payments.map((payment, index) => (
+                <TotalRow key={`${payment.date}-${index}`} label={`${payment.label} :`} note={formatDate(payment.date, 'dd MMM yyyy')} value={money(payment.amount)} />
+              ))
+            : !data.isHistorical && data.paid > 0 && <TotalRow label="Paid :" value={money(data.paid)} />}
+          {!data.isHistorical && data.balance > 0 && (
             <div className="mt-1 flex justify-between gap-3 rounded-md bg-[#c8e2ea] px-2 py-2 text-[12.5px] font-bold text-slate-900">
               <span>Balance Due :</span>
               <span className="tabular-nums">{money(data.balance)}</span>

@@ -870,7 +870,8 @@ class SalesOrderService:
         # without an invoice (a draft, or a past paper order) prints the same layout
         # under its own number.
         if invoice:
-            pdf_bytes = self.invoice_service._build_invoice_pdf(invoice, patient, company_profile)
+            payments = await self.invoice_service.invoice_payments(invoice.invoice_id)
+            pdf_bytes = self.invoice_service._build_invoice_pdf(invoice, patient, company_profile, payments=payments)
         else:
             status = order.status.value if hasattr(order.status, "value") else str(order.status)
             pdf_bytes = self.invoice_service._build_invoice_pdf(

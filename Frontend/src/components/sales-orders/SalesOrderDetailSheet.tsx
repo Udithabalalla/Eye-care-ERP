@@ -45,6 +45,7 @@ import {
   RiMore2Line,
   RiArrowDownSLine,
   RiPrinterLine,
+  RiWallet3Line,
 } from '@remixicon/react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -59,9 +60,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { EyeRxTable } from '@/components/prescriptions/EyeRxTable'
-import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemList, MoneyStrip, TotalsBlock, type DrawerLineItem } from '@/components/common/DetailDrawer'
+import { DrawerLoadingBar, DrawerRow, DrawerSection, DrawerViewSwitch, LineItemList, MoneyStrip, PaymentHistory, TotalsBlock, type DrawerLineItem } from '@/components/common/DetailDrawer'
 import InvoicePreview, { InvoicePreviewStatus } from '@/components/sales-orders/InvoicePreview'
-import { invoiceToPreviewData } from '@/utils/invoicePreview'
+import { invoiceToPreviewData, paymentLines } from '@/utils/invoicePreview'
+import { useInvoicePayments } from '@/hooks/useInvoicePayments'
 import { usePrintInvoice } from '@/hooks/usePrintInvoice'
 import { useConfirm } from '@/hooks/useConfirm'
 
@@ -137,6 +139,8 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     placeholderData: keepPreviousData,
   })
   const orderInvoice = invoice && order?.invoice_id === invoice.invoice_id ? invoice : undefined
+  const { data: invoicePayments } = useInvoicePayments(orderInvoice?.invoice_id, open)
+  const payments = orderInvoice && invoicePayments ? paymentLines(invoicePayments, orderInvoice.total_amount) : undefined
   const orderHasNoInvoice = !!order && !isSwitching && !order.invoice_id
 
   // An order without an invoice has nothing to show on the Invoice view
@@ -320,7 +324,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
 
               {view === 'invoice' && orderInvoice ? (
                 <div className="space-y-2 px-5 py-4">
-                  <InvoicePreview data={{ ...invoiceToPreviewData(orderInvoice), salesOrderNumber: order.order_number }} company={companyProfile} />
+                  <InvoicePreview data={{ ...invoiceToPreviewData(orderInvoice, 0, invoicePayments), salesOrderNumber: order.order_number }} company={companyProfile} />
                   <InvoicePreviewStatus data={invoiceToPreviewData(orderInvoice)} />
                 </div>
               ) : (
@@ -329,6 +333,12 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
                     <LineItemList items={lineItems} />
                     <TotalsBlock subtotal={order.subtotal} discount={discount} total={order.total_amount} />
                   </DrawerSection>
+
+                  {orderInvoice && payments && (
+                    <DrawerSection icon={RiWallet3Line} title="Payments">
+                      <PaymentHistory payments={payments} balance={orderInvoice.balance_due} dueDate={order.date_of_full_payment || orderInvoice.due_date} />
+                    </DrawerSection>
+                  )}
 
                   <DrawerSection icon={RiUserLine} title="Patient & order">
                     <DrawerRow label="Patient" value={order.patient_name || order.patient_id} />
