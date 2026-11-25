@@ -18,9 +18,23 @@ class PatientRepository(BaseRepository):
             return PatientModel(**patient_dict)
         return None
     
+    @staticmethod
+    def phone_pattern(phone: str) -> Optional[str]:
+        """
+        A regex matching the same number however it was typed: spaces, dashes, and a
+        leading 0 or +94 don't matter, so "078 248 1306", "0782481306" and
+        "+94 78 2481306" are one number. Compares the last 9 digits.
+        """
+        digits = re.sub(r"\D", "", phone or "")
+        if len(digits) < 7:
+            return None
+        return r"\D*".join(digits[-9:]) + r"\D*$"
+
     async def get_by_phone(self, phone: str) -> Optional[PatientModel]:
         """Get patient by phone number — only checks active patients so soft-deleted rollbacks don't block re-creation"""
-        patient_dict = await self.get_one({"phone": phone, "is_active": True})
+        pattern = self.phone_pattern(phone)
+        query = {"phone": {"$regex": pattern}} if pattern else {"phone": phone}
+        patient_dict = await self.get_one({**query, "is_active": True})
         if patient_dict:
             return PatientModel(**patient_dict)
         return None
@@ -42,6 +56,11 @@ class PatientRepository(BaseRepository):
                 {"phone": {"$regex": escaped_search, "$options": "i"}},
                 {"email": {"$regex": escaped_search, "$options": "i"}}
             ]
+            # A phone number finds the patient however either was typed (spaces, dashes)
+            # (and with a leading 0 or +94, by the last 9 digits of a full number)
+            digits = re.sub(r"\D", "", search)
+            if re.fullmatch(r"[\d\s+()\-]+", search) and len(digits) >= 4:
+                filter_query["$or"].append({"phone": {"$regex": r"\D*".join(digits[-9:])}})
         
         patients_dict = await self.get_many(
             filter=filter_query,

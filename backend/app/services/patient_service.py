@@ -131,8 +131,11 @@ class PatientService:
         """Create a new patient"""
         # Check if phone already exists
         existing = await self.patient_repo.get_by_phone(patient_data.phone)
-        if existing:
-            raise BadRequestException("Patient with this phone number already exists")
+        if existing and not patient_data.allow_shared_phone:
+            raise BadRequestException(
+                f"Patient with this phone number already exists ({existing.name}, {existing.patient_id}). "
+                "Pick the existing patient, or confirm a new patient on the same number."
+            )
         
         # Generate patient ID
         next_number = await self.patient_repo.get_next_patient_number()
@@ -143,7 +146,7 @@ class PatientService:
         patient_model = PatientModel(
             patient_id=patient_id,
             date_of_birth=dob_datetime,
-            **patient_data.dict(exclude={'date_of_birth'})
+            **patient_data.dict(exclude={'date_of_birth', 'allow_shared_phone'})
         )
 
         created_patient = await self.patient_repo.create_patient(patient_model)

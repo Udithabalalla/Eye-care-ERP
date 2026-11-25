@@ -17,6 +17,8 @@ class PatientCreate(BaseModel):
     medical_history: Optional[MedicalHistory] = None
     insurance: Optional[Insurance] = None
     notes: Optional[str] = None
+    # A second patient on a number already registered (a family member): staff confirm it
+    allow_shared_phone: bool = False
 
 class PatientUpdate(BaseModel):
     """Schema for updating a patient"""

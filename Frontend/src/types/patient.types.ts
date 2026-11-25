@@ -51,4 +51,6 @@ export interface PatientFormData {
   medical_history?: MedicalHistory
   insurance?: Insurance
   notes?: string
+  /** Register a second patient on a number already in use (a family member), once staff confirm it */
+  allow_shared_phone?: boolean
 }

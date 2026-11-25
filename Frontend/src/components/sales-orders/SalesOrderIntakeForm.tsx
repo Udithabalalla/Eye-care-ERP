@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useForm, useWatch, type UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -105,6 +105,8 @@ import { usePrescriptionFetch } from '@/hooks/usePrescriptionFetch'
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const phoneDigits = (value: string) => value.replace(/\D/g, '')
+/** One number however it was typed: spaces, dashes and a leading 0 or +94 don't matter (the backend compares the same way) */
+const phoneKey = (value: string) => phoneDigits(value).slice(-9)
 const safeText = (value: unknown) => (typeof value === 'string' ? value : '')
 
 const optionalNumber = () =>
@@ -530,7 +532,8 @@ const mapPrescriptionToForm = (rx: Prescription) => ({
   },
 })
 
-const buildPatientPayload = (values: SalesOrderIntakeValues['patient']) => ({
+const buildPatientPayload = (values: SalesOrderIntakeValues['patient'], allowSharedPhone = false) => ({
+  allow_shared_phone: allowSharedPhone || undefined,
   name: values.newData.fullName,
   date_of_birth: values.newData.age
     ? localDateString(new Date(new Date().setFullYear(new Date().getFullYear() - values.newData.age)))
@@ -700,6 +703,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [phoneMatches, setPhoneMatches] = useState<Patient[]>([])
+  // Where the existing-patient dialog came from: typing the number keeps you on the step, Next moves on
+  const [duplicateFrom, setDuplicateFrom] = useState<'typing' | 'next'>('next')
+  // The number staff confirmed for a new patient anyway (a family member on the same phone)
+  const [sharedPhoneKey, setSharedPhoneKey] = useState('')
+  const promptedPhoneRef = useRef('')
   const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   // Data fetching
@@ -819,8 +827,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     setPendingNavPath(null)
   }
 
-  const patientSearchTerm = patient.newData.phone?.trim() || patient.newData.fullName?.trim() || ''
-  usePatientSearch(patientSearchTerm)
   // Explicit "find existing patient" search on the Patient step
   const [patientQuery, setPatientQuery] = useState('')
   const { data: patientQueryResults, isFetching: isSearchingPatients } = usePatientSearch(patientQuery)
@@ -867,6 +873,21 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const patientIsLinked = !!patient.existingId
   const prescriptionIsLinked = !!prescription.existingId
+
+  // Look the number up as it's typed: once it's a full number, an existing patient is offered
+  // straight away instead of when Next is pressed (or the order is saved)
+  const typedPhoneDigits = patientIsLinked ? '' : phoneDigits(patient.newData.phone || '')
+  const typedPhoneKey = typedPhoneDigits.length >= 10 ? phoneKey(typedPhoneDigits) : ''
+  const { data: typedPhoneResults } = usePatientSearch(typedPhoneKey ? typedPhoneDigits : '')
+  useEffect(() => {
+    if (currentStep !== 0 || !typedPhoneKey || typedPhoneKey === sharedPhoneKey || promptedPhoneRef.current === typedPhoneKey) return
+    const matches = (typedPhoneResults?.data || []).filter((item) => phoneKey(safeText(item?.phone)) === typedPhoneKey)
+    if (!matches.length) return
+    promptedPhoneRef.current = typedPhoneKey
+    setPhoneMatches(matches)
+    setDuplicateFrom('typing')
+    setShowDuplicateDialog(true)
+  }, [currentStep, sharedPhoneKey, typedPhoneKey, typedPhoneResults])
   const isFullOrder = !!frame.selectionId && !!lens.selectionId
 
   const resolvedFrame = useMemo(() => {
@@ -1295,6 +1316,8 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   }
 
   const unlinkPatient = () => {
+    // A number typed for the next patient is looked up afresh
+    promptedPhoneRef.current = ''
     setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: false })
     setValue('patient.newData', defaultValues.patient.newData, { shouldDirty: true, shouldValidate: false })
     // The auto-loaded prescription belonged to the previous patient
@@ -1386,6 +1409,15 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     }
   }
 
+  // The number belongs to a patient the lookup missed: back to the Patient step, where the
+  // existing-patient dialog offers them again
+  const showPatientStepIfNumberTaken = (error: any) => {
+    if (!String(error?.response?.data?.detail ?? '').includes('phone number already exists')) return
+    promptedPhoneRef.current = ''
+    queryClient.invalidateQueries({ queryKey: ['patients', 'search'] })
+    setCurrentStep(0)
+  }
+
   const handleNext = async () => {
     // Step 0: Patient — validate required fields, then check for duplicates
     if (currentStep === 0) {
@@ -1394,8 +1426,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       if (!patientIsLinked) {
         const phone = patient.newData.phone?.trim() || ''
         const name = patient.newData.fullName?.trim() || ''
-        const searchTerm = phone || name
-        if (searchTerm) {
+        // Digits only, so the lookup finds the number however it was saved
+        const searchTerm = phoneDigits(phone) || name
+        // Already confirmed as a new patient on this number
+        const confirmedShared = !!phone && phoneKey(phone) === sharedPhoneKey
+        if (searchTerm && !confirmedShared) {
           try {
             const result = await queryClient.fetchQuery({
               queryKey: ['patients', 'search', searchTerm],
@@ -1403,13 +1438,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               staleTime: 10_000,
             })
             const results = result.data || []
-            const phoneMatchList = results.filter(item => phoneDigits(safeText(item?.phone)) === phoneDigits(phone))
+            const phoneMatchList = results.filter(item => phoneKey(safeText(item?.phone)) === phoneKey(phone))
             const nameMatch = !phoneMatchList.length && name
               ? results.find(item => normalizeText(safeText(item?.name)).includes(normalizeText(name))) || null
               : null
             const matches = phoneMatchList.length > 0 ? phoneMatchList : (nameMatch ? [nameMatch] : [])
             if (matches.length > 0) {
               setPhoneMatches(matches)
+              setDuplicateFrom('next')
               setShowDuplicateDialog(true)
               return
             }
@@ -1431,6 +1467,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const handleReset = () => {
     reset(defaultValues); setSavedOrderNumber(''); setSavedInvoice(null); setCurrentStep(0); setMaxStepReached(0)
+    setSharedPhoneKey(''); promptedPhoneRef.current = ''
     // These live outside the form, so reset() doesn't clear them
     setGeneralItems([]); setFreeItemIds([]); setSuggestedCase(null); setSelectedFrameVariant(null); setRightPanel(null)
   }
@@ -1503,7 +1540,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
     setIsSavingDraft(true)
     try {
-      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
+      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient, phoneKey(values.patient.newData.phone) === sharedPhoneKey))).patient_id
 
       const createdOrder = await createSalesOrderMutation.mutateAsync({
         patient_id: patientId,
@@ -1524,6 +1561,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
       handleLeaveConfirm()
     } catch (error: any) {
       toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to save draft'))
+      showPatientStepIfNumberTaken(error)
     } finally {
       setIsSavingDraft(false)
     }
@@ -1533,7 +1571,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     let createdPatientId: string | null = null
     let createdPrescriptionId: string | null = null
     try {
-      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient))).patient_id
+      const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient, phoneKey(values.patient.newData.phone) === sharedPhoneKey))).patient_id
       if (!values.patient.existingId) createdPatientId = patientId
 
       const shouldCreateRx = !values.prescription.existingId && Boolean(
@@ -1686,6 +1724,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         }
       }
       toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to save sales order'))
+      showPatientStepIfNumberTaken(error)
     }
   }
 
@@ -1807,7 +1846,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                         onClick={() => {
                           handlePatientAction(p)
                           setShowDuplicateDialog(false)
-                          setCurrentStep(1)
+                          if (duplicateFrom === 'next') setCurrentStep(1)
                         }}
                       >
                         Use
@@ -1824,8 +1863,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
               variant="outline"
               onClick={() => {
                 setValue('patient.existingId', '', { shouldDirty: true, shouldValidate: true })
+                // Saved as a new patient on this number, without asking again
+                setSharedPhoneKey(phoneKey(patient.newData.phone || ''))
                 setShowDuplicateDialog(false)
-                setCurrentStep(1)
+                if (duplicateFrom === 'next') setCurrentStep(1)
               }}
             >
               New Patient (same number)
