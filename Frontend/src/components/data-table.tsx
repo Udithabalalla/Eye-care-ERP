@@ -18,6 +18,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -47,8 +48,10 @@ export type RowAction<TData> = {
   onClick: (rows: TData[]) => void
   /** 'single' = only when 1 row selected, 'multiple' = only when 2+, 'any' = always. Defaults to 'any'. */
   showWhen?: 'single' | 'multiple' | 'any'
-  /** Show as a top-level button in the group (in addition to the dropdown). Defaults to false. */
+  /** Show as a top-level button in the selection bar instead of in its ⋯ menu. Defaults to false. */
   primary?: boolean
+  /** A destructive action (delete, cancel): listed last in the menu, apart, in the destructive colour */
+  destructive?: boolean
 }
 
 // The column's own header when it is plain text ("Order #"), else its id made readable
@@ -151,6 +154,9 @@ export function DataTable<TData, TValue>({
   }, [rowActions, selectionCount])
 
   const primaryActions = applicableActions.filter((a) => a.primary)
+  // The ⋯ menu holds what isn't already a button; destructive actions go last, apart
+  const menuActions = applicableActions.filter((a) => !a.primary && !a.destructive)
+  const destructiveActions = applicableActions.filter((a) => !a.primary && a.destructive)
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -183,7 +189,7 @@ export function DataTable<TData, TValue>({
                   </Button>
                 )
               })}
-              {applicableActions.length > 0 && (
+              {menuActions.length + destructiveActions.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="icon-sm" aria-label="More actions">
@@ -191,11 +197,22 @@ export function DataTable<TData, TValue>({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-56">
-                    {applicableActions.map((action) => {
+                    {menuActions.map((action) => {
+                      const Icon = action.icon
+                      return (
+                        <DropdownMenuItem key={action.id} onClick={() => action.onClick(selectedRows!)}>
+                          {Icon && <Icon className="size-4" />}
+                          {action.label}
+                        </DropdownMenuItem>
+                      )
+                    })}
+                    {menuActions.length > 0 && destructiveActions.length > 0 && <DropdownMenuSeparator />}
+                    {destructiveActions.map((action) => {
                       const Icon = action.icon
                       return (
                         <DropdownMenuItem
                           key={action.id}
+                          className="text-destructive focus:text-destructive"
                           onClick={() => action.onClick(selectedRows!)}
                         >
                           {Icon && <Icon className="size-4" />}

@@ -16,6 +16,9 @@ import {
   RiLoader4Line,
   RiDownloadLine,
   RiBarcodeLine,
+  RiArrowRightLine,
+  RiCloseCircleLine,
+  RiFileExcel2Line,
 } from '@remixicon/react'
 import { downloadFile } from '@/utils/helpers'
 import { toast } from 'sonner'
@@ -34,16 +37,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { DataTable, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
-import { formatCurrency, formatDate } from '@/utils/formatters'
+import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,24 +52,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { SalesOrderStatusBadge } from '@/components/sales-orders/SalesOrderStatusBadge'
 import { getNextAction } from '@/components/sales-orders/salesOrderWorkflow'
+import { STATUS_CONFIG } from '@/components/sales-orders/salesOrderStatusConfig'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 import { FindOrderByReceiptDialog } from '@/components/sales-orders/FindOrderByReceiptDialog'
 import { useConfirm } from '@/hooks/useConfirm'
 import { useDebounce } from '@/hooks/useDebounce'
-
-const STATUS_FILTER_OPTIONS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
-  { id: 'all', label: 'All Statuses' },
-  { id: 'created', label: 'Order Created' },
-  { id: 'lens_ordered', label: 'Lens Ordered' },
-  { id: 'fitting', label: 'Sent for Fitting' },
-  { id: 'ready', label: 'Ready for Collection' },
-  { id: 'delivered', label: 'Delivered' },
-  { id: 'draft', label: 'Draft' },
-  { id: 'confirmed', label: 'Confirmed' },
-  { id: 'in_production', label: 'In Production' },
-  { id: 'completed', label: 'Completed' },
-  { id: 'cancelled', label: 'Cancelled' },
-]
 
 const LIFECYCLE_FILTER_TABS: Array<{ id: SalesOrderStatus | 'all'; label: string }> = [
   { id: 'all', label: 'All' },
@@ -84,7 +67,33 @@ const LIFECYCLE_FILTER_TABS: Array<{ id: SalesOrderStatus | 'all'; label: string
   { id: 'delivered', label: 'Delivered' },
   // Unfinished orders saved to continue later
   { id: 'draft', label: 'Drafts' },
+  { id: 'cancelled', label: 'Cancelled' },
 ]
+
+// Orders that can still be cancelled: confirmed and not yet handed over (drafts are deleted instead)
+const CANCELLABLE: SalesOrderStatus[] = ['created', 'confirmed', 'lens_ordered', 'in_production', 'fitting', 'ready']
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+
+/** The selected orders as a spreadsheet (CSV opens in Excel) */
+const ordersCsv = (orders: SalesOrder[]) => {
+  // Each value quoted, quotes inside doubled (written by char code: a literal quote here trips check:tw)
+  const quote = String.fromCharCode(34)
+  const cell = (value: unknown) => quote + String(value ?? '').split(quote).join(quote + quote) + quote
+  const rows = orders.map((o) => [
+    o.order_number,
+    o.patient_name || o.patient_id,
+    STATUS_CONFIG[o.status]?.label ?? o.status,
+    o.items.length,
+    (o.total_amount || o.subtotal || 0).toFixed(2),
+    o.expected_delivery_date ? formatDate(o.expected_delivery_date) : '',
+    o.created_at ? formatDate(o.created_at) : '',
+    o.invoice_id ? 'Yes' : 'No',
+  ])
+  return [['Order #', 'Patient', 'Status', 'Items', 'Total (LKR)', 'Delivery', 'Created', 'Invoiced'], ...rows]
+    .map((row) => row.map(cell).join(','))
+    .join('\r\n')
+}
 
 const WORKFLOW_ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   lens_ordered: RiBox3Line,
@@ -234,102 +243,168 @@ const SalesOrders = () => {
     })
   }
 
-  // Compute workflow action for selected rows (only shown when all selected rows share the same lifecycle action)
-  const selectedStatuses = useMemo(
-    () => new Set(selectedRows.map((o) => o.status)),
-    [selectedRows],
-  )
+  /**
+   * Run an action on each selected order, one at a time (stock moves on status changes, so
+   * they don't race), then report how many worked. The selection is cleared afterwards.
+   */
+  const runBulk = useCallback(async (
+    rows: SalesOrder[],
+    run: (order: SalesOrder) => Promise<unknown>,
+    messages: { loading: string; done: (count: number) => string },
+  ) => {
+    const toastId = toast.loading(messages.loading)
+    let done = 0
+    const failed: string[] = []
+    for (const order of rows) {
+      try {
+        await run(order)
+        done += 1
+      } catch {
+        failed.push(order.order_number || order.order_id)
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+    queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
+    queryClient.invalidateQueries({ queryKey: ['sales-orders-ready-count'] })
+    queryClient.invalidateQueries({ queryKey: ['invoices'] })
+    setSelectedOrderIds([])
+    if (failed.length === 0) toast.success(messages.done(done), { id: toastId })
+    else if (done > 0) toast.warning(`${messages.done(done)}. Not done: ${failed.join(', ')}`, { id: toastId })
+    else toast.error(`Nothing changed. Not done: ${failed.join(', ')}`, { id: toastId })
+  }, [queryClient])
+
+  // Each order moves to its own next step, so a mixed selection can be advanced together
+  const advanceable = useMemo(() => selectedRows.filter((o) => getNextAction(o.status)), [selectedRows])
   const commonNextAction = useMemo(() => {
-    if (selectedRows.length === 0 || selectedStatuses.size !== 1) return null
-    return getNextAction([...selectedStatuses][0])
-  }, [selectedRows, selectedStatuses])
+    const labels = new Set(advanceable.map((o) => getNextAction(o.status)?.label))
+    return advanceable.length > 0 && labels.size === 1 ? getNextAction(advanceable[0].status) : null
+  }, [advanceable])
+  const cancellable = useMemo(() => selectedRows.filter((o) => CANCELLABLE.includes(o.status)), [selectedRows])
+  const deletableDrafts = useMemo(() => selectedRows.filter((o) => o.status === 'draft' && !o.invoice_id), [selectedRows])
 
   const rowActions = useMemo<RowAction<SalesOrder>[]>(() => {
     const actions: RowAction<SalesOrder>[] = []
+    const multi = selectedRows.length > 1
 
-    // Workflow action is primary — comes first and stands out
-    if (commonNextAction) {
-      const Icon = WORKFLOW_ACTION_ICONS[commonNextAction.toStatus] ?? RiBox3Line
+    // The next step comes first and stands out
+    if (advanceable.length > 0) {
+      const Icon = commonNextAction ? (WORKFLOW_ACTION_ICONS[commonNextAction.toStatus] ?? RiBox3Line) : RiArrowRightLine
+      const label = commonNextAction?.label ?? 'Move to next step'
       actions.push({
-        id: `workflow-${commonNextAction.toStatus}`,
-        label: commonNextAction.label,
+        id: 'workflow-next',
+        label: multi ? `${label} (${advanceable.length})` : label,
         icon: Icon,
         primary: true,
-        showWhen: 'any',
-        onClick: (rows) => {
-          const promises = rows.map((r) =>
-            salesOrdersApi.updateStatus(r.order_id, commonNextAction.toStatus),
-          )
-          toast.promise(Promise.all(promises), {
-            loading: `Updating ${rows.length > 1 ? `${rows.length} orders` : 'order'}…`,
-            success: () => {
-              queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-              setSelectedOrderIds([])
-              return `Moved to "${commonNextAction.label}"`
-            },
-            error: 'Some updates failed',
+        onClick: () => runBulk(advanceable, (o) => salesOrdersApi.updateStatus(o.order_id, getNextAction(o.status)!.toStatus), {
+          loading: `Updating ${plural(advanceable.length, 'order')}…`,
+          done: (n) => (commonNextAction ? `${plural(n, 'order')} moved to "${commonNextAction.label}"` : `${plural(n, 'order')} moved to the next step`),
+        }),
+      })
+    }
+
+    // One order: edit or continue it, open it, see its invoice
+    actions.push({
+      id: 'edit-order',
+      label: selectedRows[0]?.status === 'draft' ? 'Continue draft' : 'Edit order',
+      icon: RiFileEditLine,
+      showWhen: 'single',
+      primary: advanceable.length === 0,
+      onClick: (rows) => {
+        const order = rows[0]
+        if (order.status === 'draft') navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+        else setOrderToEdit(order)
+      },
+    })
+    actions.push({
+      id: 'view-details',
+      label: 'View details',
+      icon: RiEyeLine,
+      showWhen: 'single',
+      onClick: (rows) => setDetailOrderId(rows[0].order_id),
+    })
+    if (selectedRows.length === 1 && selectedRows[0]?.invoice_id) {
+      actions.push({
+        id: 'view-invoice',
+        label: 'View invoice',
+        icon: RiReceiptLine,
+        showWhen: 'single',
+        onClick: (rows) => { if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`) },
+      })
+    }
+
+    // Any number of orders
+    actions.push({
+      id: 'download-pdf',
+      label: multi ? `Download ${selectedRows.length} PDFs` : 'Download PDF',
+      icon: RiDownloadLine,
+      onClick: (rows) => runBulk(rows, async (o) => {
+        downloadFile(await salesOrdersApi.downloadPDF(o.order_id), `${o.order_number}.pdf`)
+      }, {
+        loading: `Preparing ${plural(rows.length, 'PDF')}…`,
+        done: (n) => `${plural(n, 'PDF')} downloaded`,
+      }),
+    })
+    actions.push({
+      id: 'export-csv',
+      label: multi ? `Export ${selectedRows.length} to spreadsheet` : 'Export to spreadsheet',
+      icon: RiFileExcel2Line,
+      onClick: (rows) => {
+        // A byte-order mark so Excel reads names as UTF-8
+        downloadFile(new Blob(['﻿' + ordersCsv(rows)], { type: 'text/csv;charset=utf-8' }), `sales-orders-${localDateString()}.csv`)
+        toast.success(`${plural(rows.length, 'order')} exported`)
+      },
+    })
+
+    // Destructive, last and apart; each asks first and says what it will leave alone
+    if (cancellable.length > 0) {
+      actions.push({
+        id: 'cancel-orders',
+        label: multi ? `Cancel ${plural(cancellable.length, 'order')}` : 'Cancel order',
+        icon: RiCloseCircleLine,
+        destructive: true,
+        onClick: async (rows) => {
+          const skipped = rows.length - cancellable.length
+          const ok = await confirm({
+            title: `Cancel ${plural(cancellable.length, 'order')}?`,
+            description: `${cancellable.map((o) => o.order_number).join(', ')}: stock goes back and any invoice is voided. This can't be undone.${skipped ? ` ${plural(skipped, 'other selected order')} (draft, delivered or already cancelled) will be left as they are.` : ''}`,
+            confirmLabel: `Cancel ${plural(cancellable.length, 'order')}`,
+            cancelLabel: 'Keep orders',
+            destructive: true,
+          })
+          if (!ok) return
+          runBulk(cancellable, (o) => salesOrdersApi.updateStatus(o.order_id, 'cancelled'), {
+            loading: `Cancelling ${plural(cancellable.length, 'order')}…`,
+            done: (n) => `${plural(n, 'order')} cancelled`,
+          })
+        },
+      })
+    }
+    if (deletableDrafts.length > 0) {
+      actions.push({
+        id: 'delete-drafts',
+        label: multi ? `Delete ${plural(deletableDrafts.length, 'draft')}` : 'Delete draft',
+        icon: RiDeleteBin6Line,
+        destructive: true,
+        onClick: async (rows) => {
+          const skipped = rows.length - deletableDrafts.length
+          const ok = await confirm({
+            title: `Delete ${plural(deletableDrafts.length, 'draft')}?`,
+            description: `${deletableDrafts.map((o) => o.order_number).join(', ')} and their unsaved progress will be removed permanently. This can't be undone.${skipped ? ` ${plural(skipped, 'other selected order')} that are not drafts will be left as they are.` : ''}`,
+            confirmLabel: `Delete ${plural(deletableDrafts.length, 'draft')}`,
+            cancelLabel: 'Keep drafts',
+            destructive: true,
+          })
+          if (!ok) return
+          runBulk(deletableDrafts, (o) => salesOrdersApi.delete(o.order_id), {
+            loading: `Deleting ${plural(deletableDrafts.length, 'draft')}…`,
+            done: (n) => `${plural(n, 'draft')} deleted`,
           })
         },
       })
     }
 
-    actions.push({
-      id: 'download-receipt',
-      label: 'Download PDF',
-      icon: RiDownloadLine,
-      onClick: async (rows) => {
-        const order = rows[0]
-        try {
-          const blob = await salesOrdersApi.downloadPDF(order.order_id)
-          downloadFile(blob, `${order.order_number}.pdf`)
-          toast.success('PDF downloaded')
-        } catch {
-          toast.error('Failed to download PDF')
-        }
-      },
-      showWhen: 'single',
-    })
-
-    actions.push({
-      id: 'edit-order',
-      label: 'Edit / Continue',
-      icon: RiFileEditLine,
-      onClick: (rows) => {
-        const order = rows[0]
-        if (order.status === 'draft') {
-          navigate(`/sales-orders/assistant?draft=${order.order_id}`)
-        } else {
-          setOrderToEdit(order)
-        }
-      },
-      showWhen: 'single',
-      primary: !commonNextAction,
-    })
-
-    if (selectedRows.length === 1 && selectedRows[0]?.invoice_id) {
-      actions.push({
-        id: 'view-invoice',
-        label: 'View Invoice',
-        icon: RiReceiptLine,
-        onClick: (rows) => {
-          if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`)
-        },
-        showWhen: 'single',
-      })
-    }
-
-    if (selectedRows.length === 1 && selectedRows[0]?.status === 'draft' && !selectedRows[0]?.invoice_id) {
-      actions.push({
-        id: 'delete-order',
-        label: 'Delete Draft',
-        icon: RiDeleteBin6Line,
-        onClick: (rows) => deleteDraft(rows[0]),
-        showWhen: 'single',
-      })
-    }
-
     return actions
-  }, [commonNextAction, selectedRows, queryClient, navigate, deleteDraft])
+  }, [advanceable, cancellable, commonNextAction, confirm, deletableDrafts, navigate, runBulk, selectedRows])
 
   const columns = useMemo<ColumnDef<SalesOrder>[]>(
     () => [
@@ -700,26 +775,6 @@ const SalesOrders = () => {
             <Badge variant="secondary" className="w-fit">
               {data?.total || 0} total
             </Badge>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Select
-              value={statusFilter || 'all'}
-              onValueChange={(value) => {
-                setStatusFilter(value === 'all' ? '' : (value as SalesOrderStatus))
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-52" aria-label="Filter by status">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_FILTER_OPTIONS.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardHeader>
 
