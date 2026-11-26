@@ -15,6 +15,7 @@ import { salesOrdersApi, auditLogsApi } from '@/api/erp.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { prescriptionsApi } from '@/api/prescriptions.api'
 import { usersApi } from '@/api/users.api'
+import { useTestedBy } from '@/hooks/useTestedBy'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { AuditLog } from '@/types/erp.types'
 import { SalesOrderStatus } from '@/types/erp.types'
@@ -157,7 +158,7 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
   })
   const auditLogs = auditData?.data ?? []
 
-  // Staff names for "Tested by" (shared cache with the order wizard)
+  // Staff names for the activity trail (shared cache with the order wizard)
   const { data: usersData } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
@@ -165,7 +166,9 @@ export function SalesOrderDetailSheet({ orderId, open, onOpenChange }: Props) {
     enabled: open,
   })
   const users: Array<{ user_id: string; name: string }> = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
-  const testedByName = order?.tested_by ? (users.find((u) => u.user_id === order.tested_by)?.name ?? order.tested_by) : undefined
+  // Who tested the patient: a name from Settings → Tested By, or (older orders) a staff account
+  const { nameOf: testedByNameOf } = useTestedBy(open)
+  const testedByName = order?.tested_by ? (testedByNameOf(order.tested_by) ?? order.tested_by) : undefined
 
   const { data: companyProfile } = useQuery({
     queryKey: ['company-profile'],

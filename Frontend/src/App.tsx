@@ -48,6 +48,7 @@ const Users = lazy(() => import('./pages/Users'))
 const Sessions = lazy(() => import('./pages/Sessions'))
 const ClinicSettings = lazy(() => import('./pages/ClinicSettings'))
 const PrintingSettings = lazy(() => import('./pages/PrintingSettings'))
+const TestedBySettings = lazy(() => import('./pages/TestedBySettings'))
 const SettingsHub = lazy(() => import('./pages/SettingsHub'))
 
 // Suspense fallback component
@@ -125,6 +126,7 @@ function App() {
               <Route path="/settings/printing" element={<PrintingSettings />} />
               <Route element={<AdminRoute />}>
                 <Route path="/users" element={<Users />} />
+                <Route path="/settings/tested-by" element={<TestedBySettings />} />
                 <Route path="/roles-permissions" element={<RolesPermissions />} />
                 <Route path="/sessions" element={<Sessions />} />
               </Route>

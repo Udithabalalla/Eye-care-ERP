@@ -6,7 +6,7 @@ from app.api.v1 import (
     reports, dashboard, doctors, users, suppliers, company_profile,
     sales_orders, payments, transactions, inventory_movements,
     audit_logs, roles, sessions, ledger, basic_data,
-    frame_masters, frame_variants, goods_receipts, quick_intakes, inventory,
+    frame_masters, frame_variants, goods_receipts, quick_intakes, inventory, testers,
 )
 
 api_router = APIRouter()
@@ -29,6 +29,8 @@ api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(suppliers.router, tags=["Suppliers"], dependencies=[Depends(require_module_access("purchasing"))])
 api_router.include_router(basic_data.router, prefix="/basic-data", tags=["Basic Data"], dependencies=[Depends(require_module_access("catalog"))])
 api_router.include_router(sales_orders.router, prefix="/sales-orders", tags=["Sales Orders"], dependencies=[Depends(require_module_access("sales"))])
+# Read by whoever takes orders; adding, changing and removing names is admin-only (per route)
+api_router.include_router(testers.router, prefix="/testers", tags=["Tested By"], dependencies=[Depends(require_module_access("sales"))])
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"], dependencies=[Depends(require_module_access("sales"))])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["Transactions"], dependencies=[Depends(require_module_access("finance"))])
 api_router.include_router(inventory_movements.router, prefix="/inventory-movements", tags=["Inventory Movements"], dependencies=[Depends(require_module_access("inventory"))])

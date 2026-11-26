@@ -7,6 +7,7 @@ import {
   RiPriceTag3Line,
   RiPrinterLine,
   RiShieldCheckLine,
+  RiStethoscopeLine,
   RiTeamLine,
   RiToolsLine,
 } from '@remixicon/react'
@@ -54,6 +55,13 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         path: '/basic-data/other-expenses',
         icon: RiToolsLine,
         description: 'Extra services added to an order, like soldering, with a default cost.',
+      },
+      {
+        name: 'Tested By',
+        path: '/settings/tested-by',
+        icon: RiStethoscopeLine,
+        description: 'The people staff pick under "Tested by" on a sales order: add, rename or remove them.',
+        adminOnly: true,
       },
       {
         name: 'Free Item Rules',

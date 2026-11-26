@@ -74,7 +74,6 @@ import { prescriptionsApi } from '@/api/prescriptions.api'
 import { productsApi } from '@/api/products.api'
 import { frameVariantsApi } from '@/api/frames.api'
 import { salesOrdersApi } from '@/api/erp.api'
-import { usersApi } from '@/api/users.api'
 import { companyProfileApi } from '@/api/company-profile.api'
 import { invoicesApi } from '@/api/invoices.api'
 import { paymentsApi } from '@/api/payments.api'
@@ -101,6 +100,7 @@ import { calculateLineTotal, calculateOrderTotals, roundCurrency } from '@/utils
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { usePatientSearch } from '@/hooks/usePatientSearch'
 import { usePrescriptionFetch } from '@/hooks/usePrescriptionFetch'
+import { useTestedBy } from '@/hooks/useTestedBy'
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -734,11 +734,6 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const [frameSource, setFrameSource] = useState<'catalog' | 'variant'>('variant')
   const [selectedFrameVariant, setSelectedFrameVariant] = useState<FrameVariant | null>(null)
   const [generalItems, setGeneralItems] = useState<Array<{ productId: string; productName: string; sku: string; qty: number; unitPrice: number }>>([])
-  const { data: usersData } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.getAll({ page: 1, page_size: 500 }),
-    staleTime: 5 * 60 * 1000,
-  })
   // Company details printed on the invoice preview
   const { data: companyProfile } = useQuery({
     queryKey: ['company-profile'],
@@ -864,12 +859,14 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     }
   }, [needsNosePads, append, remove, getValues])
 
+  // The names the admin keeps in Settings → Tested By (staff accounts until any are added)
+  const { options: testedByList, nameOf: testedByNameOf, usingStaffAccounts: testedByIsStaff } = useTestedBy()
   const testedByOptions = useMemo(() => {
-    const list: any[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
-    return (list || [])
-      .filter((u) => u && u.is_active)
-      .map((u) => ({ value: u.user_id, label: u.name }))
-  }, [usersData])
+    const current = salesOrder.testedBy
+    // An order being edited keeps who tested it, even if they were removed from the list since
+    if (!current || testedByList.some((o) => o.value === current)) return testedByList
+    return [{ value: current, label: testedByNameOf(current) ?? current, subtitle: 'No longer on the list' }, ...testedByList]
+  }, [salesOrder.testedBy, testedByList, testedByNameOf])
 
   const patientIsLinked = !!patient.existingId
   const prescriptionIsLinked = !!prescription.existingId
@@ -1293,12 +1290,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
 
   const buildPrescriptionPayloadForCreate = (patientId: string, presValues: SalesOrderIntakeValues['prescription'], testedById?: string) => {
     const base = buildPrescriptionPayload(patientId, presValues as any)
-    const list: any[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data ?? [])
-    const matched = testedById ? list.find((u) => String(u.user_id) === String(testedById)) : undefined
     return {
       ...base,
-      doctor_id: matched?.user_id || (testedById || ''),
-      doctor_name: matched?.name || (''),
+      doctor_id: testedById || '',
+      doctor_name: testedByNameOf(testedById) || '',
       patient_name: undefined,
       diagnosis: presValues.newData.diagnosis || 'Walk-in intake',
     }
@@ -3085,8 +3080,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                       placeholder="Select who tested"
                       value={salesOrder.testedBy || ''}
                       onChange={(val: string) => setValue('salesOrder.testedBy', val, { shouldDirty: true, shouldValidate: true })}
-                      options={(testedByOptions || []).map((u: any) => ({ value: u.value, label: u.label, subtitle: '' }))}
+                      options={testedByOptions.map((u) => ({ value: u.value, label: u.label, subtitle: u.subtitle || '' }))}
                     />
+                    {testedByIsStaff && (
+                      <p className="text-xs text-muted-foreground">Showing staff accounts. An admin can set this list in Settings → Tested By.</p>
+                    )}
                   </Field>
                   <div className="space-y-1.5">
                     <p className="text-sm font-medium leading-none">
