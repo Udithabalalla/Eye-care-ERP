@@ -9,15 +9,22 @@ import {
   Transaction,
   AuditLog,
   SalesOrderStatus,
+  SalesOrderListParams,
+  SalesOrderSummary,
   LedgerTransactionType,
   LedgerReferenceType,
 } from '@/types/erp.types'
 import { Invoice } from '@/types/invoice.types'
 
 export const salesOrdersApi = {
-  getAll: async (params?: { page?: number; page_size?: number; patient_id?: string; status?: SalesOrderStatus; search?: string }) => {
+  getAll: async (params?: SalesOrderListParams) => {
     const response = await axiosInstance.get<PaginatedResponse<SalesOrder>>('/sales-orders', { params })
     return response.data
+  },
+  /** Counts for the status tabs and the money figures above the table */
+  getSummary: async () => {
+    const response = await axiosInstance.get<ApiResponse<SalesOrderSummary>>('/sales-orders/summary')
+    return response.data.data
   },
   getById: async (id: string) => {
     const response = await axiosInstance.get<ApiResponse<SalesOrder>>(`/sales-orders/${id}`)

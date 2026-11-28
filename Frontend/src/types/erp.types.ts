@@ -87,9 +87,44 @@ export interface SalesOrder {
   sale_location?: SaleLocation
   status: SalesOrderStatus
   status_history?: StatusHistoryEntry[]
+  /** On the order list: paid so far and still owed (the invoice's figures once there is one) */
+  paid_amount?: number | null
+  balance_due?: number | null
   created_by: string
   created_at: string
   updated_at: string
+}
+
+/** Filters and sorting for the sales order list (GET /sales-orders) */
+export interface SalesOrderListParams {
+  page?: number
+  page_size?: number
+  patient_id?: string
+  status?: SalesOrderStatus
+  search?: string
+  /** Past the delivery date promised to the customer and not ready yet */
+  overdue?: boolean
+  invoiced?: boolean
+  /** Shop days, YYYY-MM-DD */
+  created_from?: string
+  created_to?: string
+  sort_by?: 'order_number' | 'created_at' | 'expected_delivery_date' | 'total_amount' | 'status'
+  sort_dir?: 'asc' | 'desc'
+}
+
+/** A money figure above the Sales Orders table, with the series for its sparkline */
+export interface SalesOrderFigure {
+  amount: number
+  trend: number[]
+}
+
+/** GET /sales-orders/summary: counts for the status tabs and the figures above the table */
+export interface SalesOrderSummary {
+  counts: Record<'all' | 'draft' | 'created' | 'lens_ordered' | 'fitting' | 'ready' | 'delivered' | 'cancelled' | 'overdue', number>
+  to_collect: SalesOrderFigure & { orders: number }
+  overdue: SalesOrderFigure & { orders: number; oldest_days: number }
+  collected: SalesOrderFigure & { payments: number }
+  due_soon: SalesOrderFigure & { orders: number; days: number }
 }
 
 export interface Transaction {

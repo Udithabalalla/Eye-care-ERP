@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import Optional
+from datetime import date
+from typing import Literal, Optional
 import io
 
 from app.config.database import get_database
@@ -11,13 +12,38 @@ from app.schemas.responses import ResponseModel, PaginatedResponse
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate, SalesOrderStatusUpdate, SalesOrderResponse
 from app.schemas.invoice import InvoiceResponse
 from app.services.sales_order_service import SalesOrderService
+from app.services.sales_order_summary_service import SalesOrderSummaryService
 
 router = APIRouter()
 
 
 @router.get("", response_model=PaginatedResponse[SalesOrderResponse])
-async def list_sales_orders(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = Query(None, max_length=100), db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
-    return await SalesOrderService(db).list_sales_orders(page, page_size, patient_id, status, search)
+async def list_sales_orders(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    patient_id: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = Query(None, max_length=100),
+    overdue: bool = Query(False, description="Only orders past their delivery date that aren't ready yet"),
+    invoiced: Optional[bool] = Query(None, description="true: has an invoice, false: no invoice yet"),
+    created_from: Optional[date] = Query(None, description="Created on or after this day (shop time)"),
+    created_to: Optional[date] = Query(None, description="Created on or before this day (shop time)"),
+    sort_by: Optional[Literal["order_number", "created_at", "expected_delivery_date", "total_amount", "status"]] = None,
+    sort_dir: Literal["asc", "desc"] = "desc",
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserModel = Depends(get_current_user),
+):
+    return await SalesOrderService(db).list_sales_orders(
+        page, page_size, patient_id, status, search,
+        overdue=overdue, invoiced=invoiced, created_from=created_from, created_to=created_to,
+        sort_by=sort_by, sort_desc=sort_dir == "desc",
+    )
+
+
+@router.get("/summary", response_model=ResponseModel[dict])
+async def sales_orders_summary(db: AsyncIOMotorDatabase = Depends(get_database), current_user: UserModel = Depends(get_current_user)):
+    """Counts for the status tabs and the money figures above the Sales Orders table"""
+    return ResponseModel(data=await SalesOrderSummaryService(db).get_summary())
 
 
 @router.get("/{order_id}/pdf")

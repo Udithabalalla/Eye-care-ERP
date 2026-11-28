@@ -72,6 +72,9 @@ class SalesOrderResponse(BaseModel):
     sale_location: Optional[SaleLocation] = None
     status: SalesOrderStatus
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)
+    # Filled in on the order list: paid so far and still owed (the invoice's figures once there is one)
+    paid_amount: Optional[float] = None
+    balance_due: Optional[float] = None
     created_by: str
     created_at: datetime
     updated_at: datetime

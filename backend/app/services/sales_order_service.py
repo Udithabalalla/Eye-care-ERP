@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 
 from app.repositories.sales_order_repository import SalesOrderRepository
+from app.services.sales_order_summary_service import invoices_for, order_payment
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.product_repository import ProductRepository
@@ -524,13 +525,19 @@ class SalesOrderService:
         payload["patient_name"] = patient_name
         return SalesOrderResponse(**payload)
 
-    async def list_sales_orders(self, page: int, page_size: int, patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None):
+    async def list_sales_orders(self, page: int, page_size: int, patient_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None, **filters):
+        """A page of orders, each with what has been paid on it and what is still owed.
+        `filters`: overdue, invoiced, created_from, created_to, sort_by, sort_desc (SalesOrderRepository)."""
         skip = (page - 1) * page_size
-        orders, total = await self.repo.list_sales_orders(skip=skip, limit=page_size, patient_id=patient_id, status=status, search=search)
+        orders, total = await self.repo.list_sales_orders(skip=skip, limit=page_size, patient_id=patient_id, status=status, search=search, **filters)
         total_pages = math.ceil(total / page_size)
+        docs = [order.dict() for order in orders]
+        invoices = await invoices_for(self.db, docs)
         response_data = []
-        for order in orders:
-            response_data.append(await self._to_response(order))
+        for order, doc in zip(orders, docs):
+            response = await self._to_response(order)
+            response.paid_amount, response.balance_due = order_payment(doc, invoices.get(order.order_id))
+            response_data.append(response)
         return PaginatedResponse(
             data=response_data,
             total=total,
