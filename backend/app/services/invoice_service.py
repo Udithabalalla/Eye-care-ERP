@@ -26,6 +26,7 @@ from app.services.inventory_movement_service import InventoryMovementService
 from app.services.audit_service import AuditService
 from app.services.payment_service import PaymentService
 from app.services.company_profile_service import CompanyProfileService
+from app.models.company_profile import DEFAULT_INVOICE_ACCENT, InvoiceAppearance
 from app.schemas.payment import PaymentCreate
 from app.schemas.inventory_movement import InventoryMovementCreate
 from app.utils.constants import InventoryMovementType, LedgerReferenceType
@@ -378,14 +379,14 @@ class InvoiceService:
     SLOGAN = "You Protect Eye, Eye Protects You"
 
     @classmethod
-    def _brand_mark(cls, width, height):
-        """The eye mark tinted teal (the asset is black on transparent), or None if missing."""
+    def _brand_mark(cls, width, height, color: Optional[str] = None):
+        """The eye mark tinted teal, or `color` (the asset is black on transparent), or None if missing."""
         path = cls._resolve_asset_path("brand/logo-mark.png")
         if not path:
             return None
         from PIL import Image as PILImage, ImageColor
         mark = PILImage.open(path).convert("RGBA")
-        tinted = PILImage.new("RGBA", mark.size, ImageColor.getrgb(cls.TEAL) + (255,))
+        tinted = PILImage.new("RGBA", mark.size, ImageColor.getrgb(color or cls.TEAL) + (255,))
         tinted.putalpha(mark.getchannel("A"))
         buf = io.BytesIO()
         tinted.save(buf, "PNG")
@@ -393,12 +394,12 @@ class InvoiceService:
         return Image(buf, width=width, height=height, kind="proportional")
 
     @classmethod
-    def _order_qr(cls, value: str, size):
-        """The order's ID as a teal QR code, so scanning the invoice opens the order."""
+    def _order_qr(cls, value: str, size, color: Optional[str] = None):
+        """The order's ID as a QR code in teal (or `color`), so scanning the invoice opens the order."""
         from reportlab.graphics.barcode import qr
         widget = qr.QrCodeWidget(value, barLevel="M")
-        widget.barFillColor = colors.HexColor(cls.TEAL)
-        widget.barStrokeColor = colors.HexColor(cls.TEAL)
+        widget.barFillColor = colors.HexColor(color or cls.TEAL)
+        widget.barStrokeColor = colors.HexColor(color or cls.TEAL)
         x1, y1, x2, y2 = widget.getBounds()
         drawing = Drawing(size, size, transform=[size / (x2 - x1), 0, 0, size / (y2 - y1), 0, 0])
         drawing.add(widget)
@@ -452,6 +453,22 @@ class InvoiceService:
         import re
         return None if not sku or re.fullmatch(r"[0-9a-fA-F]{24}", sku) else sku
 
+    @staticmethod
+    def _appearance(company_profile) -> InvoiceAppearance:
+        """The shop's invoice appearance (Settings → Invoice Appearance), or the defaults"""
+        appearance = getattr(company_profile, "invoice_appearance", None)
+        if isinstance(appearance, InvoiceAppearance):
+            return appearance
+        if isinstance(appearance, dict):
+            return InvoiceAppearance(**appearance)
+        return InvoiceAppearance()
+
+    @staticmethod
+    def _tint(hex_color: str, share: float) -> str:
+        """`hex_color` mixed with white; share 0.25 keeps a quarter of the colour"""
+        mix = lambda channel: round(255 - share * (255 - int(hex_color[channel:channel + 2], 16)))
+        return "#{:02X}{:02X}{:02X}".format(mix(1), mix(3), mix(5))
+
     def _build_invoice_pdf(
         self,
         invoice: InvoiceModel,
@@ -465,11 +482,17 @@ class InvoiceService:
     ) -> bytes:
         """
         The customer invoice as an A5 PDF, in the same design as the printed invoice
-        (Frontend InvoicePreview.tsx). Sales orders without an invoice print through
-        here too, under their own title and with every line (group_glasses=False).
+        (Frontend InvoicePreview.tsx), styled by the shop's invoice appearance: layout
+        (classic, split or ledger), accent colour, typeface, spacing and which parts show.
+        Sales orders without an invoice print through here too, under their own title and
+        with every line (group_glasses=False).
         """
         from reportlab.lib.pagesizes import A5
-        from reportlab.platypus.flowables import TopPadder
+        from reportlab.platypus.flowables import HRFlowable, TopPadder
+
+        look = self._appearance(company_profile)
+        layout = look.layout
+        accent_hex = look.accent.upper()
 
         buffer = io.BytesIO()
         margin = 10 * mm
@@ -478,24 +501,38 @@ class InvoiceService:
             title=f"{title.title()} {invoice.invoice_number}",
         )
         width = A5[0] - 2 * margin  # 128 mm, as in the printed design
-        teal, navy = colors.HexColor(self.TEAL), colors.HexColor(self.NAVY)
+        teal, navy = colors.HexColor(accent_hex), colors.HexColor(self.NAVY)
         body_ink, ink, muted_ink = colors.HexColor("#334155"), colors.HexColor("#0F172A"), colors.HexColor("#64748B")
-        rule = colors.HexColor("#C7D8DD")
+        rule = colors.HexColor(self._tint(accent_hex, 0.25))
+        balance_bg = self.BALANCE_BG if accent_hex == DEFAULT_INVOICE_ACCENT else self._tint(accent_hex, 0.2)
+        # Courier sets wider than Helvetica: a size smaller keeps amounts on one line
+        fonts = (("Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique") if look.typeface == "mono"
+                 else ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"))
+        scale = 0.9 if look.typeface == "mono" else 1.0
+        gap = 1.0 if look.spacing == "roomy" else 0.6
+
+        def space(height):
+            return Spacer(1, height * gap)
 
         def style(name, size, color=body_ink, bold=False, italic=False, align=0, leading=None):
-            font = ("Helvetica-BoldOblique" if bold and italic else "Helvetica-Bold" if bold
-                    else "Helvetica-Oblique" if italic else "Helvetica")
-            return ParagraphStyle(name, fontName=font, fontSize=size, leading=leading or size * 1.3, textColor=color, alignment=align)
+            font = fonts[3] if bold and italic else fonts[1] if bold else fonts[2] if italic else fonts[0]
+            return ParagraphStyle(name, fontName=font, fontSize=size * scale, leading=(leading or size * 1.3) * scale,
+                                  textColor=color, alignment=align)
 
         body = style("Body", 8.25)
         body_ink_style = style("BodyInk", 8.25, ink)
         small = style("Small", 6.75, muted_ink)
+        label = style("Label", 6.75, muted_ink)
         item_name = style("ItemName", 9, ink)
         cell_right = style("CellRight", 8.25, ink, align=2)
         cell_center = style("CellCenter", 8.25, body_ink, align=1)
-        head = style("Head", 8.25, colors.white)
-        head_right = style("HeadRight", 8.25, colors.white, align=2)
-        head_center = style("HeadCenter", 8.25, colors.white, align=1)
+        # Classic sets the column names in white on an accent bar; split in the accent colour over a
+        # rule; ledger small and grey between two rules
+        head_color = colors.white if layout == "classic" else teal if layout == "split" else muted_ink
+        head_size = 6.75 if layout == "ledger" else 8.25
+        head = style("Head", head_size, head_color)
+        head_right = style("HeadRight", head_size, head_color, align=2)
+        head_center = style("HeadCenter", head_size, head_color, align=1)
         heading = style("Heading", 9, teal, bold=True)
 
         def plain_table(rows, col_widths, extra=()):
@@ -510,41 +547,100 @@ class InvoiceService:
             ]))
             return table
 
+        def as_date(value):
+            return value.date() if isinstance(value, datetime) else value
+
+        def due_text() -> Optional[str]:
+            due = as_date(getattr(invoice, "due_date", None))
+            issued = as_date(getattr(invoice, "invoice_date", None))
+            if not due:
+                return None
+            return "On receipt" if issued and due <= issued else self._fmt_long_date(due)
+
         story = []
 
-        # ── Brand and title ─────────────────────────────────────────────────
-        mark = self._brand_mark(15 * mm, 10 * mm)
-        brand = ([mark, Spacer(1, 1 * mm)] if mark else []) + [
-            Paragraph(f"<font color='{self.NAVY}'>Vision</font><br/><font color='{self.TEAL}'>Opticals.</font>",
-                      style("Wordmark", 17, bold=True, leading=18)),
-        ]
-        title_block = [
-            Paragraph(title, style("Title", 25.5, teal, bold=True, align=2, leading=27)),
-            Spacer(1, 1.5 * mm),
-            Paragraph(f"{number_label} - #{invoice.invoice_number}", style("Number", 9, navy, align=2)),
-            Paragraph(self._fmt_long_date(invoice.invoice_date), style("Date", 9, navy, align=2)),
-        ]
-        if banner:
-            title_block.append(Paragraph(banner, style("Banner", 7, colors.HexColor("#B45309"), align=2)))
-        story.append(plain_table([[brand, title_block]], [width * 0.45, width * 0.55]))
-        story.append(Spacer(1, 8.5 * mm))
-
-        # ── Office address | customer ──────────────────────────────────────
+        # ── Who the invoice is from and to ─────────────────────────────────
         patient_address = ""
         if patient and getattr(patient, "address", None):
             parts = [patient.address.street, patient.address.city, patient.address.state, patient.address.zip_code]
             patient_address = ", ".join(p for p in parts if p)
-        office = [Paragraph("Office Address", body_ink_style)]
+        office = []
         if company_profile.address:
             office.append(Paragraph(company_profile.address, body))
         if company_profile.phone:
             office += [Spacer(1, 1 * mm), Paragraph(company_profile.phone, body_ink_style)]
-        if company_profile.tax_number:
+        if company_profile.tax_number and look.show_tax:
             office.append(Paragraph(f"Tax no. {company_profile.tax_number}", style("Tax", 8.25, muted_ink)))
-        customer = [Paragraph("To :", body_ink_style), Paragraph(invoice.patient_name or "", body_ink_style)]
+        customer = [Paragraph(invoice.patient_name or "", body_ink_style)]
         customer += [Paragraph(text, body) for text in (invoice.patient_phone, invoice.patient_email, patient_address) if text]
-        story.append(plain_table([[office, customer]], [width / 2, width / 2], [("LEFTPADDING", (1, 0), (1, 0), 4 * mm)]))
-        story.append(Spacer(1, 7.4 * mm))
+
+        mark = self._brand_mark(15 * mm, 10 * mm, accent_hex) if look.show_logo else None
+        wordmark = Paragraph(f"<font color='{self.NAVY}'>Vision</font><br/><font color='{accent_hex}'>Opticals.</font>",
+                             style("Wordmark", 17, bold=True, leading=18))
+        brand = ([mark, Spacer(1, 1 * mm)] if mark else []) + [wordmark]
+        banner_style = style("Banner", 7, colors.HexColor("#B45309"), align=2)
+
+        # ── Header, by layout ──────────────────────────────────────────────
+        if layout == "split":
+            # Brand and the shop on the left; a tinted panel with the invoice and the customer on the right
+            left = brand + ([space(5 * mm), Paragraph("FROM", label), Spacer(1, 0.8 * mm)] + office if office else [])
+            panel = [
+                Paragraph(title, style("Title", 18, teal, bold=True, leading=19)),
+                Spacer(1, 1.5 * mm),
+                Paragraph(f"{number_label} - #{invoice.invoice_number}", style("Number", 8.25, navy)),
+                Paragraph(f"Issued {self._fmt_long_date(invoice.invoice_date)}", style("Date", 8.25, navy)),
+            ]
+            if due_text():
+                panel.append(Paragraph(f"Due {due_text().replace('On receipt', 'on receipt')}", style("Due", 8.25, navy)))
+            if banner:
+                panel.append(Paragraph(banner, style("BannerL", 7, colors.HexColor("#B45309"))))
+            panel += [space(3.5 * mm), Paragraph("BILL TO", label), Spacer(1, 0.8 * mm)] + customer
+            story.append(plain_table(
+                [[left, panel]], [width * 0.48, width * 0.52],
+                [("BACKGROUND", (1, 0), (1, 0), colors.HexColor(self._tint(accent_hex, 0.1))),
+                 ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                 ("LEFTPADDING", (1, 0), (1, 0), 4 * mm), ("RIGHTPADDING", (1, 0), (1, 0), 4 * mm),
+                 ("TOPPADDING", (1, 0), (1, 0), 3.5 * mm * gap), ("BOTTOMPADDING", (1, 0), (1, 0), 3.5 * mm * gap)],
+            ))
+            story.append(space(7 * mm))
+        elif layout == "ledger":
+            # A book-keeping look: the details as a list on the right, everything ruled
+            meta_label = style("MetaL", 7.5, muted_ink, align=2)
+            meta_value = style("MetaV", 8.25, ink, align=2)
+            meta = [[Paragraph(title, style("Title", 15, teal, bold=True, align=2, leading=16)), ""],
+                    [Paragraph(number_label, meta_label), Paragraph(f"#{invoice.invoice_number}", meta_value)],
+                    [Paragraph("Issued", meta_label), Paragraph(self._fmt_long_date(invoice.invoice_date), meta_value)]]
+            if due_text():
+                meta.append([Paragraph("Due", meta_label), Paragraph(due_text(), meta_value)])
+            meta_table = plain_table(meta, [width * 0.22, width * 0.33],
+                                     [("SPAN", (0, 0), (1, 0)), ("BOTTOMPADDING", (0, 0), (-1, 0), 2 * mm),
+                                      ("LEFTPADDING", (1, 1), (1, -1), 3 * mm)])
+            right = [meta_table] + ([Paragraph(banner, banner_style)] if banner else [])
+            story.append(plain_table([[brand, right]], [width * 0.45, width * 0.55]))
+            story.append(space(4 * mm))
+            story.append(HRFlowable(width="100%", thickness=0.75, color=ink, spaceBefore=0, spaceAfter=3 * mm * gap))
+            story.append(plain_table(
+                [[([Paragraph("FROM", label), Spacer(1, 0.8 * mm)] + office) if office else "",
+                  [Paragraph("BILL TO", label), Spacer(1, 0.8 * mm)] + customer]],
+                [width / 2, width / 2], [("LEFTPADDING", (1, 0), (1, 0), 4 * mm)],
+            ))
+            story.append(space(6 * mm))
+        else:
+            title_block = [
+                Paragraph(title, style("Title", 25.5, teal, bold=True, align=2, leading=27)),
+                Spacer(1, 1.5 * mm),
+                Paragraph(f"{number_label} - #{invoice.invoice_number}", style("Number", 9, navy, align=2)),
+                Paragraph(self._fmt_long_date(invoice.invoice_date), style("Date", 9, navy, align=2)),
+            ]
+            if banner:
+                title_block.append(Paragraph(banner, banner_style))
+            story.append(plain_table([[brand, title_block]], [width * 0.45, width * 0.55]))
+            story.append(space(8.5 * mm))
+            story.append(plain_table(
+                [[[Paragraph("Office Address", body_ink_style)] + office, [Paragraph("To :", body_ink_style)] + customer]],
+                [width / 2, width / 2], [("LEFTPADDING", (1, 0), (1, 0), 4 * mm)],
+            ))
+            story.append(space(7.4 * mm))
 
         # ── Items ─────────────────────────────────────────────────────────
         line_type_labels = {"lens": "Lens", "frame": "Frame", "expense": "Service"}
@@ -554,77 +650,100 @@ class InvoiceService:
             lines = [{"name": i.product_name, "kind": i.line_type, "sku": i.sku, "quantity": i.quantity, "unit_price": i.unit_price,
                       "discount": getattr(i, "discount", 0) or 0, "total": i.total, "grouped": False}
                      for i in invoice.items if i.line_type != "complimentary"]
-        rows = [[Paragraph("Items", head), Paragraph("Unit Price", head_right), Paragraph("Qnt", head_center), Paragraph("Total", head_right)]]
+        names = ("ITEMS", "UNIT PRICE", "QTY", "TOTAL") if layout == "ledger" else ("Items", "Unit Price", "Qnt", "Total")
+        rows = [[Paragraph(names[0], head), Paragraph(names[1], head_right), Paragraph(names[2], head_center), Paragraph(names[3], head_right)]]
         for line in lines:
-            parts = [] if line["grouped"] else [line_type_labels.get(line["kind"], "Product"), self._customer_code(line["sku"])]
-            if line["discount"]:
+            parts = []
+            if look.show_line_details and not line["grouped"]:
+                parts = [line_type_labels.get(line["kind"], "Product"), self._customer_code(line["sku"])]
+            if line["discount"] and look.show_discount:
                 parts.append(f"{self._money(line['discount'])} off")
             detail = " · ".join(part for part in parts if part)
             name = [Paragraph(line["name"] or "", item_name)] + ([Paragraph(detail, small)] if detail else [])
             rows.append([name, Paragraph(self._money(line["unit_price"]), cell_right),
                          Paragraph(str(line["quantity"]), cell_center), Paragraph(self._money(line["total"]), cell_right)])
         items = Table(rows, colWidths=[56 * mm, 30 * mm, 12 * mm, 30 * mm], repeatRows=1)
-        items.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), teal),
+        items_style = [
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 2.6 * mm),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2.6 * mm),
             ("RIGHTPADDING", (1, 0), (1, -1), 4.2 * mm),  # Unit Price doesn't hug the next column
             ("LEFTPADDING", (2, 0), (2, -1), 0),
             ("RIGHTPADDING", (2, 0), (2, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
-            ("LINEBELOW", (0, 1), (-1, -1), 0.5, rule),
-        ]))
+            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm * gap),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm * gap),
+        ]
+        if layout == "classic":
+            items_style += [("BACKGROUND", (0, 0), (-1, 0), teal), ("LINEBELOW", (0, 1), (-1, -1), 0.5, rule)]
+        elif layout == "split":
+            items_style += [("LINEBELOW", (0, 0), (-1, 0), 1.2, teal), ("LINEBELOW", (0, 1), (-1, -1), 0.5, rule)]
+        else:
+            items_style += [("LINEABOVE", (0, 0), (-1, 0), 0.75, ink), ("LINEBELOW", (0, 0), (-1, 0), 0.75, ink),
+                            ("LINEBELOW", (0, -1), (-1, -1), 0.75, ink)]
+            if len(rows) > 1:
+                items_style.append(("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(self._tint(accent_hex, 0.07))]))
+        items.setStyle(TableStyle(items_style))
         story.append(items)
-        story.append(Spacer(1, 3 * mm))
+        story.append(space(3 * mm))
 
         # ── Totals ─────────────────────────────────────────────────────────
         totals_width = width * 0.52
         grey = colors.HexColor("#475569")
 
-        def small_row(label, value):
-            return [Paragraph(label, style("SmallL", 7.1, grey)), Paragraph(value, style("SmallR", 7.1, grey, align=2))]
+        def small_row(text, value):
+            return [Paragraph(text, style("SmallL", 7.1, grey)), Paragraph(value, style("SmallR", 7.1, grey, align=2))]
 
-        totals = [[Paragraph("SUBTOTAL :", heading), Paragraph(self._money(invoice.subtotal), style("SubR", 9, teal, bold=True, align=2))]]
-        if invoice.total_tax:
-            totals.append(small_row("Tax :", self._money(invoice.total_tax)))
-        if invoice.total_discount:
-            totals.append(small_row("Discount :", f"-{self._money(invoice.total_discount)}"))
+        tax, discount = invoice.total_tax or 0, invoice.total_discount or 0
+        # A hidden tax or discount line is folded into the subtotal, so the figures still add up
+        subtotal = (invoice.subtotal or 0) + (0 if look.show_tax else tax) - (0 if look.show_discount else discount)
+        sub_color = ink if layout == "ledger" else teal
+        totals = [[Paragraph("SUBTOTAL :", style("Heading", 9, sub_color, bold=True)),
+                   Paragraph(self._money(subtotal), style("SubR", 9, sub_color, bold=True, align=2))]]
+        if tax and look.show_tax:
+            totals.append(small_row("Tax :", self._money(tax)))
+        if discount and look.show_discount:
+            totals.append(small_row("Discount :", f"-{self._money(discount)}"))
+        grand_row = len(totals)
         totals.append([Paragraph("Grand Total :", style("Grand", 9.4, ink, bold=True)),
                        Paragraph(self._money(invoice.total_amount), style("GrandR", 9.4, ink, bold=True, align=2))])
         # Each payment with its date (the advance, then the full payment underneath)
-        if payments:
-            for label, when, amount in self._payment_lines(payments, invoice.total_amount):
-                totals.append(small_row(f"{label} :<br/><font size='6.4' color='#64748B'>{self._fmt_dt(when)}</font>", self._money(amount)))
+        if payments and look.show_payment_details:
+            for text, when, amount in self._payment_lines(payments, invoice.total_amount):
+                totals.append(small_row(f"{text} :<br/><font size='{6.4 * scale:g}' color='#64748B'>{self._fmt_dt(when)}</font>", self._money(amount)))
         elif invoice.paid_amount:
             totals.append(small_row("Paid :", self._money(invoice.paid_amount)))
         totals_table = Table(totals, colWidths=[totals_width * 0.5, totals_width * 0.5])
-        totals_table.setStyle(TableStyle([
+        totals_style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (-1, -1), 2 * mm),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2 * mm),
-            ("TOPPADDING", (0, 0), (-1, -1), 1.2 * mm),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.2 * mm),
+            ("TOPPADDING", (0, 0), (-1, -1), 1.2 * mm * gap),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.2 * mm * gap),
             ("LINEBELOW", (0, 0), (-1, 0), 0.5, rule),
-        ]))
+        ]
+        if layout == "ledger":
+            totals_style.append(("LINEABOVE", (0, grand_row), (-1, grand_row), 0.75, ink))
+        totals_table.setStyle(TableStyle(totals_style))
         balance = Table([[Paragraph("Balance Due :", style("Bal", 9.4, ink, bold=True)),
                           Paragraph(self._money(invoice.balance_due), style("BalR", 9.4, ink, bold=True, align=2))]],
                         colWidths=[totals_width * 0.5, totals_width * 0.5])
+        # Ledger outlines the balance in the accent; the others fill it with a tint
+        balance_fill = (("BOX", (0, 0), (-1, -1), 0.9, teal) if layout == "ledger"
+                        else ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(balance_bg)))
         balance.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(self.BALANCE_BG)),
+            balance_fill,
             ("ROUNDEDCORNERS", [3, 3, 3, 3]),
             ("LEFTPADDING", (0, 0), (-1, -1), 2 * mm),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2 * mm),
-            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+            ("TOPPADDING", (0, 0), (-1, -1), 2 * mm * gap),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm * gap),
         ]))
         # Once the invoice is settled there is no balance to show
         totals_block = [totals_table, Spacer(1, 1 * mm), balance] if (invoice.balance_due or 0) > 0.005 else [totals_table]
         story.append(plain_table([["", totals_block]], [width - totals_width, totals_width]))
 
-        if invoice.notes:
-            story.append(Spacer(1, 3 * mm))
+        if invoice.notes and look.show_notes:
+            story.append(space(3 * mm))
             note = Table([[Paragraph(f"<font color='#0F172A'>Note:</font> {invoice.notes}", body)]], colWidths=[width])
             note.setStyle(TableStyle([
                 ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
@@ -645,12 +764,12 @@ class InvoiceService:
         )
         contact_text = style("Contact", 6.75, body_ink)
         contacts = [Paragraph("Contacts", heading), Spacer(1, 1 * mm)]
-        for label, value in (("Email us", company_profile.email), ("Call us", company_profile.phone)):
+        for text, value in (("Email us", company_profile.email), ("Call us", company_profile.phone)):
             if value:
-                contacts.append(plain_table([[Paragraph(label, contact_text), Paragraph(f": {value}", contact_text)]], [11 * mm, 34 * mm]))
+                contacts.append(plain_table([[Paragraph(text, contact_text), Paragraph(f": {value}", contact_text)]], [11 * mm, 34 * mm]))
         qr_cell = ""
         if invoice.sales_order_id:
-            qr_cell = [self._order_qr(invoice.sales_order_id, 18 * mm),
+            qr_cell = [self._order_qr(invoice.sales_order_id, 18 * mm, accent_hex),
                        Paragraph(invoice.sales_order_id, style("QrLabel", 6.75, teal, bold=True, align=1))]
         terms = []
         if getattr(company_profile, "invoice_terms", None):
@@ -660,7 +779,7 @@ class InvoiceService:
                                  [("ALIGN", (1, 0), (1, 0), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2.5 * mm)])
         # One flowable, so TopPadder moves the whole footer to the foot of the page together
         footer = plain_table([[slogan], [footer_row]], [width])
-        story.append(Spacer(1, 4 * mm))
+        story.append(space(4 * mm))
         story.append(TopPadder(footer))
 
         doc.build(story)

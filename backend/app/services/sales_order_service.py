@@ -36,7 +36,7 @@ from app.utils.constants import (
     PaymentMethod,
     PaymentStatus,
 )
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timedelta, timezone
 from pymongo import ReturnDocument
 
 
@@ -800,7 +800,12 @@ class SalesOrderService:
 
         invoice_items = self._invoice_items_for(order)
 
-        due_date = order.date_of_full_payment.date() if order.date_of_full_payment else business_today()
+        if order.date_of_full_payment:
+            due_date = order.date_of_full_payment.date()
+        else:
+            # The shop's payment terms (Settings → Invoice Appearance); on receipt unless set
+            profile = await self.company_profile_service.get_company_profile()
+            due_date = business_today() + timedelta(days=profile.invoice_appearance.payment_terms_days)
 
         invoice = await self.invoice_service.create_invoice(
             InvoiceCreate(

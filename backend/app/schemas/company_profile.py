@@ -1,6 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+
+from app.models.company_profile import InvoiceAppearance
 
 
 class CompanyProfileBase(BaseModel):
@@ -19,10 +21,12 @@ class CompanyProfileBase(BaseModel):
 
 
 class CompanyProfileUpdate(CompanyProfileBase):
-    pass
+    invoice_appearance: Optional[InvoiceAppearance] = None
 
 
 class CompanyProfileResponse(CompanyProfileBase):
     id: str
+    # Always complete: the defaults until the shop changes them
+    invoice_appearance: InvoiceAppearance = Field(default_factory=InvoiceAppearance)
     created_at: datetime
     updated_at: datetime

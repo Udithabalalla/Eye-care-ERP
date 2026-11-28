@@ -4,6 +4,7 @@ import {
   RiEyeLine,
   RiGiftLine,
   RiHistoryLine,
+  RiPaletteLine,
   RiPriceTag3Line,
   RiPrinterLine,
   RiShieldCheckLine,
@@ -81,6 +82,12 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         path: '/settings/company',
         icon: RiBuilding4Line,
         description: 'Business name, address, logo and purchase order defaults.',
+      },
+      {
+        name: 'Invoice Appearance',
+        path: '/settings/invoice-appearance',
+        icon: RiPaletteLine,
+        description: 'How invoices look on screen, printed and as PDFs: layout, colour, type, what they show and payment terms.',
       },
       {
         name: 'Printing',
