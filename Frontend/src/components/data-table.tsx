@@ -34,6 +34,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 /** What a column's "Calculate" footer can work out over the rows on screen (grid look) */
@@ -87,6 +88,8 @@ export type RowAction<TData> = {
   primary?: boolean
   /** A destructive action (delete, cancel): listed last in the menu, apart, in the destructive colour */
   destructive?: boolean
+  /** Not possible for this selection. The selection bar leaves it out; the floating action bar greys it out. */
+  disabled?: boolean
 }
 
 // The column's own header when it is plain text ("Order #"), else its id made readable
@@ -117,6 +120,7 @@ export function DataTableSelectionBar<TData>({ selectedRows, rowActions, onClear
   const applicableActions = React.useMemo(() => {
     if (!rowActions || selectionCount === 0) return []
     return rowActions.filter((action) => {
+      if (action.disabled) return false
       if (!action.showWhen || action.showWhen === 'any') return true
       if (action.showWhen === 'single') return selectionCount === 1
       if (action.showWhen === 'multiple') return selectionCount > 1
@@ -190,6 +194,121 @@ export function DataTableSelectionBar<TData>({ selectedRows, rowActions, onClear
   )
 }
 
+// ── Floating action bar ───────────────────────────────────────────────────────
+
+type ActionBarProps<TData> = {
+  selectedRows: TData[]
+  rowActions: RowAction<TData>[]
+  onClearSelection: () => void
+  /** What a row is called, one and many: ['order', 'orders'] */
+  noun?: [string, string]
+  className?: string
+}
+
+const BAR_BUTTON =
+  'h-9 shrink-0 gap-2 px-3 text-sm font-normal text-popover-foreground hover:bg-foreground/10 hover:text-popover-foreground disabled:opacity-40'
+
+/**
+ * The dark bar that floats at the foot of the table while rows are ticked: "3 orders selected ×",
+ * then the actions. Actions marked primary come first, the rest after a divider, destructive ones
+ * last as icons. An action that doesn't apply to the selection is greyed out rather than hidden,
+ * so the buttons don't move about as rows are ticked. Esc clears the selection.
+ */
+export function DataTableActionBar<TData>({ selectedRows, rowActions, onClearSelection, noun = ['row', 'rows'], className }: ActionBarProps<TData>) {
+  const count = selectedRows.length
+
+  React.useEffect(() => {
+    if (count === 0) return
+    const onKey = (event: KeyboardEvent) => {
+      // Leave Esc to an open menu or dialog first
+      if (event.key === 'Escape' && !document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"]')) onClearSelection()
+    }
+    // Capture phase: runs before an open menu closes itself on the same key press, so the check above sees it
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [count, onClearSelection])
+
+  if (count === 0) return null
+
+  const leading = rowActions.filter((action) => action.primary && !action.destructive)
+  const trailing = rowActions.filter((action) => !action.primary && !action.destructive)
+  const destructive = rowActions.filter((action) => action.destructive)
+  const name = count === 1 ? noun[0] : noun[1]
+
+  const labelled = (action: RowAction<TData>) => {
+    const Icon = action.icon
+    return (
+      <Button
+        key={action.id}
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={action.disabled}
+        aria-label={action.label}
+        className={BAR_BUTTON}
+        onClick={() => action.onClick(selectedRows)}
+      >
+        {Icon && <Icon className="size-4" />}
+        {/* Icons only on a phone */}
+        <span className="hidden md:inline">{action.label}</span>
+      </Button>
+    )
+  }
+
+  return (
+    <div
+      role="toolbar"
+      aria-label={`Actions for the ${count} selected ${name}`}
+      className={cn(
+        'dark pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-popover p-1.5 text-popover-foreground shadow-2xl ring-1 ring-foreground/10 [scrollbar-width:none] dark:bg-[color-mix(in_oklab,var(--popover)_88%,white)] dark:ring-foreground/20',
+        className,
+      )}
+    >
+      <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-foreground/15 pl-3 pr-1 text-sm">
+        <span className="whitespace-nowrap tabular-nums">{count} {name} selected</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Clear selection"
+          onClick={onClearSelection}
+          className="text-muted-foreground hover:bg-foreground/10 hover:text-popover-foreground"
+        >
+          <RiCloseLine className="size-4" />
+        </Button>
+      </div>
+      {leading.map(labelled)}
+      {leading.length > 0 && trailing.length + destructive.length > 0 && <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-foreground/15" />}
+      {trailing.map(labelled)}
+      {destructive.map((action) => {
+        const Icon = action.icon ?? RiCloseLine
+        const button = (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={action.disabled}
+            aria-label={action.label}
+            className="size-9 shrink-0 text-destructive hover:bg-destructive/15 hover:text-destructive disabled:text-popover-foreground disabled:opacity-40"
+            onClick={() => action.onClick(selectedRows)}
+          >
+            <Icon className="size-4" />
+          </Button>
+        )
+        // A disabled button can't be hovered, so it carries no tooltip (its label is still read out)
+        return action.disabled ? (
+          <React.Fragment key={action.id}>{button}</React.Fragment>
+        ) : (
+          <Tooltip key={action.id}>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent>{action.label}</TooltipContent>
+          </Tooltip>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Edit view (show / hide columns) ───────────────────────────────────────────
 
 type ViewMenuProps<TData, TValue> = {
@@ -213,7 +332,7 @@ export function DataTableViewMenu<TData, TValue>({ columns, columnVisibility, on
           </Button>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-52" inverted={false}>
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Columns to show</DropdownMenuLabel>
         {hideable.map((column) => {
           const id = columnId(column)
@@ -344,7 +463,7 @@ function SummaryCell<TData>({ summary, rows, choice, onChoose }: {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" side="top" className="w-48" inverted={false}>
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Rows on this page</DropdownMenuLabel>
         {summaryKinds(summary.type).map((kind) => (
           <DropdownMenuItem key={kind} onClick={() => onChoose(kind)}>
@@ -543,7 +662,7 @@ export function DataTable<TData, TValue>({
                       aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
                       className={cn(
                         'sticky top-0 z-[2] h-11 border-b border-r border-border bg-background px-3 font-normal text-muted-foreground last:border-r-0',
-                        (isCheckbox || isNumber) && 'w-11 min-w-[2.75rem] px-0 text-center [&:has([role=checkbox])]:pr-0',
+                        (isCheckbox || isNumber) && 'w-11 min-w-[2.75rem] px-0 text-center [&:has([role=checkbox])]:pr-0 [&_[role=checkbox]]:mx-auto',
                         meta?.sticky === 'right' && ['md:right-0 z-[3]', columnsHidden && GRID_STICKY_EDGE],
                       )}
                     >
@@ -607,7 +726,7 @@ export function DataTable<TData, TValue>({
                           key={cell.id}
                           className={cn(
                             'h-12 border-b border-r border-border px-3 last:border-r-0',
-                            narrow && 'w-11 min-w-[2.75rem] px-0 text-center [&:has([role=checkbox])]:pr-0',
+                            narrow && 'w-11 min-w-[2.75rem] px-0 text-center [&:has([role=checkbox])]:pr-0 [&_[role=checkbox]]:mx-auto',
                             cell.column.id === ROW_NUMBER_ID && 'tabular-nums text-muted-foreground',
                             // The open row is marked down its left edge
                             index === 0 && active && 'shadow-[inset_3px_0_0_var(--primary)]',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { type ColumnDef, type SortingState, type Updater, type VisibilityState } from '@tanstack/react-table'
@@ -19,7 +19,6 @@ import {
   RiBarcodeLine,
   RiArrowRightLine,
   RiCloseCircleLine,
-  RiFileExcel2Line,
   RiFileList3Line,
   RiHashtag,
   RiUser3Line,
@@ -32,6 +31,7 @@ import {
   RiShoppingBag3Line,
   RiSearchLine,
   RiCloseLine,
+  RiEqualizerLine,
 } from '@remixicon/react'
 import { downloadFile } from '@/utils/helpers'
 import { toast } from 'sonner'
@@ -50,7 +50,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { DataTable, DataTableSelectionBar, DataTableViewMenu, type RowAction } from '@/components/data-table'
+import { DataTable, DataTableActionBar, DataTableViewMenu, type RowAction } from '@/components/data-table'
 import Pagination from '@/components/common/Pagination'
 import { formatCurrency, formatDate, localDateString } from '@/utils/formatters'
 import {
@@ -68,7 +68,7 @@ import { STATUS_CONFIG } from '@/components/sales-orders/salesOrderStatusConfig'
 import { SalesOrderDetailSheet } from '@/components/sales-orders/SalesOrderDetailSheet'
 import { FindOrderByReceiptDialog } from '@/components/sales-orders/FindOrderByReceiptDialog'
 import { SalesOrderKpiStrip } from '@/components/sales-orders/SalesOrderKpiStrip'
-import { OrderFilterMenu, PatientFilter, type PatientChoice } from '@/components/sales-orders/SalesOrderListFilters'
+import { OrderFilterMenu } from '@/components/sales-orders/SalesOrderListFilters'
 import { createdRange, type CreatedFilter, type InvoiceFilter } from '@/components/sales-orders/salesOrderCreatedRange'
 import { useConfirm } from '@/hooks/useConfirm'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -81,9 +81,9 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'all', label: 'All' },
   // Unfinished orders saved to continue later
   { id: 'draft', label: 'Drafts' },
-  { id: 'created', label: 'Order Created' },
+  { id: 'created', label: 'Created' },
   { id: 'lens_ordered', label: 'Lens Ordered' },
-  { id: 'fitting', label: 'Sent for Fitting' },
+  { id: 'fitting', label: 'Fitting' },
   { id: 'ready', label: 'Ready' },
   // Past the promised delivery date and not ready yet
   { id: 'overdue', label: 'Overdue' },
@@ -194,7 +194,6 @@ const SalesOrders = () => {
   const [search, setSearch] = useState('')
   // Searched on the server (order number, order ID, patient name or phone), not just this page
   const debouncedSearch = useDebounce(search.trim(), 300)
-  const [patient, setPatient] = useState<PatientChoice | null>(null)
   const [createdFilter, setCreatedFilter] = useState<CreatedFilter>('any')
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('any')
   const { confirm, confirmDialog } = useConfirm()
@@ -212,6 +211,24 @@ const SalesOrders = () => {
     if (urlDetail) setDetailOrderId(urlDetail)
   }, [urlDetail])
 
+  // Tabs scrolled out of view on the right: fade the edge so it's clear there are more
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const [moreTabs, setMoreTabs] = useState(false)
+  useEffect(() => {
+    const scroller = tabsRef.current
+    if (!scroller) return
+    const update = () => setMoreTabs(scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1)
+    update()
+    scroller.addEventListener('scroll', update, { passive: true })
+    const resize = new ResizeObserver(update)
+    resize.observe(scroller)
+    if (scroller.firstElementChild) resize.observe(scroller.firstElementChild)
+    return () => {
+      scroller.removeEventListener('scroll', update)
+      resize.disconnect()
+    }
+  }, [])
+
   const changeColumns = (next: VisibilityState) => {
     setColumnVisibility(next)
     try {
@@ -228,13 +245,12 @@ const SalesOrders = () => {
       status: tab !== 'all' && tab !== 'overdue' ? (tab as SalesOrderStatus) : undefined,
       overdue: tab === 'overdue' || undefined,
       search: debouncedSearch || undefined,
-      patient_id: patient?.id,
       invoiced: invoiceFilter === 'any' ? undefined : invoiceFilter === 'yes',
       ...createdRange(createdFilter),
       sort_by: sort && SORTABLE.has(sort.id) ? (sort.id as SalesOrderListParams['sort_by']) : undefined,
       sort_dir: sort ? (sort.desc ? 'desc' : 'asc') : undefined,
     }
-  }, [createdFilter, debouncedSearch, invoiceFilter, patient?.id, sorting, tab])
+  }, [createdFilter, debouncedSearch, invoiceFilter, sorting, tab])
   const listKey = useMemo(() => ['sales-orders', 'list', page, pageSize, filters] as const, [filters, page, pageSize])
 
   const rowStatusMutation = useMutation({
@@ -327,6 +343,8 @@ const SalesOrders = () => {
     )
   }
 
+  const clearSelection = useCallback(() => setSelectedOrderIds([]), [])
+
   const handleRowClick = (order: SalesOrder) => {
     setDetailOrderId(order.order_id)
   }
@@ -412,86 +430,77 @@ const SalesOrders = () => {
   const cancellable = useMemo(() => selectedRows.filter((o) => CANCELLABLE.includes(o.status)), [selectedRows])
   const deletableDrafts = useMemo(() => selectedRows.filter((o) => o.status === 'draft' && !o.invoice_id), [selectedRows])
 
+  // The floating bar's actions. The set stays the same whatever is ticked; what doesn't apply to
+  // the selection is greyed out, so the buttons don't jump about.
   const rowActions = useMemo<RowAction<SalesOrder>[]>(() => {
-    const actions: RowAction<SalesOrder>[] = []
+    const single = selectedRows.length === 1
+    const only = single ? selectedRows[0] : undefined
     const multi = selectedRows.length > 1
 
-    // The next step comes first and stands out
-    if (advanceable.length > 0) {
-      const Icon = commonNextAction ? (WORKFLOW_ACTION_ICONS[commonNextAction.toStatus] ?? RiBox3Line) : RiArrowRightLine
-      const label = commonNextAction?.label ?? 'Move to next step'
-      actions.push({
+    // The next step comes first: each order moves to its own next step
+    const NextIcon = commonNextAction ? (WORKFLOW_ACTION_ICONS[commonNextAction.toStatus] ?? RiBox3Line) : RiArrowRightLine
+    const actions: RowAction<SalesOrder>[] = [
+      {
         id: 'workflow-next',
-        label: multi ? `${label} (${advanceable.length})` : label,
-        icon: Icon,
+        label: commonNextAction?.label ?? 'Next step',
+        icon: NextIcon,
         primary: true,
+        disabled: advanceable.length === 0,
         onClick: () => runBulk(advanceable, (o) => salesOrdersApi.updateStatus(o.order_id, getNextAction(o.status)!.toStatus), {
           loading: `Updating ${plural(advanceable.length, 'order')}…`,
           done: (n) => (commonNextAction ? `${plural(n, 'order')} moved to "${commonNextAction.label}"` : `${plural(n, 'order')} moved to the next step`),
         }),
-      })
-    }
-
-    // One order: edit or continue it, open it, see its invoice
-    actions.push({
-      id: 'edit-order',
-      label: selectedRows[0]?.status === 'draft' ? 'Continue draft' : 'Edit order',
-      icon: RiFileEditLine,
-      showWhen: 'single',
-      primary: advanceable.length === 0,
-      onClick: (rows) => {
-        const order = rows[0]
-        if (order.status === 'draft') navigate(`/sales-orders/assistant?draft=${order.order_id}`)
-        else setOrderToEdit(order)
       },
-    })
-    actions.push({
-      id: 'view-details',
-      label: 'View details',
-      icon: RiEyeLine,
-      showWhen: 'single',
-      onClick: (rows) => setDetailOrderId(rows[0].order_id),
-    })
-    if (selectedRows.length === 1 && selectedRows[0]?.invoice_id) {
-      actions.push({
+      // One order at a time: edit or continue it, see its invoice
+      {
+        id: 'edit-order',
+        label: only?.status === 'draft' ? 'Continue draft' : 'Edit order',
+        icon: RiFileEditLine,
+        primary: true,
+        disabled: !single,
+        onClick: (rows) => {
+          const order = rows[0]
+          if (order.status === 'draft') navigate(`/sales-orders/assistant?draft=${order.order_id}`)
+          else setOrderToEdit(order)
+        },
+      },
+      {
         id: 'view-invoice',
         label: 'View invoice',
         icon: RiReceiptLine,
-        showWhen: 'single',
+        primary: true,
+        disabled: !only?.invoice_id,
         onClick: (rows) => { if (rows[0].invoice_id) navigate(`/invoices?detail=${rows[0].invoice_id}`) },
-      })
-    }
-
-    // Any number of orders
-    actions.push({
-      id: 'download-pdf',
-      label: multi ? `Download ${selectedRows.length} PDFs` : 'Download PDF',
-      icon: RiDownloadLine,
-      onClick: (rows) => runBulk(rows, async (o) => {
-        downloadFile(await salesOrdersApi.downloadPDF(o.order_id), `${o.order_number}.pdf`)
-      }, {
-        loading: `Preparing ${plural(rows.length, 'PDF')}…`,
-        done: (n) => `${plural(n, 'PDF')} downloaded`,
-      }),
-    })
-    actions.push({
-      id: 'export-csv',
-      label: multi ? `Export ${selectedRows.length} to spreadsheet` : 'Export to spreadsheet',
-      icon: RiFileExcel2Line,
-      onClick: (rows) => {
-        // A byte-order mark so Excel reads names as UTF-8
-        downloadFile(new Blob(['﻿' + ordersCsv(rows)], { type: 'text/csv;charset=utf-8' }), `sales-orders-${localDateString()}.csv`)
-        toast.success(`${plural(rows.length, 'order')} exported`)
       },
-    })
-
-    // Destructive, last and apart; each asks first and says what it will leave alone
-    if (cancellable.length > 0) {
-      actions.push({
+      // Any number of orders
+      {
+        id: 'download-pdf',
+        label: multi ? 'Download PDFs' : 'Download PDF',
+        icon: RiDownloadLine,
+        onClick: (rows) => runBulk(rows, async (o) => {
+          downloadFile(await salesOrdersApi.downloadPDF(o.order_id), `${o.order_number}.pdf`)
+        }, {
+          loading: `Preparing ${plural(rows.length, 'PDF')}…`,
+          done: (n) => `${plural(n, 'PDF')} downloaded`,
+        }),
+      },
+      {
+        id: 'export-csv',
+        label: 'Export',
+        icon: RiDownload2Line,
+        onClick: (rows) => {
+          // A byte-order mark so Excel reads names as UTF-8
+          downloadFile(new Blob(['﻿' + ordersCsv(rows)], { type: 'text/csv;charset=utf-8' }), `sales-orders-${localDateString()}.csv`)
+          toast.success(`${plural(rows.length, 'order')} exported`)
+        },
+      },
+      // Destructive, last and apart; each asks first and says what it will leave alone
+      {
         id: 'cancel-orders',
-        label: multi ? `Cancel ${plural(cancellable.length, 'order')}` : 'Cancel order',
+        label: cancellable.length > 1 ? `Cancel ${plural(cancellable.length, 'order')}` : 'Cancel order',
         icon: RiCloseCircleLine,
         destructive: true,
+        disabled: cancellable.length === 0,
         onClick: async (rows) => {
           const skipped = rows.length - cancellable.length
           const ok = await confirm({
@@ -507,14 +516,13 @@ const SalesOrders = () => {
             done: (n) => `${plural(n, 'order')} cancelled`,
           })
         },
-      })
-    }
-    if (deletableDrafts.length > 0) {
-      actions.push({
+      },
+      {
         id: 'delete-drafts',
-        label: multi ? `Delete ${plural(deletableDrafts.length, 'draft')}` : 'Delete draft',
+        label: deletableDrafts.length > 1 ? `Delete ${plural(deletableDrafts.length, 'draft')}` : 'Delete draft',
         icon: RiDeleteBin6Line,
         destructive: true,
+        disabled: deletableDrafts.length === 0,
         onClick: async (rows) => {
           const skipped = rows.length - deletableDrafts.length
           const ok = await confirm({
@@ -530,9 +538,8 @@ const SalesOrders = () => {
             done: (n) => `${plural(n, 'draft')} deleted`,
           })
         },
-      })
-    }
-
+      },
+    ]
     return actions
   }, [advanceable, cancellable, commonNextAction, confirm, deletableDrafts, navigate, runBulk, selectedRows])
 
@@ -768,7 +775,7 @@ const SalesOrders = () => {
                     <RiMore2Line className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-48" inverted={false}>
                   <DropdownMenuItem onClick={() => setDetailOrderId(order.order_id)}>
                     <RiEyeLine className="size-4" />
                     View Details
@@ -834,7 +841,7 @@ const SalesOrders = () => {
 
   return (
     // The page fills the space under the app header, edge to edge; only the table scrolls
-    <div className="-m-4 flex h-[calc(100svh-4rem)] min-h-[32rem] flex-col overflow-hidden bg-background md:-m-8">
+    <div className="relative -m-4 flex h-[calc(100svh-4rem)] min-h-[32rem] flex-col overflow-hidden bg-background md:-m-8">
       {/* Edit order confirmation (non-draft orders) */}
       <AlertDialog open={!!orderToEdit} onOpenChange={(open) => { if (!open) setOrderToEdit(null) }}>
         <AlertDialogContent>
@@ -877,17 +884,11 @@ const SalesOrders = () => {
         }}
       />
 
-      {/* Title bar; the selection's actions appear here while orders are ticked */}
+      {/* Title bar */}
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
         <RiFileList3Line className="size-4 text-muted-foreground" />
         <h1 className="text-sm font-medium text-foreground">Sales Orders</h1>
-        <div className="ml-auto flex min-w-0 items-center gap-2">
-          <DataTableSelectionBar
-            selectedRows={selectedRows}
-            rowActions={rowActions}
-            onClearSelection={() => setSelectedOrderIds([])}
-            className="min-w-0 border-r border-border pr-2"
-          />
+        <div className="ml-auto flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setFindByReceiptOpen(true)}>
             <RiBarcodeLine />
             <span className="hidden sm:inline">Scan invoice</span>
@@ -895,15 +896,22 @@ const SalesOrders = () => {
         </div>
       </div>
 
-      {/* Status tabs on the left; search, filters, view and the main actions on the right */}
-      {/* One row where there's room; on narrower screens the tools wrap under the tabs, still on the right */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-3 py-2">
+      {/* One row: status tabs on the left (they scroll sideways when short of room), search,
+          filter, view and the main actions on the right. Only a phone puts the tools on a row of their own. */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-3 py-2 md:flex-nowrap">
+        <div
+          ref={tabsRef}
+          className={cn(
+            'min-w-0 flex-1 basis-full overflow-x-auto [scrollbar-width:none] md:basis-0 [&::-webkit-scrollbar]:hidden',
+            moreTabs && '[mask-image:linear-gradient(to_right,black_calc(100%-3rem),transparent)]',
+          )}
+        >
         <ToggleGroup
           type="single"
           value={tab}
           onValueChange={(value) => { if (value) chooseTab(value as TabId) }}
           aria-label="Filter by status"
-          className="min-w-0 max-w-full flex-auto justify-start gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="w-max justify-start gap-0.5"
         >
           {TABS.map((item) => {
             const count = counts?.[item.id]
@@ -930,16 +938,17 @@ const SalesOrders = () => {
             )
           })}
         </ToggleGroup>
+        </div>
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
-          <InputGroup className="h-8 w-full bg-background sm:w-52">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <InputGroup className="h-8 w-40 bg-background sm:w-48 2xl:w-60">
             <InputGroupAddon>
               <RiSearchLine />
             </InputGroupAddon>
             <InputGroupInput
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(1) }}
-              placeholder="Search orders"
+              placeholder="Search orders or patients"
               aria-label="Search orders by number, patient name or phone"
             />
             {search && (
@@ -950,7 +959,6 @@ const SalesOrders = () => {
               </InputGroupAddon>
             )}
           </InputGroup>
-          <PatientFilter value={patient} onChange={(next) => { setPatient(next); setPage(1) }} />
           <OrderFilterMenu
             compact
             created={createdFilter}
@@ -958,15 +966,32 @@ const SalesOrders = () => {
             onCreatedChange={(value) => { setCreatedFilter(value); setPage(1) }}
             onInvoiceChange={(value) => { setInvoiceFilter(value); setPage(1) }}
           />
-          <DataTableViewMenu columns={columns} columnVisibility={columnVisibility} onColumnVisibilityChange={changeColumns} />
-          <Separator orientation="vertical" className="mx-0.5 hidden h-5 sm:block" />
-          <Button variant="ghost" size="sm" onClick={exportOrders} disabled={exporting} title={selectedRows.length ? 'Export the selected orders' : 'Export every order in this view'}>
+          <DataTableViewMenu
+            columns={columns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={changeColumns}
+            trigger={
+              <Button variant="ghost" size="sm" aria-label="Edit view" title="Show or hide columns">
+                <RiEqualizerLine />
+                <span className="hidden 2xl:inline">Edit view</span>
+              </Button>
+            }
+          />
+          <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={exportOrders}
+            disabled={exporting}
+            aria-label="Export"
+            title={selectedRows.length ? 'Export the selected orders' : 'Export every order in this view'}
+          >
             {exporting ? <RiLoader4Line className="animate-spin" /> : <RiDownload2Line />}
-            Export
+            <span className="hidden 2xl:inline">Export</span>
           </Button>
-          <Button size="sm" onClick={() => navigate('/sales-orders/assistant')}>
+          <Button size="sm" className="ml-1" onClick={() => navigate('/sales-orders/assistant')}>
             <RiAddLine />
-            New sales order
+            <span className="hidden sm:inline">New sales order</span>
           </Button>
         </div>
       </div>
@@ -989,13 +1014,17 @@ const SalesOrders = () => {
         rowActions={rowActions}
         onRowClick={handleRowClick}
         isRowActive={(order) => order.order_id === detailOrderId}
-        onClearSelection={() => setSelectedOrderIds([])}
+        onClearSelection={clearSelection}
         emptyMessage={tab === 'overdue' ? 'Nothing is late. Every order is on time.' : 'No sales orders found.'}
         rowNumberStart={(page - 1) * pageSize + 1}
         summaryStorageKey="sales-orders.calculate"
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={changeColumns}
       />
+      {/* Ticked orders: their actions float over the foot of the table */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-[4.75rem] z-20 flex justify-center px-4">
+        <DataTableActionBar selectedRows={selectedRows} rowActions={rowActions} onClearSelection={clearSelection} noun={['order', 'orders']} />
+      </div>
       {data && data.total > 0 && (
         <div className="shrink-0 [&>div]:py-2">
           <Pagination

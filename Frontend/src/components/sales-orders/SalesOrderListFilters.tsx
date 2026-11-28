@@ -1,10 +1,6 @@
-import { useState } from 'react'
-import { RiCloseLine, RiFilter3Line, RiUserSearchLine } from '@remixicon/react'
+import { RiFilter3Line } from '@remixicon/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,77 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { usePatientSearch } from '@/hooks/usePatientSearch'
 import { CREATED_LABELS, type CreatedFilter, type InvoiceFilter } from './salesOrderCreatedRange'
-
-export interface PatientChoice {
-  id: string
-  name: string
-}
-
-/** "Filter by patient": search patients by name or phone and list only their orders */
-export function PatientFilter({ value, onChange }: { value: PatientChoice | null; onChange: (patient: PatientChoice | null) => void }) {
-  const [open, setOpen] = useState(false)
-  const [term, setTerm] = useState('')
-  const { data, isFetching } = usePatientSearch(term)
-  const patients = data?.data ?? []
-
-  const trigger = (
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        size="sm"
-        className={cn('max-w-56', value && 'border-primary/40 bg-primary/5 text-foreground')}
-      >
-        <RiUserSearchLine />
-        <span className="truncate">{value ? value.name : 'Filter by patient'}</span>
-      </Button>
-    </PopoverTrigger>
-  )
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      {value ? (
-        <ButtonGroup>
-          {trigger}
-          <Button variant="outline" size="icon-sm" aria-label="Show every patient's orders" onClick={() => onChange(null)} className="border-primary/40 bg-primary/5">
-            <RiCloseLine />
-          </Button>
-        </ButtonGroup>
-      ) : (
-        trigger
-      )}
-      <PopoverContent align="end" className="w-72 p-0">
-        <Command shouldFilter={false}>
-          <CommandInput placeholder="Patient name or phone…" value={term} onValueChange={setTerm} />
-          <CommandList>
-            <CommandEmpty>
-              {!term.trim() ? 'Type a name or phone number' : isFetching ? 'Searching…' : 'No patients found'}
-            </CommandEmpty>
-            {patients.length > 0 && (
-              <CommandGroup>
-                {patients.map((patient) => (
-                  <CommandItem
-                    key={patient.patient_id}
-                    value={patient.patient_id}
-                    onSelect={() => {
-                      onChange({ id: patient.patient_id, name: patient.name })
-                      setOpen(false)
-                      setTerm('')
-                    }}
-                  >
-                    <span className="truncate">{patient.name}</span>
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">{patient.phone}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 /** "Filter": when orders were created, and whether they have an invoice yet */
 export function OrderFilterMenu({ created, invoice, onCreatedChange, onInvoiceChange, compact }: {
@@ -110,7 +36,7 @@ export function OrderFilterMenu({ created, invoice, onCreatedChange, onInvoiceCh
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-52" inverted={false}>
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Created</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={created} onValueChange={(value) => onCreatedChange(value as CreatedFilter)}>
           {(Object.keys(CREATED_LABELS) as CreatedFilter[]).map((key) => (

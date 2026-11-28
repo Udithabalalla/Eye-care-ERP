@@ -30,12 +30,34 @@ const DropdownMenuTrigger = React.forwardRef<
 ))
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
+// A plain light menu (dark in dark mode) with a border and shadow, like the rest of the page's
+// surfaces. Pages built on the grid table use it; the inverted glass menu stays the default.
+const PLAIN_MENU =
+  "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-32 origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 !animate-none [&_[data-slot$=-item]]:min-h-8 [&_[data-slot$=-item]]:text-sm [&_[data-slot$=-item]_svg:not([class*='size-'])]:size-4"
+
 function DropdownMenuContent({
   className,
   align = "start",
   sideOffset = 4,
+  inverted = true,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /** false: a plain popover-coloured menu instead of the inverted (dark) glass one */
+  inverted?: boolean
+}) {
+  if (!inverted) {
+    return (
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          data-slot="dropdown-menu-content"
+          sideOffset={sideOffset}
+          align={align}
+          className={cn(PLAIN_MENU, className)}
+          {...props}
+        />
+      </DropdownMenuPrimitive.Portal>
+    )
+  }
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
