@@ -769,6 +769,9 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const isFormDirty = isDirty && !savedOrderNumber
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
   const [pendingNavPath, setPendingNavPath] = useState<string | null>(null)
+  // Set once staff have chosen to leave (draft saved, or Discard & Leave): the guards below
+  // let the navigation through, so the browser doesn't ask "Leave page?" a second time
+  const leavingRef = useRef(false)
 
   // Intercept in-app navigation when form is dirty using history.listen
   useEffect(() => {
@@ -776,7 +779,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     // history.pushState / replaceState monkey-patch to intercept SPA navigation
     const originalPush = window.history.pushState.bind(window.history)
     window.history.pushState = (state, title, url) => {
-      if (url && url !== window.location.pathname + window.location.search) {
+      if (!leavingRef.current && url && url !== window.location.pathname + window.location.search) {
         setPendingNavPath(String(url))
         setShowLeaveDialog(true)
         return
@@ -789,7 +792,11 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   // Block browser tab close / refresh
   useEffect(() => {
     if (!isFormDirty) return
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    const handler = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [isFormDirty])
@@ -804,6 +811,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
   const handleLeaveConfirm = () => {
     setShowLeaveDialog(false)
     if (pendingNavPath) {
+      leavingRef.current = true
       // reset form dirty state so the pushState override won't re-trigger
       reset(getValues(), { keepValues: true })
       try {
@@ -1486,6 +1494,10 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     handleSubmit(onSubmit)()
   }
 
+  /**
+   * Save what's been entered as a draft (status "draft", under Sales Orders → Drafts),
+   * payment details included, then leave: to where staff were going, or to the Drafts list.
+   */
   const saveDraftAndLeave = async () => {
     const values = getValues()
     const patientName = values.patient.newData.fullName?.trim()
@@ -1537,7 +1549,7 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
     try {
       const patientId = values.patient.existingId || (await createPatientMutation.mutateAsync(buildPatientPayload(values.patient, phoneKey(values.patient.newData.phone) === sharedPhoneKey))).patient_id
 
-      const createdOrder = await createSalesOrderMutation.mutateAsync({
+      const draftPayload = {
         patient_id: patientId,
         prescription_id: values.prescription.existingId || undefined,
         tested_by: values.salesOrder.testedBy || undefined,
@@ -1545,15 +1557,37 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
         date_of_full_payment: `${values.salesOrder.dateOfFullPayment}T00:00:00Z`,
         notes: values.remarks.trim() || undefined,
         discount_amount: derivedTotals.discountTotal,
-        measurements: { order_date: values.salesOrder.orderDate, frame_total: values.frame.total, lens_total: values.lens.total },
+        measurements: {
+          order_date: values.salesOrder.orderDate,
+          frame_total: values.frame.total,
+          lens_total: values.lens.total,
+          other_expenses_total: derivedTotals.expenseTotal,
+          // The payment details come back when the draft is continued. Nothing is booked yet:
+          // the advance is recorded when the draft becomes an order.
+          discount: derivedTotals.discountTotal,
+          advance_payment: salesOrder.isOld ? 0 : Number(values.totals.advancedPayment || 0),
+          advance_payment_method: values.totals.paymentMethod,
+        },
         sale_location: values.saleLocation || undefined,
         status: 'draft' as const,
         items: draftItems,
-      })
+      }
+      // Continuing a draft saves over it instead of making a second one
+      const savedDraft = draftOrderId && !isEditingOrder
+        ? await updateSalesOrderMutation.mutateAsync({ id: draftOrderId, data: draftPayload })
+        : await createSalesOrderMutation.mutateAsync(draftPayload)
 
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
-      toast.success(`Draft saved as ${createdOrder.order_number}`)
-      handleLeaveConfirm()
+      queryClient.invalidateQueries({ queryKey: ['sales-orders-drafts'] })
+      toast.success(`Draft saved as ${savedDraft.order_number}`)
+      if (pendingNavPath) {
+        handleLeaveConfirm()
+      } else {
+        // Saved from the last step: on to the drafts, without the "unsaved changes" prompts
+        setShowLeaveDialog(false)
+        leavingRef.current = true
+        navigate('/sales-orders?status=draft')
+      }
     } catch (error: any) {
       toast.error(extractApiErrorMessage(error?.response?.data?.detail, 'Failed to save draft'))
       showPatientStepIfNumberTaken(error)
@@ -3315,13 +3349,22 @@ const SalesOrderIntakeForm = ({ draftOrderId, reorderFromId, initialPatient }: {
                   <RiArrowRightSLine className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" disabled={isSaving} onClick={handleSubmitClick}>
+                <>
+                {/* Finish later: saves as a draft, payment details included (not when editing a confirmed order) */}
+                {!isEditingOrder && (
+                  <Button type="button" variant="outline" disabled={isSaving || isSavingDraft} onClick={saveDraftAndLeave}>
+                    {isSavingDraft ? <RiLoader4Line className="mr-1.5 h-4 w-4 animate-spin" /> : <RiSaveLine className="mr-1.5 h-4 w-4" />}
+                    {isSavingDraft ? 'Saving draft...' : 'Save as draft'}
+                  </Button>
+                )}
+                <Button type="button" disabled={isSaving || isSavingDraft} onClick={handleSubmitClick}>
                   {isSaving ? (
                     <><RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />Saving...</>
                   ) : (
                     <>{isEditingOrder ? 'Save Changes' : 'Create Sales Order'}<RiArrowRightSLine className="ml-1.5 h-4 w-4" /></>
                   )}
                 </Button>
+                </>
               )}
             </div>
           </div>
